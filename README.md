@@ -7,7 +7,7 @@
 The latest **dbslice** library is available here
 
 ```html
-<script src="http://www.dbslice.org/dbslice.js></script>
+<script src="http://www.dbslice.org/dbslice.js"></script>
 ```
 
 ## Concept
@@ -38,12 +38,16 @@ myMetaData = {
 	]
 }
 ```
-The above contains `data` for the first three Tasks. The `taskId' field is a unique identifier for each Task. This object is translated into the data structure required by **dbslice** using the `cfInit` function:
+The above contains `data` for the first three Tasks. The `taskId` field is a unique identifier for each Task. This object is translated into the data structure required by **dbslice** using the `cfInit` function:
 
 ```javascript
-var cfData = dbslice.cfInit( myMetaData);
+var cfData = dbslice.cfInit( myMetaData );
 ```
 
+**dbslice** can now generate plots using the `cfData` object. These plots are configured into a **dbslice** `session` using `plots` and `plotRows`.
+
+### Sessions, Plots and Plot Rows
+The `session` object defines the plots that are shown in the browser. Plots are organised in `plotRows`. Each `plot` in a `plotRow` can either be individual and distinct (this is normally the case for the filter plots that generate the selected Tasks of interest) or they can all be of the same type (used to compare the selected Tasks). 
 
 
 
