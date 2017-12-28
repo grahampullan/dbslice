@@ -4,3 +4,7 @@
 **dbslice** is built on the [d3.js](https://d3js.org) , [crossfilter.js](https://github.com/crossfilter/crossfilter) and [three.js](https://threejs.org) libraries.
 
 ## Concept
+**dbslice** provides an interactive interface to a remote collection of data. The data is assumed to be organised by *Tasks*, where a *Task* an individual subset of data that has some descriptor, or combination of descriptors, in common. Different data types can be associated with each Task (e.g. points, lines and surfaces). It is also possible to look at different parts of a Task by specifying a *Slice* identifier.
+
+In the browser, **dbslice** works with high-level descriptors of all of the available Tasks. The user filters these (via bar charts, histograms, etc) until the desired selection of Tasks is obtained. **dbslice**  then requests specified data from the selected Tasks for further, deeper, plotting as required by the user. In this way, plots are generated, on demand, for detailed comparisons of equivalent data.
+
