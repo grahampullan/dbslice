@@ -15,4 +15,20 @@ In this example, each Task is a 3D array of data. The data is some property *f* 
 ### Meta Data 
 Each Task is described, at a high-level, by its *Meta Data*. This is the data that is transferred to the browser to allow the user to filter the available Tasks down to a selection of interest.
 
-In this example, we define two Meta Data Properties and two Data Properties that will be available for filtering. The Meta Data Properties (strings) `Simulation type` and `Model type`. The Data Properties (floats) are `Average f` and `Std dev f`. 
+In this example, each Tasks has two Meta Data Properties and two Data Properties. The Meta Data Properties (strings) are `Simulation type` and `Model type`. The Data Properties (floats) are `Average f` and `Std dev f`. 
+
+```javascript
+myMetaData = {
+	header : { 
+		metaDataProperties : [ 'Simulation type' , 'Model type' ] ,
+		dataProperties : [ 'Average f' , 'Std dev f' ]
+	} ,
+	data : [
+		{ taskId : 0, 'Simulation type' : 'Blue' , 'Model type' : 'Basic' , 'Average f' : 0.9827, 'Std dev f' : 0.0129 } , 
+		{ taskId : 1, 'Simulation type' : 'Blue' , 'Model type' : 'Std'   , 'Average f' : 1.2352, 'Std dev f' : 0.0389 } ,
+		{ taskId : 2, 'Simulation type' : 'Red'  , 'Model type' : 'Std'   , 'Average f' : 2.6352, 'Std dev f' : 0.0221 } ,
+		....
+	]
+}
+```
+
