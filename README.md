@@ -15,4 +15,4 @@ In this example, each Task is a 3D array of data. The data is some property *f* 
 ### Meta Data 
 Each Task is described, at a high-level, by its *Meta Data*. This is the data that is transferred to the browser to allow the user to filter the available Tasks down to a selection of interest.
 
-In this example, we define two Meta Data Properties and two Data Properties that will be available for filtering. The Meta Data Properties (strings) `Simulation type' and `Model type'. The Data Properties (floats) are 'Average f' and 'Std dev f'. 
+In this example, we define two Meta Data Properties and two Data Properties that will be available for filtering. The Meta Data Properties (strings) `Simulation type` and `Model type`. The Data Properties (floats) are `Average f` and `Std dev f`. 
