@@ -25,29 +25,43 @@ Each Task is described, at a high-level, by its *Meta Data*. This is the data th
 In this example, each Tasks has two Meta Data Properties and two Data Properties. The Meta Data Properties (strings) are `Simulation type` and `Model type`. The Data Properties (floats) are `Average f` and `Std dev f`. An object is required with these descriptor key names (`header`) and the values for each Task (`data`):
 
 ```javascript
-myMetaData = {
+var metaData = {
 	header : { 
-		metaDataProperties : [ 'Simulation type' , 'Model type' ] ,
-		dataProperties : [ 'Average f' , 'Std dev f' ]
+		metaDataProperties : [ "Simulation type" , "Model type" ] ,
+		dataProperties : [ "Average f" , "Std dev f" ]
 	} ,
 	data : [
-		{ taskId : 0, 'Simulation type' : 'Blue' , 'Model type' : 'Basic' , 'Average f' : 0.9827, 'Std dev f' : 0.0129 } , 
-		{ taskId : 1, 'Simulation type' : 'Blue' , 'Model type' : 'Std'   , 'Average f' : 1.2352, 'Std dev f' : 0.0389 } ,
-		{ taskId : 2, 'Simulation type' : 'Red'  , 'Model type' : 'Std'   , 'Average f' : 2.6352, 'Std dev f' : 0.0221 } ,
+		{ taskId : 0, "Simulation type" : "Blue" , "Model type" : "Basic" , "Average f" : 0.9827, "Std dev f" : 0.0129 } , 
+		{ taskId : 1, "Simulation type" : "Blue" , "Model type" : "Std"   , "Average f" : 1.2352, "Std dev f" : 0.0389 } ,
+		{ taskId : 2, "Simulation type" : "Red"  , "Model type" : "Std"   , "Average f" : 2.6352, "Std dev f" : 0.0221 } ,
 		...
 	]
 }
 ```
-The above contains `data` for the first three Tasks. The `taskId` field is a unique identifier for each Task. This object is translated into the data structure required by **dbslice** using the `cfInit` function:
+The above contains `data` for the first three Tasks. The `taskId` field is a unique identifier for each Task. This object is translated into the data structure required by **dbslice** using the `cfInit` function (in **dbslice**, *cf* denotes a function interacting with the [crossfilter.js](https://github.com/crossfilter/crossfilter) library:
 
 ```javascript
-var cfData = dbslice.cfInit( myMetaData );
+var cfData = dbslice.cfInit( metaData );
 ```
 
 **dbslice** can now generate plots using the `cfData` object. These plots are configured into a **dbslice** `session` using `plots` and `plotRows`.
 
 ### Sessions, Plots and Plot Rows
 The `session` object defines the plots that are shown in the browser. Plots are organised in `plotRows`. Each `plot` in a `plotRow` can either be individual and distinct (this is normally the case for the filter plots that generate the selected Tasks of interest) or they can all be of the same type (used to compare the selected Tasks). 
+
+```javascript
+var session = {
+	title : "3D box of data demo" ,
+	plotRows : [
+		{ title : "3D box database" ,
+		  plots : [
+		  	{ plotFunc : dbslice.cfD3BarChart ,
+		  	  data : { cfData : cfData , property : "Simulation type" } ,
+		  	  layout : { title : "Simulation type" , colWidth : 4 , height : 300 } } , 
+}
+```
+
+
 
 
 
