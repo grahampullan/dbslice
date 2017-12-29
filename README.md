@@ -88,9 +88,9 @@ We now add additional plotRows to the `session` that will, when requested by the
 var linePlotRow = {
 	title : "f(y) at z=0"
 	plots : [] ,
-	ctrl : { plotFunc : dbslice.d3LineSeries ,  \\ multiple lines on a single plot
+	ctrl : { plotFunc : dbslice.d3LineSeries ,  // multiple lines on a single plot
 	         urlTemplate : "http://dbslice.org/demos/testbox/data/f_line_${sliceId}_task_${taskId}.json" ,
-	         tasksByFilter : true ,  \\ get taskIds array from current filter selection
+	         tasksByFilter : true ,  // get taskIds array from current filter selection
 	         sliceIds : [ "xstart" , "xmid" , "xend" ] , 
 	         formatDataFunc : function( rawData ) {
 	         	var series = [];
