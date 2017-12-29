@@ -82,13 +82,14 @@ where `target` is the id of the html div element in which the **dbslice** sessio
 
 The `session` defined above will provide 3 plots that update interactively as the user selects a bar on the bar chart or adjusts the selected range on the histogram. **dbslice** is using [crossfilter.js](https://github.com/crossfilter/crossfilter) to provide the current selection, and [d3.js](https://d3js.org) to generate and update the plots.
 
-We now add additional plotRows to the `session` that will, when requested by the user, get additional data for the current selection of Tasks and generate comparative plots.
+We now add an additional plotRow to the `session` that will, when requested by the user, get additional data for the current selection of Tasks and generate comparative plots.
 
 ```javascript
 var linePlotRow = {
 	title : "f(y) at z=0"
 	plots : [] ,
-	ctrl : { plotFunc : dbslice.d3LineSeries ,  // multiple lines on a single plot
+	ctrl : { plotFunc : dbslice.d3LineSeries ,  // multiple lines on a single plot with d3
+	         layout : { colWidth : 3 , height : 300 } ,
 	         urlTemplate : "http://dbslice.org/demos/testbox/data/f_line_${sliceId}_task_${taskId}.json" ,
 	         tasksByFilter : true ,  // get taskIds array from current filter selection
 	         sliceIds : [ "xstart" , "xmid" , "xend" ] , 
@@ -100,7 +101,32 @@ var linePlotRow = {
 };
 session.plotRows.push( linePlotRow );
 ```
-The `plots` array for this plotRow is empty. **dbslice** will automatically populate the `plots` array using the information in the `ctrl` object. The `ctrl` object specifies the plot function `plotFunc`, the root of the location of the data `urlTemplate`, an instruction to obtain the taskId's from the current filter `tasksByFilter : true` and two optional keys: a list of `sliceIds` and a function to reformat the data received from the url into the structure needed by `plotFunc`.  The placeholders `${taskId}` (required) and `${sliceId}` (optional) in `urlTemplate` are replaced by the current sliceId and taskId before the url is accessed.
+The `plots` array for this plotRow is empty. **dbslice** will automatically populate the `plots` array using the information in the `ctrl` object. The `ctrl` object specifies the plot function `plotFunc`, the root of the location of the data `urlTemplate`, an instruction to obtain the taskId's from the current filter `tasksByFilter : true` and two optional keys: a list of `sliceIds` and a function to reformat the data received from the url into the structure needed by `plotFunc`.  The placeholders `${taskId}` (required) and `${sliceId}` (optional) in `urlTemplate` are replaced by the current sliceId and taskId before the url is accessed. `formatDataFunc` allows data from many sources to be used by **dbslice**.
+
+We add two more plotRows to our session:
+
+```javascript 
+var contourPlotRow = {
+	title : "f at x=0"
+	plots : [] ,
+	ctrl : { plotFunc : dbslice.d3ContourStruct2d ,  // contour plot with d3
+	         layout : { colWidth : 3 , height : 300 } , 
+	         urlTemplate : "http://dbslice.org/demos/testbox/data/f_area2d_xstart_task_${taskId}.json" ,
+	         tasksByFilter : true 
+};
+session.plotRows.push( contourPlotRow );
+
+var surfacePlotRow = {
+	title : "f at x=0, x=mid, x=end"
+	plots : [] ,
+	ctrl : { plotFunc : dbslice.d3ContourStruct2d ,  // surface plot with threejs
+	         layout : { colWidth : 4 , height : 400 } , 
+	         urlTemplate : "http://dbslice.org/demos/testbox/data/f_area3d_task_${taskId}.json" ,
+	         tasksByFilter : true ,
+	         formatDataFunc : function (rawData) { return dbslice.threeMeshFromStruct( rawData )}
+};
+session.plotRows.push( surfacePlotRow );
+```
 
 
 
