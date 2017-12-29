@@ -53,11 +53,20 @@ The `session` object defines the plots that are shown in the browser. Plots are 
 var session = {
 	title : "3D box of data demo" ,
 	plotRows : [
-		{ title : "3D box database" ,
+		{ title : "3D box database" ,  // plotRow of charts for filtering
 		  plots : [
-		  	{ plotFunc : dbslice.cfD3BarChart ,
+		  	{ plotFunc : dbslice.cfD3BarChart ,  // bar chart
 		  	  data : { cfData : cfData , property : "Simulation type" } ,
-		  	  layout : { title : "Simulation type" , colWidth : 4 , height : 300 } } , 
+		  	  layout : { title : "Simulation" , colWidth : 4 , height : 300 } } ,
+		  	{ plotFunc : dbslice.cfD3BarChart ,  // bar chart
+		  	  data : { cfData : cfData , property : "Model type" } ,
+		  	  layout : { title : "Model" , colWidth : 4 , height : 300 } } ,
+		    { plotFunc : dbslice.cfD3Histogram ,  // histogram
+		  	  data : { cfData : cfData , property : "Average f" } ,
+		  	  layout : { title : "Average" , colWidth : 4 , height : 300 } } 
+		   ] 
+		} ,
+		{ title : "
 }
 ```
 
