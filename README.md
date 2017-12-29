@@ -49,6 +49,8 @@ var cfData = dbslice.cfInit( metaData );
 ### Sessions, Plots and Plot Rows
 The `session` object defines the plots that are shown in the browser. Plots are organised in `plotRows`. Each `plot` in a `plotRow` can either be individual and distinct (this is normally the case for the filter plots that generate the selected Tasks of interest) or they can all be of the same type (used to compare the selected Tasks). 
 
+We start by defining a `session` with one `plotRow` containing three `plots`:
+
 ```javascript
 var session = {
 	title : "3D box of data demo" ,
@@ -68,6 +70,16 @@ var session = {
 		} ]
 }
 ```
+
+The `plotRows` array contains a single plotRow object; the `plots` array within this plotRow contains three plot elements. A plot is defined by the function required to produce it `plotFunc`, the `data` to be accessed by this function, and any `layout` attributes that are required. All plots in **dbslice** are defined in this way.
+
+The `session` is rendered using:
+
+```javascript
+dbslice.render( target , session );
+```
+where `target` is the id of the html div element in which the **dbslice** session is to be rendered.
+
 
 
 
