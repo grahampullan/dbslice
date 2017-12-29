@@ -7,7 +7,7 @@
 The latest **dbslice** library is available here
 
 ```html
-<script src="http://www.dbslice.org/dbslice.js"></script>
+<script src="http://dbslice.org/dbslice.js"></script>
 ```
 
 ## Concept
@@ -61,12 +61,11 @@ var session = {
 		  	{ plotFunc : dbslice.cfD3BarChart ,  // bar chart
 		  	  data : { cfData : cfData , property : "Model type" } ,
 		  	  layout : { title : "Model" , colWidth : 4 , height : 300 } } ,
-		    { plotFunc : dbslice.cfD3Histogram ,  // histogram
+		  	{ plotFunc : dbslice.cfD3Histogram ,  // histogram
 		  	  data : { cfData : cfData , property : "Average f" } ,
 		  	  layout : { title : "Average" , colWidth : 4 , height : 300 } } 
 		   ] 
-		} ,
-		{ title : "
+		} ]
 }
 ```
 
