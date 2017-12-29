@@ -88,8 +88,8 @@ We now add additional plotRows to the `session` that will, when requested by the
 var linePlotRow = {
 	title : "f(y) at z=0"
 	plots : [] ,
-	ctrl : {	plotFunc : dbslice.d3LineSeries ,
-				key : value }
+	ctrl : { plotFunc : dbslice.d3LineSeries ,
+	         key : value }
 };
 session.plotRows.push( linePlotRow );
 ```
