@@ -36,7 +36,7 @@ var metaData = {
 		{ taskId : 2, "Simulation type" : "Red"  , "Model type" : "Std"   , "Average f" : 2.6352, "Std dev f" : 0.0221 } ,
 		...
 	]
-}
+};
 ```
 The above contains `data` for the first three Tasks. The `taskId` field is a unique identifier for each Task. This object is translated into the data structure required by **dbslice** using the `cfInit` function (in **dbslice**, *cf* denotes a function interacting with the [crossfilter.js](https://github.com/crossfilter/crossfilter) library:
 
@@ -68,7 +68,7 @@ var session = {
 		  	  layout : { title : "Average" , colWidth : 4 , height : 300 } } 
 		   ] 
 		} ]
-}
+};
 ```
 
 The `plotRows` array contains a single plotRow object; the `plots` array within this plotRow contains three plot elements. A plot is defined by the function required to produce it `plotFunc`, the `data` to be accessed by this function, and any `layout` attributes that are required. All plots in **dbslice** are defined in this way.
@@ -88,12 +88,20 @@ We now add additional plotRows to the `session` that will, when requested by the
 var linePlotRow = {
 	title : "f(y) at z=0"
 	plots : [] ,
-	ctrl : { plotFunc : dbslice.d3LineSeries ,
-	         key : value }
+	ctrl : { plotFunc : dbslice.d3LineSeries ,  \\ multiple lines on a single plot
+	         urlTemplate : "http://dbslice.org/demos/testbox/data/f_line_${sliceId}_task_${taskId}.json" ,
+	         tasksByFilter : true ,  \\ get taskIds array from current filter selection
+	         sliceIds : [ "xstart" , "xmid" , "xend" ] , 
+	         formatDataFunc : function( rawData ) {
+	         	var series = [];
+	         	rawData.forEach( function( line, index ) { series.push( { name : index , data : line } ) } );
+	         	return { series : series };
+	       }
 };
 session.plotRows.push( linePlotRow );
 ```
 
+Comments.
 
 
 
