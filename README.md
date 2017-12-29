@@ -80,7 +80,19 @@ dbslice.render( target , session );
 ```
 where `target` is the id of the html div element in which the **dbslice** session is to be rendered.
 
+The `session` defined above will provide 3 plots that update interactively as the user selects a bar on the bar chart or adjusts the selected range on the histogram. **dbslice** is using [crossfilter.js](https://github.com/crossfilter/crossfilter) to provide the current selection, and [d3.js](https://d3js.org) to generate and update the plots.
 
+We now add additional plotRows to the `session` that will, when requested by the user, get additional data for the current selection of Tasks and generate comparative plots.
+
+```javascript
+var linePlotRow = {
+	title : "f(y) at z=0"
+	plots : [] ,
+	ctrl : {	plotFunc : dbslice.d3LineSeries ,
+				key : value }
+};
+session.plotRows.push( linePlotRow );
+```
 
 
 
