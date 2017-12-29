@@ -76,9 +76,9 @@ The `plotRows` array contains a single plotRow object; the `plots` array within 
 The `session` is rendered using:
 
 ```javascript
-dbslice.render( target , session );
+dbslice.render( divId , session );
 ```
-where `target` is the id of the html div element in which the **dbslice** session is to be rendered.
+where `divId`` is the id of the html div element in which the **dbslice** session is to be rendered.
 
 The `session` defined above will provide 3 plots that update interactively as the user selects a bar on the bar chart or adjusts the selected range on the histogram. **dbslice** is using [crossfilter.js](https://github.com/crossfilter/crossfilter) to provide the current selection, and [d3.js](https://d3js.org) to generate and update the plots.
 
@@ -126,6 +126,13 @@ var surfacePlotRow = {
 	         formatDataFunc : function (rawData) { return dbslice.threeMeshFromStruct( rawData )}
 };
 session.plotRows.push( surfacePlotRow );
+```
+
+The `session` can now be rendered by **dbslice**. An optional `config` argument is included to add the "plot selected tasks" button so that the user can ask the **dbslice** to generate the plots in the new plotRows.
+
+```javascript
+var config = { plotTasksButton : true };
+dbslice.render( divId , session , config );
 ```
 
 
