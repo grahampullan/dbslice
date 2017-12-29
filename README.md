@@ -100,8 +100,9 @@ var linePlotRow = {
 };
 session.plotRows.push( linePlotRow );
 ```
+The `plots` array for this plotRow is empty. **dbslice** will automatically populate the `plots` array using the information in the `ctrl` object. The `ctrl` object specifies the plot function `plotFunc`, the root of the location of the data `urlTemplate`, an instruction to obtain the taskId's from the current filter `tasksByFilter : true` and two optional keys: a list of `sliceIds` and a function to reformat the data received from the url into the structure needed by `plotFunc`.  The placeholders `${taskId}` (required) and `${sliceId}` (optional) in `urlTemplate` are replaced by the current sliceId and taskId before the url is accessed.
 
-Comments.
+
 
 
 
