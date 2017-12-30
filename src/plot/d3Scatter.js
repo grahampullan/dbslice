@@ -8,9 +8,7 @@ const d3Scatter = {
         var container = d3.select(element);
 
         var svgWidth = container.node().offsetWidth,
-            svgHeight = svgWidth;
-
-        console.log(svgWidth);
+            svgHeight = layout.height;
 
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
@@ -43,17 +41,17 @@ const d3Scatter = {
 
         var xscale = d3.scaleLinear()
             .range( [0, width] )
-            .domain( d3.extent( data.data, function (d) { return d.x; } ) );
+            .domain( d3.extent( data.points, function (d) { return d.x; } ) );
         var yscale = d3.scaleLinear()
             .range( [height, 0] )
-            .domain( d3.extent( data.data, function (d) { return d.y; } ) );
+            .domain( d3.extent( data.points, function (d) { return d.y; } ) );
 
         var colour = d3.scaleOrdinal( d3.schemeCategory20c );
 
         var plotArea = svg.select(".plotArea");
 
         var points = plotArea.selectAll( "circle" )
-            .data( data.data );
+            .data( data.points );
 
         points.enter()
             .append( "circle" )

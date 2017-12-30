@@ -15,7 +15,7 @@ function makeSessionHeader( element, title, subtitle, config ) {
 
 		titleHtml += "<br/>";
 
-	} else {}
+	} else {
 
 		titleHtml += "<p>" + subtitle + "</p>";
 
@@ -28,6 +28,8 @@ function makeSessionHeader( element, title, subtitle, config ) {
 
 
 	$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows() } );
+
+}
    
 
 export { makeSessionHeader };

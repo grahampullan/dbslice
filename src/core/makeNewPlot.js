@@ -1,7 +1,5 @@
 function makeNewPlot( plotData, index ) {
 
-	console.log(plotData);
-
     var plot = d3.select( this )
     	.append( "div" ).attr( "class", "col-md-"+plotData.layout.colWidth+" plotWrapper" )
     	.append( "div" ).attr( "class", "card" );

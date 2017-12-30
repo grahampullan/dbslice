@@ -105,9 +105,6 @@ const d3LineSeries = {
 
         allSeries.exit().remove();
 
-        console.log("OK");
-        console.log(allSeries);
-
         var xAxis = plotArea.select(".xAxis");
         if ( xAxis.empty() ) {
             plotArea.append("g")
@@ -120,7 +117,6 @@ const d3LineSeries = {
                     .attr("y", margin.bottom)
                     .attr("text-anchor", "end")
                     .text(layout.xAxisLabel);
-            console.log(layout.xAxisLabel);
         } else {
             xAxis.attr( "transform", "translate(0," + height + ")" ).transition().call( d3.axisBottom( xscale ).ticks(5) );
         }

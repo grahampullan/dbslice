@@ -482,9 +482,6 @@ const d3LineSeries = {
 
         allSeries.exit().remove();
 
-        console.log("OK");
-        console.log(allSeries);
-
         var xAxis = plotArea.select(".xAxis");
         if ( xAxis.empty() ) {
             plotArea.append("g")
@@ -497,7 +494,6 @@ const d3LineSeries = {
                     .attr("y", margin.bottom)
                     .attr("text-anchor", "end")
                     .text(layout.xAxisLabel);
-            console.log(layout.xAxisLabel);
         } else {
             xAxis.attr( "transform", "translate(0," + height + ")" ).transition().call( d3.axisBottom( xscale ).ticks(5) );
         }
@@ -533,9 +529,7 @@ const d3Scatter = {
         var container = d3.select(element);
 
         var svgWidth = container.node().offsetWidth,
-            svgHeight = svgWidth;
-
-        console.log(svgWidth);
+            svgHeight = layout.height;
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -565,17 +559,17 @@ const d3Scatter = {
 
         var xscale = d3.scaleLinear()
             .range( [0, width] )
-            .domain( d3.extent( data.data, function (d) { return d.x; } ) );
+            .domain( d3.extent( data.points, function (d) { return d.x; } ) );
         var yscale = d3.scaleLinear()
             .range( [height, 0] )
-            .domain( d3.extent( data.data, function (d) { return d.y; } ) );
+            .domain( d3.extent( data.points, function (d) { return d.y; } ) );
 
         var colour = d3.scaleOrdinal( d3.schemeCategory20c );
 
         var plotArea = svg.select(".plotArea");
 
         var points = plotArea.selectAll( "circle" )
-            .data( data.data );
+            .data( data.points );
 
         points.enter()
             .append( "circle" )
@@ -620,8 +614,6 @@ const d3Scatter = {
 };
 
 function makeNewPlot( plotData, index ) {
-
-	console.log(plotData);
 
     var plot = d3.select( this )
     	.append( "div" ).attr( "class", "col-md-"+plotData.layout.colWidth+" plotWrapper" )
@@ -858,7 +850,17 @@ function makeSessionHeader( element, title, subtitle, config ) {
 		.append( "div" )
 			.attr( "class" , "col-md-12 sessionTitle" );
 
-	
+	var titleHtml = "<br/><h1 style='display:inline'>" + title + "</br>";
+
+	if ( config.plotTasksButton ) titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
+
+	if ( subtitle === undefined ) {
+
+		titleHtml += "<br/>";
+
+	} else {
+
+		titleHtml += "<p>" + subtitle + "</p>";
 
 	}
 
@@ -869,6 +871,8 @@ function makeSessionHeader( element, title, subtitle, config ) {
 
 
 	$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows(); } );
+
+}
 
 function render( elementId, session, config = { plotTasksButton : false } ) {
 
