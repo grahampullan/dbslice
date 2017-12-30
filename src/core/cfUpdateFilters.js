@@ -27,35 +27,20 @@ function cfUpdateFilters( crossfilter ) {
 
     var currentMetaData = crossfilter.metaDims[0].top(Infinity);
 
-    console.log(currentMetaData);
 
     dbsliceData.session.filteredTaskIds = currentMetaData.map(function(d){return d.taskId});
 
-    console.log(currentMetaData[0].label);
-
     if ( currentMetaData[0].label !== undefined ) {
+
         dbsliceData.session.filteredTaskLabels = currentMetaData.map(function(d){return d.label});
+
     } else {
+
         dbsliceData.session.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
     }
 
 
-
-    render( dbsliceData.elementId, dbsliceData.session, false, false, false);
-
-    // refresh bar charts
-    //_crossfilter.barCharts.forEach( ( barChart, i ) => {
-    //  barChart.refresh( _crossfilter.dimensions[ i ].group() );
-    //} );
-
-    // refresh histograms
-    //_crossfilter.histograms.forEach( ( histogram, i ) => {
-    //  histogram.refresh( _crossfilter.histogramDimensions[ i ] );
-    //} );
-
-    // refresh task counts
-    //d3.select( "#_taskCountSpan" ).html( ` ${ _crossfilter.dimensions[0].top(Infinity).length } / ${ _crossfilter.cf.size() } Tasks selected ` );
-
+    render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
 
 }
 

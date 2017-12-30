@@ -28,11 +28,7 @@ function refreshTasksInPlotRows() {
 
 				}
 
-				console.log ('refreshTasksInPlotRows: making plots... ');
-				console.log (ctrl);
 				plotRow.plots = makePlotsFromPlotRowCtrl( ctrl );
-				console.log ("NOW");
-				console.log (plotRow.plots);
 
 			}
 
@@ -40,7 +36,7 @@ function refreshTasksInPlotRows() {
 
 	});
 
-	render( dbsliceData.elementId, dbsliceData.session, false, false, false);
+	render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
 
 }
 

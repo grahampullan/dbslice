@@ -15,3 +15,4 @@ export { cfInit } from './core/cfInit.js';
 export { cfUpdateFilters } from './core/cfUpdateFilters.js';
 export { makePlotsFromPlotRowCtrl } from './core/makePlotsFromPlotRowCtrl.js'; 
 export { refreshTasksInPlotRows } from './core/refreshTasksInPlotRows.js'; 
+export { makeSessionHeader } from './core/makeSessionHeader.js';

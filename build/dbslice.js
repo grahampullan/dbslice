@@ -651,91 +651,53 @@ function updatePlot( plotData, index ) {
 
 function update( elementId, session ) {
 
-  	// this is the DOM element into which the plotRows will be inserted
 	var element = d3.select( "#" + elementId );
 
-    // select all the divs WITHIN the elmement. Each div here is a plotRow.
-    // this selects all plot rows
-    var plotRows = element.selectAll( ".plotRow" )
-    	.data( session.plotRows ); // bind the data in the array session.plotRows with this selection
+    if (session.filteredTaskIds !== undefined){
+        element.select(".filteredTaskCount")
+            .html("<p> Number of tasks in Filter = " + session.filteredTaskIds.length + "</p>" );
+    }
 
-    // this makes new plot rows and selects all the plots within the plot row
+    var plotRows = element.selectAll( ".plotRow" )
+    	.data( session.plotRows ); 
+
     var newPlotRows = plotRows.enter()
     	.append( "div" ).attr( "class", "card bg-light plotRow" )
-    	.attr( "style" , "margin-bottom:20px")
-		.attr( "plotRow-id", function ( d, i ) { return i; } );
+    	.attr( "style" , "margin-bottom:20px");
 
     var newPlotRowsHeader = newPlotRows	
     	.append( "div" ).attr( "class", "card-header plotRowTitle" )
     	.call( function(selection) {
-    		console.log (selection);
-    		selection.html( function(d) { return "<h3 style='display:inline'>"+d.title+"</h3>"});
+    		selection.html( function(d) { return "<h3 style='display:inline'>" + d.title + "</h3>" } );
     	});
-    	//.html( "<h3 style='display:inline'>Plot row title</h3>")
-
-    	//.call( _makePlotRowTitle )
-      	//.call( _animateEnter );
-
-    // make settings pane
-    // newPlotRowsHeader.call( _makeSettingsPane );
 
     var newPlotRowsBody = newPlotRows
     	.append( "div" ).attr( "class", "row no-gutters plotRowBody" );
 
-    //var noPlotsYet = newPlotRowsBody.append( "div" ).attr( "class", "noPlotsYet").html( "<p>No plots yet</p>");
-
-    var newPlots = newPlotRowsBody
-    	.selectAll( ".plot")
+    var newPlots = newPlotRowsBody.selectAll( ".plot")
     	.data( function( d ) { return d.plots; } ) 
     	.enter().each( makeNewPlot );
 
-
-    /////////////////////////////////////////
-    // Code for updating existing elements //
-    /////////////////////////////////////////
-
-    // for updating plot type
-    //// plotRows.attr( "plot-type", d => d.type );
-
-    // for updating the plot row id
-    plotRows.attr( "plotRow-id", ( d, i ) => i );
-
-    // for existing plot rows, update header to match the data that have been changed
-    // plotRows.selectAll( "div._plotRowTitle" ).call( _makePlotRowTitle );
-
-    // update plot title
-    // plotRows.selectAll( "._plotHeader" ).html( function( d ) { return d.name; } );
-
-    // for new plots within existing plot rows
     plotRows.selectAll( ".plotRowBody" ).selectAll( ".plot" )
-		.data( function( d ) { return d.plots;} )
+		.data( function( d ) { return d.plots; } )
 		.enter().each( makeNewPlot );
 
-
-    // for existing plots, use plotRowPlots as the update method
     var plotRowPlots = plotRows.selectAll( ".plot" )
-    	.data( function( d ) { return d.plots;} )
+    	.data( function( d ) { return d.plots; } )
     	.each( updatePlot );
 
    	var plotRowPlotWrappers = plotRows.selectAll( ".plotWrapper")
-   		.data( function( d ) {return d.plots;} )
+   		.data( function( d ) { return d.plots; } )
    		.each( function( plotData, index ) {
    			var plotWrapper = d3.select (this);
    			var plotTitle = plotWrapper.select(".plotTitle")
     	 	.html( `${plotData.layout.title}` );
    		});
 
-
-
-    ////////////////////////////////
-    // Code for removing elements //
-    ////////////////////////////////
-
-    // remove routine to remove plot rows and plots that are removed from layout
     plotRows.exit().remove();
-    //plotRowPlots.exit().remove();
     plotRowPlotWrappers.exit().remove();
- }
+
+}
 
 class DbsliceData { }
 
@@ -877,11 +839,7 @@ function refreshTasksInPlotRows() {
 
 				}
 
-				console.log ('refreshTasksInPlotRows: making plots... ');
-				console.log (ctrl);
 				plotRow.plots = makePlotsFromPlotRowCtrl( ctrl );
-				console.log ("NOW");
-				console.log (plotRow.plots);
 
 			}
 
@@ -889,64 +847,44 @@ function refreshTasksInPlotRows() {
 
 	});
 
-	render( dbsliceData.elementId, dbsliceData.session, false, false, false);
+	render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
 
 }
 
-function render( elementId, session, redraw, animate, preserveScrollPosition ) {
+function makeSessionHeader( element, title, subtitle, config ) {
 
-	// save layout object into the global namespace
-	//_dbslice.layout = layout;
+	element.append( "div" )
+		.attr( "class" , "row sessionHeader" )
+		.append( "div" )
+			.attr( "class" , "col-md-12 sessionTitle" );
+
+	
+
+	}
+
+	element.select( ".sessionTitle" )
+		.html( titleHtml )
+		.append( "div" )
+			.attr( "class" , "filteredTaskCount" );	
+
+
+	$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows(); } );
+
+function render( elementId, session, config = { plotTasksButton : false } ) {
 
 	dbsliceData.session = session;
 	dbsliceData.elementId = elementId;
-	//console.log(dbsliceData.elementId);
+	dbsliceData.config = config;
 
 	var element = d3.select( "#" + elementId );
 
 	var sessionHeader = element.select(".sessionHeader");
-    if ( sessionHeader.empty() ) {
-        element.append("div")
-        	.attr("class", "row sessionHeader")
-        	.append("div")
-        		.attr("class", "col-md-12 sessionTitle");
 
-        if (session.subtitle === undefined) {
-        	element.select(".sessionTitle")
-        	.html("<br/><h1 style='display:inline'>"+session.title+"</h1><button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/><br/>");
-        } else {
-        	element.select(".sessionTitle")
-        	.html("<br/><h1 style='display:inline'>"+session.title+"</h1><button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/><p>"+session.subtitle+"</p>");
-        }
-        element.select(".sessionTitle").append("div")
-        	.attr("class","filteredTaskCount");	
-        $("#refreshTasks").on("click", function() { refreshTasksInPlotRows(); });
-    }
-
-    if (session.filteredTaskIds !== undefined){
-    	element.select(".filteredTaskCount")
-    		.html("<p> Number of tasks in Filter = "+session.filteredTaskIds.length+"</p>");
-    }
-
-
-	// handle optional arguments
-	var redraw = ( typeof redraw === 'undefined' ) ? false : redraw;
-	var preserveScrollPosition = ( typeof preserveScrollPosition === 'undefined' ) ? true : preserveScrollPosition;
-
-	if ( preserveScrollPosition ) var currentScroll = document.body.scrollTop;
-	if ( redraw ) {
-		// redraws the entire plot container
-		//_allPlotsContainer.remove();
-		//_allPlotsContainer = d3.select( "body" ).append( "div" )
-		//  .attr( "id", "_allPlotsContainer" )
-		//  .attr( "class", "container-fluid" );
-		element.selectAll("div").remove();
-	}
+    if ( sessionHeader.empty() ) makeSessionHeader( element, session.title, session.subtitle, config );
 
 	update( elementId, session );
-	if ( preserveScrollPosition ) document.body.scrollTop = currentScroll;
 
-  }
+}
 
 function cfUpdateFilters( crossfilter ) {
 
@@ -974,35 +912,20 @@ function cfUpdateFilters( crossfilter ) {
 
     var currentMetaData = crossfilter.metaDims[0].top(Infinity);
 
-    console.log(currentMetaData);
 
     dbsliceData.session.filteredTaskIds = currentMetaData.map(function(d){return d.taskId});
 
-    console.log(currentMetaData[0].label);
-
     if ( currentMetaData[0].label !== undefined ) {
+
         dbsliceData.session.filteredTaskLabels = currentMetaData.map(function(d){return d.label});
+
     } else {
+
         dbsliceData.session.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
     }
 
 
-
-    render( dbsliceData.elementId, dbsliceData.session, false, false, false);
-
-    // refresh bar charts
-    //_crossfilter.barCharts.forEach( ( barChart, i ) => {
-    //  barChart.refresh( _crossfilter.dimensions[ i ].group() );
-    //} );
-
-    // refresh histograms
-    //_crossfilter.histograms.forEach( ( histogram, i ) => {
-    //  histogram.refresh( _crossfilter.histogramDimensions[ i ] );
-    //} );
-
-    // refresh task counts
-    //d3.select( "#_taskCountSpan" ).html( ` ${ _crossfilter.dimensions[0].top(Infinity).length } / ${ _crossfilter.cf.size() } Tasks selected ` );
-
+    render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
 
 }
 
@@ -1608,6 +1531,7 @@ exports.cfInit = cfInit;
 exports.cfUpdateFilters = cfUpdateFilters;
 exports.makePlotsFromPlotRowCtrl = makePlotsFromPlotRowCtrl;
 exports.refreshTasksInPlotRows = refreshTasksInPlotRows;
+exports.makeSessionHeader = makeSessionHeader;
 
 return exports;
 
