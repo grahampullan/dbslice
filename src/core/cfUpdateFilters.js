@@ -40,7 +40,7 @@ function cfUpdateFilters( crossfilter ) {
     }
 
 
-    render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
+    //render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
 
 }
 

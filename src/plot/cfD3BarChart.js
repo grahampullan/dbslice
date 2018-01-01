@@ -1,4 +1,6 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { render } from '../core/render.js';
+import { dbsliceData } from '../core/dbsliceData.js';
 
 const cfD3BarChart = {
 
@@ -96,6 +98,7 @@ const cfD3BarChart = {
                 }
 
                 cfUpdateFilters(data.cfData);
+                render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
 
             })
             .attr( "height", y.bandwidth() )

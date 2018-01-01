@@ -1,4 +1,6 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { render } from '../core/render.js';
+import { dbsliceData } from '../core/dbsliceData.js';
 
 const cfD3Histogram = {
 
@@ -74,19 +76,20 @@ const cfD3Histogram = {
                 .attr( "cursor", "ewResize" )
                 .attr( "d", brushResizePath );
 
-        // uncomment this to remove brush all together
-        //gBrush.call( brush.move, [ 0, 0 ].map( x ) );
 
-        // uncomment this to set brush to everything selected
-
+        var brushInit = true;
         gBrush.call( brush.move, x.domain().map( x ) );
+        brushInit = false;
+
 
         function brushmoved() {
+            console.log(brushInit);
             var s = d3.event.selection;
             if ( s == null ) {
                 handle.attr( "display", "none" );
                 data.cfData.histogramSelectedRanges[ dimId ] = [];
                 cfUpdateFilters(data.cfData);
+                if ( brushInit == false ) render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
             } else {
                 var sx = s.map( x.invert );
                 handle.attr( "display", null ).attr( "transform", function( d, i ) {
@@ -94,6 +97,7 @@ const cfD3Histogram = {
                 } );
                 data.cfData.histogramSelectedRanges[ dimId ] = sx;
                 cfUpdateFilters(data.cfData);
+                if ( brushInit == false ) render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
             }
         }
 
