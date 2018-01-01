@@ -14,8 +14,6 @@ const cfD3Scatter = {
         var height = svgHeight - margin.top - margin.bottom;
 
         var dimId = data.cfData.dataProperties.indexOf( data.xProperty );
-        //console.log(data.xProperty);
-        //console.log(data.cfData.metaDims);
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -46,8 +44,6 @@ const cfD3Scatter = {
 
         var plotArea = svg.select(".plotArea");
         var dimId = plotArea.attr("dimId");
-
-        //console.log(dimId);
 
         var cf = data.cfData.cf;
         var xProperty = data.xProperty;

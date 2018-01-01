@@ -259,8 +259,6 @@ const d3ContourStruct2d = {
             .attr("height", svgHeight)
             .attr("class", "plotArea");
 
-        console.log (data.surfaces[0]);
-
         var xMinAll = d3.min( data.surfaces[0].x );
         var yMinAll = d3.min( data.surfaces[0].y );
         var vMinAll = d3.min( data.surfaces[0].v );
@@ -268,8 +266,6 @@ const d3ContourStruct2d = {
         var xMaxAll = d3.max( data.surfaces[0].x );
         var yMaxAll = d3.max( data.surfaces[0].y );
         var vMaxAll = d3.max( data.surfaces[0].v );
-
-        console.log("ok");
 
         var nDataSets = data.surfaces.length;
 
@@ -699,11 +695,6 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
 	var plots = [];
 
-	// assumes either: no slices - so separate plot for each task, or
-	// slices - so separate plot for each slice (all tasks on same plot),
-	// need to code other cases and ctrl flags to determine which is used
-
-
 	if ( ctrl.sliceIds === undefined ) {
 
 		ctrl.taskIds.forEach( function( taskId, index ) {
@@ -767,8 +758,6 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
                 var url = ctrl.urlTemplate
                 	.replace( "${taskId}", taskId )
                 	.replace( "${sliceId}", sliceId );
-
-                console.log (url);
 
                 // force a synchronous json load
 				$.ajax({
@@ -946,8 +935,6 @@ const cfD3BarChart = {
             svgHeight = layout.height;
 
         var dimId = data.cfData.metaDataProperties.indexOf( data.property );
-        console.log(data.property);
-        console.log(data.cfData.metaDims);
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -978,8 +965,6 @@ const cfD3BarChart = {
 
         var plotArea = svg.select(".plotArea");
         var dimId = plotArea.attr("dimId");
-
-        console.log(dimId);
 
         var dim = data.cfData.metaDims[ dimId ];
         var group = dim.group();
@@ -1179,7 +1164,6 @@ const cfD3Histogram = {
 
 
         function brushmoved() {
-            console.log(brushInit);
             var s = d3.event.selection;
             if ( s == null ) {
                 handle.attr( "display", "none" );
@@ -1316,8 +1300,6 @@ const cfD3Scatter = {
             svgHeight = layout.height;
 
         var dimId = data.cfData.dataProperties.indexOf( data.xProperty );
-        //console.log(data.xProperty);
-        //console.log(data.cfData.metaDims);
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -1348,8 +1330,6 @@ const cfD3Scatter = {
 
         var plotArea = svg.select(".plotArea");
         var dimId = plotArea.attr("dimId");
-
-        //console.log(dimId);
 
         var xProperty = data.xProperty;
         var yProperty = data.yProperty;

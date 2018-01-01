@@ -32,8 +32,6 @@ const d3ContourStruct2d = {
             .attr("height", svgHeight)
             .attr("class", "plotArea");
 
-        console.log (data.surfaces[0]);
-
         var xMinAll = d3.min( data.surfaces[0].x );
         var yMinAll = d3.min( data.surfaces[0].y );
         var vMinAll = d3.min( data.surfaces[0].v );
@@ -41,8 +39,6 @@ const d3ContourStruct2d = {
         var xMaxAll = d3.max( data.surfaces[0].x );
         var yMaxAll = d3.max( data.surfaces[0].y );
         var vMaxAll = d3.max( data.surfaces[0].v );
-
-        console.log("ok");
 
         var nDataSets = data.surfaces.length;
 

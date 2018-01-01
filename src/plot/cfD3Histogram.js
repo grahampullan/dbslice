@@ -83,7 +83,6 @@ const cfD3Histogram = {
 
 
         function brushmoved() {
-            console.log(brushInit);
             var s = d3.event.selection;
             if ( s == null ) {
                 handle.attr( "display", "none" );

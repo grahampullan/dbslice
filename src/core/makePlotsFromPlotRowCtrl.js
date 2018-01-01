@@ -2,11 +2,6 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
 	var plots = [];
 
-	// assumes either: no slices - so separate plot for each task, or
-	// slices - so separate plot for each slice (all tasks on same plot),
-	// need to code other cases and ctrl flags to determine which is used
-
-
 	if ( ctrl.sliceIds === undefined ) {
 
 		ctrl.taskIds.forEach( function( taskId, index ) {
@@ -70,8 +65,6 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
                 var url = ctrl.urlTemplate
                 	.replace( "${taskId}", taskId )
                 	.replace( "${sliceId}", sliceId );
-
-                console.log (url);
 
                 // force a synchronous json load
 				$.ajax({
