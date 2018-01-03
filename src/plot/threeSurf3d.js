@@ -47,9 +47,9 @@ const threeSurf3d = {
     		side: THREE.DoubleSide,
     		color: 0xffffff,
     		vertexColors: THREE.VertexColors,
-    		specular: 0x050505,
+    		specular: 0x0,
     		shininess: 100.,
-    		emissive: 0x111111
+    		emissive: 0x0
     	});
     
 		// Initialise threejs scene
@@ -77,39 +77,28 @@ const threeSurf3d = {
     		renderer.render(scene,camera); // re-render if controls move/zoom 
 		} ); 
 		controls.enableZoom = true; 
+ 
 
+		var ambientLight = new THREE.AmbientLight( 0xaaaaaa );
+		scene.add( ambientLight );
 
-		var light = new THREE.PointLight( 0xaaaaaa);
-		light.position.set( 2, 0, 0. );
-		//scene.add( light );
-    
-		// Light below
-		var light = new THREE.PointLight( 0xaaaaaa);
-		light.position.set( -2, 0, 0.);
-		//scene.add( light );
-		// Light above
-		var light = new THREE.PointLight( 0x777777);
-		light.position.set( 0, 0, 2. );
-		scene.add( light );
-    
-		// Light below
-		var light = new THREE.PointLight( 0x777777);
-		light.position.set( 0, 0, -2.);
-		scene.add( light );
+		var lights = [];
+		lights[ 0 ] = new THREE.PointLight( 0xffffff, 1, 3 );
+		lights[ 1 ] = new THREE.PointLight( 0xffffff, 1, 3 );
+		lights[ 2 ] = new THREE.PointLight( 0xffffff, 1, 3 );
+		lights[ 3 ] = new THREE.PointLight( 0xffffff, 1, 3 );
+		lights[ 4 ] = new THREE.PointLight( 0xffffff, 1, 3 );
+		lights[ 5 ] = new THREE.PointLight( 0xffffff, 1, 3 );
 
-		// Light above
-		var light = new THREE.PointLight( 0x777777);
-		light.position.set( 0, -2, 0. );
-		scene.add( light );
-    
-		// Light below
-		var light = new THREE.PointLight( 0x777777);
-		light.position.set( 0, 2., 0.);
-		scene.add( light );
+		lights[ 0 ].position.set( 0, 2, 0 );
+		lights[ 1 ].position.set( 1, 2, 1 );
+		lights[ 2 ].position.set( - 1, - 2, -1 );
+		lights[ 3 ].position.set( 0, 0, 2 );
+		lights[ 4 ].position.set( 0, 0, -2 );
+		lights[ 5 ].position.set( 0, -2, 0 );
 
-		// Ambient light
-		var light = new THREE.AmbientLight( 0x333333 );
-		scene.add( light );  
+		lights.forEach(function(light){scene.add(light)});
+
   
 		// Make initial call to render scene
 		renderer.render( scene, camera );
