@@ -73,6 +73,11 @@ const d3ContourStruct2d = {
                 .range( [ height , 0 ] );
         }
 
+        if (layout.vScale !== undefined) {
+            vMinAll = layout.vScale[0];
+            vMaxAll = layout.vScale[1];
+        }
+
         // array of threshold values 
         var thresholds = d3.range( vMinAll , vMaxAll , ( vMaxAll - vMinAll ) / 21 );
 
