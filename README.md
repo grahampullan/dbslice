@@ -31,14 +31,14 @@ var metaData = {
 		dataProperties : [ "Average f" , "Std dev f" ]
 	} ,
 	data : [
-		{ taskId : 0, "Simulation type" : "Blue" , "Model type" : "Basic" , "Average f" : 0.9827, "Std dev f" : 0.0129 } , 
-		{ taskId : 1, "Simulation type" : "Blue" , "Model type" : "Std"   , "Average f" : 1.2352, "Std dev f" : 0.0389 } ,
-		{ taskId : 2, "Simulation type" : "Red"  , "Model type" : "Std"   , "Average f" : 2.6352, "Std dev f" : 0.0221 } ,
+		{ taskId : 0, "Simulation type" : "Blue" , "Model type" : "Basic" , "Average f" : 0.9827, "Std dev f" : 0.0129, "label" : "Box 0" } , 
+		{ taskId : 1, "Simulation type" : "Blue" , "Model type" : "Std"   , "Average f" : 1.2352, "Std dev f" : 0.0389, "label" : "Box 1" } ,
+		{ taskId : 2, "Simulation type" : "Red"  , "Model type" : "Std"   , "Average f" : 2.6352, "Std dev f" : 0.0221, "label" : "Box 2" } ,
 		...
 	]
 };
 ```
-The above contains `data` for the first three Tasks. The `taskId` field is a unique identifier for each Task. This object is translated into the data structure required by **dbslice** using the `cfInit` function (in **dbslice**, *cf* denotes a function interacting with the [crossfilter.js](https://github.com/crossfilter/crossfilter) library:
+The above contains `data` for the first three Tasks. The `taskId` field is a unique identifier for each Task. `label` is an optional field that is used for labelling plots. This `metaData` object is translated into the data structure required by **dbslice** using the `cfInit` function (in **dbslice**, *cf* denotes a function interacting with the [crossfilter.js](https://github.com/crossfilter/crossfilter) library:
 
 ```javascript
 var cfData = dbslice.cfInit( metaData );
@@ -56,16 +56,18 @@ var session = {
 	title : "3D box of data demo" ,
 	plotRows : [
 		{ title : "3D box database" ,  // plotRow of charts for filtering
-		  plots : [
+		plots : [
 		  	{ plotFunc : dbslice.cfD3BarChart ,  // bar chart
-		  	  data : { cfData : cfData , property : "Simulation type" } ,
-		  	  layout : { title : "Simulation" , colWidth : 4 , height : 300 } } ,
+		  	data : { cfData : cfData , property : "Simulation type" } ,
+		  	layout : { title : "Simulation" , colWidth : 4 , height : 300 } } ,
+
 		  	{ plotFunc : dbslice.cfD3BarChart ,  // bar chart
-		  	  data : { cfData : cfData , property : "Model type" } ,
-		  	  layout : { title : "Model" , colWidth : 4 , height : 300 } } ,
+		  	data : { cfData : cfData , property : "Model type" } ,
+		  	layout : { title : "Model" , colWidth : 4 , height : 300 } } ,
+
 		  	{ plotFunc : dbslice.cfD3Histogram ,  // histogram
-		  	  data : { cfData : cfData , property : "Average f" } ,
-		  	  layout : { title : "Average" , colWidth : 4 , height : 300 } } 
+		  	data : { cfData : cfData , property : "Average f" } ,
+		  	layout : { title : "Average" , colWidth : 4 , height : 300 } } 
 		   ] 
 		} ]
 };
@@ -78,7 +80,7 @@ The `session` is rendered using:
 ```javascript
 dbslice.render( divId , session );
 ```
-where `divId`` is the id of the html div element in which the **dbslice** session is to be rendered.
+where `divId` is the id of the html div element in which the **dbslice** session is to be rendered.
 
 The `session` defined above will provide 3 plots that update interactively as the user selects a bar on the bar chart or adjusts the selected range on the histogram. **dbslice** is using [crossfilter.js](https://github.com/crossfilter/crossfilter) to provide the current selection, and [d3.js](https://d3js.org) to generate and update the plots.
 
@@ -89,19 +91,21 @@ var linePlotRow = {
 	title : "f(y) at z=0"
 	plots : [] ,
 	ctrl : { plotFunc : dbslice.d3LineSeries ,  // multiple lines on a single plot with d3
-	         layout : { colWidth : 3 , height : 300 } ,
-	         urlTemplate : "http://dbslice.org/demos/testbox/data/f_line_${sliceId}_task_${taskId}.json" ,
-	         tasksByFilter : true ,  // get taskIds array from current filter selection
-	         sliceIds : [ "xstart" , "xmid" , "xend" ] , 
-	         formatDataFunc : function( rawData ) {
-	         	var series = [];
-	         	rawData.forEach( function( line, index ) { series.push( { name : index , data : line } ) } );
-	         	return { series : series };
-	       }
+	    layout : { colWidth : 3 , height : 300 } ,
+	    urlTemplate : "http://dbslice.org/demos/testbox/data/f_line_${sliceId}_task_${taskId}.json" ,
+	    tasksByFilter : true ,  // get taskIds array from current filter selection
+	    sliceIds : [ "xstart" , "xmid" , "xend" ] , 
+	    maxTasks : 20 ,
+	    formatDataFunc : function( rawData ) {
+	       	var series = [];
+	        rawData.forEach( function( line, index ) { series.push( { name : index , data : line } ) } );
+	        return { series : series };
+	    }
+	}
 };
 session.plotRows.push( linePlotRow );
 ```
-The `plots` array for this plotRow is empty. **dbslice** will automatically populate the `plots` array using the information in the `ctrl` object. The `ctrl` object specifies the plot function `plotFunc`, the root of the location of the data `urlTemplate`, an instruction to obtain the taskId's from the current filter `tasksByFilter : true` and two optional keys: a list of `sliceIds` and a function to reformat the data received from the url into the structure needed by `plotFunc`.  The placeholders `${taskId}` (required) and `${sliceId}` (optional) in `urlTemplate` are replaced by the current sliceId and taskId before the url is accessed. `formatDataFunc` allows data from many sources to be used by **dbslice**.
+The `plots` array for this plotRow is empty. **dbslice** will automatically populate the `plots` array using the information in the `ctrl` object. The `ctrl` object specifies the plot function `plotFunc`, the root of the location of the data `urlTemplate`, an instruction to obtain the taskId's from the current filter `tasksByFilter : true` and two optional keys: a list of `sliceIds` and a function to reformat the data received from the url into the structure needed by `plotFunc`.  The placeholders `${taskId}` (required) and `${sliceId}` (optional) in `urlTemplate` are replaced by the current sliceId and taskId before the url is accessed. The maximum number of Tasks that will be plotted is limited by `maxTasks`, if defiend. `formatDataFunc` allows data from many sources to be used by **dbslice**.
 
 We add two more plotRows to our session:
 
@@ -110,9 +114,11 @@ var contourPlotRow = {
 	title : "f at x=0"
 	plots : [] ,
 	ctrl : { plotFunc : dbslice.d3ContourStruct2d ,  // contour plot with d3
-	         layout : { colWidth : 3 , height : 300 } , 
-	         urlTemplate : "http://dbslice.org/demos/testbox/data/f_area2d_xstart_task_${taskId}.json" ,
-	         tasksByFilter : true 
+	    layout : { colWidth : 3 , height : 300 } , 
+	    urlTemplate : "http://dbslice.org/demos/testbox/data/f_area2d_xstart_task_${taskId}.json" ,
+	    tasksByFilter : true ,
+	    maxTasks : 20 
+	} 
 };
 session.plotRows.push( contourPlotRow );
 
@@ -120,10 +126,12 @@ var surfacePlotRow = {
 	title : "f at x=0, x=mid, x=end"
 	plots : [] ,
 	ctrl : { plotFunc : dbslice.d3ContourStruct2d ,  // surface plot with threejs
-	         layout : { colWidth : 4 , height : 400 } , 
-	         urlTemplate : "http://dbslice.org/demos/testbox/data/f_area3d_task_${taskId}.json" ,
-	         tasksByFilter : true ,
-	         formatDataFunc : function (rawData) { return dbslice.threeMeshFromStruct( rawData )}
+	    layout : { colWidth : 4 , height : 400 } , 
+	    urlTemplate : "http://dbslice.org/demos/testbox/data/f_area3d_task_${taskId}.json" ,
+	    tasksByFilter : true ,
+	    maxTasks : 5 ,
+	    formatDataFunc : function (rawData) { return dbslice.threeMeshFromStruct( rawData )}
+	}
 };
 session.plotRows.push( surfacePlotRow );
 ```

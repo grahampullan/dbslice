@@ -753,10 +753,14 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
 			var rawData = [];
 
-			ctrl.taskIds.forEach (function (taskId) {
+			var nTasks = ctrl.taskIds.length;
+
+			if ( ctrl.maxTasks !== undefined ) nTasks = ctrl.maxTasks;
+
+			for ( var index = 0; index < nTasks; ++index ) {
 
                 var url = ctrl.urlTemplate
-                	.replace( "${taskId}", taskId )
+                	.replace( "${taskId}", ctrl.taskIds[ index ] )
                 	.replace( "${sliceId}", sliceId );
 
                 // force a synchronous json load
@@ -767,7 +771,7 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
   					success: function(data){ rawData.push(data); }
 				});
 
-			});
+			}
 
 			if (ctrl.formatDataFunc !== undefined) {
 
