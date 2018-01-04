@@ -695,7 +695,7 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
 		var nTasks = ctrl.taskIds.length;
 
-		if ( ctrl.maxTasks !== undefined ) nTasks = ctrl.maxTasks;
+		if ( ctrl.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.maxTasks );
 
 		for ( var index = 0; index < nTasks; ++index ) {
 
@@ -754,8 +754,6 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 			var rawData = [];
 
 			var nTasks = ctrl.taskIds.length;
-
-			if ( ctrl.maxTasks !== undefined ) nTasks = ctrl.maxTasks;
 
 			for ( var index = 0; index < nTasks; ++index ) {
 
