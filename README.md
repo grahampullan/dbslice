@@ -148,7 +148,7 @@ var config = { plotTasksButton : true };
 dbslice.render( divId , session , config );
 ```
 
-Visit the [http://dbslice.org/demos] to see this tutorial.
+Visit the http://dbslice.org/demos to see this tutorial.
 
 
 
