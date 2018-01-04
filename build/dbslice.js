@@ -57,6 +57,9 @@ const threeSurf3d = {
     
 		// Initialise threejs scene
 		var scene = new THREE.Scene();
+
+		// Add background colour
+		scene.background = new THREE.Color( 0xefefef );
     
 		// Add Mesh to scene
 		scene.add( new THREE.Mesh( geometry, material ) );

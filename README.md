@@ -15,7 +15,10 @@ The latest **dbslice** library is available here
 
 In the browser, **dbslice** works with high-level descriptors of all of the available Tasks. The user filters these (via bar charts, histograms, etc) until the desired selection of Tasks is obtained. **dbslice**  then requests specified data from the selected Tasks for further, deeper, plotting as required by the user. In this way, plots are generated, on demand, for detailed comparisons of equivalent data.
 
-## Example
+## Tutorial: the testbox database
+
+The completed example is hosted [here](http://dbslice.org/demos/testbox).
+
 ### Tasks
 In this example, each Task is a 3D array of data. The data is some property *f* that varies in the *x,y,z* coordinate directions. 
 
@@ -83,6 +86,8 @@ dbslice.render( divId , session );
 where `divId` is the id of the html div element in which the **dbslice** session is to be rendered.
 
 The `session` defined above will provide 3 plots that update interactively as the user selects a bar on the bar chart or adjusts the selected range on the histogram. **dbslice** is using [crossfilter.js](https://github.com/crossfilter/crossfilter) to provide the current selection, and [d3.js](https://d3js.org) to generate and update the plots.
+
+Go to this [bl.ock](http://bl.ocks.org/grahampullan/8569646fadc2fb74026e22b04539f339) to see a live render of the above `session`.
 
 We now add an additional plotRow to the `session` that will, when requested by the user, get additional data for the current selection of Tasks and generate comparative plots.
 
