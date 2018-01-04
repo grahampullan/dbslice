@@ -17,7 +17,7 @@ In the browser, **dbslice** works with high-level descriptors of all of the avai
 
 ## Tutorial: the testbox database
 
-The completed example is hosted [here](http://dbslice.org/demos/testbox).
+The completed tutorial is hosted [here](http://dbslice.org/demos/testbox).
 
 ### Tasks
 In this example, each Task is a 3D array of data. The data is some property *f* that varies in the *x,y,z* coordinate directions. 
@@ -148,6 +148,7 @@ var config = { plotTasksButton : true };
 dbslice.render( divId , session , config );
 ```
 
+Visit the [http://dbslice.org/demos] to see this tutorial.
 
 
 
