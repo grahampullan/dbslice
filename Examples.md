@@ -4,9 +4,14 @@
 
 <table>
 <tr>
-<td><a href="http://dbslice.org/demos/testbox"> <img src="img/testboxSession.png" width="280"></a></td>
-<td><a href="http://dbslice.org/demos/comp3stg"> <img src="img/compSession.png" width="280"></a></td>
-<td><a href="http://dbslice.org/demos/ukrivers"> <img src="img/ukriversSession.png" width="280"></a></td> 
+	<td><a href="http://dbslice.org/demos/testbox"> <img src="img/testboxSession.png" width="280"></a></td>
+	<td><a href="http://dbslice.org/demos/comp3stg"> <img src="img/compSession.png" width="280"></a></td>
+	<td><a href="http://dbslice.org/demos/ukrivers"> <img src="img/ukriversSession.png" width="280"></a></td> 
+</tr>
+<tr>
+	<td><a href="http://dbslice.org/demos/testbox">Testbox demo</a></td>
+	<td><a href="http://dbslice.org/demos/comp3stg">Compressor demo</a></td>
+	<td><a href="http://dbslice.org/demos/ukrivers">UK rivers demo</a></td>
 </tr>
 </table>
 
