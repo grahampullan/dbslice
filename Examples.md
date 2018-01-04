@@ -2,7 +2,7 @@
 
 ## **dbslice** sessions
 
-<a href="http://dbslice.org/demos/testbox"> <img src="img/testboxSession.png" width="280" style="border:1px solid black"></a> 
+<a href="http://dbslice.org/demos/testbox"> <img src="img/testboxSession.png" width="280" style="border:3px solid black"></a> 
 <a href="http://dbslice.org/demos/comp3stg"> <img src="img/compSession.png" width="280"></a> 
 <a href="http://dbslice.org/demos/ukrivers"> <img src="img/ukriversSession.png" width="280"></a> 
 
