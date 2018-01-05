@@ -15,6 +15,9 @@ The latest **dbslice** library is available here
 
 In the browser, **dbslice** works with high-level descriptors of all of the available Tasks. The user filters these (via bar charts, histograms, etc) until the desired selection of Tasks is obtained. **dbslice**  then requests specified data from the selected Tasks for further, deeper, plotting as required by the user. In this way, plots are generated, on demand, for detailed comparisons of equivalent data.
 
+## Examples
+An index of code examples is [here](Example.md)
+
 ## Tutorial: the testbox database
 
 The completed tutorial is hosted [here](http://dbslice.org/demos/testbox).
