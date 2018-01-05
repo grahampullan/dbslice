@@ -33,7 +33,7 @@
 <table>
 <tr>
 	<td><a href="http://bl.ocks.org/grahampullan/0e751f3c2f11f3befd94d2690cce6ab7"> <img src="img/surfacePlot.png" width="280"></a></td>
-	<td><a href="http://bl.ocks.org/grahampullan/e0ac9efe230b0cbf0eb5742598f8643a"> <img src="img/2plot.png" width="280"></a></td>
+	<td><a href="http://bl.ocks.org/grahampullan/e0ac9efe230b0cbf0eb5742598f8643a"> <img src="img/2plots.png" width="280"></a></td>
 </tr>
 <tr>
 	<td><a href="http://bl.ocks.org/grahampullan/0e751f3c2f11f3befd94d2690cce6ab7">Surface plot</a></td>
