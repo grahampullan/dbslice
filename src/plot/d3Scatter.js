@@ -79,7 +79,13 @@ const d3Scatter = {
             plotArea.append("g")
                 .attr( "transform", "translate(0," + height + ")" )
                 .attr( "class", "xAxis")
-                .call( d3.axisBottom( xscale ) );
+                .call( d3.axisBottom( xscale ) )
+                .append("text")
+                    .attr("fill", "#000")
+                    .attr("x", width)
+                    .attr("y", margin.bottom)
+                    .attr("text-anchor", "end")
+                    .text(layout.xAxisLabel);
         } else {
             xAxis.attr( "transform", "translate(0," + height + ")" ).transition().call( d3.axisBottom( xscale ) );
         }
@@ -88,7 +94,14 @@ const d3Scatter = {
         if ( yAxis.empty() ) {
             plotArea.append("g")
                 .attr( "class", "yAxis")
-                .call( d3.axisLeft( yscale ) );
+                .call( d3.axisLeft( yscale ) )
+                .append("text")
+                    .attr("fill", "#000")
+                    .attr("transform", "rotate(-90)")
+                    .attr("x", 0)
+                    .attr("y", -margin.left + 15)
+                    .attr("text-anchor", "end")
+                    .text(layout.yAxisLabel);
         } else {
             yAxis.transition().call( d3.axisLeft( yscale ) );
         }
