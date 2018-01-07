@@ -7,7 +7,9 @@ function update( elementId, session ) {
 
     if (session.filteredTaskIds !== undefined){
         element.select(".filteredTaskCount")
-            .html("<p> Number of tasks in Filter = " + session.filteredTaskIds.length + "</p>" );
+            .html("<p> Number of Tasks in Filter = " + session.filteredTaskIds.length + "</p>" );
+    } else {
+        element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
     }
 
     var plotRows = element.selectAll( ".plotRow" )

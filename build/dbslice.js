@@ -655,7 +655,9 @@ function update( elementId, session ) {
 
     if (session.filteredTaskIds !== undefined){
         element.select(".filteredTaskCount")
-            .html("<p> Number of tasks in Filter = " + session.filteredTaskIds.length + "</p>" );
+            .html("<p> Number of Tasks in Filter = " + session.filteredTaskIds.length + "</p>" );
+    } else {
+        element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
     }
 
     var plotRows = element.selectAll( ".plotRow" )
@@ -857,9 +859,15 @@ function makeSessionHeader( element, title, subtitle, config ) {
 		.append( "div" )
 			.attr( "class" , "col-md-12 sessionTitle" );
 
-	var titleHtml = "<br/><h1 style='display:inline'>" + title + "</h1></br>";
+	var titleHtml = "<br/><h1 style='display:inline'>" + title + "</h1>";
 
-	if ( config.plotTasksButton ) titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
+	if ( config.plotTasksButton ) {
+
+		titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
+
+	} else {
+		titleHtml += "br/>";
+	} 
 
 	if ( subtitle === undefined ) {
 
