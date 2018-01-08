@@ -14,7 +14,7 @@ function makeSessionHeader( element, title, subtitle, config ) {
 		titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
 
 	} else {
-		titleHtml += "br/>";
+		titleHtml += "<br/>";
 	} 
 
 	if ( subtitle === undefined ) {
