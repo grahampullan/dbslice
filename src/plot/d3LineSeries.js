@@ -93,7 +93,18 @@ const d3LineSeries = {
                         .attr( "d", function( d ) { return line( d.data ); } )
                         .style( "stroke", function( d ) { return colour( d.name ); } )    
                         .style( "fill", "none" )
-                        .style( "stroke-width", "2px" );
+                        .style( "stroke-width", "2px" )
+                        .on( "mouseover", function( d ) {
+                            d3.selectAll( ".line" ).style( "opacity" , 0.2);
+                            d3.select(this)
+                                .style( "opacity" , 1.0)
+                                .style( "stroke-width", "4px" );
+                        })
+                        .on( "mouseout", function( d ) {
+                            d3.selectAll( ".line" ).style( "opacity" , 1.0);
+                            d3.select(this)
+                                .style( "stroke-width", "2px" );
+                        });
         } );
 
         allSeries.each( function() {
