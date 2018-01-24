@@ -465,13 +465,13 @@ const d3LineSeries = {
                         .style( "fill", "none" )
                         .style( "stroke-width", "2px" )
                         .on( "mouseover", function( d ) {
-                            d3.selectAll( ".line" ).style( "opacity" , 0.2);
+                            plotArea.selectAll( ".line" ).style( "opacity" , 0.2);
                             d3.select(this)
                                 .style( "opacity" , 1.0)
                                 .style( "stroke-width", "4px" );
                         })
                         .on( "mouseout", function( d ) {
-                            d3.selectAll( ".line" ).style( "opacity" , 1.0);
+                            plotArea.selectAll( ".line" ).style( "opacity" , 1.0);
                             d3.select(this)
                                 .style( "stroke-width", "2px" );
                         });
