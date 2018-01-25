@@ -413,6 +413,7 @@ const d3LineSeries = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
+
         var nseries = data.series.length;
 
         var xmin = d3.min( data.series[0].data, function(d) { return d.x; } );
@@ -432,13 +433,24 @@ const d3LineSeries = {
         }
 
         if ( layout.xscale == "time" ) {
-            var xscale = d3.scaleTime();        
+            var xscale = d3.scaleTime(); 
+            var xscale0 = d3.scaleTime();        
         } else {
             var xscale = d3.scaleLinear();
+            var xscale0 = d3.scaleLinear();
         }
+
         xscale.range( [0, width] )
               .domain( [xmin, xmax] );
+
+        xscale0.range( [0, width] )
+              .domain( [xmin, xmax] );
+
         var yscale = d3.scaleLinear()
+            .range( [height, 0] )
+            .domain( [ymin, ymax] );
+
+        var yscale0 = d3.scaleLinear()
             .range( [height, 0] )
             .domain( [ymin, ymax] );
 
@@ -449,6 +461,16 @@ const d3LineSeries = {
             .y( function( d ) { return yscale( d.y ); } );
 
         var plotArea = svg.select(".plotArea");
+
+        var clip = svg.append("clipPath")
+            .attr("id", "clip")
+            .append("rect")
+                .attr("width", width)
+                .attr("height", height);
+
+        var zoom = d3.zoom()
+            .scaleExtent([0.5, Infinity])
+            .on("zoom", zoomed);
 
         var allSeries = plotArea.selectAll( ".plotSeries" ).data( data.series );
 
@@ -464,6 +486,7 @@ const d3LineSeries = {
                         .style( "stroke", function( d ) { return colour( d.name ); } )    
                         .style( "fill", "none" )
                         .style( "stroke-width", "2px" )
+                        .attr( "clip-path", "url(#clip)")
                         .on( "mouseover", function( d ) {
                             plotArea.selectAll( ".line" ).style( "opacity" , 0.2);
                             d3.select(this)
@@ -486,28 +509,34 @@ const d3LineSeries = {
 
         allSeries.exit().remove();
 
-        var xAxis = plotArea.select(".xAxis");
-        if ( xAxis.empty() ) {
-            plotArea.append("g")
+        var xAxis = d3.axisBottom( xscale ).ticks(5);
+        var yAxis = d3.axisLeft( yscale );
+
+
+        var gX = plotArea.select(".axis--x");
+        if ( gX.empty() ) {
+            gX = plotArea.append("g")
+                //.attr( "transform", "translate(" + margin.left + "," + (margin.top + height) + ")" )
                 .attr( "transform", "translate(0," + height + ")" )
-                .attr( "class", "xAxis")
-                .call( d3.axisBottom( xscale ).ticks(5) )
-                .append("text")
-                    .attr("fill", "#000")
-                    .attr("x", width)
-                    .attr("y", margin.bottom)
-                    .attr("text-anchor", "end")
-                    .text(layout.xAxisLabel);
+                .attr( "class", "axis--x")
+                .call( xAxis );
+            gX.append("text")
+                .attr("fill", "#000")
+                .attr("x", width)
+                .attr("y", margin.bottom)
+                .attr("text-anchor", "end")
+                .text(layout.xAxisLabel);
         } else {
-            xAxis.attr( "transform", "translate(0," + height + ")" ).transition().call( d3.axisBottom( xscale ).ticks(5) );
+            gX.transition().call( xAxis );
         }
 
-        var yAxis = plotArea.select(".yAxis");
-        if ( yAxis.empty() ) {
-            plotArea.append("g")
-                .attr( "class", "yAxis")
-                .call( d3.axisLeft( yscale ) )
-                .append("text")
+        var gY = plotArea.select(".axis--y");
+        if ( gY.empty() ) {
+            gY = plotArea.append("g")
+                //.attr( "transform", "translate(" + margin.left + "," + margin.top + ")" )
+                .attr( "class", "axis--y")
+                .call( yAxis );
+            gY.append("text")
                     .attr("fill", "#000")
                     .attr("transform", "rotate(-90)")
                     .attr("x", 0)
@@ -515,7 +544,18 @@ const d3LineSeries = {
                     .attr("text-anchor", "end")
                     .text(layout.yAxisLabel);
         } else {
-            yAxis.transition().call( d3.axisLeft( yscale ) );
+            gY.transition().call( yAxis );
+        }
+
+        svg.call(zoom);
+
+        function zoomed() {
+            var t = d3.event.transform;
+            xscale.domain(t.rescaleX(xscale0).domain());
+            yscale.domain(t.rescaleY(yscale0).domain());
+            gX.call(xAxis);
+            gY.call(yAxis);
+            plotArea.selectAll(".line").attr( "d", function( d ) { return line( d.data ); } );
         }
 
         data.newData = false;
