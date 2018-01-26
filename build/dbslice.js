@@ -472,6 +472,10 @@ const d3LineSeries = {
             .scaleExtent([0.5, Infinity])
             .on("zoom", zoomed);
 
+        svg.transition().call(zoom.transform, d3.zoomIdentity);
+
+        svg.call(zoom);
+
         var allSeries = plotArea.selectAll( ".plotSeries" ).data( data.series );
 
         allSeries.enter()
@@ -512,7 +516,6 @@ const d3LineSeries = {
         var xAxis = d3.axisBottom( xscale ).ticks(5);
         var yAxis = d3.axisLeft( yscale );
 
-
         var gX = plotArea.select(".axis--x");
         if ( gX.empty() ) {
             gX = plotArea.append("g")
@@ -547,7 +550,9 @@ const d3LineSeries = {
             gY.transition().call( yAxis );
         }
 
-        svg.call(zoom);
+        
+        
+     
 
         function zoomed() {
             var t = d3.event.transform;
