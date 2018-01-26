@@ -53,17 +53,38 @@ const cfD3Scatter = {
         var dim = data.cfData.dataDims[ dimId ];
         var pointData = dim.top( Infinity );
 
-
         var xscale = d3.scaleLinear()
             .range( [0, width] )
             .domain( d3.extent( pointData, function (d) { return d[ xProperty ]; } ) );
+
+        var xscale0 = d3.scaleLinear()
+            .range( [0, width] )
+            .domain( d3.extent( pointData, function (d) { return d[ xProperty ]; } ) );
+
         var yscale = d3.scaleLinear()
+            .range( [height, 0] )
+            .domain( d3.extent( pointData, function (d) { return d[ yProperty ]; } ) );
+
+        var yscale0 = d3.scaleLinear()
             .range( [height, 0] )
             .domain( d3.extent( pointData, function (d) { return d[ yProperty ]; } ) );
 
         var colour = d3.scaleOrdinal( d3.schemeCategory20c );
 
         var plotArea = svg.select(".plotArea");
+
+        var clip = svg.append("clipPath")
+            .attr("id", "clip")
+            .append("rect")
+                .attr("width", width)
+                .attr("height", height);
+
+        var zoom = d3.zoom()
+            .scaleExtent([0.5, Infinity])
+            .on("zoom", zoomed);
+
+        svg.transition().call(zoom.transform, d3.zoomIdentity);
+        svg.call(zoom);
 
         var points = plotArea.selectAll( "circle" )
             .data( pointData );
@@ -74,12 +95,11 @@ const cfD3Scatter = {
             .attr( "cx", function( d ) { return xscale( d[ xProperty ] ); } )
             .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } )
             .style( "fill", function( d ) { return colour( d[ cProperty ] ); } )
-            //.style( "fill-opacity", 1e-6)
-            //.transition()
-            //    .style( "fill-opacity", 1);
-
+            .attr( "clip-path", "url(#clip)")
+            .on( "mouseover", tipOn )
+            .on( "mouseout", tipOff );
+ 
         points.transition()
-            //.duration(5000)
             .attr( "r", 5 )
             .attr( "cx", function( d ) { return xscale( d[ xProperty ] ); } )
             .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } )
@@ -87,37 +107,63 @@ const cfD3Scatter = {
 
         points.exit().remove();
 
-        var xAxis = plotArea.select(".xAxis");
-        if ( xAxis.empty() ) {
-            plotArea.append("g")
+        var xAxis = d3.axisBottom( xscale );
+        var yAxis = d3.axisLeft( yscale );
+
+        var gX = plotArea.select(".axis--x");
+        if ( gX.empty() ) {
+            gX = plotArea.append("g")
                 .attr( "transform", "translate(0," + height + ")" )
-                .attr( "class", "xAxis")
-                .call( d3.axisBottom( xscale ) )
-                .append("text")
-                    .attr("fill", "#000")
-                    .attr("x", width)
-                    .attr("y", margin.bottom-2)
-                    .attr("text-anchor", "end")
-                    .text(xProperty);
+                .attr( "class", "axis--x")
+                .call( xAxis );
+            gX.append("text")
+                .attr("fill", "#000")
+                .attr("x", width)
+                .attr("y", margin.bottom-2)
+                .attr("text-anchor", "end")
+                .text(xProperty);
         } else {
-            xAxis.attr( "transform", "translate(0," + height + ")" ).transition().call( d3.axisBottom( xscale ) );
+            gX.transition().call( xAxis );
         }
 
-        var yAxis = plotArea.select(".yAxis");
-        if ( yAxis.empty() ) {
-            plotArea.append("g")
-                .attr( "class", "yAxis")
-                .call( d3.axisLeft( yscale ) )
-                .append("text")
-                    .attr("fill", "#000")
-                    .attr("transform", "rotate(-90)")
-                    .attr("x", 0)
-                    .attr("y", -margin.left + 15)
-                    .attr("text-anchor", "end")
-                    .text(yProperty);
-
+        var gY = plotArea.select(".axis--y");
+        if ( gY.empty() ) {
+            gY = plotArea.append("g")
+                .attr( "class", "axis--y")
+                .call( yAxis );
+            gY.append("text")
+                .attr("fill", "#000")
+                .attr("transform", "rotate(-90)")
+                .attr("x", 0)
+                .attr("y", -margin.left + 15)
+                .attr("text-anchor", "end")
+                .text(yProperty);
         } else {
-            yAxis.transition().call( d3.axisLeft( yscale ) );
+            gY.transition().call( yAxis );
+        }
+
+        function zoomed() {
+            var t = d3.event.transform;
+            xscale.domain(t.rescaleX(xscale0).domain());
+            yscale.domain(t.rescaleY(yscale0).domain());
+            gX.call(xAxis);
+            gY.call(yAxis);
+            plotArea.selectAll("circle")
+                .attr( "cx", function( d ) { return xscale( d[ xProperty ] ); } )
+                .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } );
+        }
+
+        function tipOn() {
+            plotArea.selectAll( "circle" ).style( "opacity" , 0.2);
+            d3.select(this)
+                .style( "opacity" , 1.0)
+                .attr( "r", 7 );
+        }
+
+        function tipOff() {
+            plotArea.selectAll( "circle" ).style( "opacity" , 1.0);
+            d3.select(this)
+                .attr( "r", 5 );
         }
 
     }

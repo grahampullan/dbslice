@@ -25,11 +25,14 @@ const d3ContourStruct2d = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-        container.select(".plotArea").remove();
+        container.select("svg").remove();
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
-            .attr("height", svgHeight)
+            .attr("height", svgHeight);
+
+        var plotArea = svg.append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
             .attr("class", "plotArea");
 
         var xMinAll = d3.min( data.surfaces[0].x );
@@ -50,8 +53,6 @@ const d3ContourStruct2d = {
             yMaxAll = ( d3.max( data.surfaces[nds].y ) > yMaxAll ) ? d3.max( data.surfaces[nds].y ) : yMaxAll;
             vMaxAll = ( d3.max( data.surfaces[nds].v ) > vMaxAll ) ? d3.max( data.surfaces[nds].v ) : vMaxAll;
         }
-
-
 
         // set x and y scale to maintain 1:1 aspect ratio  
         var domainAspectRatio = ( yMaxAll - yMinAll ) / ( xMaxAll - xMinAll );
@@ -86,6 +87,12 @@ const d3ContourStruct2d = {
             .domain(d3.extent(thresholds))
             .interpolate(function() { return d3.interpolateRdBu; });
 
+         var zoom = d3.zoom()
+            .scaleExtent([0.5, Infinity])
+            .on("zoom", zoomed);
+
+        svg.transition().call(zoom.transform, d3.zoomIdentity);
+        svg.call(zoom);
 
         for (var nds = 0; nds < nDataSets; ++nds) {
             x = data.surfaces[nds].x;
@@ -138,17 +145,20 @@ const d3ContourStruct2d = {
                 .thresholds(thresholds);
 
             // make and project the contours
-            svg.append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                .selectAll("path")
-                    .data(contours(v))
-                    .enter().append("path")
+            plotArea.selectAll("path")
+                .data(contours(v))
+                .enter().append("path")
                     .attr("d", d3.geoPath(projection))
-                    .attr("fill", function(d) { return color(d.value); });
-
-            data.newData = false;
+                    .attr("fill", function(d) { return color(d.value); });        
 
         }
+
+        function zoomed() {
+            var t = d3.event.transform;
+            plotArea.attr( "transform", t );
+        }
+
+        data.newData = false;
     }
 }
 

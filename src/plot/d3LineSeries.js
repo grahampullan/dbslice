@@ -43,7 +43,6 @@ const d3LineSeries = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-
         var nseries = data.series.length;
 
         var xmin = d3.min( data.series[0].data, function(d) { return d.x; } );
@@ -103,7 +102,6 @@ const d3LineSeries = {
             .on("zoom", zoomed);
 
         svg.transition().call(zoom.transform, d3.zoomIdentity);
-
         svg.call(zoom);
 
         var allSeries = plotArea.selectAll( ".plotSeries" ).data( data.series );
@@ -121,17 +119,8 @@ const d3LineSeries = {
                         .style( "fill", "none" )
                         .style( "stroke-width", "2px" )
                         .attr( "clip-path", "url(#clip)")
-                        .on( "mouseover", function( d ) {
-                            plotArea.selectAll( ".line" ).style( "opacity" , 0.2);
-                            d3.select(this)
-                                .style( "opacity" , 1.0)
-                                .style( "stroke-width", "4px" );
-                        })
-                        .on( "mouseout", function( d ) {
-                            plotArea.selectAll( ".line" ).style( "opacity" , 1.0);
-                            d3.select(this)
-                                .style( "stroke-width", "2px" );
-                        });
+                        .on( "mouseover", tipOn )
+                        .on( "mouseout", tipOff );
         } );
 
         allSeries.each( function() {
@@ -149,7 +138,6 @@ const d3LineSeries = {
         var gX = plotArea.select(".axis--x");
         if ( gX.empty() ) {
             gX = plotArea.append("g")
-                //.attr( "transform", "translate(" + margin.left + "," + (margin.top + height) + ")" )
                 .attr( "transform", "translate(0," + height + ")" )
                 .attr( "class", "axis--x")
                 .call( xAxis );
@@ -166,7 +154,6 @@ const d3LineSeries = {
         var gY = plotArea.select(".axis--y");
         if ( gY.empty() ) {
             gY = plotArea.append("g")
-                //.attr( "transform", "translate(" + margin.left + "," + margin.top + ")" )
                 .attr( "class", "axis--y")
                 .call( yAxis );
             gY.append("text")
@@ -180,10 +167,6 @@ const d3LineSeries = {
             gY.transition().call( yAxis );
         }
 
-        
-        
-     
-
         function zoomed() {
             var t = d3.event.transform;
             xscale.domain(t.rescaleX(xscale0).domain());
@@ -193,8 +176,20 @@ const d3LineSeries = {
             plotArea.selectAll(".line").attr( "d", function( d ) { return line( d.data ); } );
         }
 
-        data.newData = false;
+        function tipOn() {
+            plotArea.selectAll( ".line" ).style( "opacity" , 0.2);
+            d3.select(this)
+                .style( "opacity" , 1.0)
+                .style( "stroke-width", "4px" );
+        }
 
+        function tipOff() {
+            plotArea.selectAll( ".line" ).style( "opacity" , 1.0);
+            d3.select(this)
+                .style( "stroke-width", "2px" );
+        }
+
+        data.newData = false;
     }
 };
 
