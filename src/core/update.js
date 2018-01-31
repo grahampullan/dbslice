@@ -45,7 +45,7 @@ function update( elementId, session ) {
    		.each( function( plotData, index ) {
    			var plotWrapper = d3.select (this);
    			var plotTitle = plotWrapper.select(".plotTitle")
-    	 	.html( `${plotData.layout.title}` );
+    	 	.html( plotData.layout.title );
    		});
 
     plotRows.exit().remove();

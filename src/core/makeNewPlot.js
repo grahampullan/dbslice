@@ -5,7 +5,7 @@ function makeNewPlot( plotData, index ) {
     	.append( "div" ).attr( "class", "card" );
 
     var plotHeader = plot.append( "div" ).attr( "class", "card-header plotTitle")
-    	 .html( `${plotData.layout.title}` );
+    	 .html( plotData.layout.title );
 
     var plotBody = plot.append( "div" ).attr( "class", "plot");
 
