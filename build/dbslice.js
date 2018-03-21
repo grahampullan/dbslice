@@ -811,7 +811,9 @@ var dbsliceData = new DbsliceData();
 
 function makePlotsFromPlotRowCtrl(ctrl) {
 
-	var plots = [];
+	var plotPromises = [];
+
+	var slicePromises = [];
 
 	if (ctrl.sliceIds === undefined) {
 
@@ -821,10 +823,6 @@ function makePlotsFromPlotRowCtrl(ctrl) {
 
 		for (var index = 0; index < nTasks; ++index) {
 
-			var plot = {};
-
-			plot.layout = Object.assign({}, ctrl.layout);
-
 			if (ctrl.urlTemplate == null) {
 
 				var url = ctrl.taskIds[index];
@@ -833,43 +831,41 @@ function makePlotsFromPlotRowCtrl(ctrl) {
 				var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]);
 			}
 
-			var rawData;
+			var title = ctrl.taskLabels[index];
 
-			// force a synchronous json load
-			$.ajax({
-				dataType: "json",
-				url: url,
-				async: false,
-				success: function success(data) {
-					rawData = data;
+			var plotPromise = fetch(url).then(function (response) {
+
+				return response.json();
+			}).then(function (responseJson) {
+
+				var plot = {};
+
+				if (ctrl.formatDataFunc !== undefined) {
+
+					plot.data = ctrl.formatDataFunc(responseJson);
+				} else {
+
+					plot.data = responseJson;
 				}
+
+				plot.layout = Object.assign({}, ctrl.layout);
+
+				plot.plotFunc = ctrl.plotFunc;
+
+				plot.layout.title = title;
+
+				plot.data.newData = true;
+
+				return plot;
 			});
 
-			if (ctrl.formatDataFunc !== undefined) {
-
-				plot.data = ctrl.formatDataFunc(rawData);
-			} else {
-
-				plot.data = rawData;
-			}
-
-			plot.plotFunc = ctrl.plotFunc;
-
-			plot.layout.title = ctrl.taskLabels[index];
-
-			plot.newData = true;
-
-			plots.push(plot);
+			plotPromises.push(plotPromise);
 		}
 	} else {
 
-		ctrl.sliceIds.forEach(function (sliceId, index) {
+		ctrl.sliceIds.forEach(function (sliceId, sliceIndex) {
 
-			var plot = {};
-
-			plot.layout = Object.assign({}, ctrl.layout);
-
-			var rawData = [];
+			var slicePromisesPerPlot = [];
 
 			var nTasks = ctrl.taskIds.length;
 
@@ -877,41 +873,51 @@ function makePlotsFromPlotRowCtrl(ctrl) {
 
 				var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]).replace("${sliceId}", sliceId);
 
-				// force a synchronous json load
-				$.ajax({
-					dataType: "json",
-					url: url,
-					async: false,
-					success: function success(data) {
-						rawData.push(data);
-					}
+				var slicePromise = fetch(url).then(function (response) {
+
+					return response.json();
 				});
+
+				slicePromisesPerPlot.push(slicePromise);
 			}
 
-			if (ctrl.formatDataFunc !== undefined) {
+			slicePromises.push(slicePromisesPerPlot);
 
-				plot.data = ctrl.formatDataFunc(rawData);
-			} else {
+			var plotPromise = Promise.all(slicePromises[sliceIndex]).then(function (responseJson) {
 
-				plot.data = rawData;
-			}
+				var plot = {};
 
-			plot.plotFunc = ctrl.plotFunc;
+				if (ctrl.formatDataFunc !== undefined) {
 
-			plot.layout.title = sliceId;
+					plot.data = ctrl.formatDataFunc(responseJson);
+				} else {
 
-			plot.newData = true;
+					plot.data = responseJson;
+				}
 
-			plots.push(plot);
+				plot.layout = Object.assign({}, ctrl.layout);
+
+				plot.plotFunc = ctrl.plotFunc;
+
+				plot.layout.title = sliceId;
+
+				plot.data.newData = true;
+
+				return plot;
+			});
+
+			plotPromises.push(plotPromise);
 		});
 	}
 
-	return plots;
+	return Promise.all(plotPromises);
 }
 
 function refreshTasksInPlotRows() {
 
 	var plotRows = dbsliceData.session.plotRows;
+
+	var plotRowPromises = [];
 
 	plotRows.forEach(function (plotRow) {
 
@@ -932,12 +938,16 @@ function refreshTasksInPlotRows() {
 					ctrl.taskIds = dbsliceData.session.manualListTaskIds;
 				}
 
-				plotRow.plots = makePlotsFromPlotRowCtrl(ctrl);
+				var plotRowPromise = makePlotsFromPlotRowCtrl(ctrl).then(function (plots) {
+					plotRow.plots = plots;
+				});
+
+				plotRowPromises.push(plotRowPromise);
 			}
 		}
 	});
 
-	render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+	Promise.all(plotRowPromises).then(render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config));
 }
 
 function makeSessionHeader(element, title, subtitle, config) {

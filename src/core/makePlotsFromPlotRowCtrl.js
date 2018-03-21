@@ -1,6 +1,8 @@
 function makePlotsFromPlotRowCtrl( ctrl ) {
 
-	var plots = [];
+	var plotPromises = [];
+
+	var slicePromises = [];
 
 	if ( ctrl.sliceIds === undefined ) {
 
@@ -9,10 +11,6 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 		if ( ctrl.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.maxTasks );
 
 		for ( var index = 0; index < nTasks; ++index ) {
-
-			var plot = {};
-
-			plot.layout = Object.assign({}, ctrl.layout);
 
 			if ( ctrl.urlTemplate == null ) {
 
@@ -23,46 +21,52 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 				var url = ctrl.urlTemplate.replace( "${taskId}", ctrl.taskIds[ index ] );
 
 			}
-		 
-			var rawData;
-	
-			// force a synchronous json load
-			$.ajax({
-  				dataType: "json",
-  				url: url,
-  				async: false,
-  				success: function(data){rawData = data}
-			});
-				
-			if (ctrl.formatDataFunc !== undefined) {
 
-				plot.data = ctrl.formatDataFunc( rawData );
+			var title = ctrl.taskLabels[ index ];
 
-			} else {
+       		var plotPromise = fetch(url)
 
-				plot.data = rawData;
+        		.then(function( response ) {
 
-			}
+        			return response.json();
 
-			plot.plotFunc = ctrl.plotFunc;
+        		})
 
-			plot.layout.title = ctrl.taskLabels[index];
+        		.then(function( responseJson ) {
 
-			plot.newData=true;
+        			var plot = {};
 
-			plots.push(plot);
+        			if (ctrl.formatDataFunc !== undefined) {
 
-		}
+						plot.data = ctrl.formatDataFunc( responseJson );
+
+					} else {
+
+						plot.data = responseJson;
+
+					}
+
+					plot.layout = Object.assign({}, ctrl.layout);
+
+					plot.plotFunc = ctrl.plotFunc;
+
+					plot.layout.title = title;
+
+					plot.data.newData = true;
+
+					return plot;
+
+        		} );
+
+        	plotPromises.push(plotPromise);
+
+        }
 
 	} else {
 
-		ctrl.sliceIds.forEach( function( sliceId, index ) {
+		ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
 
-			var plot = {};
-
-			plot.layout = Object.assign({}, ctrl.layout);
-
-			var rawData = [];
+			var slicePromisesPerPlot = [];
 
 			var nTasks = ctrl.taskIds.length;
 
@@ -74,39 +78,53 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
                 	.replace( "${taskId}", ctrl.taskIds[ index ] )
                 	.replace( "${sliceId}", sliceId );
 
-                // force a synchronous json load
-				$.ajax({
-  					dataType: "json",
-  					url: url,
-  					async: false,
-  					success: function(data){ rawData.push(data) }
-				});
+                var slicePromise = fetch(url)
+
+        			.then(function( response ) {
+
+        				return response.json();
+
+        		});
+
+        		slicePromisesPerPlot.push( slicePromise );
 
 			}
 
-			if (ctrl.formatDataFunc !== undefined) {
+			slicePromises.push( slicePromisesPerPlot );
 
-				plot.data = ctrl.formatDataFunc( rawData );
+			var plotPromise = Promise.all( slicePromises[ sliceIndex ] ).then( function (responseJson) {
 
-			} else {
+				var plot = {};
 
-				plot.data = rawData;
+        		if (ctrl.formatDataFunc !== undefined) {
 
-			}
+					plot.data = ctrl.formatDataFunc( responseJson );
 
-			plot.plotFunc = ctrl.plotFunc;
+				} else {
 
-			plot.layout.title = sliceId;
+					plot.data = responseJson;
 
-			plot.newData=true;
+				}
 
-			plots.push(plot);
+				plot.layout = Object.assign({}, ctrl.layout);
 
-		}); 
+				plot.plotFunc = ctrl.plotFunc;
+
+				plot.layout.title = sliceId;
+
+				plot.data.newData = true;
+
+				return plot;
+
+			});
+
+			plotPromises.push(plotPromise);
+
+		});
 
 	}
 
-    return plots;
+    return Promise.all(plotPromises);
 
 }
 
