@@ -82,9 +82,9 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
     				.then(function( response ) {
 
-    				return response.json();
+    					return response.json();
 
-    			});
+    				});
 
     			slicePromisesPerPlot.push( slicePromise );
 
