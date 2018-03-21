@@ -38,23 +38,23 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
         			if (ctrl.formatDataFunc !== undefined) {
 
-						plot.data = ctrl.formatDataFunc( responseJson );
+        				plot.data = ctrl.formatDataFunc( responseJson );
 
-					} else {
+        			} else {
 
-						plot.data = responseJson;
+        				plot.data = responseJson;
 
-					}
+        			}
 
-					plot.layout = Object.assign({}, ctrl.layout);
+        			plot.layout = Object.assign({}, ctrl.layout);
 
-					plot.plotFunc = ctrl.plotFunc;
+        			plot.plotFunc = ctrl.plotFunc;
 
-					plot.layout.title = title;
+        			plot.layout.title = title;
 
-					plot.data.newData = true;
+        			plot.data.newData = true;
 
-					return plot;
+        			return plot;
 
         		} );
 
@@ -62,69 +62,69 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
         }
 
-	} else {
+    } else {
 
-		ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
+    	ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
 
-			var slicePromisesPerPlot = [];
+    		var slicePromisesPerPlot = [];
 
-			var nTasks = ctrl.taskIds.length;
+    		var nTasks = ctrl.taskIds.length;
 
-			if ( ctrl.maxTasks !== undefined ) Math.min( nTasks, ctrl.maxTasks );
+    		if ( ctrl.maxTasks !== undefined ) Math.min( nTasks, ctrl.maxTasks );
 
-			for ( var index = 0; index < nTasks; ++index ) {
+    		for ( var index = 0; index < nTasks; ++index ) {
 
-                var url = ctrl.urlTemplate
-                	.replace( "${taskId}", ctrl.taskIds[ index ] )
-                	.replace( "${sliceId}", sliceId );
+    			var url = ctrl.urlTemplate
+    				.replace( "${taskId}", ctrl.taskIds[ index ] )
+    				.replace( "${sliceId}", sliceId );
 
-                var slicePromise = fetch(url)
+    			var slicePromise = fetch(url)
 
-        			.then(function( response ) {
+    				.then(function( response ) {
 
-        				return response.json();
+    				return response.json();
 
-        		});
+    			});
 
-        		slicePromisesPerPlot.push( slicePromise );
+    			slicePromisesPerPlot.push( slicePromise );
 
-			}
+    		}
 
-			slicePromises.push( slicePromisesPerPlot );
+    		slicePromises.push( slicePromisesPerPlot );
 
-			var plotPromise = Promise.all( slicePromises[ sliceIndex ] ).then( function (responseJson) {
+    		var plotPromise = Promise.all( slicePromises[ sliceIndex ] ).then( function (responseJson) {
 
-				var plot = {};
+    			var plot = {};
 
-        		if (ctrl.formatDataFunc !== undefined) {
+    			if (ctrl.formatDataFunc !== undefined) {
 
-					plot.data = ctrl.formatDataFunc( responseJson );
+    				plot.data = ctrl.formatDataFunc( responseJson );
 
-				} else {
+    			} else {
 
-					plot.data = responseJson;
+    				plot.data = responseJson;
 
-				}
+    			}
 
-				plot.layout = Object.assign({}, ctrl.layout);
+    			plot.layout = Object.assign({}, ctrl.layout);
 
-				plot.plotFunc = ctrl.plotFunc;
+    			plot.plotFunc = ctrl.plotFunc;
 
-				plot.layout.title = sliceId;
+    			plot.layout.title = sliceId;
 
-				plot.data.newData = true;
+    			plot.data.newData = true;
 
-				return plot;
+    			return plot;
 
-			});
+    		});
 
-			plotPromises.push(plotPromise);
+    		plotPromises.push(plotPromise);
 
-		});
+    	});
 
 	}
 
-    return Promise.all(plotPromises);
+	return Promise.all(plotPromises);
 
 }
 
