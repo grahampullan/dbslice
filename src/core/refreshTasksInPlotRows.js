@@ -42,11 +42,15 @@ function refreshTasksInPlotRows() {
 
 	});
 
-	Promise.all( plotRowPromises ).then( 
+	Promise.all( plotRowPromises ).then( function() {
 
-		render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config )
-		
-	);
+		//console.log("rendering....");
+
+		render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+
+	});
+
+
 
 }
 

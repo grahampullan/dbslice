@@ -947,7 +947,12 @@ function refreshTasksInPlotRows() {
 		}
 	});
 
-	Promise.all(plotRowPromises).then(render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config));
+	Promise.all(plotRowPromises).then(function () {
+
+		//console.log("rendering....");
+
+		render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+	});
 }
 
 function makeSessionHeader(element, title, subtitle, config) {
