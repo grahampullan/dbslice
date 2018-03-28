@@ -5409,9 +5409,8 @@ var dbslice = (function (exports) {
 				var vScale = layout.vScale;
 			}
 
-			var color = d3.scaleLinear().domain(vScale).interpolate(function () {
-				return d3.interpolateRdBu;
-			});
+			var color = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap);
+			color.domain(vScale);
 
 			geometry.faces.forEach(function (face, index) {
 				face.vertexColors[0] = new THREE.Color(color(geometry.faceValues[index][0]));
@@ -5672,10 +5671,9 @@ var dbslice = (function (exports) {
 	        // array of threshold values 
 	        var thresholds = d3.range(vMinAll, vMaxAll, (vMaxAll - vMinAll) / 21);
 
-	        // color scale  
-	        var color = d3.scaleLinear().domain(d3.extent(thresholds)).interpolate(function () {
-	            return d3.interpolateRdBu;
-	        });
+	        // colour scale 
+	        var colour = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap);
+	        colour.domain(d3.extent(thresholds));
 
 	        var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
 
@@ -5731,7 +5729,7 @@ var dbslice = (function (exports) {
 
 	            // make and project the contours
 	            plotArea.selectAll("path").data(contours(v)).enter().append("path").attr("d", d3.geoPath(projection)).attr("fill", function (d) {
-	                return color(d.value);
+	                return colour(d.value);
 	            });
 	        }
 
@@ -5833,7 +5831,7 @@ var dbslice = (function (exports) {
 
 	        var yscale0 = d3.scaleLinear().range([height, 0]).domain([ymin, ymax]);
 
-	        var colour = d3.scaleOrdinal(d3.schemeCategory20c);
+	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
 
 	        var line = d3.line().x(function (d) {
 	            return xscale(d.x);
@@ -5961,7 +5959,7 @@ var dbslice = (function (exports) {
 	            return d.y;
 	        }));
 
-	        var colour = d3.scaleOrdinal(d3.schemeCategory20c);
+	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
 
 	        var plotArea = svg.select(".plotArea");
 
@@ -6388,7 +6386,7 @@ var dbslice = (function (exports) {
 	            return d.key;
 	        })).padding([0.2]).align([0.5]);
 
-	        var colour = d3.scaleOrdinal(d3.schemeCategory20c);
+	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal().range(["cornflowerblue"]) : d3.scaleOrdinal(layout.colourMap);
 
 	        var bars = plotArea.selectAll("rect").data(items, function (v) {
 	            return v.key;
@@ -6590,13 +6588,15 @@ var dbslice = (function (exports) {
 
 	        var bars = plotArea.selectAll("rect").data(bins);
 
+	        var colour = layout.colour === undefined ? "cornflowerblue" : layout.colour;
+
 	        bars.enter().append("rect").attr("transform", function (d) {
 	            return "translate(" + x(d.x0) + "," + y(d.length) + ")";
 	        }).attr("x", 1).attr("width", function (d) {
 	            return x(d.x1) - x(d.x0) - 1;
 	        }).attr("height", function (d) {
 	            return height - y(d.length);
-	        }).style("fill", "steelblue").attr("opacity", "1");
+	        }).style("fill", colour).attr("opacity", "1");
 
 	        bars.transition().attr("transform", function (d) {
 	            return "translate(" + x(d.x0) + "," + y(d.length) + ")";
@@ -6692,7 +6692,7 @@ var dbslice = (function (exports) {
 	            return d[yProperty];
 	        }));
 
-	        var colour = d3.scaleOrdinal(d3.schemeCategory20c);
+	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
 
 	        var plotArea = svg.select(".plotArea");
 

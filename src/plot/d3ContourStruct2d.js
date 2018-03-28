@@ -82,12 +82,11 @@ const d3ContourStruct2d = {
         // array of threshold values 
         var thresholds = d3.range( vMinAll , vMaxAll , ( vMaxAll - vMinAll ) / 21 );
 
-        // color scale  
-        var color = d3.scaleLinear()
-            .domain(d3.extent(thresholds))
-            .interpolate(function() { return d3.interpolateRdBu; });
+        // colour scale 
+        var colour = ( layout.colourMap === undefined ) ? d3.scaleSequential( d3.interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+        colour.domain(d3.extent(thresholds));
 
-         var zoom = d3.zoom()
+        var zoom = d3.zoom()
             .scaleExtent([0.5, Infinity])
             .on("zoom", zoomed);
 
@@ -149,7 +148,7 @@ const d3ContourStruct2d = {
                 .data(contours(v))
                 .enter().append("path")
                     .attr("d", d3.geoPath(projection))
-                    .attr("fill", function(d) { return color(d.value); });        
+                    .attr("fill", function(d) { return colour(d.value); });        
 
         }
 

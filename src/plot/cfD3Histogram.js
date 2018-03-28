@@ -150,13 +150,15 @@ const cfD3Histogram = {
         var bars = plotArea.selectAll( "rect" )
             .data( bins );
 
+        var colour = ( layout.colour === undefined ) ? "cornflowerblue" : layout.colour;
+
         bars.enter()
             .append( "rect" )
                 .attr( "transform", d => "translate(" + x( d.x0 ) + "," + y( d.length ) + ")" )
                 .attr( "x", 1 )
                 .attr( "width", d => x(d.x1)-x(d.x0)-1 )
                 .attr( "height", d => height - y( d.length ) )
-                .style( "fill", "steelblue" )
+                .style( "fill", colour )
                 .attr( "opacity", "1" );
 
         bars.transition()

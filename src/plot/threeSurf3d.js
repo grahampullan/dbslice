@@ -18,9 +18,9 @@ const threeSurf3d = {
         	var vScale = layout.vScale;
         }
 
-        var color = d3.scaleLinear()
-        	.domain( vScale )
-        	.interpolate(function() { return d3.interpolateRdBu; });
+
+        var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( d3.interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+        color.domain( vScale );
 
         geometry.faces.forEach(function(face, index) {
         	face.vertexColors[0] = new THREE.Color( color( geometry.faceValues[index][0] ) );

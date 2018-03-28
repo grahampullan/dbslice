@@ -69,7 +69,7 @@ const cfD3Scatter = {
             .range( [height, 0] )
             .domain( d3.extent( pointData, function (d) { return d[ yProperty ]; } ) );
 
-        var colour = d3.scaleOrdinal( d3.schemeCategory20c );
+        var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
 
         var plotArea = svg.select(".plotArea");
 

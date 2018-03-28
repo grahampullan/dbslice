@@ -48,7 +48,7 @@ const d3Scatter = {
             .range( [height, 0] )
             .domain( d3.extent( data.points, function (d) { return d.y; } ) );
 
-        var colour = d3.scaleOrdinal( d3.schemeCategory20c );
+        var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
 
         var plotArea = svg.select(".plotArea");
 

@@ -83,7 +83,7 @@ const d3LineSeries = {
             .range( [height, 0] )
             .domain( [ymin, ymax] );
 
-        var colour = d3.scaleOrdinal( d3.schemeCategory20c );
+        var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
 
         var line = d3.line()
             .x( function( d ) { return xscale( d.x ); } )
