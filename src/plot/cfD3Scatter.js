@@ -86,6 +86,15 @@ const cfD3Scatter = {
         svg.transition().call(zoom.transform, d3.zoomIdentity);
         svg.call(zoom);
 
+        var tip = d3.tip()
+            .attr('class', 'd3-tip')
+            .offset([-10, 0])
+            .html(function( d ) {
+                return "<span>"+d.label+"</span>";
+        });
+
+        svg.call(tip);
+
         var points = plotArea.selectAll( "circle" )
             .data( pointData );
 
@@ -153,17 +162,19 @@ const cfD3Scatter = {
                 .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } );
         }
 
-        function tipOn() {
+        function tipOn( d ) {
             plotArea.selectAll( "circle" ).style( "opacity" , 0.2);
             d3.select(this)
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
+            tip.show( d );
         }
 
         function tipOff() {
             plotArea.selectAll( "circle" ).style( "opacity" , 1.0);
             d3.select(this)
                 .attr( "r", 5 );
+            tip.hide();
         }
 
     }

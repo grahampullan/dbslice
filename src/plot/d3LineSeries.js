@@ -104,6 +104,20 @@ const d3LineSeries = {
         svg.transition().call(zoom.transform, d3.zoomIdentity);
         svg.call(zoom);
 
+        var tip = d3.tip()
+            .attr('class', 'd3-tip')
+            .offset([-10, 0])
+            .html(function( d ) {
+                return "<span>"+d.label+"</span>";
+        });
+
+        svg.call(tip);
+
+        var focus = plotArea.append("g")
+            .style("display","none")
+            .append("circle")
+                .attr("r",1);
+
         var allSeries = plotArea.selectAll( ".plotSeries" ).data( data.series );
 
         allSeries.enter()
@@ -111,13 +125,13 @@ const d3LineSeries = {
                 var series = d3.select( this );
                 var seriesLine = series.append( "g" )
                     .attr( "class", "plotSeries")
-                    .attr( "series-name", function( d ) { return d.name; } )
+                    .attr( "series-name", function( d ) { return d.label; } )
                     .append( "path" )
                         .attr( "class", "line" )
                         .attr( "d", function( d ) { return line( d.data ); } )
-                        .style( "stroke", function( d ) { return colour( d.name ); } )    
+                        .style( "stroke", function( d ) { return colour( d.label ); } )    
                         .style( "fill", "none" )
-                        .style( "stroke-width", "2px" )
+                        .style( "stroke-width", "2.5px" )
                         .attr( "clip-path", "url(#clip)")
                         .on( "mouseover", tipOn )
                         .on( "mouseout", tipOff );
@@ -176,17 +190,22 @@ const d3LineSeries = {
             plotArea.selectAll(".line").attr( "d", function( d ) { return line( d.data ); } );
         }
 
-        function tipOn() {
+        function tipOn( d ) {
             plotArea.selectAll( ".line" ).style( "opacity" , 0.2);
             d3.select(this)
                 .style( "opacity" , 1.0)
                 .style( "stroke-width", "4px" );
+            focus
+                .attr( "cx" , d3.mouse(this)[0] )
+                .attr( "cy" , d3.mouse(this)[1] );
+            tip.show( d , focus.node() );
         }
 
         function tipOff() {
             plotArea.selectAll( ".line" ).style( "opacity" , 1.0);
             d3.select(this)
-                .style( "stroke-width", "2px" );
+                .style( "stroke-width", "2.5px" );
+            tip.hide();
         }
 
         data.newData = false;

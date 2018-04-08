@@ -5615,7 +5615,7 @@ var dbslice = (function (exports) {
 
 	        var x, y, v, n, m;
 
-	        var marginDefault = { top: 20, right: 10, bottom: 20, left: 10 };
+	        var marginDefault = { top: 20, right: 65, bottom: 20, left: 10 };
 	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
 
 	        var container = d3.select(element);
@@ -5630,7 +5630,11 @@ var dbslice = (function (exports) {
 
 	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight);
 
-	        var plotArea = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
+	        var plotArea = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").append("g").attr("class", "plotArea");
+
+	        var scaleMargin = { "left": svgWidth - 60, "top": margin.top };
+
+	        var scaleArea = svg.append("g").attr("class", "scaleArea").attr("transform", "translate(" + scaleMargin.left + "," + scaleMargin.top + ")");
 
 	        var xMinAll = d3.min(data.surfaces[0].x);
 	        var yMinAll = d3.min(data.surfaces[0].y);
@@ -5651,8 +5655,11 @@ var dbslice = (function (exports) {
 	            vMaxAll = d3.max(data.surfaces[nds].v) > vMaxAll ? d3.max(data.surfaces[nds].v) : vMaxAll;
 	        }
 
+	        var xRange = xMaxAll - xMinAll;
+	        var yRange = yMaxAll - yMinAll;
+
 	        // set x and y scale to maintain 1:1 aspect ratio  
-	        var domainAspectRatio = (yMaxAll - yMinAll) / (xMaxAll - xMinAll);
+	        var domainAspectRatio = yRange / xRange;
 	        var rangeAspectRatio = height / width;
 
 	        if (rangeAspectRatio > domainAspectRatio) {
@@ -5732,6 +5739,25 @@ var dbslice = (function (exports) {
 	                return colour(d.value);
 	            });
 	        }
+
+	        // colour scale 
+	        var scaleHeight = svgHeight / 2;
+	        var colourScale = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap);
+	        colourScale.domain([0, scaleHeight]);
+
+	        var scaleBars = scaleArea.selectAll(".scaleBar").data(d3.range(scaleHeight), function (d) {
+	            return d;
+	        }).enter().append("rect").attr("class", "scaleBar").attr("x", 0).attr("y", function (d, i) {
+	            return scaleHeight - i;
+	        }).attr("height", 1).attr("width", 20).style("fill", function (d, i) {
+	            return colourScale(d);
+	        });
+
+	        var cscale = d3.scaleLinear().domain(d3.extent(thresholds)).range([scaleHeight, 0]);
+
+	        var cAxis = d3.axisRight(cscale).ticks(5);
+
+	        scaleArea.append("g").attr("transform", "translate(20,0)").call(cAxis);
 
 	        function zoomed() {
 	            var t = d3.event.transform;
@@ -5848,17 +5874,25 @@ var dbslice = (function (exports) {
 	        svg.transition().call(zoom.transform, d3.zoomIdentity);
 	        svg.call(zoom);
 
+	        var tip = d3.tip().attr('class', 'd3-tip').offset([-10, 0]).html(function (d) {
+	            return "<span>" + d.label + "</span>";
+	        });
+
+	        svg.call(tip);
+
+	        var focus = plotArea.append("g").style("display", "none").append("circle").attr("r", 1);
+
 	        var allSeries = plotArea.selectAll(".plotSeries").data(data.series);
 
 	        allSeries.enter().each(function () {
 	            var series = d3.select(this);
 	            var seriesLine = series.append("g").attr("class", "plotSeries").attr("series-name", function (d) {
-	                return d.name;
+	                return d.label;
 	            }).append("path").attr("class", "line").attr("d", function (d) {
 	                return line(d.data);
 	            }).style("stroke", function (d) {
-	                return colour(d.name);
-	            }).style("fill", "none").style("stroke-width", "2px").attr("clip-path", "url(#clip)").on("mouseover", tipOn).on("mouseout", tipOff);
+	                return colour(d.label);
+	            }).style("fill", "none").style("stroke-width", "2.5px").attr("clip-path", "url(#clip)").on("mouseover", tipOn).on("mouseout", tipOff);
 	        });
 
 	        allSeries.each(function () {
@@ -5901,14 +5935,17 @@ var dbslice = (function (exports) {
 	            });
 	        }
 
-	        function tipOn() {
+	        function tipOn(d) {
 	            plotArea.selectAll(".line").style("opacity", 0.2);
 	            d3.select(this).style("opacity", 1.0).style("stroke-width", "4px");
+	            focus.attr("cx", d3.mouse(this)[0]).attr("cy", d3.mouse(this)[1]);
+	            tip.show(d, focus.node());
 	        }
 
 	        function tipOff() {
 	            plotArea.selectAll(".line").style("opacity", 1.0);
-	            d3.select(this).style("stroke-width", "2px");
+	            d3.select(this).style("stroke-width", "2.5px");
+	            tip.hide();
 	        }
 
 	        data.newData = false;
@@ -5918,8 +5955,6 @@ var dbslice = (function (exports) {
 	var d3Scatter = {
 
 	    make: function make(element, data, layout) {
-
-	        console.log(data);
 
 	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
 	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
@@ -6703,6 +6738,12 @@ var dbslice = (function (exports) {
 	        svg.transition().call(zoom.transform, d3.zoomIdentity);
 	        svg.call(zoom);
 
+	        var tip = d3.tip().attr('class', 'd3-tip').offset([-10, 0]).html(function (d) {
+	            return "<span>" + d.label + "</span>";
+	        });
+
+	        svg.call(tip);
+
 	        var points = plotArea.selectAll("circle").data(pointData);
 
 	        points.enter().append("circle").attr("r", 5).attr("cx", function (d) {
@@ -6755,14 +6796,16 @@ var dbslice = (function (exports) {
 	            });
 	        }
 
-	        function tipOn() {
+	        function tipOn(d) {
 	            plotArea.selectAll("circle").style("opacity", 0.2);
 	            d3.select(this).style("opacity", 1.0).attr("r", 7);
+	            tip.show(d);
 	        }
 
 	        function tipOff() {
 	            plotArea.selectAll("circle").style("opacity", 1.0);
 	            d3.select(this).attr("r", 5);
+	            tip.hide();
 	        }
 	    }
 	};

@@ -2,8 +2,6 @@ const d3Scatter = {
 
     make : function ( element, data, layout ) {
 
-        console.log(data);
-
         var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
         var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
