@@ -6711,21 +6711,32 @@ var dbslice = (function (exports) {
 	        var dim = data.cfData.dataDims[dimId];
 	        var pointData = dim.top(Infinity);
 
-	        var xscale = d3.scaleLinear().range([0, width]).domain(d3.extent(pointData, function (d) {
+	        var xMin = d3.min(pointData, function (d) {
 	            return d[xProperty];
-	        }));
-
-	        var xscale0 = d3.scaleLinear().range([0, width]).domain(d3.extent(pointData, function (d) {
+	        });
+	        var xMax = d3.max(pointData, function (d) {
 	            return d[xProperty];
-	        }));
-
-	        var yscale = d3.scaleLinear().range([height, 0]).domain(d3.extent(pointData, function (d) {
+	        });
+	        var yMin = d3.min(pointData, function (d) {
 	            return d[yProperty];
-	        }));
-
-	        var yscale0 = d3.scaleLinear().range([height, 0]).domain(d3.extent(pointData, function (d) {
+	        });
+	        var yMax = d3.max(pointData, function (d) {
 	            return d[yProperty];
-	        }));
+	        });
+	        var xRange = xMax - xMin;
+	        var yRange = yMax - yMin;
+	        xMin -= 0.1 * xRange;
+	        xMax += 0.1 * xRange;
+	        yMin -= 0.1 * yRange;
+	        yMax += 0.1 * yRange;
+
+	        var xscale = d3.scaleLinear().range([0, width]).domain([xMin, xMax]);
+
+	        var xscale0 = d3.scaleLinear().range([0, width]).domain([xMin, xMax]);
+
+	        var yscale = d3.scaleLinear().range([height, 0]).domain([yMin, yMax]);
+
+	        var yscale0 = d3.scaleLinear().range([height, 0]).domain([yMin, yMax]);
 
 	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
 
