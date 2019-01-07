@@ -19,11 +19,18 @@ function update( elementId, session ) {
     	.append( "div" ).attr( "class", "card bg-light plotRow" )
     	.attr( "style" , "margin-bottom:20px");
 
+
     var newPlotRowsHeader = newPlotRows	
     	.append( "div" ).attr( "class", "card-header plotRowTitle" )
     	.call( function(selection) {
-    		selection.html( function(d) { return "<h3 style='display:inline'>" + d.title + "</h3>" } );
-    	});
+    		selection.html( function(d) {
+                let html = "<h3 style='display:inline'>" + d.title + "</h3>";
+                if ( d.headerButton !== undefined ){
+                    html += "<button class='btn btn-success float-right' id='" + d.headerButton.id + "'>" + d.headerButton.label +"</button>"
+                }
+                return html;
+            });
+        });
 
     var newPlotRowsBody = newPlotRows
     	.append( "div" ).attr( "class", "row no-gutters plotRowBody" );
@@ -51,6 +58,10 @@ function update( elementId, session ) {
     plotRows.exit().remove();
     plotRowPlotWrappers.exit().remove();
 
+
+
 }
+
+
 
 export { update };

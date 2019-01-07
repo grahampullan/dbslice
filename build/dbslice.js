@@ -6065,47 +6065,51 @@ var dbslice = (function (exports) {
 
 	function update(elementId, session) {
 
-	  var element = d3.select("#" + elementId);
+	    var element = d3.select("#" + elementId);
 
-	  if (session.filteredTaskIds !== undefined) {
-	    element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = " + session.filteredTaskIds.length + "</p>");
-	  } else {
-	    element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
-	  }
+	    if (session.filteredTaskIds !== undefined) {
+	        element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = " + session.filteredTaskIds.length + "</p>");
+	    } else {
+	        element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
+	    }
 
-	  var plotRows = element.selectAll(".plotRow").data(session.plotRows);
+	    var plotRows = element.selectAll(".plotRow").data(session.plotRows);
 
-	  var newPlotRows = plotRows.enter().append("div").attr("class", "card bg-light plotRow").attr("style", "margin-bottom:20px");
+	    var newPlotRows = plotRows.enter().append("div").attr("class", "card bg-light plotRow").attr("style", "margin-bottom:20px");
 
-	  var newPlotRowsHeader = newPlotRows.append("div").attr("class", "card-header plotRowTitle").call(function (selection) {
-	    selection.html(function (d) {
-	      return "<h3 style='display:inline'>" + d.title + "</h3>";
+	    var newPlotRowsHeader = newPlotRows.append("div").attr("class", "card-header plotRowTitle").call(function (selection) {
+	        selection.html(function (d) {
+	            var html = "<h3 style='display:inline'>" + d.title + "</h3>";
+	            if (d.headerButton !== undefined) {
+	                html += "<button class='btn btn-success float-right' id='" + d.headerButton.id + "'>" + d.headerButton.label + "</button>";
+	            }
+	            return html;
+	        });
 	    });
-	  });
 
-	  var newPlotRowsBody = newPlotRows.append("div").attr("class", "row no-gutters plotRowBody");
+	    var newPlotRowsBody = newPlotRows.append("div").attr("class", "row no-gutters plotRowBody");
 
-	  var newPlots = newPlotRowsBody.selectAll(".plot").data(function (d) {
-	    return d.plots;
-	  }).enter().each(makeNewPlot);
+	    var newPlots = newPlotRowsBody.selectAll(".plot").data(function (d) {
+	        return d.plots;
+	    }).enter().each(makeNewPlot);
 
-	  plotRows.selectAll(".plotRowBody").selectAll(".plot").data(function (d) {
-	    return d.plots;
-	  }).enter().each(makeNewPlot);
+	    plotRows.selectAll(".plotRowBody").selectAll(".plot").data(function (d) {
+	        return d.plots;
+	    }).enter().each(makeNewPlot);
 
-	  var plotRowPlots = plotRows.selectAll(".plot").data(function (d) {
-	    return d.plots;
-	  }).each(updatePlot);
+	    var plotRowPlots = plotRows.selectAll(".plot").data(function (d) {
+	        return d.plots;
+	    }).each(updatePlot);
 
-	  var plotRowPlotWrappers = plotRows.selectAll(".plotWrapper").data(function (d) {
-	    return d.plots;
-	  }).each(function (plotData, index) {
-	    var plotWrapper = d3.select(this);
-	    var plotTitle = plotWrapper.select(".plotTitle").html(plotData.layout.title);
-	  });
+	    var plotRowPlotWrappers = plotRows.selectAll(".plotWrapper").data(function (d) {
+	        return d.plots;
+	    }).each(function (plotData, index) {
+	        var plotWrapper = d3.select(this);
+	        var plotTitle = plotWrapper.select(".plotTitle").html(plotData.layout.title);
+	    });
 
-	  plotRows.exit().remove();
-	  plotRowPlotWrappers.exit().remove();
+	    plotRows.exit().remove();
+	    plotRowPlotWrappers.exit().remove();
 	}
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -6908,6 +6912,16 @@ var dbslice = (function (exports) {
 	   return cfData;
 	}
 
+	function getFilteredTaskIds() {
+
+		return dbsliceData.session.filteredTaskIds;
+	}
+
+	function getFilteredTaskLabels() {
+
+		return dbsliceData.session.filteredTaskLabels;
+	}
+
 	exports.threeSurf3d = threeSurf3d;
 	exports.threeMeshFromStruct = threeMeshFromStruct;
 	exports.d3ContourStruct2d = d3ContourStruct2d;
@@ -6926,6 +6940,8 @@ var dbslice = (function (exports) {
 	exports.makePlotsFromPlotRowCtrl = makePlotsFromPlotRowCtrl;
 	exports.refreshTasksInPlotRows = refreshTasksInPlotRows;
 	exports.makeSessionHeader = makeSessionHeader;
+	exports.getFilteredTaskIds = getFilteredTaskIds;
+	exports.getFilteredTaskLabels = getFilteredTaskLabels;
 
 	return exports;
 

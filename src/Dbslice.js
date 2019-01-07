@@ -18,3 +18,5 @@ export { cfUpdateFilters } from './core/cfUpdateFilters.js';
 export { makePlotsFromPlotRowCtrl } from './core/makePlotsFromPlotRowCtrl.js'; 
 export { refreshTasksInPlotRows } from './core/refreshTasksInPlotRows.js'; 
 export { makeSessionHeader } from './core/makeSessionHeader.js';
+export { getFilteredTaskIds } from './core/getFilteredTaskIds.js';
+export { getFilteredTaskLabels } from './core/getFilteredTaskLabels.js';
