@@ -6725,6 +6725,7 @@ var dbslice = (function (exports) {
 	            var xDiff = xMax - xMin;
 	            xMin -= 0.1 * xDiff;
 	            xMax += 0.1 * xDiff;
+	            var xRange = [xMin, xMax];
 	        } else {
 	            var xRange = layout.xRange;
 	        }
