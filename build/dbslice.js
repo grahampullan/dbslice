@@ -6755,12 +6755,7 @@ var dbslice = (function (exports) {
 
 	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
 
-	        var opacity = layout.opacity === undefined ? false : layout.opacity;
-	        if (opacity) {
-	            var opacityValue = 0.2;
-	        } else {
-	            var opacityValue = 1.0;
-	        }
+	        var opacity = layout.opacity === undefined ? 1.0 : layout.opacity;
 
 	        var plotArea = svg.select(".plotArea");
 
@@ -6785,7 +6780,7 @@ var dbslice = (function (exports) {
 	            return yscale(d[yProperty]);
 	        }).style("fill", function (d) {
 	            return colour(d[cProperty]);
-	        }).style("opacity", opacityValue).attr("clip-path", "url(#clip)").on("mouseover", tipOn).on("mouseout", tipOff);
+	        }).style("opacity", opacity).attr("clip-path", "url(#clip)").on("mouseover", tipOn).on("mouseout", tipOff);
 
 	        points.transition().attr("r", 5).attr("cx", function (d) {
 	            return xscale(d[xProperty]);
@@ -6836,7 +6831,7 @@ var dbslice = (function (exports) {
 	        }
 
 	        function tipOff() {
-	            plotArea.selectAll("circle").style("opacity", opacityValue);
+	            plotArea.selectAll("circle").style("opacity", opacity);
 	            d3.select(this).attr("r", 5);
 	            tip.hide();
 	        }
