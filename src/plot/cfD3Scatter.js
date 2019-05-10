@@ -53,34 +53,54 @@ const cfD3Scatter = {
         var dim = data.cfData.dataDims[ dimId ];
         var pointData = dim.top( Infinity );
 
-        var xMin = d3.min( pointData, function (d) { return d[ xProperty ]; } );
-        var xMax = d3.max( pointData, function (d) { return d[ xProperty ]; } );
-        var yMin = d3.min( pointData, function (d) { return d[ yProperty ]; } );
-        var yMax = d3.max( pointData, function (d) { return d[ yProperty ]; } );
-        var xRange = xMax - xMin;
-        var yRange = yMax - yMin;
-        xMin -= 0.1 * xRange;
-        xMax += 0.1 * xRange;
-        yMin -= 0.1 * yRange;
-        yMax += 0.1 * yRange;
+
+
+        if ( layout.xRange === undefined) {
+            var xMin = d3.min( pointData, function (d) { return d[ xProperty ]; } );
+            var xMax = d3.max( pointData, function (d) { return d[ xProperty ]; } );
+            var xDiff = xMax - xMin;
+            xMin -= 0.1 * xDiff;
+            xMax += 0.1 * xDiff;
+            var xRange0 = [xMin, xMax];
+        } else {
+            var xRange = layout.xRange;
+        }
+
+        if ( layout.yRange === undefined) {
+            var yMin = d3.min( pointData, function (d) { return d[ yProperty ]; } );
+            var yMax = d3.max( pointData, function (d) { return d[ yProperty ]; } );
+            var yDiff = yMax - yMin;
+            yMin -= 0.1 * yDiff;
+            yMax += 0.1 * yDiff;
+            var yRange = [yMin, yMax];
+        } else {
+            var yRange = layout.yRange;
+        }
 
         var xscale = d3.scaleLinear()
             .range( [0, width] )
-            .domain( [xMin, xMax] );
+            .domain( xRange );
 
         var xscale0 = d3.scaleLinear()
             .range( [0, width] )
-            .domain( [xMin, xMax] );
+            .domain( xRange );
 
         var yscale = d3.scaleLinear()
             .range( [height, 0] )
-            .domain( [yMin, yMax] );
+            .domain( yRange );
 
         var yscale0 = d3.scaleLinear()
             .range( [height, 0] )
-            .domain( [yMin, yMax] );
+            .domain( yRange );
 
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+
+        var opacity = ( layout.opacity === undefined ) ? false : layout.opacity;
+        if ( opacity ) {
+            var opacityValue = 0.2;
+        } else {
+            var opacityValue = 1.0;
+        }
 
         var plotArea = svg.select(".plotArea");
 
@@ -91,7 +111,7 @@ const cfD3Scatter = {
                 .attr("height", height);
 
         var zoom = d3.zoom()
-            .scaleExtent([0.5, Infinity])
+            .scaleExtent([0.01, Infinity])
             .on("zoom", zoomed);
 
         svg.transition().call(zoom.transform, d3.zoomIdentity);
@@ -115,6 +135,7 @@ const cfD3Scatter = {
             .attr( "cx", function( d ) { return xscale( d[ xProperty ] ); } )
             .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } )
             .style( "fill", function( d ) { return colour( d[ cProperty ] ); } )
+            .style( "opacity", opacityValue )
             .attr( "clip-path", "url(#clip)")
             .on( "mouseover", tipOn )
             .on( "mouseout", tipOff );
@@ -182,7 +203,7 @@ const cfD3Scatter = {
         }
 
         function tipOff() {
-            plotArea.selectAll( "circle" ).style( "opacity" , 1.0);
+            plotArea.selectAll( "circle" ).style( "opacity" , opacityValue );
             d3.select(this)
                 .attr( "r", 5 );
             tip.hide();
