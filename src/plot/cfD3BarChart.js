@@ -54,8 +54,12 @@ const cfD3BarChart = {
 
         var dim = data.cfData.metaDims[ dimId ];
         var group = dim.group();
+        
         //var items = group.top( Infinity );
         var items = group.all()
+
+        var removeZeroBar = ( layout.removeZeroBar === undefined ) ? false : layout.removeZeroBar;
+        if ( removeZeroBar ) items = items.filter( item => item.value > 0);
 
         var x = d3.scaleLinear()
             .range( [0, width] )
@@ -108,6 +112,8 @@ const cfD3BarChart = {
         // updating the bar chart bars
         bars.transition()
             .attr( "width", v => x( v.value ) )
+            .attr( "y", v => y(v.key) )
+            .attr( "height", y.bandwidth() )
             // change colour depending on whether the bar has been selected
             .attr( "opacity", ( v ) => {
 
@@ -123,6 +129,10 @@ const cfD3BarChart = {
                 }
 
             } );
+
+        bars.exit().transition()
+            .attr( "width", 0)
+            .remove();
 
         var xAxis = plotArea.select(".xAxis");
         if ( xAxis.empty() ) {
@@ -149,7 +159,7 @@ const cfD3BarChart = {
             yAxis.transition().call( d3.axisLeft( y ).tickValues( []) );
         }
 
-        var keyLabels = plotArea.selectAll( "keyLabel" )
+        var keyLabels = plotArea.selectAll( ".keyLabel" )
             .data( items, v => v.key );
 
         keyLabels.enter()
@@ -163,8 +173,12 @@ const cfD3BarChart = {
             .text( v => v.key );
 
         // updating meta Labels
-        keyLabels
-            .text( v => v.key );
+        keyLabels.transition()
+             .attr( "y", v => y(v.key) + 0.5*y.bandwidth() )
+             .text( v => v.key );
+
+        keyLabels.exit()
+            .remove();
 
     }
 };
