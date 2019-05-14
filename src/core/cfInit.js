@@ -2,8 +2,6 @@ function cfInit( metaData ) {
 
 	var cfData = {};
 
-	//cfData.metaData = metaData;
-
 	cfData.metaDataProperties = metaData.header.metaDataProperties;
 
 	cfData.dataProperties = metaData.header.dataProperties;
@@ -12,9 +10,13 @@ function cfInit( metaData ) {
 
     cfData.metaDims = [];
 
+    cfData.metaDataUniqueValues = {};
+
     cfData.metaDataProperties.forEach( ( property, i ) => {
 
     	cfData.metaDims.push( cfData.cf.dimension( d => d[ property ] ) );
+
+        cfData.metaDataUniqueValues[property] = Array.from( new Set(metaData.data.map( d => d[property]) ) );
 
     } );
 

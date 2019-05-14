@@ -53,8 +53,6 @@ const cfD3Scatter = {
         var dim = data.cfData.dataDims[ dimId ];
         var pointData = dim.top( Infinity );
 
-
-
         if ( layout.xRange === undefined) {
             var xMin = d3.min( pointData, function (d) { return d[ xProperty ]; } );
             var xMax = d3.max( pointData, function (d) { return d[ xProperty ]; } );
@@ -94,6 +92,7 @@ const cfD3Scatter = {
             .domain( yRange );
 
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+        colour.domain( data.cfData.metaDataUniqueValues[ cProperty ] );
 
         var opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
 

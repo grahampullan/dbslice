@@ -72,6 +72,7 @@ const cfD3BarChart = {
             .align([0.5]);
 
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal().range( ["cornflowerblue"] ) : d3.scaleOrdinal( layout.colourMap );
+        colour.domain( data.cfData.metaDataUniqueValues[ property ] );
 
         var bars = plotArea.selectAll( "rect" )
             .data( items, v => v.key );

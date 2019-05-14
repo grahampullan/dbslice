@@ -6414,8 +6414,14 @@ var dbslice = (function (exports) {
 
 	        var dim = data.cfData.metaDims[dimId];
 	        var group = dim.group();
+
 	        //var items = group.top( Infinity );
 	        var items = group.all();
+
+	        var removeZeroBar = layout.removeZeroBar === undefined ? false : layout.removeZeroBar;
+	        if (removeZeroBar) items = items.filter(function (item) {
+	            return item.value > 0;
+	        });
 
 	        var x = d3.scaleLinear().range([0, width]).domain([0, d3.max(items, function (v) {
 	            return v.value;
@@ -6426,6 +6432,7 @@ var dbslice = (function (exports) {
 	        })).padding([0.2]).align([0.5]);
 
 	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal().range(["cornflowerblue"]) : d3.scaleOrdinal(layout.colourMap);
+	        colour.domain(data.cfData.metaDataUniqueValues[property]);
 
 	        var bars = plotArea.selectAll("rect").data(items, function (v) {
 	            return v.key;
@@ -6463,7 +6470,9 @@ var dbslice = (function (exports) {
 	        // updating the bar chart bars
 	        bars.transition().attr("width", function (v) {
 	            return x(v.value);
-	        })
+	        }).attr("y", function (v) {
+	            return y(v.key);
+	        }).attr("height", y.bandwidth())
 	        // change colour depending on whether the bar has been selected
 	        .attr("opacity", function (v) {
 
@@ -6476,6 +6485,8 @@ var dbslice = (function (exports) {
 	                return data.cfData.filterSelected[dimId].indexOf(v.key) === -1 ? 0.2 : 1;
 	            }
 	        });
+
+	        bars.exit().transition().attr("width", 0).remove();
 
 	        var xAxis = plotArea.select(".xAxis");
 	        if (xAxis.empty()) {
@@ -6491,7 +6502,7 @@ var dbslice = (function (exports) {
 	            yAxis.transition().call(d3.axisLeft(y).tickValues([]));
 	        }
 
-	        var keyLabels = plotArea.selectAll("keyLabel").data(items, function (v) {
+	        var keyLabels = plotArea.selectAll(".keyLabel").data(items, function (v) {
 	            return v.key;
 	        });
 
@@ -6502,9 +6513,13 @@ var dbslice = (function (exports) {
 	        });
 
 	        // updating meta Labels
-	        keyLabels.text(function (v) {
+	        keyLabels.transition().attr("y", function (v) {
+	            return y(v.key) + 0.5 * y.bandwidth();
+	        }).text(function (v) {
 	            return v.key;
 	        });
+
+	        keyLabels.exit().remove();
 	    }
 	};
 
@@ -6754,6 +6769,7 @@ var dbslice = (function (exports) {
 	        var yscale0 = d3.scaleLinear().range([height, 0]).domain(yRange);
 
 	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
+	        colour.domain(data.cfData.metaDataUniqueValues[cProperty]);
 
 	        var opacity = layout.opacity === undefined ? 1.0 : layout.opacity;
 
@@ -6890,39 +6906,43 @@ var dbslice = (function (exports) {
 
 	function cfInit(metaData) {
 
-	   var cfData = {};
+	    var cfData = {};
 
-	   //cfData.metaData = metaData;
+	    cfData.metaDataProperties = metaData.header.metaDataProperties;
 
-	   cfData.metaDataProperties = metaData.header.metaDataProperties;
+	    cfData.dataProperties = metaData.header.dataProperties;
 
-	   cfData.dataProperties = metaData.header.dataProperties;
+	    cfData.cf = crossfilter(metaData.data);
 
-	   cfData.cf = crossfilter(metaData.data);
+	    cfData.metaDims = [];
 
-	   cfData.metaDims = [];
+	    cfData.metaDataUniqueValues = {};
 
-	   cfData.metaDataProperties.forEach(function (property, i) {
+	    cfData.metaDataProperties.forEach(function (property, i) {
 
-	      cfData.metaDims.push(cfData.cf.dimension(function (d) {
-	         return d[property];
-	      }));
-	   });
+	        cfData.metaDims.push(cfData.cf.dimension(function (d) {
+	            return d[property];
+	        }));
 
-	   cfData.dataDims = [];
+	        cfData.metaDataUniqueValues[property] = Array.from(new Set(metaData.data.map(function (d) {
+	            return d[property];
+	        })));
+	    });
 
-	   cfData.dataProperties.forEach(function (property, i) {
+	    cfData.dataDims = [];
 
-	      cfData.dataDims.push(cfData.cf.dimension(function (d) {
-	         return d[property];
-	      }));
-	   });
+	    cfData.dataProperties.forEach(function (property, i) {
 
-	   cfData.filterSelected = [];
+	        cfData.dataDims.push(cfData.cf.dimension(function (d) {
+	            return d[property];
+	        }));
+	    });
 
-	   cfData.histogramSelectedRanges = [];
+	    cfData.filterSelected = [];
 
-	   return cfData;
+	    cfData.histogramSelectedRanges = [];
+
+	    return cfData;
 	}
 
 	function getFilteredTaskIds() {
