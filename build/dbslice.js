@@ -5841,6 +5841,18 @@ var dbslice = (function (exports) {
 	            ymaxNow > ymax ? ymax = ymaxNow : ymax = ymax;
 	        }
 
+	        if (layout.xRange === undefined) {
+	            var xRange = [xmin, xmax];
+	        } else {
+	            var xRange = layout.xRange;
+	        }
+
+	        if (layout.yRange === undefined) {
+	            var yRange = [ymin, ymax];
+	        } else {
+	            var yRange = layout.yRange;
+	        }
+
 	        if (layout.xscale == "time") {
 	            var xscale = d3.scaleTime();
 	            var xscale0 = d3.scaleTime();
@@ -5849,13 +5861,13 @@ var dbslice = (function (exports) {
 	            var xscale0 = d3.scaleLinear();
 	        }
 
-	        xscale.range([0, width]).domain([xmin, xmax]);
+	        xscale.range([0, width]).domain(xRange);
 
-	        xscale0.range([0, width]).domain([xmin, xmax]);
+	        xscale0.range([0, width]).domain(xRange);
 
-	        var yscale = d3.scaleLinear().range([height, 0]).domain([ymin, ymax]);
+	        var yscale = d3.scaleLinear().range([height, 0]).domain(yRange);
 
-	        var yscale0 = d3.scaleLinear().range([height, 0]).domain([ymin, ymax]);
+	        var yscale0 = d3.scaleLinear().range([height, 0]).domain(yRange);
 
 	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
 
@@ -6122,116 +6134,154 @@ var dbslice = (function (exports) {
 
 	function makePlotsFromPlotRowCtrl(ctrl) {
 
-	  var plotPromises = [];
+	    var plotPromises = [];
 
-	  if (ctrl.sliceIds === undefined) {
+	    if (ctrl.sliceIds === undefined) {
 
-	    var nTasks = ctrl.taskIds.length;
+	        var nTasks = ctrl.taskIds.length;
 
-	    if (ctrl.maxTasks !== undefined) nTasks = Math.min(nTasks, ctrl.maxTasks);
+	        if (ctrl.maxTasks !== undefined) nTasks = Math.min(nTasks, ctrl.maxTasks);
 
-	    for (var index = 0; index < nTasks; ++index) {
+	        for (var index = 0; index < nTasks; ++index) {
 
-	      if (ctrl.urlTemplate == null) {
+	            if (ctrl.urlTemplate == null) {
 
-	        var url = ctrl.taskIds[index];
-	      } else {
+	                var url = ctrl.taskIds[index];
+	            } else {
 
-	        var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]);
-	      }
+	                var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]);
+	            }
 
-	      var title = ctrl.taskLabels[index];
+	            var title = ctrl.taskLabels[index];
 
-	      var plotPromise = makePromiseTaskPlot(ctrl, url, title);
+	            var plotPromise = makePromiseTaskPlot(ctrl, url, title, ctrl.taskIDs[index]);
 
-	      plotPromises.push(plotPromise);
-	    }
-	  } else {
-
-	    ctrl.sliceIds.forEach(function (sliceId, sliceIndex) {
-
-	      var plotPromise = makePromiseSlicePlot(ctrl, sliceId);
-
-	      plotPromises.push(plotPromise);
-	    });
-	  }
-
-	  return Promise.all(plotPromises);
-	}
-
-	function makePromiseTaskPlot(ctrl, url, title) {
-
-	  return fetch(url).then(function (response) {
-
-	    return response.json();
-	  }).then(function (responseJson) {
-
-	    var plot = {};
-
-	    if (ctrl.formatDataFunc !== undefined) {
-
-	      plot.data = ctrl.formatDataFunc(responseJson);
+	            plotPromises.push(plotPromise);
+	        }
 	    } else {
 
-	      plot.data = responseJson;
+	        ctrl.sliceIds.forEach(function (sliceId, sliceIndex) {
+
+	            var plotPromise = makePromiseSlicePlot(ctrl, sliceId);
+
+	            plotPromises.push(plotPromise);
+	        });
 	    }
 
-	    plot.layout = Object.assign({}, ctrl.layout);
+	    return Promise.all(plotPromises);
+	}
 
-	    plot.plotFunc = ctrl.plotFunc;
+	function makePromiseTaskPlot(ctrl, url, title, taskId) {
 
-	    plot.layout.title = title;
+	    return fetch(url).then(function (response) {
 
-	    plot.data.newData = true;
+	        if (ctrl.csv === undefined) {
 
-	    return plot;
-	  });
+	            return response.json();
+	        }
+
+	        if (ctrl.csv == true) {
+
+	            return response.text();
+	        }
+	    }).then(function (responseJson) {
+
+	        if (ctrl.csv == true) {
+
+	            responseJson = d3.csvParse(responseJson);
+	        }
+
+	        var plot = {};
+
+	        if (ctrl.formatDataFunc !== undefined) {
+
+	            plot.data = ctrl.formatDataFunc(responseJson, taskId);
+	        } else {
+
+	            plot.data = responseJson;
+	        }
+
+	        plot.layout = Object.assign({}, ctrl.layout);
+
+	        plot.plotFunc = ctrl.plotFunc;
+
+	        plot.layout.title = title;
+
+	        plot.data.newData = true;
+
+	        return plot;
+	    });
 	}
 
 	function makePromiseSlicePlot(ctrl, sliceId) {
 
-	  var slicePromisesPerPlot = [];
+	    var slicePromisesPerPlot = [];
+	    var tasksOnPlot = [];
 
-	  var nTasks = ctrl.taskIds.length;
+	    var nTasks = ctrl.taskIds.length;
 
-	  if (ctrl.maxTasks !== undefined) Math.min(nTasks, ctrl.maxTasks);
+	    if (ctrl.maxTasks !== undefined) Math.min(nTasks, ctrl.maxTasks);
 
-	  for (var index = 0; index < nTasks; ++index) {
+	    for (var index = 0; index < nTasks; ++index) {
 
-	    var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]).replace("${sliceId}", sliceId);
+	        tasksOnPlot.push(ctrl.taskIds[index]);
 
-	    var slicePromise = fetch(url).then(function (response) {
+	        var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]).replace("${sliceId}", sliceId);
 
-	      return response.json();
-	    });
+	        console.log(url);
 
-	    slicePromisesPerPlot.push(slicePromise);
-	  }
+	        var slicePromise = fetch(url).then(function (response) {
 
-	  // slicePromises.push( slicePromisesPerPlot );
+	            if (ctrl.csv === undefined) {
 
-	  return Promise.all(slicePromisesPerPlot).then(function (responseJson) {
+	                return response.json();
+	            }
 
-	    var plot = {};
+	            if (ctrl.csv == true) {
 
-	    if (ctrl.formatDataFunc !== undefined) {
+	                return response.text();
+	            }
+	        });
 
-	      plot.data = ctrl.formatDataFunc(responseJson);
-	    } else {
-
-	      plot.data = responseJson;
+	        slicePromisesPerPlot.push(slicePromise);
 	    }
 
-	    plot.layout = Object.assign({}, ctrl.layout);
+	    // slicePromises.push( slicePromisesPerPlot );
 
-	    plot.plotFunc = ctrl.plotFunc;
+	    return Promise.all(slicePromisesPerPlot).then(function (responseJson) {
 
-	    plot.layout.title = sliceId;
+	        if (ctrl.csv == true) {
 
-	    plot.data.newData = true;
+	            var responseCsv = [];
 
-	    return plot;
-	  });
+	            responseJson.forEach(function (d) {
+
+	                responseCsv.push(d3.csvParse(d));
+	            });
+
+	            responseJson = responseCsv;
+	        }
+
+	        var plot = {};
+
+	        if (ctrl.formatDataFunc !== undefined) {
+
+	            plot.data = ctrl.formatDataFunc(responseJson, tasksOnPlot);
+	        } else {
+
+	            plot.data = responseJson;
+	        }
+
+	        plot.layout = Object.assign({}, ctrl.layout);
+
+	        plot.plotFunc = ctrl.plotFunc;
+
+	        plot.layout.title = sliceId;
+
+	        plot.data.newData = true;
+
+	        return plot;
+	    });
 	}
 
 	function refreshTasksInPlotRows() {
@@ -6904,6 +6954,48 @@ var dbslice = (function (exports) {
 	    }
 	};
 
+	var cfAddPlot = {
+
+	    make: function make(element, data, layout) {
+
+	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
+	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
+
+	        var container = d3.select(element);
+
+	        var svgWidth = container.node().offsetWidth,
+	            svgHeight = layout.height;
+
+	        var width = svgWidth - margin.left - margin.right;
+	        var height = svgHeight - margin.top - margin.bottom;
+
+	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
+
+	        cfAddPlot.update(element, data, layout);
+	    },
+
+	    update: function update(element, data, layout) {
+
+	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
+	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
+
+	        var container = d3.select(element);
+
+	        var svg = container.select("svg");
+
+	        var svgWidth = svg.attr("width");
+	        var svgHeight = svg.attr("height");
+
+	        var width = svgWidth - margin.left - margin.right;
+	        var height = svgHeight - margin.top - margin.bottom;
+
+	        var plotArea = svg.select(".plotArea");
+
+	        container.append("input").attr("type", "button").attr("class", "btn btn-success").attr("type", "button").attr("value", "test button");
+	    }
+
+	};
+
 	function cfInit(metaData) {
 
 	    var cfData = {};
@@ -6964,6 +7056,7 @@ var dbslice = (function (exports) {
 	exports.cfD3Histogram = cfD3Histogram;
 	exports.cfD3Scatter = cfD3Scatter;
 	exports.cfLeafletMapWithMarkers = cfLeafletMapWithMarkers;
+	exports.cfAddPlot = cfAddPlot;
 	exports.render = render;
 	exports.update = update;
 	exports.makeNewPlot = makeNewPlot;

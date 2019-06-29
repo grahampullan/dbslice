@@ -9,6 +9,7 @@ export { cfD3BarChart } from './plot/cfD3BarChart.js';
 export { cfD3Histogram } from './plot/cfD3Histogram.js';
 export { cfD3Scatter } from './plot/cfD3Scatter.js';
 export { cfLeafletMapWithMarkers } from './plot/cfLeafletMapWithMarkers.js';
+export { cfAddPlot } from './plot/cfAddPlot.js';
 export { render } from './core/render.js';
 export { update } from './core/update.js';
 export { makeNewPlot } from './core/makeNewPlot.js';

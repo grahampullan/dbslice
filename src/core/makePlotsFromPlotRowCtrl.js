@@ -24,7 +24,7 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
 			var title = ctrl.taskLabels[ index ];
 
-       		var plotPromise = makePromiseTaskPlot( ctrl, url, title );
+       		var plotPromise = makePromiseTaskPlot( ctrl, url, title, ctrl.taskIDs[ index ] ); 
 
         	plotPromises.push( plotPromise );
 
@@ -34,7 +34,7 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
     	ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
 
-    		var plotPromise = makePromiseSlicePlot ( ctrl, sliceId);
+    		var plotPromise = makePromiseSlicePlot ( ctrl, sliceId );
 
     		plotPromises.push( plotPromise );
 
@@ -46,23 +46,39 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 }
 
 
-function makePromiseTaskPlot( ctrl, url, title) {
+function makePromiseTaskPlot( ctrl, url, title, taskId ) { 
 
 	return fetch(url)
 
 	.then(function( response ) {
 
-        return response.json();
+        if ( ctrl.csv === undefined ) {
+
+            return response.json();
+
+        }
+
+        if ( ctrl.csv == true ) {
+
+            return response.text() ;
+
+        }
 
     })
 
     .then(function( responseJson ) {
 
+        if ( ctrl.csv == true ) {
+
+            responseJson = d3.csvParse( responseJson );
+
+        }
+
     	var plot = {};
 
     	if (ctrl.formatDataFunc !== undefined) {
 
-    		plot.data = ctrl.formatDataFunc( responseJson );
+    		plot.data = ctrl.formatDataFunc( responseJson, taskId ); 
 
     	} else {
 
@@ -70,7 +86,7 @@ function makePromiseTaskPlot( ctrl, url, title) {
 
         }
 
-        plot.layout = Object.assign({}, ctrl.layout);
+        plot.layout = Object.assign( {}, ctrl.layout );
 
         plot.plotFunc = ctrl.plotFunc;
 
@@ -87,6 +103,7 @@ function makePromiseTaskPlot( ctrl, url, title) {
 function makePromiseSlicePlot( ctrl, sliceId ) {
 
 	var slicePromisesPerPlot = [];
+    var tasksOnPlot = [];
 
 	var nTasks = ctrl.taskIds.length;
 
@@ -94,13 +111,27 @@ function makePromiseSlicePlot( ctrl, sliceId ) {
 
 	for ( var index = 0; index < nTasks; ++index ) {
 
+        tasksOnPlot.push( ctrl.taskIds[index] );
+
 		var url = ctrl.urlTemplate
 			.replace( "${taskId}", ctrl.taskIds[ index ] )
 			.replace( "${sliceId}", sliceId );
 
+            console.log(url);
+
 			var slicePromise = fetch(url).then( function( response ) {
 
-				return response.json();
+				if ( ctrl.csv === undefined ) {
+
+                    return response.json();
+
+                }
+
+                if ( ctrl.csv == true ) {
+
+                    return response.text() ;
+
+                }
 
 			});
 
@@ -112,11 +143,25 @@ function makePromiseSlicePlot( ctrl, sliceId ) {
 
     return Promise.all( slicePromisesPerPlot ).then( function ( responseJson ) {
 
+        if ( ctrl.csv == true ) {
+
+            var responseCsv = [];
+
+            responseJson.forEach( function(d) {
+
+                responseCsv.push( d3.csvParse(d) );
+
+            });
+
+            responseJson = responseCsv;
+
+        }
+
     	var plot = {};
 
     	if (ctrl.formatDataFunc !== undefined) {
 
-    		plot.data = ctrl.formatDataFunc( responseJson );
+    		plot.data = ctrl.formatDataFunc( responseJson, tasksOnPlot );
 
     	} else {
 

@@ -61,6 +61,18 @@ const d3LineSeries = {
             ( ymaxNow > ymax ) ? ymax = ymaxNow : ymax = ymax;
         }
 
+        if ( layout.xRange === undefined ) {
+            var xRange = [xmin, xmax];
+        } else {
+            var xRange = layout.xRange;
+        }
+
+        if ( layout.yRange === undefined ) {
+            var yRange = [ymin, ymax];
+        } else {
+            var yRange = layout.yRange;
+        }
+
         if ( layout.xscale == "time" ) {
             var xscale = d3.scaleTime(); 
             var xscale0 = d3.scaleTime();        
@@ -70,18 +82,18 @@ const d3LineSeries = {
         }
 
         xscale.range( [0, width] )
-              .domain( [xmin, xmax] );
+              .domain( xRange );
 
         xscale0.range( [0, width] )
-              .domain( [xmin, xmax] );
+              .domain( xRange );
 
         var yscale = d3.scaleLinear()
             .range( [height, 0] )
-            .domain( [ymin, ymax] );
+            .domain( yRange );
 
         var yscale0 = d3.scaleLinear()
             .range( [height, 0] )
-            .domain( [ymin, ymax] );
+            .domain( yRange );
 
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
 
