@@ -5799,6 +5799,10 @@ var dbslice = (function (exports) {
 
 	        var container = d3.select(element);
 
+	        var plotRowIndex = container.attr("plot-row-index");
+	        var plotIndex = container.attr("plot-index");
+	        var clipId = "clip-" + plotRowIndex + "-" + plotIndex;
+
 	        var svg = container.select("svg");
 
 	        var svgWidth = svg.attr("width");
@@ -5870,6 +5874,8 @@ var dbslice = (function (exports) {
 	        var yscale0 = d3.scaleLinear().range([height, 0]).domain(yRange);
 
 	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
+	        if (layout.cSet !== undefined) colour.domain(layout.cSet);
+	        console.log(layout.cSet);
 
 	        var line = d3.line().x(function (d) {
 	            return xscale(d.x);
@@ -5879,7 +5885,7 @@ var dbslice = (function (exports) {
 
 	        var plotArea = svg.select(".plotArea");
 
-	        var clip = svg.append("clipPath").attr("id", "clip").append("rect").attr("width", width).attr("height", height);
+	        var clip = svg.append("defs").append("clipPath").attr("id", clipId).append("rect").attr("width", width).attr("height", height);
 
 	        var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
 
@@ -5900,11 +5906,13 @@ var dbslice = (function (exports) {
 	            var series = d3.select(this);
 	            var seriesLine = series.append("g").attr("class", "plotSeries").attr("series-name", function (d) {
 	                return d.label;
-	            }).append("path").attr("class", "line").attr("d", function (d) {
+	            }).attr("clip-path", "url(#" + clipId + ")").append("path").attr("class", "line").attr("d", function (d) {
 	                return line(d.data);
 	            }).style("stroke", function (d) {
-	                return colour(d.label);
-	            }).style("fill", "none").style("stroke-width", "2.5px").attr("clip-path", "url(#clip)").on("mouseover", tipOn).on("mouseout", tipOff);
+	                return colour(d.cKey);
+	            }).style("fill", "none").style("stroke-width", "2.5px")
+	            //.attr( "clip-path", "url(#clip)")
+	            .on("mouseover", tipOn).on("mouseout", tipOff);
 	        });
 
 	        allSeries.each(function () {
@@ -6054,13 +6062,16 @@ var dbslice = (function (exports) {
 
 	function makeNewPlot(plotData, index) {
 
-	    var plot = d3.select(this).append("div").attr("class", "col-md-" + plotData.layout.colWidth + " plotWrapper").append("div").attr("class", "card");
+	   var plotRowIndex = d3.select(this._parent).attr("plot-row-index");
+	   console.log(plotRowIndex);
 
-	    var plotHeader = plot.append("div").attr("class", "card-header plotTitle").html(plotData.layout.title);
+	   var plot = d3.select(this).append("div").attr("class", "col-md-" + plotData.layout.colWidth + " plotWrapper").append("div").attr("class", "card");
 
-	    var plotBody = plot.append("div").attr("class", "plot");
+	   var plotHeader = plot.append("div").attr("class", "card-header plotTitle").html(plotData.layout.title);
 
-	    plotData.plotFunc.make(plotBody.node(), plotData.data, plotData.layout);
+	   var plotBody = plot.append("div").attr("class", "plot").attr("plot-row-index", plotRowIndex).attr("plot-index", index);
+
+	   plotData.plotFunc.make(plotBody.node(), plotData.data, plotData.layout);
 	}
 
 	function updatePlot(plotData, index) {
@@ -6087,7 +6098,9 @@ var dbslice = (function (exports) {
 
 	    var plotRows = element.selectAll(".plotRow").data(session.plotRows);
 
-	    var newPlotRows = plotRows.enter().append("div").attr("class", "card bg-light plotRow").attr("style", "margin-bottom:20px");
+	    var newPlotRows = plotRows.enter().append("div").attr("class", "card bg-light plotRow").attr("style", "margin-bottom:20px").attr("plot-row-index", function (d, i) {
+	        return i;
+	    });
 
 	    var newPlotRowsHeader = newPlotRows.append("div").attr("class", "card-header plotRowTitle").call(function (selection) {
 	        selection.html(function (d) {
@@ -6099,7 +6112,9 @@ var dbslice = (function (exports) {
 	        });
 	    });
 
-	    var newPlotRowsBody = newPlotRows.append("div").attr("class", "row no-gutters plotRowBody");
+	    var newPlotRowsBody = newPlotRows.append("div").attr("class", "row no-gutters plotRowBody").attr("plot-row-index", function (d, i) {
+	        return i;
+	    });
 
 	    var newPlots = newPlotRowsBody.selectAll(".plot").data(function (d) {
 	        return d.plots;
@@ -6761,6 +6776,10 @@ var dbslice = (function (exports) {
 
 	        var container = d3.select(element);
 
+	        var plotRowIndex = container.attr("plot-row-index");
+	        var plotIndex = container.attr("plot-index");
+	        var clipId = "clip-" + plotRowIndex + "-" + plotIndex;
+
 	        var svg = container.select("svg");
 
 	        var svgWidth = svg.attr("width");
@@ -6825,7 +6844,7 @@ var dbslice = (function (exports) {
 
 	        var plotArea = svg.select(".plotArea");
 
-	        var clip = svg.append("clipPath").attr("id", "clip").append("rect").attr("width", width).attr("height", height);
+	        var clip = svg.append("clipPath").attr("id", clipId).append("rect").attr("width", width).attr("height", height);
 
 	        var zoom = d3.zoom().scaleExtent([0.01, Infinity]).on("zoom", zoomed);
 
@@ -6846,7 +6865,7 @@ var dbslice = (function (exports) {
 	            return yscale(d[yProperty]);
 	        }).style("fill", function (d) {
 	            return colour(d[cProperty]);
-	        }).style("opacity", opacity).attr("clip-path", "url(#clip)").on("mouseover", tipOn).on("mouseout", tipOff);
+	        }).style("opacity", opacity).attr("clip-path", "url(#" + clipId + ")").on("mouseover", tipOn).on("mouseout", tipOff);
 
 	        points.transition().attr("r", 5).attr("cx", function (d) {
 	            return xscale(d[xProperty]);

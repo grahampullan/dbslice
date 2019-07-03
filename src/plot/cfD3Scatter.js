@@ -28,11 +28,15 @@ const cfD3Scatter = {
     }, 
 
     update : function ( element, data, layout ) {
-     
+
         var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
         var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
         var container = d3.select(element);
+
+        let plotRowIndex = container.attr("plot-row-index");
+        let plotIndex = container.attr("plot-index");
+        let clipId = "clip-"+plotRowIndex+"-"+plotIndex;
 
         var svg = container.select("svg");
 
@@ -99,7 +103,7 @@ const cfD3Scatter = {
         var plotArea = svg.select(".plotArea");
 
         var clip = svg.append("clipPath")
-            .attr("id", "clip")
+            .attr("id", clipId)
             .append("rect")
                 .attr("width", width)
                 .attr("height", height);
@@ -130,7 +134,7 @@ const cfD3Scatter = {
             .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } )
             .style( "fill", function( d ) { return colour( d[ cProperty ] ); } )
             .style( "opacity", opacity )
-            .attr( "clip-path", "url(#clip)")
+            .attr( "clip-path", "url(#"+clipId+")")
             .on( "mouseover", tipOn )
             .on( "mouseout", tipOff );
  

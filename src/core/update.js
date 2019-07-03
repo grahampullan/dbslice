@@ -17,7 +17,8 @@ function update( elementId, session ) {
 
     var newPlotRows = plotRows.enter()
     	.append( "div" ).attr( "class", "card bg-light plotRow" )
-    	.attr( "style" , "margin-bottom:20px");
+    	.attr( "style" , "margin-bottom:20px")
+        .attr( "plot-row-index", function(d, i) { return i; } );
 
 
     var newPlotRowsHeader = newPlotRows	
@@ -33,7 +34,8 @@ function update( elementId, session ) {
         });
 
     var newPlotRowsBody = newPlotRows
-    	.append( "div" ).attr( "class", "row no-gutters plotRowBody" );
+    	.append( "div" ).attr( "class", "row no-gutters plotRowBody" )
+        .attr ("plot-row-index", function(d, i) { return i; });
 
     var newPlots = newPlotRowsBody.selectAll( ".plot")
     	.data( function( d ) { return d.plots; } ) 

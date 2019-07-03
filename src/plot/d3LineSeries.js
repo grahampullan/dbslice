@@ -35,6 +35,10 @@ const d3LineSeries = {
 
         var container = d3.select(element);
 
+        let plotRowIndex = container.attr("plot-row-index");
+        let plotIndex = container.attr("plot-index");
+        let clipId = "clip-"+plotRowIndex+"-"+plotIndex;
+
         var svg = container.select("svg");
 
         var svgWidth = svg.attr("width");
@@ -96,6 +100,8 @@ const d3LineSeries = {
             .domain( yRange );
 
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+        if ( layout.cSet !== undefined) colour.domain( layout.cSet );
+        console.log(layout.cSet);
 
         var line = d3.line()
             .x( function( d ) { return xscale( d.x ); } )
@@ -103,14 +109,14 @@ const d3LineSeries = {
 
         var plotArea = svg.select(".plotArea");
 
-        var clip = svg.append("clipPath")
-            .attr("id", "clip")
+        var clip = svg.append("defs").append("clipPath")
+            .attr("id", clipId)
             .append("rect")
                 .attr("width", width)
                 .attr("height", height);
 
         var zoom = d3.zoom()
-            .scaleExtent([0.5, Infinity])
+           .scaleExtent([0.5, Infinity])
             .on("zoom", zoomed);
 
         svg.transition().call(zoom.transform, d3.zoomIdentity);
@@ -138,13 +144,14 @@ const d3LineSeries = {
                 var seriesLine = series.append( "g" )
                     .attr( "class", "plotSeries")
                     .attr( "series-name", function( d ) { return d.label; } )
+                    .attr( "clip-path", "url(#"+clipId+")")
                     .append( "path" )
                         .attr( "class", "line" )
                         .attr( "d", function( d ) { return line( d.data ); } )
-                        .style( "stroke", function( d ) { return colour( d.label ); } )    
+                        .style( "stroke", function( d ) { return colour( d.cKey ); } )    
                         .style( "fill", "none" )
                         .style( "stroke-width", "2.5px" )
-                        .attr( "clip-path", "url(#clip)")
+                        //.attr( "clip-path", "url(#clip)")
                         .on( "mouseover", tipOn )
                         .on( "mouseout", tipOff );
         } );
