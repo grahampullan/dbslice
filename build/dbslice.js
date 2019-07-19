@@ -6932,7 +6932,8 @@ var dbslice = (function (exports) {
 	            points.style("opacity", 0.2);
 	            d3.select(this).style("opacity", 1.0).attr("r", 7);
 	            tip.show(d);
-	            dbsliceData.highlightTasks = [d3.select(this).attr("task-id")];
+	            //dbsliceData.highlightTasks = [d3.select(this).attr("task-id")];
+	            dbsliceData.highlightTasks = [d.taskId];
 	            if (layout.highlightTasks == true) {
 	                render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
 	            }

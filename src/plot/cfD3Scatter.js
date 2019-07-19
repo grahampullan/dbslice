@@ -217,7 +217,7 @@ const cfD3Scatter = {
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
             tip.show( d );
-            dbsliceData.highlightTasks = [d3.select(this).attr("task-id")];
+            dbsliceData.highlightTasks = [ d.taskId ];
             if ( layout.highlightTasks == true ) {
                 render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
             }
