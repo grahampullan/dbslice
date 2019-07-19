@@ -1,3 +1,6 @@
+import { dbsliceData } from '../core/dbsliceData.js';
+import { render } from '../core/render.js';
+
 const cfD3Scatter = {
 
     make : function( element, data, layout ) {
@@ -135,6 +138,7 @@ const cfD3Scatter = {
             .style( "fill", function( d ) { return colour( d[ cProperty ] ); } )
             .style( "opacity", opacity )
             .attr( "clip-path", "url(#"+clipId+")")
+            .attr( "task-id", function( d ) { return d.taskId; } )
             .on( "mouseover", tipOn )
             .on( "mouseout", tipOff );
  
@@ -142,7 +146,8 @@ const cfD3Scatter = {
             .attr( "r", 5 )
             .attr( "cx", function( d ) { return xscale( d[ xProperty ] ); } )
             .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } )
-            .style( "fill", function( d ) { return colour( d[ cProperty ] ); } ); 
+            .style( "fill", function( d ) { return colour( d[ cProperty ] ); } )
+            .attr( "task-id", function( d ) { return d.taskId; } );
 
         points.exit().remove();
 
@@ -181,6 +186,20 @@ const cfD3Scatter = {
             gY.transition().call( yAxis );
         }
 
+
+        if ( layout.highlightTasks == true ) {
+
+            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+                points.style( "opacity" , opacity );
+            } else {
+                points.style( "opacity" , 0.2);
+                dbsliceData.highlightTasks.forEach( function (taskId) {
+                    points.filter( (d,i) => d.taskId == taskId).style( "opacity" , opacity);
+                });
+            }
+        }
+
+
         function zoomed() {
             var t = d3.event.transform;
             xscale.domain(t.rescaleX(xscale0).domain());
@@ -193,20 +212,27 @@ const cfD3Scatter = {
         }
 
         function tipOn( d ) {
-            plotArea.selectAll( "circle" ).style( "opacity" , 0.2);
+            points.style( "opacity" , 0.2);
             d3.select(this)
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
             tip.show( d );
+            dbsliceData.highlightTasks = [d3.select(this).attr("task-id")];
+            if ( layout.highlightTasks == true ) {
+                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+            }
         }
 
         function tipOff() {
-            plotArea.selectAll( "circle" ).style( "opacity" , opacity );
+            points.style( "opacity" , opacity );
             d3.select(this)
                 .attr( "r", 5 );
             tip.hide();
+            dbsliceData.highlightTasks = [];
+            if ( layout.highlightTasks == true ) {
+                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+            }
         }
-
     }
 };
 

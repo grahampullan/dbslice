@@ -101,7 +101,6 @@ const d3LineSeries = {
 
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
         if ( layout.cSet !== undefined) colour.domain( layout.cSet );
-        console.log(layout.cSet);
 
         var line = d3.line()
             .x( function( d ) { return xscale( d.x ); } )
@@ -160,7 +159,8 @@ const d3LineSeries = {
             var series = d3.select( this );
             var seriesLine = series.select( "path.line" );
             seriesLine.transition()
-                    .attr( "d", function( d ) { return line( d.data ); } );
+                .attr( "d", function( d ) { return line( d.data ); } )
+                .style( "stroke", function( d ) { return colour( d.cKey ); } )  ;
         } );
 
         allSeries.exit().remove();
