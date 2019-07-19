@@ -5768,298 +5768,13 @@ var dbslice = (function (exports) {
 	    }
 	};
 
-	var d3LineSeries = {
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	    make: function make(element, data, layout) {
-
-	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
-	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
-
-	        var container = d3.select(element);
-
-	        var svgWidth = container.node().offsetWidth,
-	            svgHeight = layout.height;
-
-	        var width = svgWidth - margin.left - margin.right;
-	        var height = svgHeight - margin.top - margin.bottom;
-
-	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
-
-	        d3LineSeries.update(element, data, layout);
-	    },
-
-	    update: function update(element, data, layout) {
-
-	        if (data.newData == false) {
-	            return;
-	        }
-
-	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
-	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
-
-	        var container = d3.select(element);
-
-	        var plotRowIndex = container.attr("plot-row-index");
-	        var plotIndex = container.attr("plot-index");
-	        var clipId = "clip-" + plotRowIndex + "-" + plotIndex;
-
-	        var svg = container.select("svg");
-
-	        var svgWidth = svg.attr("width");
-	        var svgHeight = svg.attr("height");
-
-	        var width = svgWidth - margin.left - margin.right;
-	        var height = svgHeight - margin.top - margin.bottom;
-
-	        var nseries = data.series.length;
-
-	        var xmin = d3.min(data.series[0].data, function (d) {
-	            return d.x;
-	        });
-	        var xmax = d3.max(data.series[0].data, function (d) {
-	            return d.x;
-	        });
-	        var ymin = d3.min(data.series[0].data, function (d) {
-	            return d.y;
-	        });
-	        var ymax = d3.max(data.series[0].data, function (d) {
-	            return d.y;
-	        });
-
-	        for (var n = 1; n < nseries; ++n) {
-	            var xminNow = d3.min(data.series[n].data, function (d) {
-	                return d.x;
-	            });
-	            xminNow < xmin ? xmin = xminNow : xmin = xmin;
-	            var xmaxNow = d3.max(data.series[n].data, function (d) {
-	                return d.x;
-	            });
-	            xmaxNow > xmax ? xmax = xmaxNow : xmax = xmax;
-	            var yminNow = d3.min(data.series[n].data, function (d) {
-	                return d.y;
-	            });
-	            yminNow < ymin ? ymin = yminNow : ymin = ymin;
-	            var ymaxNow = d3.max(data.series[n].data, function (d) {
-	                return d.y;
-	            });
-	            ymaxNow > ymax ? ymax = ymaxNow : ymax = ymax;
-	        }
-
-	        if (layout.xRange === undefined) {
-	            var xRange = [xmin, xmax];
-	        } else {
-	            var xRange = layout.xRange;
-	        }
-
-	        if (layout.yRange === undefined) {
-	            var yRange = [ymin, ymax];
-	        } else {
-	            var yRange = layout.yRange;
-	        }
-
-	        if (layout.xscale == "time") {
-	            var xscale = d3.scaleTime();
-	            var xscale0 = d3.scaleTime();
-	        } else {
-	            var xscale = d3.scaleLinear();
-	            var xscale0 = d3.scaleLinear();
-	        }
-
-	        xscale.range([0, width]).domain(xRange);
-
-	        xscale0.range([0, width]).domain(xRange);
-
-	        var yscale = d3.scaleLinear().range([height, 0]).domain(yRange);
-
-	        var yscale0 = d3.scaleLinear().range([height, 0]).domain(yRange);
-
-	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
-	        if (layout.cSet !== undefined) colour.domain(layout.cSet);
-
-	        var line = d3.line().x(function (d) {
-	            return xscale(d.x);
-	        }).y(function (d) {
-	            return yscale(d.y);
-	        });
-
-	        var plotArea = svg.select(".plotArea");
-
-	        var clip = svg.append("defs").append("clipPath").attr("id", clipId).append("rect").attr("width", width).attr("height", height);
-
-	        var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
-
-	        svg.transition().call(zoom.transform, d3.zoomIdentity);
-	        svg.call(zoom);
-
-	        var tip = d3.tip().attr('class', 'd3-tip').offset([-10, 0]).html(function (d) {
-	            return "<span>" + d.label + "</span>";
-	        });
-
-	        svg.call(tip);
-
-	        var focus = plotArea.append("g").style("display", "none").append("circle").attr("r", 1);
-
-	        var allSeries = plotArea.selectAll(".plotSeries").data(data.series);
-
-	        allSeries.enter().each(function () {
-	            var series = d3.select(this);
-	            var seriesLine = series.append("g").attr("class", "plotSeries").attr("series-name", function (d) {
-	                return d.label;
-	            }).attr("clip-path", "url(#" + clipId + ")").append("path").attr("class", "line").attr("d", function (d) {
-	                return line(d.data);
-	            }).style("stroke", function (d) {
-	                return colour(d.cKey);
-	            }).style("fill", "none").style("stroke-width", "2.5px")
-	            //.attr( "clip-path", "url(#clip)")
-	            .on("mouseover", tipOn).on("mouseout", tipOff);
-	        });
-
-	        allSeries.each(function () {
-	            var series = d3.select(this);
-	            var seriesLine = series.select("path.line");
-	            seriesLine.transition().attr("d", function (d) {
-	                return line(d.data);
-	            }).style("stroke", function (d) {
-	                return colour(d.cKey);
-	            });
-	        });
-
-	        allSeries.exit().remove();
-
-	        var xAxis = d3.axisBottom(xscale).ticks(5);
-	        var yAxis = d3.axisLeft(yscale);
-
-	        var gX = plotArea.select(".axis--x");
-	        if (gX.empty()) {
-	            gX = plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "axis--x").call(xAxis);
-	            gX.append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text(layout.xAxisLabel);
-	        } else {
-	            gX.transition().call(xAxis);
-	        }
-
-	        var gY = plotArea.select(".axis--y");
-	        if (gY.empty()) {
-	            gY = plotArea.append("g").attr("class", "axis--y").call(yAxis);
-	            gY.append("text").attr("fill", "#000").attr("transform", "rotate(-90)").attr("x", 0).attr("y", -margin.left + 15).attr("text-anchor", "end").text(layout.yAxisLabel);
-	        } else {
-	            gY.transition().call(yAxis);
-	        }
-
-	        function zoomed() {
-	            var t = d3.event.transform;
-	            xscale.domain(t.rescaleX(xscale0).domain());
-	            yscale.domain(t.rescaleY(yscale0).domain());
-	            gX.call(xAxis);
-	            gY.call(yAxis);
-	            plotArea.selectAll(".line").attr("d", function (d) {
-	                return line(d.data);
-	            });
-	        }
-
-	        function tipOn(d) {
-	            plotArea.selectAll(".line").style("opacity", 0.2);
-	            d3.select(this).style("opacity", 1.0).style("stroke-width", "4px");
-	            focus.attr("cx", d3.mouse(this)[0]).attr("cy", d3.mouse(this)[1]);
-	            tip.show(d, focus.node());
-	        }
-
-	        function tipOff() {
-	            plotArea.selectAll(".line").style("opacity", 1.0);
-	            d3.select(this).style("stroke-width", "2.5px");
-	            tip.hide();
-	        }
-
-	        data.newData = false;
-	    }
+	var DbsliceData = function DbsliceData() {
+	  _classCallCheck(this, DbsliceData);
 	};
 
-	var d3Scatter = {
-
-	    make: function make(element, data, layout) {
-
-	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
-	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
-
-	        var container = d3.select(element);
-
-	        var svgWidth = container.node().offsetWidth,
-	            svgHeight = layout.height;
-
-	        var width = svgWidth - margin.left - margin.right;
-	        var height = svgHeight - margin.top - margin.bottom;
-
-	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
-
-	        d3Scatter.update(element, data, layout);
-	    },
-
-	    update: function update(element, data, layout) {
-
-	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
-	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
-
-	        var container = d3.select(element);
-
-	        var svg = container.select("svg");
-
-	        var svgWidth = svg.attr("width");
-	        var svgHeight = svg.attr("height");
-
-	        var width = svgWidth - margin.left - margin.right;
-	        var height = svgHeight - margin.top - margin.bottom;
-
-	        var xscale = d3.scaleLinear().range([0, width]).domain(d3.extent(data.points, function (d) {
-	            return d.x;
-	        }));
-	        var yscale = d3.scaleLinear().range([height, 0]).domain(d3.extent(data.points, function (d) {
-	            return d.y;
-	        }));
-
-	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
-
-	        var plotArea = svg.select(".plotArea");
-
-	        var points = plotArea.selectAll("circle").data(data.points);
-
-	        points.enter().append("circle").attr("r", 5).attr("cx", function (d) {
-	            return xscale(d.x);
-	        }).attr("cy", function (d) {
-	            return yscale(d.y);
-	        }).style("fill", function (d) {
-	            return colour(d.colField);
-	        });
-	        //.style( "fill-opacity", 1e-6)
-	        //.transition()
-	        //    .style( "fill-opacity", 1);
-
-	        points.transition()
-	        //.duration(5000)
-	        .attr("r", 5).attr("cx", function (d) {
-	            return xscale(d.x);
-	        }).attr("cy", function (d) {
-	            return yscale(d.y);
-	        }).style("fill", function (d) {
-	            return colour(d.colField);
-	        });
-
-	        points.exit().remove();
-
-	        var xAxis = plotArea.select(".xAxis");
-	        if (xAxis.empty()) {
-	            plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "xAxis").call(d3.axisBottom(xscale)).append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text(layout.xAxisLabel);
-	        } else {
-	            xAxis.attr("transform", "translate(0," + height + ")").transition().call(d3.axisBottom(xscale));
-	        }
-
-	        var yAxis = plotArea.select(".yAxis");
-	        if (yAxis.empty()) {
-	            plotArea.append("g").attr("class", "yAxis").call(d3.axisLeft(yscale)).append("text").attr("fill", "#000").attr("transform", "rotate(-90)").attr("x", 0).attr("y", -margin.left + 15).attr("text-anchor", "end").text(layout.yAxisLabel);
-	        } else {
-	            yAxis.transition().call(d3.axisLeft(yscale));
-	        }
-	    }
-
-	};
+	var dbsliceData = new DbsliceData();
 
 	function makeNewPlot(plotData, index) {
 
@@ -6139,14 +5854,6 @@ var dbslice = (function (exports) {
 	    plotRows.exit().remove();
 	    plotRowPlotWrappers.exit().remove();
 	}
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var DbsliceData = function DbsliceData() {
-	  _classCallCheck(this, DbsliceData);
-	};
-
-	var dbsliceData = new DbsliceData();
 
 	function makePlotsFromPlotRowCtrl(ctrl) {
 
@@ -6386,6 +6093,319 @@ var dbslice = (function (exports) {
 
 		update(elementId, session);
 	}
+
+	var d3LineSeries = {
+
+	    make: function make(element, data, layout) {
+
+	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
+	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
+
+	        var container = d3.select(element);
+
+	        var svgWidth = container.node().offsetWidth,
+	            svgHeight = layout.height;
+
+	        var width = svgWidth - margin.left - margin.right;
+	        var height = svgHeight - margin.top - margin.bottom;
+
+	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
+
+	        d3LineSeries.update(element, data, layout);
+	    },
+
+	    update: function update(element, data, layout) {
+
+	        var container = d3.select(element);
+	        var svg = container.select("svg");
+	        var plotArea = svg.select(".plotArea");
+
+	        var lines = plotArea.selectAll(".line");
+
+	        if (layout.highlightTasks == true) {
+	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+	                lines.style("opacity", 1.0).style("stroke-width", "2.5px");
+	            } else {
+	                lines.style("opacity", 0.2).style("stroke-width", "2.5px");
+	                dbsliceData.highlightTasks.forEach(function (taskId) {
+	                    lines.filter(function (d, i) {
+	                        return d.taskId == taskId;
+	                    }).style("opacity", 1.0).style("stroke-width", "4px");                });
+	            }
+	        }
+
+	        if (data.newData == false) {
+	            return;
+	        }
+
+	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
+	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
+
+	        var plotRowIndex = container.attr("plot-row-index");
+	        var plotIndex = container.attr("plot-index");
+	        var clipId = "clip-" + plotRowIndex + "-" + plotIndex;
+
+	        var svgWidth = svg.attr("width");
+	        var svgHeight = svg.attr("height");
+
+	        var width = svgWidth - margin.left - margin.right;
+	        var height = svgHeight - margin.top - margin.bottom;
+
+	        var nseries = data.series.length;
+
+	        var xmin = d3.min(data.series[0].data, function (d) {
+	            return d.x;
+	        });
+	        var xmax = d3.max(data.series[0].data, function (d) {
+	            return d.x;
+	        });
+	        var ymin = d3.min(data.series[0].data, function (d) {
+	            return d.y;
+	        });
+	        var ymax = d3.max(data.series[0].data, function (d) {
+	            return d.y;
+	        });
+
+	        for (var n = 1; n < nseries; ++n) {
+	            var xminNow = d3.min(data.series[n].data, function (d) {
+	                return d.x;
+	            });
+	            xminNow < xmin ? xmin = xminNow : xmin = xmin;
+	            var xmaxNow = d3.max(data.series[n].data, function (d) {
+	                return d.x;
+	            });
+	            xmaxNow > xmax ? xmax = xmaxNow : xmax = xmax;
+	            var yminNow = d3.min(data.series[n].data, function (d) {
+	                return d.y;
+	            });
+	            yminNow < ymin ? ymin = yminNow : ymin = ymin;
+	            var ymaxNow = d3.max(data.series[n].data, function (d) {
+	                return d.y;
+	            });
+	            ymaxNow > ymax ? ymax = ymaxNow : ymax = ymax;
+	        }
+
+	        if (layout.xRange === undefined) {
+	            var xRange = [xmin, xmax];
+	        } else {
+	            var xRange = layout.xRange;
+	        }
+
+	        if (layout.yRange === undefined) {
+	            var yRange = [ymin, ymax];
+	        } else {
+	            var yRange = layout.yRange;
+	        }
+
+	        if (layout.xscale == "time") {
+	            var xscale = d3.scaleTime();
+	            var xscale0 = d3.scaleTime();
+	        } else {
+	            var xscale = d3.scaleLinear();
+	            var xscale0 = d3.scaleLinear();
+	        }
+
+	        xscale.range([0, width]).domain(xRange);
+
+	        xscale0.range([0, width]).domain(xRange);
+
+	        var yscale = d3.scaleLinear().range([height, 0]).domain(yRange);
+
+	        var yscale0 = d3.scaleLinear().range([height, 0]).domain(yRange);
+
+	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
+	        if (layout.cSet !== undefined) colour.domain(layout.cSet);
+
+	        var line = d3.line().x(function (d) {
+	            return xscale(d.x);
+	        }).y(function (d) {
+	            return yscale(d.y);
+	        });
+
+	        var clip = svg.append("defs").append("clipPath").attr("id", clipId).append("rect").attr("width", width).attr("height", height);
+
+	        var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
+
+	        svg.transition().call(zoom.transform, d3.zoomIdentity);
+	        svg.call(zoom);
+
+	        var tip = d3.tip().attr('class', 'd3-tip').offset([-10, 0]).html(function (d) {
+	            return "<span>" + d.label + "</span>";
+	        });
+
+	        svg.call(tip);
+
+	        var focus = plotArea.append("g").style("display", "none").append("circle").attr("r", 1);
+
+	        var allSeries = plotArea.selectAll(".plotSeries").data(data.series);
+
+	        allSeries.enter().each(function () {
+	            var series = d3.select(this);
+	            var seriesLine = series.append("g").attr("class", "plotSeries").attr("series-name", function (d) {
+	                return d.label;
+	            }).attr("clip-path", "url(#" + clipId + ")").append("path").attr("class", "line").attr("d", function (d) {
+	                return line(d.data);
+	            }).style("stroke", function (d) {
+	                return colour(d.cKey);
+	            }).style("fill", "none").style("stroke-width", "2.5px")
+	            //.attr( "clip-path", "url(#clip)")
+	            .on("mouseover", tipOn).on("mouseout", tipOff);
+	        });
+
+	        allSeries.each(function () {
+	            var series = d3.select(this);
+	            var seriesLine = series.select("path.line");
+	            seriesLine.transition().attr("d", function (d) {
+	                return line(d.data);
+	            }).style("stroke", function (d) {
+	                return colour(d.cKey);
+	            });
+	        });
+
+	        allSeries.exit().remove();
+
+	        var xAxis = d3.axisBottom(xscale).ticks(5);
+	        var yAxis = d3.axisLeft(yscale);
+
+	        var gX = plotArea.select(".axis--x");
+	        if (gX.empty()) {
+	            gX = plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "axis--x").call(xAxis);
+	            gX.append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text(layout.xAxisLabel);
+	        } else {
+	            gX.transition().call(xAxis);
+	        }
+
+	        var gY = plotArea.select(".axis--y");
+	        if (gY.empty()) {
+	            gY = plotArea.append("g").attr("class", "axis--y").call(yAxis);
+	            gY.append("text").attr("fill", "#000").attr("transform", "rotate(-90)").attr("x", 0).attr("y", -margin.left + 15).attr("text-anchor", "end").text(layout.yAxisLabel);
+	        } else {
+	            gY.transition().call(yAxis);
+	        }
+
+	        function zoomed() {
+	            var t = d3.event.transform;
+	            xscale.domain(t.rescaleX(xscale0).domain());
+	            yscale.domain(t.rescaleY(yscale0).domain());
+	            gX.call(xAxis);
+	            gY.call(yAxis);
+	            plotArea.selectAll(".line").attr("d", function (d) {
+	                return line(d.data);
+	            });
+	        }
+
+	        function tipOn(d) {
+	            lines.style("opacity", 0.2);
+	            d3.select(this).style("opacity", 1.0).style("stroke-width", "4px");
+	            focus.attr("cx", d3.mouse(this)[0]).attr("cy", d3.mouse(this)[1]);
+	            tip.show(d, focus.node());
+	            if (layout.highlightTasks == true) {
+	                dbsliceData.highlightTasks = [d.taskId];
+	                render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+	            }
+	        }
+
+	        function tipOff() {
+	            lines.style("opacity", 1.0);
+	            d3.select(this).style("stroke-width", "2.5px");
+	            tip.hide();
+	            if (layout.highlightTasks == true) {
+	                dbsliceData.highlightTasks = [];
+	                render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+	            }
+	        }
+
+	        data.newData = false;
+	    }
+	};
+
+	var d3Scatter = {
+
+	    make: function make(element, data, layout) {
+
+	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
+	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
+
+	        var container = d3.select(element);
+
+	        var svgWidth = container.node().offsetWidth,
+	            svgHeight = layout.height;
+
+	        var width = svgWidth - margin.left - margin.right;
+	        var height = svgHeight - margin.top - margin.bottom;
+
+	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
+
+	        d3Scatter.update(element, data, layout);
+	    },
+
+	    update: function update(element, data, layout) {
+
+	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
+	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
+
+	        var container = d3.select(element);
+
+	        var svg = container.select("svg");
+
+	        var svgWidth = svg.attr("width");
+	        var svgHeight = svg.attr("height");
+
+	        var width = svgWidth - margin.left - margin.right;
+	        var height = svgHeight - margin.top - margin.bottom;
+
+	        var xscale = d3.scaleLinear().range([0, width]).domain(d3.extent(data.points, function (d) {
+	            return d.x;
+	        }));
+	        var yscale = d3.scaleLinear().range([height, 0]).domain(d3.extent(data.points, function (d) {
+	            return d.y;
+	        }));
+
+	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
+
+	        var plotArea = svg.select(".plotArea");
+
+	        var points = plotArea.selectAll("circle").data(data.points);
+
+	        points.enter().append("circle").attr("r", 5).attr("cx", function (d) {
+	            return xscale(d.x);
+	        }).attr("cy", function (d) {
+	            return yscale(d.y);
+	        }).style("fill", function (d) {
+	            return colour(d.colField);
+	        });
+	        //.style( "fill-opacity", 1e-6)
+	        //.transition()
+	        //    .style( "fill-opacity", 1);
+
+	        points.transition()
+	        //.duration(5000)
+	        .attr("r", 5).attr("cx", function (d) {
+	            return xscale(d.x);
+	        }).attr("cy", function (d) {
+	            return yscale(d.y);
+	        }).style("fill", function (d) {
+	            return colour(d.colField);
+	        });
+
+	        points.exit().remove();
+
+	        var xAxis = plotArea.select(".xAxis");
+	        if (xAxis.empty()) {
+	            plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "xAxis").call(d3.axisBottom(xscale)).append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text(layout.xAxisLabel);
+	        } else {
+	            xAxis.attr("transform", "translate(0," + height + ")").transition().call(d3.axisBottom(xscale));
+	        }
+
+	        var yAxis = plotArea.select(".yAxis");
+	        if (yAxis.empty()) {
+	            plotArea.append("g").attr("class", "yAxis").call(d3.axisLeft(yscale)).append("text").attr("fill", "#000").attr("transform", "rotate(-90)").attr("x", 0).attr("y", -margin.left + 15).attr("text-anchor", "end").text(layout.yAxisLabel);
+	        } else {
+	            yAxis.transition().call(d3.axisLeft(yscale));
+	        }
+	    }
+
+	};
 
 	function cfUpdateFilters(crossfilter) {
 
@@ -6902,7 +6922,6 @@ var dbslice = (function (exports) {
 	        }
 
 	        if (layout.highlightTasks == true) {
-
 	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
 	                points.style("opacity", opacity);
 	            } else {
@@ -6932,9 +6951,8 @@ var dbslice = (function (exports) {
 	            points.style("opacity", 0.2);
 	            d3.select(this).style("opacity", 1.0).attr("r", 7);
 	            tip.show(d);
-	            //dbsliceData.highlightTasks = [d3.select(this).attr("task-id")];
-	            dbsliceData.highlightTasks = [d.taskId];
 	            if (layout.highlightTasks == true) {
+	                dbsliceData.highlightTasks = [d.taskId];
 	                render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
 	            }
 	        }
@@ -6943,8 +6961,8 @@ var dbslice = (function (exports) {
 	            points.style("opacity", opacity);
 	            d3.select(this).attr("r", 5);
 	            tip.hide();
-	            dbsliceData.highlightTasks = [];
 	            if (layout.highlightTasks == true) {
+	                dbsliceData.highlightTasks = [];
 	                render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
 	            }
 	        }

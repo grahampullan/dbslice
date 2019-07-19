@@ -1,3 +1,6 @@
+import { dbsliceData } from '../core/dbsliceData.js';
+import { render } from '../core/render.js';
+
 const d3LineSeries = {
 
     make : function ( element, data, layout ) {
@@ -26,6 +29,23 @@ const d3LineSeries = {
 
     update : function ( element, data, layout ) {
 
+        var container = d3.select(element);
+        var svg = container.select("svg");
+        var plotArea = svg.select(".plotArea");
+
+        var lines = plotArea.selectAll(".line");
+
+        if ( layout.highlightTasks == true ) {
+            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+                lines.style( "opacity" , 1.0 ).style( "stroke-width", "2.5px" );
+            } else {
+                lines.style( "opacity" , 0.2).style( "stroke-width", "2.5px" );
+                dbsliceData.highlightTasks.forEach( function (taskId) {
+                    lines.filter( (d,i) => d.taskId == taskId).style( "opacity" , 1.0).style( "stroke-width", "4px" );;
+                });
+            }
+        }
+
         if (data.newData == false) {
             return
         }
@@ -33,13 +53,9 @@ const d3LineSeries = {
         var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
         var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
-        var container = d3.select(element);
-
         let plotRowIndex = container.attr("plot-row-index");
         let plotIndex = container.attr("plot-index");
-        let clipId = "clip-"+plotRowIndex+"-"+plotIndex;
-
-        var svg = container.select("svg");
+        let clipId = "clip-"+plotRowIndex+"-"+plotIndex; 
 
         var svgWidth = svg.attr("width");
         var svgHeight = svg.attr("height");
@@ -105,8 +121,6 @@ const d3LineSeries = {
         var line = d3.line()
             .x( function( d ) { return xscale( d.x ); } )
             .y( function( d ) { return yscale( d.y ); } );
-
-        var plotArea = svg.select(".plotArea");
 
         var clip = svg.append("defs").append("clipPath")
             .attr("id", clipId)
@@ -210,7 +224,7 @@ const d3LineSeries = {
         }
 
         function tipOn( d ) {
-            plotArea.selectAll( ".line" ).style( "opacity" , 0.2);
+            lines.style( "opacity" , 0.2);
             d3.select(this)
                 .style( "opacity" , 1.0)
                 .style( "stroke-width", "4px" );
@@ -218,13 +232,21 @@ const d3LineSeries = {
                 .attr( "cx" , d3.mouse(this)[0] )
                 .attr( "cy" , d3.mouse(this)[1] );
             tip.show( d , focus.node() );
+            if ( layout.highlightTasks == true ) {
+                dbsliceData.highlightTasks = [ d.taskId ];
+                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+            }
         }
 
         function tipOff() {
-            plotArea.selectAll( ".line" ).style( "opacity" , 1.0);
+            lines.style( "opacity" , 1.0);
             d3.select(this)
                 .style( "stroke-width", "2.5px" );
             tip.hide();
+            if ( layout.highlightTasks == true ) {
+                dbsliceData.highlightTasks = [];
+                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+            }
         }
 
         data.newData = false;

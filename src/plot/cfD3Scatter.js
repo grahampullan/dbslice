@@ -188,7 +188,6 @@ const cfD3Scatter = {
 
 
         if ( layout.highlightTasks == true ) {
-
             if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
                 points.style( "opacity" , opacity );
             } else {
@@ -217,8 +216,8 @@ const cfD3Scatter = {
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
             tip.show( d );
-            dbsliceData.highlightTasks = [ d.taskId ];
             if ( layout.highlightTasks == true ) {
+                dbsliceData.highlightTasks = [ d.taskId ];
                 render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
             }
         }
@@ -228,8 +227,8 @@ const cfD3Scatter = {
             d3.select(this)
                 .attr( "r", 5 );
             tip.hide();
-            dbsliceData.highlightTasks = [];
             if ( layout.highlightTasks == true ) {
+                dbsliceData.highlightTasks = [];
                 render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
             }
         }
