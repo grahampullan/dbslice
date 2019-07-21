@@ -1,3 +1,5 @@
+import { dbsliceData } from './dbsliceData.js'
+
 function cfInit( metaData ) {
 
 	var cfData = {};
@@ -31,6 +33,16 @@ function cfInit( metaData ) {
     cfData.filterSelected = [];
 
     cfData.histogramSelectedRanges = [];
+
+    var taskIds = [];
+
+    metaData.data.forEach( ( task, i ) => {
+
+        taskIds.push( task.taskId );
+
+    });
+
+    dbsliceData.filteredTaskIds = taskIds;
 
     return cfData;
 

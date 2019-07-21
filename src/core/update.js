@@ -1,13 +1,14 @@
 import { makeNewPlot } from './makeNewPlot.js';
 import { updatePlot } from './updatePlot.js';
+import { dbsliceData } from '../core/dbsliceData.js';
 
 function update( elementId, session ) {
 
 	var element = d3.select( "#" + elementId );
 
-    if (session.filteredTaskIds !== undefined){
+    if (dbsliceData.filteredTaskIds !== undefined){
         element.select(".filteredTaskCount")
-            .html("<p> Number of Tasks in Filter = " + session.filteredTaskIds.length + "</p>" );
+            .html("<p> Number of Tasks in Filter = " + dbsliceData.filteredTaskIds.length + "</p>" );
     } else {
         element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
     }

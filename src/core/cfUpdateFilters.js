@@ -32,11 +32,11 @@ function cfUpdateFilters( crossfilter ) {
 
     if ( currentMetaData[0].label !== undefined ) {
 
-        dbsliceData.session.filteredTaskLabels = currentMetaData.map(function(d){return d.label});
+        dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.label});
 
     } else {
 
-        dbsliceData.session.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
+        dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
     }
 
 

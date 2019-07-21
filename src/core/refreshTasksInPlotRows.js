@@ -19,14 +19,14 @@ function refreshTasksInPlotRows() {
 
 				if ( ctrl.tasksByFilter ) {
 
-					ctrl.taskIds = dbsliceData.session.filteredTaskIds;
-					ctrl.taskLabels = dbsliceData.session.filteredTaskLabels;
+					ctrl.taskIds = dbsliceData.filteredTaskIds;
+					ctrl.taskLabels = dbsliceData.filteredTaskLabels;
 					
 				}
 
 				if ( ctrl.tasksByList ) {
 
-					ctrl.taskIds = dbsliceData.session.manualListTaskIds;
+					ctrl.taskIds = dbsliceData.manualListTaskIds;
 
 				}
 

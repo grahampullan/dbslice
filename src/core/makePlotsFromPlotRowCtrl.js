@@ -117,7 +117,7 @@ function makePromiseSlicePlot( ctrl, sliceId ) {
 			.replace( "${taskId}", ctrl.taskIds[ index ] )
 			.replace( "${sliceId}", sliceId );
 
-            console.log(url);
+            //console.log(url);
 
 			var slicePromise = fetch(url).then( function( response ) {
 

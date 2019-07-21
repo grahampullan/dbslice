@@ -5806,8 +5806,8 @@ var dbslice = (function (exports) {
 
 	    var element = d3.select("#" + elementId);
 
-	    if (session.filteredTaskIds !== undefined) {
-	        element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = " + session.filteredTaskIds.length + "</p>");
+	    if (dbsliceData.filteredTaskIds !== undefined) {
+	        element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = " + dbsliceData.filteredTaskIds.length + "</p>");
 	    } else {
 	        element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
 	    }
@@ -6023,13 +6023,13 @@ var dbslice = (function (exports) {
 
 					if (ctrl.tasksByFilter) {
 
-						ctrl.taskIds = dbsliceData.session.filteredTaskIds;
-						ctrl.taskLabels = dbsliceData.session.filteredTaskLabels;
+						ctrl.taskIds = dbsliceData.filteredTaskIds;
+						ctrl.taskLabels = dbsliceData.filteredTaskLabels;
 					}
 
 					if (ctrl.tasksByList) {
 
-						ctrl.taskIds = dbsliceData.session.manualListTaskIds;
+						ctrl.taskIds = dbsliceData.manualListTaskIds;
 					}
 
 					var plotRowPromise = makePlotsFromPlotRowCtrl(ctrl).then(function (plots) {
@@ -6442,12 +6442,12 @@ var dbslice = (function (exports) {
 
 	  if (currentMetaData[0].label !== undefined) {
 
-	    dbsliceData.session.filteredTaskLabels = currentMetaData.map(function (d) {
+	    dbsliceData.filteredTaskLabels = currentMetaData.map(function (d) {
 	      return d.label;
 	    });
 	  } else {
 
-	    dbsliceData.session.filteredTaskLabels = currentMetaData.map(function (d) {
+	    dbsliceData.filteredTaskLabels = currentMetaData.map(function (d) {
 	      return d.taskId;
 	    });
 	  }
@@ -7099,12 +7099,21 @@ var dbslice = (function (exports) {
 
 	    cfData.histogramSelectedRanges = [];
 
+	    var taskIds = [];
+
+	    metaData.data.forEach(function (task, i) {
+
+	        taskIds.push(task.taskId);
+	    });
+
+	    dbsliceData.filteredTaskIds = taskIds;
+
 	    return cfData;
 	}
 
 	function getFilteredTaskIds() {
 
-		return dbsliceData.session.filteredTaskIds;
+		return dbsliceData.filteredTaskIds;
 	}
 
 	function getFilteredTaskLabels() {
