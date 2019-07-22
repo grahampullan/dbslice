@@ -5951,7 +5951,7 @@ var dbslice = (function (exports) {
 
 	        var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]).replace("${sliceId}", sliceId);
 
-	        console.log(url);
+	        //console.log(url);
 
 	        var slicePromise = fetch(url).then(function (response) {
 
@@ -6436,7 +6436,7 @@ var dbslice = (function (exports) {
 
 	  var currentMetaData = crossfilter.metaDims[0].top(Infinity);
 
-	  dbsliceData.session.filteredTaskIds = currentMetaData.map(function (d) {
+	  dbsliceData.filteredTaskIds = currentMetaData.map(function (d) {
 	    return d.taskId;
 	  });
 

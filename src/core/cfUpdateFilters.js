@@ -28,7 +28,7 @@ function cfUpdateFilters( crossfilter ) {
     var currentMetaData = crossfilter.metaDims[0].top(Infinity);
 
 
-    dbsliceData.session.filteredTaskIds = currentMetaData.map(function(d){return d.taskId});
+    dbsliceData.filteredTaskIds = currentMetaData.map(function(d){return d.taskId});
 
     if ( currentMetaData[0].label !== undefined ) {
 
