@@ -24,7 +24,7 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
 			var title = ctrl.taskLabels[ index ];
 
-       		var plotPromise = makePromiseTaskPlot( ctrl, url, title, ctrl.taskIDs[ index ] ); 
+       		var plotPromise = makePromiseTaskPlot( ctrl, url, title, ctrl.taskIds[ index ] ); 
 
         	plotPromises.push( plotPromise );
 
