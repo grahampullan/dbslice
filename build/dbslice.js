@@ -6955,7 +6955,7 @@ var dbslice = (function (exports) {
 
 	        if (layout.highlightTasks == true) {
 	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-	                //points.style( "opacity" , opacity );
+	                points.style("opacity", opacity);
 	                points.style("fill", function (d) {
 	                    return colour(d[cProperty]);
 	                });
@@ -6963,12 +6963,11 @@ var dbslice = (function (exports) {
 	                //points.style( "opacity" , 0.2);
 	                points.style("fill", "#d3d3d3");
 	                dbsliceData.highlightTasks.forEach(function (taskId) {
-	                    //points.filter( (d,i) => d.taskId == taskId).style( "opacity" , opacity);
 	                    points.filter(function (d, i) {
 	                        return d.taskId == taskId;
 	                    }).style("fill", function (d) {
 	                        return colour(d[cProperty]);
-	                    }).raise();
+	                    }).style("opacity", opacity).raise();
 	                });
 	            }
 	        }
