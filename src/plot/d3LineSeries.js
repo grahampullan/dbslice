@@ -33,15 +33,30 @@ const d3LineSeries = {
         var svg = container.select("svg");
         var plotArea = svg.select(".plotArea");
 
+        var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+        if ( layout.cSet !== undefined) colour.domain( layout.cSet )
+
         var lines = plotArea.selectAll(".line");
 
         if ( layout.highlightTasks == true ) {
             if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-                lines.style( "opacity" , 1.0 ).style( "stroke-width", "2.5px" );
+                lines
+                    //.style( "opacity" , 1.0 )
+                    .style( "stroke-width", "2.5px" )
+                    .style( "stroke", function( d ) { return colour( d.cKey ); } );   
             } else {
-                lines.style( "opacity" , 0.2).style( "stroke-width", "2.5px" );
+                lines
+                    //.style( "opacity" , 0.2)
+                    .style( "stroke-width", "2.5px" )
+                    .style( "stroke", "#d3d3d3" ); 
                 dbsliceData.highlightTasks.forEach( function (taskId) {
-                    lines.filter( (d,i) => d.taskId == taskId).style( "opacity" , 1.0).style( "stroke-width", "4px" );;
+                    lines.filter( (d,i) => d.taskId == taskId)
+                        //.style( "opacity" , 1.0)
+                        .style( "stroke", function( d ) { return colour( d.cKey ); } ) 
+                        .style( "stroke-width", "4px" )
+                        .each(function() {
+                            this.parentNode.parentNode.appendChild(this.parentNode);
+                        });
                 });
             }
         }
@@ -115,8 +130,8 @@ const d3LineSeries = {
             .range( [height, 0] )
             .domain( yRange );
 
-        var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
-        if ( layout.cSet !== undefined) colour.domain( layout.cSet );
+        //var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+        //if ( layout.cSet !== undefined) colour.domain( layout.cSet );
 
         var line = d3.line()
             .x( function( d ) { return xscale( d.x ); } )

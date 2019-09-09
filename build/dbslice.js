@@ -6120,17 +6120,33 @@ var dbslice = (function (exports) {
 	        var svg = container.select("svg");
 	        var plotArea = svg.select(".plotArea");
 
+	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
+	        if (layout.cSet !== undefined) colour.domain(layout.cSet);
+
 	        var lines = plotArea.selectAll(".line");
 
 	        if (layout.highlightTasks == true) {
 	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-	                lines.style("opacity", 1.0).style("stroke-width", "2.5px");
+	                lines
+	                //.style( "opacity" , 1.0 )
+	                .style("stroke-width", "2.5px").style("stroke", function (d) {
+	                    return colour(d.cKey);
+	                });
 	            } else {
-	                lines.style("opacity", 0.2).style("stroke-width", "2.5px");
+	                lines
+	                //.style( "opacity" , 0.2)
+	                .style("stroke-width", "2.5px").style("stroke", "#d3d3d3");
 	                dbsliceData.highlightTasks.forEach(function (taskId) {
 	                    lines.filter(function (d, i) {
 	                        return d.taskId == taskId;
-	                    }).style("opacity", 1.0).style("stroke-width", "4px");                });
+	                    })
+	                    //.style( "opacity" , 1.0)
+	                    .style("stroke", function (d) {
+	                        return colour(d.cKey);
+	                    }).style("stroke-width", "4px").each(function () {
+	                        this.parentNode.parentNode.appendChild(this.parentNode);
+	                    });
+	                });
 	            }
 	        }
 
@@ -6213,8 +6229,8 @@ var dbslice = (function (exports) {
 
 	        var yscale0 = d3.scaleLinear().range([height, 0]).domain(yRange);
 
-	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
-	        if (layout.cSet !== undefined) colour.domain(layout.cSet);
+	        //var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+	        //if ( layout.cSet !== undefined) colour.domain( layout.cSet );
 
 	        var line = d3.line().x(function (d) {
 	            return xscale(d.x);
@@ -6923,13 +6939,20 @@ var dbslice = (function (exports) {
 
 	        if (layout.highlightTasks == true) {
 	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-	                points.style("opacity", opacity);
+	                //points.style( "opacity" , opacity );
+	                points.style("fill", function (d) {
+	                    return colour(d[cProperty]);
+	                });
 	            } else {
-	                points.style("opacity", 0.2);
+	                //points.style( "opacity" , 0.2);
+	                points.style("fill", "#d3d3d3");
 	                dbsliceData.highlightTasks.forEach(function (taskId) {
+	                    //points.filter( (d,i) => d.taskId == taskId).style( "opacity" , opacity);
 	                    points.filter(function (d, i) {
 	                        return d.taskId == taskId;
-	                    }).style("opacity", opacity);
+	                    }).style("fill", function (d) {
+	                        return colour(d[cProperty]);
+	                    }).raise();
 	                });
 	            }
 	        }
