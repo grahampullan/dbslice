@@ -6890,7 +6890,7 @@ var dbslice = (function (exports) {
 	            return d.taskId;
 	        }).on("mouseover", tipOn).on("mouseout", tipOff);
 
-	        points.transition().attr("r", 5).attr("cx", function (d) {
+	        points.attr("r", 5).attr("cx", function (d) {
 	            return xscale(d[xProperty]);
 	        }).attr("cy", function (d) {
 	            return yscale(d[yProperty]);
