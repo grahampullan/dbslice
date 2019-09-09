@@ -5885,7 +5885,7 @@ var dbslice = (function (exports) {
 
 	        ctrl.sliceIds.forEach(function (sliceId, sliceIndex) {
 
-	            var plotPromise = makePromiseSlicePlot(ctrl, sliceId);
+	            var plotPromise = makePromiseSlicePlot(ctrl, sliceId, sliceIndex);
 
 	            plotPromises.push(plotPromise);
 	        });
@@ -5936,7 +5936,7 @@ var dbslice = (function (exports) {
 	    });
 	}
 
-	function makePromiseSlicePlot(ctrl, sliceId) {
+	function makePromiseSlicePlot(ctrl, sliceId, sliceIndex) {
 
 	    var slicePromisesPerPlot = [];
 	    var tasksOnPlot = [];
@@ -5996,6 +5996,22 @@ var dbslice = (function (exports) {
 	        }
 
 	        plot.layout = Object.assign({}, ctrl.layout);
+
+	        if (ctrl.layout.xRange !== undefined) {
+
+	            if (ctrl.layout.xRange[1].length !== undefined) {
+
+	                plot.layout.xRange = ctrl.layout.xRange[sliceIndex];
+	            }
+	        }
+
+	        if (ctrl.layout.yRange !== undefined) {
+
+	            if (ctrl.layout.yRange[1].length !== undefined) {
+
+	                plot.layout.yRange = ctrl.layout.yRange[sliceIndex];
+	            }
+	        }
 
 	        plot.plotFunc = ctrl.plotFunc;
 
