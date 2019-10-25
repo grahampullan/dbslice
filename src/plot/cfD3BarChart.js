@@ -17,7 +17,7 @@ const cfD3BarChart = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-        var dimId = data.cfData.metaDataProperties.indexOf( data.property );
+        var dimId = data.cfData.metaDataProperties.indexOf( data.xProperty );
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -50,7 +50,7 @@ const cfD3BarChart = {
         var dimId = plotArea.attr("dimId");
 
         var cf = data.cfData.cf;
-        var property = data.property;
+        var property = data.xProperty;
 
         var dim = data.cfData.metaDims[ dimId ];
         var group = dim.group();

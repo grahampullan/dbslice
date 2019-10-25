@@ -25,10 +25,10 @@ const cfLeafletMapWithMarkers = {
             .style("height", height+'px')
             .attr("class", "plotArea");
 
-        var dimId = data.cfData.dataProperties.indexOf( data.property );
+        var dimId = data.cfData.dataProperties.indexOf( data.xProperty );
 
         var cf = data.cfData.cf;
-        var property = data.property;
+        var property = data.xProperty;
 
         var dim = data.cfData.metaDims[ dimId ];
         var items = dim.top( Infinity );

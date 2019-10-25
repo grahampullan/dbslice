@@ -17,7 +17,7 @@ const cfD3Histogram = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-        var dimId = data.cfData.dataProperties.indexOf( data.property );
+        var dimId = data.cfData.dataProperties.indexOf( data.xProperty );
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -31,10 +31,10 @@ const cfD3Histogram = {
         var dim = data.cfData.dataDims[ dimId ];       
         var items = dim.top( Infinity );
 
-        var xDomMax = d3.max( items, d => d[ data.property ] ) * 1.1 
+        var xDomMax = d3.max( items, d => d[ data.xProperty ] ) * 1.1 
         plotArea.attr( "xDomMax", xDomMax)
 
-        var xDomMin = d3.min( items, d => d[ data.property ] ) * 0.9
+        var xDomMin = d3.min( items, d => d[ data.xProperty ] ) * 0.9
         plotArea.attr( "xDomMin", xDomMin)
 
         var x = d3.scaleLinear()
@@ -124,7 +124,7 @@ const cfD3Histogram = {
         var dimId = plotArea.attr("dimId");
         var dim = data.cfData.dataDims[ dimId ];
         var cf = data.cfData.cf;
-        var property = data.property;
+        var property = data.xProperty;
 
         var formatCount = d3.format( ",.0f" );
 

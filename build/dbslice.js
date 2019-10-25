@@ -5779,7 +5779,6 @@ var dbslice = (function (exports) {
 	function makeNewPlot(plotData, index) {
 
 	   var plotRowIndex = d3.select(this._parent).attr("plot-row-index");
-	   console.log(plotRowIndex);
 
 	   var plot = d3.select(this).append("div").attr("class", "col-md-" + plotData.layout.colWidth + " plotWrapper").append("div").attr("class", "card");
 
@@ -6502,7 +6501,7 @@ var dbslice = (function (exports) {
 	        var width = svgWidth - margin.left - margin.right;
 	        var height = svgHeight - margin.top - margin.bottom;
 
-	        var dimId = data.cfData.metaDataProperties.indexOf(data.property);
+	        var dimId = data.cfData.metaDataProperties.indexOf(data.xProperty);
 
 	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea").attr("dimId", dimId);
 
@@ -6528,7 +6527,7 @@ var dbslice = (function (exports) {
 	        var dimId = plotArea.attr("dimId");
 
 	        var cf = data.cfData.cf;
-	        var property = data.property;
+	        var property = data.xProperty;
 
 	        var dim = data.cfData.metaDims[dimId];
 	        var group = dim.group();
@@ -6656,7 +6655,7 @@ var dbslice = (function (exports) {
 	        var width = svgWidth - margin.left - margin.right;
 	        var height = svgHeight - margin.top - margin.bottom;
 
-	        var dimId = data.cfData.dataProperties.indexOf(data.property);
+	        var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
 
 	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight);
 
@@ -6666,12 +6665,12 @@ var dbslice = (function (exports) {
 	        var items = dim.top(Infinity);
 
 	        var xDomMax = d3.max(items, function (d) {
-	            return d[data.property];
+	            return d[data.xProperty];
 	        }) * 1.1;
 	        plotArea.attr("xDomMax", xDomMax);
 
 	        var xDomMin = d3.min(items, function (d) {
-	            return d[data.property];
+	            return d[data.xProperty];
 	        }) * 0.9;
 	        plotArea.attr("xDomMin", xDomMin);
 
@@ -6738,7 +6737,7 @@ var dbslice = (function (exports) {
 	        var dimId = plotArea.attr("dimId");
 	        var dim = data.cfData.dataDims[dimId];
 	        var cf = data.cfData.cf;
-	        var property = data.property;
+	        var property = data.xProperty;
 
 	        var formatCount = d3.format(",.0f");
 
@@ -7029,10 +7028,10 @@ var dbslice = (function (exports) {
 	        // always make a new map
 	        var mapDiv = container.append("div").attr("id", "mapnow").style("width", width + 'px').style("height", height + 'px').attr("class", "plotArea");
 
-	        var dimId = data.cfData.dataProperties.indexOf(data.property);
+	        var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
 
 	        var cf = data.cfData.cf;
-	        var property = data.property;
+	        var property = data.xProperty;
 
 	        var dim = data.cfData.metaDims[dimId];
 	        var items = dim.top(Infinity);
