@@ -235,8 +235,6 @@ var dbslice = (function (exports) {
 	  },
 	  colour: [],
 	  opacity: 1,
-	  xRange: [],
-	  yRange: [],
 	  make: function make(element, data, layout) {
 	    // Select where the plot should go.
 	    var container = d3.select(element);
@@ -247,18 +245,14 @@ var dbslice = (function (exports) {
 	  update: function update(element, data, layout) {
 	    cfD3Scatter.setupSvg(d3.select(element), data, layout); // Selections for plotting.
 
-	    var svg = d3.select(element).select("svg"); // "dim" is a crossfilter.dimension(). It is the functionality that allows the user to perform specific filtering and grouping operations, two of which are "top(n)", and "bottom(n)", which return n top and bottom most elements along the chosen dimension. The returned elements are full data rows!
-	    // The functionality to select specific dimensions has been pushed to the plotting functions, as the data manipulation occurs here.
+	    var svg = d3.select(element).select("svg"); // Get the points data, and calculate its range.
 
-	    var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
-	    var dim = data.cfData.dataDims[dimId];
-	    var pointData = dim.top(Infinity); // Maybe move this to the setup somehow. Not to setup, but to class properties.
+	    var pointData = cfD3Scatter.helpers.getPointData(data);
+	    var xRange_ = cfD3Scatter.helpers.getRange(svg, "x");
+	    var yRange_ = cfD3Scatter.helpers.getRange(svg, "y"); // Create the scales that position the points in the svg area.
 
-	    cfD3Scatter.xRange = layout.xRange === undefined ? cfD3Scatter.helpers.calculateRange(pointData, data.xProperty) : layout.xRange;
-	    cfD3Scatter.yRange = layout.yRange === undefined ? cfD3Scatter.helpers.calculateRange(pointData, data.yProperty) : layout.yRange; // Create the scales that position the points in the svg area.
-
-	    var xscale = d3.scaleLinear().range([0, svg.attr("plotWidth")]).domain(cfD3Scatter.xRange);
-	    var yscale = d3.scaleLinear().range([svg.attr("plotHeight"), 0]).domain(cfD3Scatter.yRange); // Handle entering/updating/removing points.
+	    var xscale = d3.scaleLinear().range([0, svg.attr("plotWidth")]).domain(xRange_);
+	    var yscale = d3.scaleLinear().range([svg.attr("plotHeight"), 0]).domain(yRange_); // Handle entering/updating/removing points.
 
 	    var points = svg.select(".plotArea").selectAll("circle").data(pointData);
 	    points.enter().append("circle").attr("r", 5).attr("cx", function (d) {
@@ -294,7 +288,7 @@ var dbslice = (function (exports) {
 	      if (cProperty !== undefined) {
 	        pointColor = cfD3Scatter.colour(d[cProperty]);
 	      } else {
-	        pointColor = colour(1);
+	        pointColor = cfD3Scatter.colour(1);
 	      }
 	      return pointColor;
 	    }
@@ -361,6 +355,9 @@ var dbslice = (function (exports) {
 	        plotWrapper.attr("plottype", "cfD3Scatter");
 	        svg.selectAll("*").remove();
 	        curateSvg(); // The interactivity is added in the main update function!
+	      } else {
+	        // The plot is being inherited by another scatter plot. Just update the plot.
+	        curateSvg();
 	      }
 	    }
 
@@ -369,7 +366,10 @@ var dbslice = (function (exports) {
 	      var svgHeight = layout.height;
 	      var width = svgWidth - margin.left - margin.right;
 	      var height = svgHeight - margin.top - margin.bottom;
-	      container.select("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea"); // Add a clipPath: everything out of this area won't be drawn.
+	      var pointData = cfD3Scatter.helpers.getPointData(data);
+	      var xRange = layout.xRange === undefined ? cfD3Scatter.helpers.calculateRange(pointData, data.xProperty) : layout.xRange;
+	      var yRange = layout.yRange === undefined ? cfD3Scatter.helpers.calculateRange(pointData, data.yProperty) : layout.yRange;
+	      container.select("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height).attr("xDomMin", xRange[0]).attr("xDomMax", xRange[1]).attr("yDomMin", yRange[0]).attr("yDomMax", yRange[1]).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea"); // Add a clipPath: everything out of this area won't be drawn.
 
 	      var clipId = "clip-" + container.attr("plot-row-index") + "-" + container.attr("plot-index");
 	      var clip = container.select("svg").append("clipPath").attr("id", clipId).append("rect").attr("width", svg.attr("plotWidth")).attr("height", svg.attr("plotHeight"));
@@ -406,10 +406,13 @@ var dbslice = (function (exports) {
 	      svg.call(zoom);
 
 	      function zoomed() {
-	        var t = d3.event.transform; // Recreate original scales.
+	        var t = d3.event.transform; // Get the domains:
 
-	        var xscale = d3.scaleLinear().range([0, svg.attr("plotWidth")]).domain(cfD3Scatter.xRange);
-	        var yscale = d3.scaleLinear().range([svg.attr("plotHeight"), 0]).domain(cfD3Scatter.yRange); // Create new axes based on the zoom, which altered the domain.
+	        var xRange = cfD3Scatter.helpers.getRange(svg, "x");
+	        var yRange = cfD3Scatter.helpers.getRange(svg, "y"); // Recreate original scales.
+
+	        var xscale = d3.scaleLinear().range([0, svg.attr("plotWidth")]).domain(xRange);
+	        var yscale = d3.scaleLinear().range([svg.attr("plotHeight"), 0]).domain(yRange); // Create new axes based on the zoom, which altered the domain.
 	        // d3.event.transform.rescaleX(xScale2).domain() to get the exact input of the location showing in the zooming aera and brush area.
 
 	        var newXRange = t.rescaleX(xscale).domain();
@@ -432,6 +435,15 @@ var dbslice = (function (exports) {
 	  },
 	  // addInteractivity
 	  helpers: {
+	    getPointData: function getPointData(data) {
+	      // "dim" is a crossfilter.dimension(). It is the functionality that allows the user to perform specific filtering and grouping operations, two of which are "top(n)", and "bottom(n)", which return n top and bottom most elements along the chosen dimension. The returned elements are full data rows!
+	      // The functionality to select specific dimensions has been pushed to the plotting functions, as the data manipulation occurs here.
+	      var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
+	      var dim = data.cfData.dataDims[dimId];
+	      var pointData = dim.top(Infinity);
+	      return pointData;
+	    },
+	    // getPointData
 	    calculateRange: function calculateRange(p, property) {
 	      var pMin = d3.min(p, function (d) {
 	        return d[property];
@@ -444,7 +456,13 @@ var dbslice = (function (exports) {
 	      pMax += 0.1 * pDiff;
 	      var range = [pMin, pMax];
 	      return range;
-	    } // calculateRange
+	    },
+	    // calculateRange
+	    getRange: function getRange(svg, dimName) {
+	      var domMin = Number(svg.attr(dimName + "DomMin"));
+	      var domMax = Number(svg.attr(dimName + "DomMax"));
+	      return [domMin, domMax];
+	    } // getRange
 
 	  } // helpers
 
