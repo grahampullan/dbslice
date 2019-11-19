@@ -1,206 +1,112 @@
-function makePlotsFromPlotRowCtrl( ctrl ) {
+function makePlotsFromPlotRowCtrl(ctrl) {
+  var plotPromises = [];
 
-	var plotPromises = [];
-
-	var slicePromises = [];
-
-	if ( ctrl.sliceIds === undefined ) {
-
-		var nTasks = ctrl.taskIds.length;
-
-		if ( ctrl.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.maxTasks );
-
-		for ( var index = 0; index < nTasks; ++index ) {
-
-			if ( ctrl.urlTemplate == null ) {
-
-				var url = ctrl.taskIds[ index ];
-
-			} else {
-
-				var url = ctrl.urlTemplate.replace( "${taskId}", ctrl.taskIds[ index ] );
-
-			}
-
-			var title = ctrl.taskLabels[ index ];
-
-       		var plotPromise = makePromiseTaskPlot( ctrl, url, title, ctrl.taskIds[ index ] ); 
-
-        	plotPromises.push( plotPromise );
-
-        }
-
-    } else {
-
-    	ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
-
-    		var plotPromise = makePromiseSlicePlot ( ctrl, sliceId, sliceIndex );
-
-    		plotPromises.push( plotPromise );
-
-    	});
-    }
-
-	return Promise.all(plotPromises);
-
-}
-
-
-function makePromiseTaskPlot( ctrl, url, title, taskId ) { 
-
-	return fetch(url)
-
-	.then(function( response ) {
-
-        if ( ctrl.csv === undefined ) {
-
-            return response.json();
-
-        }
-
-        if ( ctrl.csv == true ) {
-
-            return response.text() ;
-
-        }
-
-    })
-
-    .then(function( responseJson ) {
-
-        if ( ctrl.csv == true ) {
-
-            responseJson = d3.csvParse( responseJson );
-
-        }
-
-    	var plot = {};
-
-    	if (ctrl.formatDataFunc !== undefined) {
-
-    		plot.data = ctrl.formatDataFunc( responseJson, taskId ); 
-
-    	} else {
-
-    		plot.data = responseJson;
-
-        }
-
-        plot.layout = Object.assign( {}, ctrl.layout );
-
-        plot.plotFunc = ctrl.plotFunc;
-
-        plot.layout.title = title;
-
-        plot.data.newData = true;
-
-        return plot;
-
-    } );
-
-}
-
-function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
-
-	var slicePromisesPerPlot = [];
-    var tasksOnPlot = [];
-
+  if (ctrl.sliceIds === undefined) {
 	var nTasks = ctrl.taskIds.length;
+	if (ctrl.maxTasks !== undefined) nTasks = Math.min(nTasks, ctrl.maxTasks);
 
-	if ( ctrl.maxTasks !== undefined ) Math.min( nTasks, ctrl.maxTasks );
+	for (var index = 0; index < nTasks; ++index) {
+	  if (ctrl.urlTemplate == null) {
+		var url = ctrl.taskIds[index];
+	  } else {
+		var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]);
+	  }
 
-	for ( var index = 0; index < nTasks; ++index ) {
-
-        tasksOnPlot.push( ctrl.taskIds[index] );
-
-		var url = ctrl.urlTemplate
-			.replace( "${taskId}", ctrl.taskIds[ index ] )
-			.replace( "${sliceId}", sliceId );
-
-            //console.log(url);
-
-			var slicePromise = fetch(url).then( function( response ) {
-
-				if ( ctrl.csv === undefined ) {
-
-                    return response.json();
-
-                }
-
-                if ( ctrl.csv == true ) {
-
-                    return response.text() ;
-
-                }
-
-			});
-
-		slicePromisesPerPlot.push( slicePromise );
-
+	  var title = ctrl.taskLabels[index];
+	  var plotPromise = makePromiseTaskPlot(ctrl, url, title, ctrl.taskIds[index]);
+	  plotPromises.push(plotPromise);
 	}
+  } else {
+	ctrl.sliceIds.forEach(function (sliceId, sliceIndex) {
+	  var plotPromise = makePromiseSlicePlot(ctrl, sliceId, sliceIndex);
+	  plotPromises.push(plotPromise);
+	});
+  }
 
-    // slicePromises.push( slicePromisesPerPlot );
+  return Promise.all(plotPromises);
+}
 
-    return Promise.all( slicePromisesPerPlot ).then( function ( responseJson ) {
 
-        if ( ctrl.csv == true ) {
+function makePromiseTaskPlot(ctrl, url, title, taskId) {
+  return fetch(url)
+	.then(function (response) {
+	  if (ctrl.csv === undefined){ return response.json(); };
+	  if (ctrl.csv == true){ return response.text(); };
+	})
+	.then(function (responseJson) {
+	  if (ctrl.csv == true) { responseJson = d3.csvParse(responseJson); };
 
-            var responseCsv = [];
+	  var plot = {};
 
-            responseJson.forEach( function(d) {
+	  if (ctrl.formatDataFunc !== undefined) {
+		plot.data = ctrl.formatDataFunc(responseJson, taskId);
+	  } else {
+		plot.data = responseJson;
+	  }; // if
 
-                responseCsv.push( d3.csvParse(d) );
+	  plot.layout = Object.assign({}, ctrl.layout);
+	  plot.plotFunc = ctrl.plotFunc;
+	  plot.layout.title = title;
+	  plot.data.newData = true;
+	  return plot;
+	});
+} // makePromiseTaskPlot
 
-            });
+function makePromiseSlicePlot(ctrl, sliceId, sliceIndex) {
+  var slicePromisesPerPlot = [];
+  var tasksOnPlot = [];
+  var nTasks = ctrl.taskIds.length;
+  if (ctrl.maxTasks !== undefined) Math.min(nTasks, ctrl.maxTasks);
 
-            responseJson = responseCsv;
+  for (var index = 0; index < nTasks; ++index) {
+	tasksOnPlot.push(ctrl.taskIds[index]);
+	var url = ctrl.urlTemplate
+	  .replace("${taskId}", ctrl.taskIds[index])
+	  .replace("${sliceId}", sliceId); //console.log(url);
 
-        }
+	var slicePromise = fetch(url)
+	  .then(function (response) {
+		if (ctrl.csv === undefined) { return response.json(); };
+		if (ctrl.csv == true)       { return response.text(); };
+	  });
+	slicePromisesPerPlot.push(slicePromise);
+  } // for
 
-    	var plot = {};
 
-    	if (ctrl.formatDataFunc !== undefined) {
+  return Promise.all(slicePromisesPerPlot).then(function (responseJson) {
+	if (ctrl.csv == true) {
+	  var responseCsv = [];
+	  responseJson.forEach(function (d) { responseCsv.push(d3.csvParse(d)); });
+	  responseJson = responseCsv;
+	}; // if
 
-    		plot.data = ctrl.formatDataFunc( responseJson, tasksOnPlot );
+	var plot = {};
 
-    	} else {
+	if (ctrl.formatDataFunc !== undefined) {
+	  plot.data = ctrl.formatDataFunc(responseJson, tasksOnPlot);
+	} else {
+	  plot.data = responseJson;
+	}; // if
 
-    		plot.data = responseJson;
+	plot.layout = Object.assign({}, ctrl.layout);
 
-    	}
+	if (ctrl.layout.xRange !== undefined) {
+	  if (ctrl.layout.xRange[1].length !== undefined) {
+		plot.layout.xRange = ctrl.layout.xRange[sliceIndex];
+	  }; // if
+	}; // if
 
-    	plot.layout = Object.assign({}, ctrl.layout);
+	if (ctrl.layout.yRange !== undefined) {
+	  if (ctrl.layout.yRange[1].length !== undefined) {
+		plot.layout.yRange = ctrl.layout.yRange[sliceIndex];
+	  }; // if
+	}; // if
 
-        if (ctrl.layout.xRange !== undefined) {
-
-            if (ctrl.layout.xRange[1].length !== undefined) {
-
-                plot.layout.xRange = ctrl.layout.xRange[sliceIndex]
-
-            }
-
-        }
-
-        if (ctrl.layout.yRange !== undefined) {
-
-            if (ctrl.layout.yRange[1].length !== undefined) {
-
-                plot.layout.yRange = ctrl.layout.yRange[sliceIndex]
-
-            }
-
-        }
-
-    	plot.plotFunc = ctrl.plotFunc;
-
-    	plot.layout.title = sliceId;
-
-    	plot.data.newData = true;
-
-    	return plot;
-
-    });
-
+	plot.plotFunc = ctrl.plotFunc;
+	plot.layout.title = sliceId;
+	plot.data.newData = true;
+	return plot;
+  });
 }
 
 export { makePlotsFromPlotRowCtrl };

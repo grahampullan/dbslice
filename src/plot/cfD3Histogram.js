@@ -3,211 +3,297 @@ import { render } from '../core/render.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 
 const cfD3Histogram = {
+		
+	  name: "cfD3Histogram",
+	  
+	  margin: {top: 20, right: 20, bottom: 30, left: 20},
+	  
+	  colour: [],
+		
+	  make: function make(element, data, layout) {
+	    
+		
+		// First decide where to plot to.
+		var container = d3.select(element);
+		
+		// Setup the svg.
+		cfD3Histogram.setupSvg(container, data, layout);
+		
+		// Setup the interactivity of the svg.
+		cfD3Histogram.setupInteractivity(container, data);
+		
+		// Update the view
+	    cfD3Histogram.update(element, data, layout);
+		
+	  },
+	  
+	  update: function update(element, data, layout) {
 
-    make : function( element, data, layout ) {
+		var container = d3.select(element);
+		
+		cfD3Histogram.setupSvg(container, data, layout);
+		
+	    var svg = container.select("svg");
+	    
+		
+		// Calculate the required data.
+	    var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
+	    var dim = data.cfData.dataDims[dimId];
+	    var items = dim.top(Infinity);
+	    
+	    var x = d3.scaleLinear()
+		  .domain(    [svg.attr("xDomMin"), svg.attr("xDomMax")])
+		  .rangeRound([0                  , svg.attr("plotWidth")]);
+	    
+		// The function in the histogram ensures that only a specific property is extracted from the data input to the function on the 'histogram(data)' call.
+		var histogram = d3.histogram()
+		  .value(function (d) {return d[data.xProperty];})
+		  .domain(x.domain())
+		  .thresholds(x.ticks(20));
+	    
+		var bins = histogram(items);
+	    
+		var y = d3.scaleLinear()
+		  .domain([0, d3.max(bins, function (d){return d.length;})])
+		  .range([svg.attr("plotHeight"), 0]);
+		
+		
+		
+		// Handle entering/updating/removing the bars.
+		var bars = svg.select(".plotArea").selectAll("rect").data(bins);
+	    
+		bars.enter()
+		  .append("rect")
+		    .attr("transform", function (d){
+				return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
+		    .attr("x", 1)
+			.attr("width",  function (d){return x(d.x1) - x(d.x0) - 1;})
+			.attr("height", function (d){return svg.attr("plotHeight") - y(d.length);})
+			.style("fill", cfD3Histogram.colour)
+			.attr("opacity", "1");
+				
+	    bars.transition()
+		  .attr("transform", function (d){
+			  return "translate(" + x(d.x0) + "," + y(d.length) + ")";})
+		  .attr("x", 1)
+		  .attr("width", function (d){return x(d.x1) - x(d.x0) - 1;})
+		  .attr("height", function (d){return svg.attr("plotHeight") - y(d.length);});
+		  
+	    bars.exit().remove();
+	    
+		
+		// Handle the axes.
+		var xAxis = container.select(".plotArea").select(".xAxis");
+		if (xAxis.empty()){
+			xAxis = container.select(".plotArea")
+				  .append("g")
+				    .attr("class", "xAxis")
+					.attr("transform", "translate(0," + svg.attr("plotHeight") + ")")
+					.call(d3.axisBottom(x));
+					
+			xAxis
+		    .append("text")
+			  .attr("class", "xAxisLabel")
+			  .attr("fill", "#000")
+			  .attr("x", svg.attr("plotWidth"))
+			  .attr("y", cfD3Histogram.margin.bottom)
+			  .attr("text-anchor", "end")
+			  .text(data.xProperty);
+			  
+		} else {
+			// If the axis is already there it might just need updating.
+			container.select(".plotArea").select(".xAxis").call(d3.axisBottom(x));
+			
+		}; // if
+		
+		// The axes class holds the axes labels
+		var axes = svg.select(".plotArea").select(".axes");
+	    if (axes.empty()) {
+	      svg.select(".plotArea")
+		    .append("g")
+			  .attr("class", "axes")
+			  .call(d3.axisLeft(y));
+	    } else {
+	      axes.transition().call(d3.axisLeft(y));
+	    } // if
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+	    var yAxisLabel = svg.select(".plotArea").select(".axes").select(".yAxisLabel");
+	    if (yAxisLabel.empty()) {
+	      svg.select(".plotArea").select(".axes")
+		    .append("text")
+			  .attr("class", "yAxisLabel")
+			  .attr("fill", "#000")
+			  .attr("transform", "rotate(-90)")
+			  .attr("x", 0)
+			  .attr("y", -25)
+			  .attr("text-anchor", "end")
+			  .text("Number of tasks");
+	    } // if
 
-        var container = d3.select(element);
+        
+	  }, // update
+	    
+	  setupSvg: function setupSvg(container, data, layout){
+		  // Add the setupSvg function!!
+		  
+		  // If layout has a margin specified store it as the internal property.
+		  cfD3Histogram.margin= layout.margin === undefined ? cfD3Histogram.margin : layout.margin;
+	      cfD3Histogram.colour = layout.colour === undefined ? "cornflowerblue" : layout.colour;
+	      
+		  
+	      var svg = container.select("svg");
+		  if (svg.empty()){
+			  
+			    // Append new svg
+			    svg = container.append("svg");
+				
+				// Update its dimensions.
+				curateSvg();
+				 
+		  } else {
+			    
+			    // Differentiate between changing plot types, or just changing the data!!
+				// If just the data is changing nothing needs to be done here. If the plot type is changing then the svg needs to be refreshed, is attributes updated, the 'plotWrapper' 'plottype' changed, and the interactivity restored.
+				  
+				var plotWrapper = container.select(function() {return this.parentElement.parentElement;});
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
+				var expectedPlotType = plotWrapper.attr("plottype");
+				
+				if (expectedPlotType !== "cfD3Histogram" ){
+					// If the plot type has changed, then the svg contents need to be removed completely.
+					plotWrapper.attr("plottype", "cfD3Histogram")
+					
+					svg.selectAll("*").remove();
+					curateSvg();
+					
+					// Add functionality.
+					cfD3Histogram.setupInteractivity(container, data);
+					
+				} else {
+					// Axes might need to be updated, thus the svg element needs to be refreshed.
+					curateSvg();
+					
+				}; // if		
+			    
+		  }; // if
+		  
+		  
+		  function curateSvg(){
+			  
+			  
+			  // Get plot dimensions
+				var svgWidth = container.node().offsetWidth;
+			    var svgHeight = layout.height;
+			    var width = svgWidth - cfD3Histogram.margin.left - cfD3Histogram.margin.right;
+			    var height = svgHeight - cfD3Histogram.margin.top - cfD3Histogram.margin.bottom;
+			  
+			    // Calculation the min and max values - based on all the data, otherwise crossfilter will remove some, and the x-axis will be rescaled every time the brush adds or removes data.
+				var items = data.cfData.cf.all();
+				
+				var xDomMin = d3.min(items, function (d) {return d[data.xProperty];}) * 0.9;
+				var xDomMax = d3.max(items, function (d) {return d[data.xProperty];}) * 1.1;
+				
+				// The dimId needs to be assigned here, otherwise there is confusion between the brush and the data if a hitogram plot inherits a histogram plot.
+				var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
+				
+				// Curating the svg.				
+				container.select("svg")
+				    .attr("width", svgWidth)
+				    .attr("height", svgHeight)
+				    .attr("plotWidth", width)
+				    .attr("plotHeight", height)
+					.attr("xDomMin", xDomMin)
+				    .attr("xDomMax", xDomMax)
+					.attr("dimId", dimId);
+					
+				var plotArea = container.select("svg").select(".plotArea");
+				if(plotArea.empty()){
+					// If there's nonoe, add it.
+					container.select("svg")
+					.append("g")
+				      .attr("transform", "translate(" + cfD3Histogram.margin.left + "," + cfD3Histogram.margin.top + ")")
+				      .attr("class", "plotArea");
+					
+				}; // if
+				
+		  }; // setupSvg.updateSvgAttributes
+		  
+	  }, // setupSvg
+	  
+	  setupInteractivity: function setupInteractivity(container, data){
+		  
+		  
+			var svg = container.select("svg");
+			  
+				
+			// Specify and add brush
+			var brush = d3.brushX()
+			  .extent([[0, 0], [svg.attr("plotWidth"), svg.attr("plotHeight")]])
+			  .on("start brush end", brushmoved);
+			  
+			  
+			var gBrush = svg
+			  .append("g")
+				.attr("transform", "translate(" + cfD3Histogram.margin.left + "," + cfD3Histogram.margin.top + ")")
+				.attr("class", "brush")
+				.call(brush); // style brush resize handle
+			// https://github.com/crossfilter/crossfilter/blob/gh-pages/index.html#L466
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+			var brushResizePath = function brushResizePath(d) {
+			  var e = +(d.type == "e"),
+				  x = e ? 1 : -1,
+				  y = svg.attr("plotHeight") / 2;
+			  return "M" + .5 * x + "," + y + "A6,6 0 0 " + e + " " + 6.5 * x + "," + (y + 6) + "V" + (2 * y - 6) + "A6,6 0 0 " + e + " " + .5 * x + "," + 2 * y + "Z" + "M" + 2.5 * x + "," + (y + 8) + "V" + (2 * y - 8) + "M" + 4.5 * x + "," + (y + 8) + "V" + (2 * y - 8);
+			}; // brushResizePath
 
-        var dimId = data.cfData.dataProperties.indexOf( data.xProperty );
+			var handle = gBrush.selectAll("handleCustom")
+			  .data([{type: "w"}, {type: "e"}])
+			  .enter()
+				.append("path")
+				  .attr("class", "handleCustom")
+				  .attr("stroke", "#000")
+				  .attr("cursor", "ewResize")
+				  .attr("d", brushResizePath);
+				  
+  
+			var brushInit = true;
+			gBrush.call(brush.move, [0, Number(svg.attr("plotWidth"))]);
+			brushInit = false;
 
-        var svg = container.append("svg")
-            .attr("width", svgWidth)
-            .attr("height", svgHeight)
+			function brushmoved() {
+				// Select the positions of the brush relative to the svg. Then convert it to th actual values. Then update the filters using these values.
+				var s = d3.event.selection;
+				var sx = [];
 
-        var plotArea = svg.append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-            .attr( "class", "plotArea" )
-            .attr( "dimId", dimId);
-
-        var dim = data.cfData.dataDims[ dimId ];       
-        var items = dim.top( Infinity );
-
-        var xDomMax = d3.max( items, d => d[ data.xProperty ] ) * 1.1 
-        plotArea.attr( "xDomMax", xDomMax)
-
-        var xDomMin = d3.min( items, d => d[ data.xProperty ] ) * 0.9
-        plotArea.attr( "xDomMin", xDomMin)
-
-        var x = d3.scaleLinear()
-            .domain( [ xDomMin, xDomMax ] )
-            .rangeRound( [ 0, width ] );
-
-        plotArea.append( "g" )
-            .attr( "transform", "translate(0," + height + ")" )
-            .call( d3.axisBottom( x ) );
-
-
-        var brush = d3.brushX()
-            .extent( [
-                [ 0, 0 ],
-                [ width, height ]
-            ] )
-            .on( "start brush end", brushmoved );
-
-        var gBrush = svg.append( "g" )
-            .attr( "transform", "translate(" + margin.left + "," + margin.top + ")" )
-            .attr( "class", "brush" )
-            .call( brush );
-
-
-        // style brush resize handle
-        // https://github.com/crossfilter/crossfilter/blob/gh-pages/index.html#L466
-        var brushResizePath = function( d ) {
-            var e = +( d.type == "e" ),
-                x = e ? 1 : -1,
-                y = height / 2;
-            return "M" + ( .5 * x ) + "," + y + "A6,6 0 0 " + e + " " + ( 6.5 * x ) + "," + ( y + 6 ) + "V" + ( 2 * y - 6 ) + "A6,6 0 0 " + e + " " + ( .5 * x ) + "," + ( 2 * y ) + "Z" + "M" + ( 2.5 * x ) + "," + ( y + 8 ) + "V" + ( 2 * y - 8 ) + "M" + ( 4.5 * x ) + "," + ( y + 8 ) + "V" + ( 2 * y - 8 );
-        }
-
-        var handle = gBrush.selectAll( "handleCustom" )
-            .data( [ { type: "w" } , { type: "e" } ] )
-            .enter().append( "path" )
-                .attr( "class", "handleCustom" )
-                .attr( "stroke", "#000" )
-                .attr( "cursor", "ewResize" )
-                .attr( "d", brushResizePath );
-
-
-        var brushInit = true;
-        gBrush.call( brush.move, x.domain().map( x ) );
-        brushInit = false;
-
-
-        function brushmoved() {
-            var s = d3.event.selection;
-            if ( s == null ) {
-                handle.attr( "display", "none" );
-                data.cfData.histogramSelectedRanges[ dimId ] = [];
-                cfUpdateFilters(data.cfData);
-                if ( brushInit == false ) render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
-            } else {
-                var sx = s.map( x.invert );
-                handle.attr( "display", null ).attr( "transform", function( d, i ) {
-                    return "translate(" + [ s[ i ], -height / 4 ] + ")";
-                } );
-                data.cfData.histogramSelectedRanges[ dimId ] = sx;
-                cfUpdateFilters(data.cfData);
-                if ( brushInit == false ) render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
-            }
-        }
-
-
-        cfD3Histogram.update( element, data, layout );
-
-    }, 
-
-    update : function ( element, data, layout ) {
-     
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
-
-        var container = d3.select(element);
-
-        var svg = container.select("svg");
-
-        var svgWidth = svg.attr("width");
-        var svgHeight = svg.attr("height");
-
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
-
-        var plotArea = svg.select(".plotArea");
-        var dimId = plotArea.attr("dimId");
-        var dim = data.cfData.dataDims[ dimId ];
-        var cf = data.cfData.cf;
-        var property = data.xProperty;
-
-        var formatCount = d3.format( ",.0f" );
-
-        var items = dim.top( Infinity );
-
-        var xDomMax = plotArea.attr("xDomMax");
-        var xDomMin = plotArea.attr("xDomMin");
-        var x = d3.scaleLinear()
-            .domain( [ xDomMin, xDomMax] )
-            .rangeRound( [ 0, width ] );
-
-        var histogram = d3.histogram()
-            .value( d => d[ property ] )
-            .domain( x.domain() )
-            .thresholds( x.ticks( 20 ) );
-
-        var bins = histogram( items );
-
-        var y = d3.scaleLinear()
-            .domain( [ 0, d3.max( bins, d => d.length ) ] )
-            .range( [ height, 0 ] );
-
-        var bars = plotArea.selectAll( "rect" )
-            .data( bins );
-
-        var colour = ( layout.colour === undefined ) ? "cornflowerblue" : layout.colour;
-
-        bars.enter()
-            .append( "rect" )
-                .attr( "transform", d => "translate(" + x( d.x0 ) + "," + y( d.length ) + ")" )
-                .attr( "x", 1 )
-                .attr( "width", d => x(d.x1)-x(d.x0)-1 )
-                .attr( "height", d => height - y( d.length ) )
-                .style( "fill", colour )
-                .attr( "opacity", "1" );
-
-        bars.transition()
-            .attr( "transform", d => "translate(" + x( d.x0 ) + "," + y( d.length ) + ")" )
-            .attr( "x", 1 )
-            .attr( "width", d => x(d.x1)-x(d.x0)-1 )
-            .attr( "height", d => height - y( d.length ) );
-
-        bars.exit().remove();
-
-        var yAxis = plotArea.select(".yAxis");
-        if ( yAxis.empty() ) {
-            plotArea.append("g")
-                .attr( "class", "yAxis")
-                .call( d3.axisLeft( y ) );
-        } else {
-            yAxis.transition().call( d3.axisLeft( y ) );
-        }
-
-
-        var yAxisLabel = plotArea.select(".yAxis").select(".yAxisLabel");
-        if ( yAxisLabel.empty() ) {
-             plotArea.select(".yAxis").append("text")
-                .attr("class", "yAxisLabel")
-                .attr("fill", "#000")
-                .attr("transform", "rotate(-90)")
-                .attr("x", 0)
-                .attr("y", -25)
-                .attr("text-anchor", "end")
-                .text("Number of tasks");
-            }
-
-        var xAxisLabel = plotArea.select(".yAxis").select(".xAxisLabel");
-        if ( xAxisLabel.empty() ) {
-            plotArea.select(".yAxis").append("text")
-                .attr("class", "xAxisLabel")
-                .attr("fill", "#000")
-                .attr("x", width)
-                .attr("y", height+margin.bottom)
-                .attr("text-anchor", "end")
-                .text(property);
-        }
-
-         
-
-
-    }
-
-};
+				if (s == null) {
+					handle.attr("display", "none");
+				} else {
+					// This scale needs to be updated here!!
+					var x = d3.scaleLinear()
+					  .domain(    [svg.attr("xDomMin"), svg.attr("xDomMax")  ])
+					  .rangeRound([0                  , svg.attr("plotWidth")]);
+					
+						
+					sx = s.map(x.invert);
+					handle.attr("display", null)
+						  .attr("transform", function (d, i) {
+							return "translate(" + [s[i], -svg.attr("plotHeight") / 4] + ")";
+						  }); // The number controls vertical position of the brush handles.
+				}; // if
+				  
+				// sx is a pair the min/max values of the filter.
+				data.cfData.histogramSelectedRanges[svg.attr("dimId")] = sx;
+				cfUpdateFilters(data.cfData);
+				if (brushInit == false){
+					render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+				}; // if
+			  
+			} // brushMoved
+		  
+		  
+	  } // setupInteractivity
+	  
+	}; // cfD3Histogram
 
 
 export { cfD3Histogram };
