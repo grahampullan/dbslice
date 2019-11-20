@@ -725,7 +725,6 @@ var dbslice = (function (exports) {
 
 	      case "cfD3BarChart":
 	        // One variable menu - categorical
-	        // TEMPORARILY ASSIGN STRING INSTEAD OF FUNCTION!!
 	        newPlot.plotFunc = cfD3BarChart; // xProperty required.
 
 	        addUpdateMenuItemObject(xPropertyMenuId, categoricalVariables); // yProperty must not be present.
@@ -734,8 +733,7 @@ var dbslice = (function (exports) {
 	        break;
 
 	      case "cfD3Histogram":
-	        // One variable menu - continuous
-	        // TEMPORARILY ASSIGN STRING INSTEAD OF FUNCTION!!
+	        // One variable menu - normative
 	        newPlot.plotFunc = cfD3Histogram; // xProperty required.
 
 	        addUpdateMenuItemObject(xPropertyMenuId, continuousVariables); // yProperty must not be present.
@@ -744,8 +742,7 @@ var dbslice = (function (exports) {
 	        break;
 
 	      case "cfD3Scatter":
-	        // Two variables menu - continuous
-	        // TEMPORARILY ASSIGN STRING INSTEAD OF FUNCTION!!
+	        // Two variables menu - normative
 	        newPlot.plotFunc = cfD3Scatter; // xProperty and yProperty required.
 
 	        addUpdateMenuItemObject(xPropertyMenuId, continuousVariables);

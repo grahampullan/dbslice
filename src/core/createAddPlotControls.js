@@ -270,7 +270,6 @@ function createAddPlotControls(buttonId){
 			  
 			case "cfD3BarChart":
 			  // One variable menu - categorical
-			  // TEMPORARILY ASSIGN STRING INSTEAD OF FUNCTION!!
 			  newPlot.plotFunc = cfD3BarChart;
 			  
 			  // xProperty required.
@@ -281,8 +280,7 @@ function createAddPlotControls(buttonId){
 			  break;
 			  
 			case "cfD3Histogram":
-			  // One variable menu - continuous
-			  // TEMPORARILY ASSIGN STRING INSTEAD OF FUNCTION!!
+			  // One variable menu - normative
 			  newPlot.plotFunc = cfD3Histogram;
 			  
 			  // xProperty required.
@@ -293,8 +291,7 @@ function createAddPlotControls(buttonId){
 			  break;
 			  
 			case "cfD3Scatter":
-			  // Two variables menu - continuous
-			  // TEMPORARILY ASSIGN STRING INSTEAD OF FUNCTION!!
+			  // Two variables menu - normative
 			  newPlot.plotFunc = cfD3Scatter;
 			  
 			  // xProperty and yProperty required.
