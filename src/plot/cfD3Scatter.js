@@ -223,29 +223,41 @@ const cfD3Scatter = {
 		          cfD3Scatter.helpers.calculateRange(pointData, data.yProperty) : layout.yRange;
               
               container.select("svg")
-                  .attr("width", svgWidth)
-                  .attr("height", svgHeight)
-                  .attr("plotWidth", width)
-                  .attr("plotHeight", height)
+			      .attr("width", svgWidth)
+				  .attr("height", svgHeight)
+				  .attr("plotWidth", width)
+				  .attr("plotHeight", height)
 				  .attr("xDomMin", xRange[0])
 				  .attr("xDomMax", xRange[1])
 				  .attr("yDomMin", yRange[0])
-				  .attr("yDomMax", yRange[1])
-				.append("g")
-                  .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                  .attr("class", "plotArea");
+				  .attr("yDomMax", yRange[1]);
+		  
+			  var plotArea = container.select("svg").select(".plotArea");
+			  if (plotArea.empty()){
+				  container.select("svg")
+					.append("g")
+					  .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+					  .attr("class", "plotArea"); 
+			  }; // if
 				  
 
 			  // Add a clipPath: everything out of this area won't be drawn.
 			  var clipId = "clip-" + container.attr("plot-row-index") + "-" + container.attr("plot-index");
-			  var clip = container.select("svg")
-			    .append("clipPath")
-				  .attr("id", clipId)
-			    .append("rect")
-				  .attr("width", svg.attr("plotWidth"))
-				  .attr("height", svg.attr("plotHeight"));
-			  
-		  }; // setupSvg.curateSvg
+			  var clip = container.select("svg").select("clipPath")
+			  if (clip.empty()){
+				  container.select("svg")
+				    .append("clipPath")
+					  .attr("id", clipId)
+					.append("rect")
+					  .attr("width", svg.attr("plotWidth"))
+					  .attr("height", svg.attr("plotHeight"));
+			  } else {
+				  clip.select("rect")
+				      .attr("width", svg.attr("plotWidth"))
+					  .attr("height", svg.attr("plotHeight"))
+			  }; // if
+				  
+			  }; // setupSvg.curateSvg
         
 
       }, // setupSvg

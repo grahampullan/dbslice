@@ -24,6 +24,13 @@ function makeNewPlot( plotData, index ) {
 		  .attr("plot-index", index);
 		  
 	  plotData.plotFunc.make(plotBody.node(), plotData.data, plotData.layout);
+	  
+	  // Listen to the changes of the plot card, and update the plot
+	  $(window).resize(  function(){ 
+	      // console.log( plot.node().offsetWidth )
+		  var container = d3.select(plotBody.node());
+		  plotData.plotFunc.update( plotBody.node(), plotData.data, plotData.layout )
+	  }  );
 
 }
 

@@ -175,21 +175,14 @@ const cfD3BarChart = {
 		  
           var svg = container.select("svg");		  
 		  if (svg.empty()){
-			  // Append new svg.
-			  var svgWidth = container.node().offsetWidth;
-	          var svgHeight = layout.height;
-	          var width = svgWidth - margin.left - margin.right;
-	          var height = svgHeight - margin.top - margin.bottom;
 			  
-			  container
-			    .append("svg")
-				  .attr("width", svgWidth)
-				  .attr("height", svgHeight)
-				  .attr("plotWidth", width)
-				  .attr("plotHeight", height)
-				.append("g")
-				  .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-				  .attr("class", "plotArea");
+			  
+			  // Append new svg.
+			  svg = container.append("svg");
+		  
+			  curateSvg();
+			  
+			  
 		  } else {
 			    
 				// Differentiate between changing plot types, or just changing the data!!
@@ -202,13 +195,30 @@ const cfD3BarChart = {
 				if (expectedPlotType !== "cfD3BarChart" ){
 					// If the plot type has changed, then the svg contents need to be removed completely.
 					plotWrapper.attr("plottype", "cfD3BarChart")
-					
 					svg.selectAll("*").remove();
-					svg.append("g")
-			  	      .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-			  	      .attr("class", "plotArea");
+					
+					curateSvg();
+				} else {
+					curateSvg();
 				}; // if				  
 		  }; // if
+		  
+		  function curateSvg(){
+			
+			  var svgWidth = container.node().offsetWidth;
+			  var svgHeight = layout.height;
+			  var width = svgWidth - margin.left - margin.right;
+			  var height = svgHeight - margin.top - margin.bottom;
+			  
+			  container.select("svg")
+			      .attr("width", svgWidth)
+				  .attr("height", svgHeight)
+				  .attr("plotWidth", width).attr("plotHeight", height)
+				.append("g")
+				  .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+				  .attr("class", "plotArea");
+			
+		  }; // curateSvg
 	    
 
 	  } // setupSvg

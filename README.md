@@ -7,7 +7,6 @@ It adds the functionality that allows the user to dynamically add or remove plot
 
 Known bugs and missing desired behaviour:
 - Minimal example cannot be initialised as blank page
-- Plot 'svg' elements do not resize on window resize
 - Histograms have their y-axis labels hidden
 - On passing a filtered subset to neighbouring plot on delete actions the brush graphics do not automatically update
 - Histograms have their bars move on first user itneraction

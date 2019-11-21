@@ -6,15 +6,13 @@ var dbslice = (function (exports) {
 	  var plot = d3.select(this).append("div").attr("class", "col-md-" + plotData.layout.colWidth + " plotWrapper").attr("plottype", plotData.plotFunc.name).append("div").attr("class", "card");
 	  var plotHeader = plot.append("div").attr("class", "card-header plotTitle").html(plotData.layout.title);
 	  var plotBody = plot.append("div").attr("class", "plot").attr("plot-row-index", plotRowIndex).attr("plot-index", index);
-	  plotData.plotFunc.make(plotBody.node(), plotData.data, plotData.layout);
-	  
-	  // Listen to the changes of the plot card, and update the plot
-	  $(window).resize(  function(){ 
-	      // console.log( plot.node().offsetWidth )
-		  var container = d3.select(plotBody.node());
-		  plotData.plotFunc.update( plotBody.node(), plotData.data, plotData.layout )
-	  }  );
-	  
+	  plotData.plotFunc.make(plotBody.node(), plotData.data, plotData.layout); // Listen to the changes of the plot card, and update the plot
+
+	  $(window).resize(function () {
+	    // console.log( plot.node().offsetWidth )
+	    var container = d3.select(plotBody.node());
+	    plotData.plotFunc.update(plotBody.node(), plotData.data, plotData.layout);
+	  });
 	}
 
 	function updatePlot(plotData, index) {
@@ -176,8 +174,8 @@ var dbslice = (function (exports) {
 	      if (plotArea.empty()) {
 	        // If there's nonoe, add it.
 	        container.select("svg").append("g").attr("transform", "translate(" + cfD3Histogram.margin.left + "," + cfD3Histogram.margin.top + ")").attr("class", "plotArea");
-	      } // if
-	    } // curateSvg
+	      }
+	    }
 	  },
 	  // setupSvg
 	  setupInteractivity: function setupInteractivity(container, data) {
@@ -378,24 +376,21 @@ var dbslice = (function (exports) {
 	      var xRange = layout.xRange === undefined ? cfD3Scatter.helpers.calculateRange(pointData, data.xProperty) : layout.xRange;
 	      var yRange = layout.yRange === undefined ? cfD3Scatter.helpers.calculateRange(pointData, data.yProperty) : layout.yRange;
 	      container.select("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height).attr("xDomMin", xRange[0]).attr("xDomMax", xRange[1]).attr("yDomMin", yRange[0]).attr("yDomMax", yRange[1]);
-		  
-		  var plotArea = container.select("svg").select(".plotArea");
-		  if (plotArea.empty()){
-			  container.select("svg").append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea"); 
-		  }; // if
-		  
+	      var plotArea = container.select("svg").select(".plotArea");
 
+	      if (plotArea.empty()) {
+	        container.select("svg").append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
+	      }
+	      // Add a clipPath: everything out of this area won't be drawn.
 
-		  // Add a clipPath: everything out of this area won't be drawn.
 	      var clipId = "clip-" + container.attr("plot-row-index") + "-" + container.attr("plot-index");
-	      var clip = container.select("svg").select("clipPath")
-		  if (clip.empty()){
-			  container.select("svg").append("clipPath").attr("id", clipId).append("rect").attr("width", svg.attr("plotWidth")).attr("height", svg.attr("plotHeight"));
-		  } else {
-			  clip.select("rect").attr("width", svg.attr("plotWidth")).attr("height", svg.attr("plotHeight"))
-		  }; // if
-		  
-		  
+	      var clip = container.select("svg").select("clipPath");
+
+	      if (clip.empty()) {
+	        container.select("svg").append("clipPath").attr("id", clipId).append("rect").attr("width", svg.attr("plotWidth")).attr("height", svg.attr("plotHeight"));
+	      } else {
+	        clip.select("rect").attr("width", svg.attr("plotWidth")).attr("height", svg.attr("plotHeight"));
+	      }
 	    }
 	  },
 	  // setupSvg
@@ -946,9 +941,6 @@ var dbslice = (function (exports) {
 
 	  plotRows.exit().remove();
 	  plotRowPlotWrappers.exit().remove();
-	  
-	  
-	  
 	}
 
 	function makePlotsFromPlotRowCtrl(ctrl) {
@@ -1308,17 +1300,8 @@ var dbslice = (function (exports) {
 
 	    if (svg.empty()) {
 	      // Append new svg.
-		  svg = container.append("svg");
-		  
-		  curateSvg();
-		  
-		  /*
-	      var svgWidth = container.node().offsetWidth;
-	      var svgHeight = layout.height;
-	      var width = svgWidth - margin.left - margin.right;
-	      var height = svgHeight - margin.top - margin.bottom;
-	      container.append("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
-		  */
+	      svg = container.append("svg");
+	      curateSvg();
 	    } else {
 	      // Differentiate between changing plot types, or just changing the data!!
 	      // If just the data is changing nothing needs to be done here, whereas if the plot type is changing this function needs to remove anything it does not need!
@@ -1331,25 +1314,19 @@ var dbslice = (function (exports) {
 	        // If the plot type has changed, then the svg contents need to be removed completely.
 	        plotWrapper.attr("plottype", "cfD3BarChart");
 	        svg.selectAll("*").remove();
-	        
-			curateSvg();
-		  } else {
-			curateSvg();
-	      } // if
-	    } // if
-		
-		function curateSvg(){
-			
-		  var svgWidth = container.node().offsetWidth;
+	        curateSvg();
+	      } else {
+	        curateSvg();
+	      }
+	    }
+
+	    function curateSvg() {
+	      var svgWidth = container.node().offsetWidth;
 	      var svgHeight = layout.height;
 	      var width = svgWidth - margin.left - margin.right;
 	      var height = svgHeight - margin.top - margin.bottom;
 	      container.select("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
-			
-			
-			
-		};
-		
+	    }
 	  } // setupSvg
 
 	}; // cfD3BarChart
