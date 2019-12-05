@@ -10,7 +10,7 @@ function cfInit(metaData) {
 	  cfData.metaDataUniqueValues = {};
 	  cfData.dataDims = [];
 	  cfData.filterSelected = [];
-	  cfData.histogramSelectedRanges = [];
+	  cfData.histogramSelectedRanges = []; //
 	  
 	  // Populate the metaDims and metaDataUniqueValues.
 	  cfData.metaDataProperties.forEach(function (property, i) {
@@ -38,7 +38,7 @@ function cfInit(metaData) {
 	  metaData.data.forEach(function (task, i) {
 	    taskIds.push(task.taskId);
 	  });
-	  dbsliceData.filteredTaskIds = taskIds;
+	  dbsliceData.filteredTaskIds = taskIds; //
 	  
 	  // Return the created cfData object to be assigned to individual plots.
 	  return cfData;

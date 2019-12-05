@@ -1,5 +1,5 @@
 import { dbsliceData } from './dbsliceData.js';
-import { update } from './update.js';
+import { render } from './render.js';
 import { makePlotsFromPlotRowCtrl } from './makePlotsFromPlotRowCtrl.js';
 
 
@@ -29,7 +29,7 @@ function refreshTasksInPlotRows() {
   });
   Promise.all(plotRowPromises).then(function () {
 	//console.log("rendering....");
-	update(dbsliceData.elementId, dbsliceData.session);
+	render(dbsliceData.elementId, dbsliceData.session);
   });
 }
 

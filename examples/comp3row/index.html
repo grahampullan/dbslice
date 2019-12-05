@@ -51,31 +51,37 @@
 
 d3.json( "./metadata.json" , function( metaData ) {
 
-    // cfData is created here, and then not changed!
-    var cfData = dbslice.cfInit( metaData );
+// 1.) PUSH THE INITIALISATION INTO DBSLICE
+// 2.) SAVE ON GITHUB!
 
-    // Cannot yet start with a completely blank page!! This is because the data is internally stored on the render command.
-    var plots = [];
-
-	var plot = { 
-        plotFunc : dbslice.cfD3BarChart, 
-        layout : { title : "Design", colWidth : 4, height : 300 }, 
-        data : { cfData : cfData, xProperty : "Design"}
-    };
-    plots.push(plot);
-	
- 
-    // addButton will have it's onclick set by its type!! It's important its 'addButton'!!
+    
 	// The buttons should be specified in the session object, because otherwise even the plotRows showing the selected instances for detailed data will have them! That might not be too bad - gives the opportunity to hand add a specific data point.
+	/*
     var session = { 
         title : "Axial compressor stator design",
         plotRows : [ 
-            { title : "Database overview" , plots : plots, headerButton : {id : "addMetadataPlotButton0", label : "Add", type:"addMetadataPlotButton"} }
+            { title : "Database overview",
+			  type : "metadata",
+			  plots : [], 
+			  addPlotButton : {id : "addPlotButton0", label : "Add plot"}, 
+			  addDataButton : {id : "addDataButton0", label : "Add data"}}
         ]
     };
+	*/
+	
+	var session = { 
+        title : "Axial compressor stator design",
+        plotRows : []
+    };
 
-    dbslice.render ("target", session, { plotTasksButton : true } );
+    // How are the detailed plots added in? They need to be in a new plotRow, but how does the code know which ones to get? It must take its cue from the filtered selection, and then it fetches the data, and draws it.
 
+    dbslice.initialise ("target", session, metaData, { plotTasksButton : true } );
+
+
+
+
+	
 
 
 });
