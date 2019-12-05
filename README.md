@@ -2,10 +2,7 @@ This is a branch of the original dbslice project (https://github.com/grahampulla
 
 It reduces the plotting functionality to three basic plot types: bar, histogram, and scatter plots. 
 
-It adds the functionality that allows the user to dynamically add or remove: 
-• plots,
-
-• plotting rows
+It adds the functionality that allows the user to dynamically add or remove plotting rows and plots.
 
 The titles of individual plot rows can now be interactively changed.
 
