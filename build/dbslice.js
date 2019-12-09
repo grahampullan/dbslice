@@ -76,7 +76,8 @@ var dbslice = (function (exports) {
   function makeNewPlot(plotData, index) {
     var plotRowIndex = d3.select(this._parent).attr("plot-row-index");
     var plot = d3.select(this).append("div").attr("class", "col-md-" + plotData.layout.colWidth + " plotWrapper").attr("plottype", plotData.plotFunc.name).append("div").attr("class", "card");
-    var plotHeader = plot.append("div").attr("class", "card-header plotTitle").html(plotData.layout.title);
+    var plotHeader = plot.append("div").attr("class", "card-header plotTitle");
+    plotHeader.append("div").attr("style", "display:inline").html(plotData.layout.title).attr("spellcheck", "false").attr("contenteditable", true);
     var plotBody = plot.append("div").attr("class", "plot").attr("plot-row-index", plotRowIndex).attr("plot-index", index);
     plotData.plotFunc.make(plotBody.node(), plotData.data, plotData.layout); // Listen to the changes of the plot card, and update the plot
 
@@ -89,12 +90,9 @@ var dbslice = (function (exports) {
 
   function updatePlot(plotData, index) {
     var plot = d3.select(this); // this is the plotBody selection
-    //var plotHeader = plot.append( "div" ).attr( "class", "card-header plotTitle")
-    //	 .html( `${plotData.layout.title}` );
-    //var plotBody = plot.append( "div" ).attr( "class", "plot");
 
     plotData.plotFunc.update(plot.node(), plotData.data, plotData.layout);
-  }
+  } // updatePlot
 
   var cfD3Histogram = {
     name: "cfD3Histogram",
@@ -120,10 +118,11 @@ var dbslice = (function (exports) {
       cfD3Histogram.setupSvg(container, data, layout);
       var svg = container.select("svg"); // Calculate the required data.
 
-      var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
-      var dim = data.cfData.dataDims[dimId];
-      var items = dim.top(Infinity);
-      var x = d3.scaleLinear().domain([svg.attr("xDomMin"), svg.attr("xDomMax")]).rangeRound([0, svg.attr("plotWidth")]); // The function in the histogram ensures that only a specific property is extracted from the data input to the function on the 'histogram(data)' call.
+      var dimId = dbsliceData.data.dataProperties.indexOf(data.xProperty);
+      var dim = dbsliceData.data.dataDims[dimId];
+      var items = dim.top(Infinity); // The domain limits are extended to botch repair the bug that causes one of the bins be very small sometimes.
+
+      var x = d3.scaleLinear().domain([0.9 * svg.attr("xDomMin"), svg.attr("xDomMax") * 1.1]).rangeRound([0, svg.attr("plotWidth")]); // The function in the histogram ensures that only a specific property is extracted from the data input to the function on the 'histogram(data)' call.
 
       var histogram = d3.histogram().value(function (d) {
         return d[data.xProperty];
@@ -218,7 +217,7 @@ var dbslice = (function (exports) {
         var width = svgWidth - cfD3Histogram.margin.left - cfD3Histogram.margin.right;
         var height = svgHeight - cfD3Histogram.margin.top - cfD3Histogram.margin.bottom; // Calculation the min and max values - based on all the data, otherwise crossfilter will remove some, and the x-axis will be rescaled every time the brush adds or removes data.
 
-        var items = data.cfData.cf.all();
+        var items = dbsliceData.data.cf.all();
         var xDomMin = d3.min(items, function (d) {
           return d[data.xProperty];
         }) * 0.9;
@@ -226,7 +225,7 @@ var dbslice = (function (exports) {
           return d[data.xProperty];
         }) * 1.1; // The dimId needs to be assigned here, otherwise there is confusion between the brush and the data if a hitogram plot inherits a histogram plot.
 
-        var dimId = data.cfData.dataProperties.indexOf(data.xProperty); // Curating the svg.				
+        var dimId = dbsliceData.data.dataProperties.indexOf(data.xProperty); // Curating the svg.				
 
         container.select("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height).attr("xDomMin", xDomMin).attr("xDomMax", xDomMax).attr("dimId", dimId);
         var plotArea = container.select("svg").select(".plotArea");
@@ -279,8 +278,8 @@ var dbslice = (function (exports) {
         }
         // sx is a pair the min/max values of the filter.
 
-        data.cfData.histogramSelectedRanges[svg.attr("dimId")] = sx;
-        cfUpdateFilters(data.cfData);
+        dbsliceData.data.histogramSelectedRanges[svg.attr("dimId")] = sx;
+        cfUpdateFilters(dbsliceData.data);
 
         if (brushInit == false) {
           render(dbsliceData.elementId, dbsliceData.session);
@@ -393,7 +392,7 @@ var dbslice = (function (exports) {
       // but if it isn't it can cause trouble!
 
       if (data.cProperty !== undefined) {
-        cfD3Scatter.colour.domain(data.cfData.metaDataUniqueValues[data.cProperty]);
+        cfD3Scatter.colour.domain(dbsliceData.data.metaDataUniqueValues[data.cProperty]);
       } else {
         cfD3Scatter.colour.domain([1]);
       }
@@ -516,8 +515,8 @@ var dbslice = (function (exports) {
       getPointData: function getPointData(data) {
         // "dim" is a crossfilter.dimension(). It is the functionality that allows the user to perform specific filtering and grouping operations, two of which are "top(n)", and "bottom(n)", which return n top and bottom most elements along the chosen dimension. The returned elements are full data rows!
         // The functionality to select specific dimensions has been pushed to the plotting functions, as the data manipulation occurs here.
-        var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
-        var dim = data.cfData.dataDims[dimId];
+        var dimId = dbsliceData.data.dataProperties.indexOf(data.xProperty);
+        var dim = dbsliceData.data.dataDims[dimId];
         var pointData = dim.top(Infinity);
         return pointData;
       },
@@ -598,33 +597,9 @@ var dbslice = (function (exports) {
           newPlot: [],
           ownerPlotRowIndex: $("#" + buttonId)[0].parentElement.parentElement.getAttribute("plot-row-index"),
           buttonActivationFunction: a.enableDisableSubmitButton
-        }; // Categorical variables must have a val and text.
+        }; // Check which data variables there are.
 
-        var categoricalVariables = [{
-          val: "undefined",
-          text: " "
-        }];
-
-        for (var i = 0; i < dbsliceData.data.metaDataProperties.length; i++) {
-          categoricalVariables.push({
-            val: dbsliceData.data.metaDataProperties[i],
-            text: dbsliceData.data.metaDataProperties[i]
-          });
-        }
-
-        var continuousVariables = [{
-          val: "undefined",
-          text: " "
-        }];
-
-        for (var i = 0; i < dbsliceData.data.dataProperties.length; i++) {
-          continuousVariables.push({
-            val: dbsliceData.data.dataProperties[i],
-            text: dbsliceData.data.dataProperties[i]
-          });
-        }
-        config.categoricalVariables = categoricalVariables;
-        config.continuousVariables = continuousVariables;
+        addMenu.helpers.updateDataVariables(config);
         config.newPlot = {
           plotFunc: "undefined",
           layout: {
@@ -704,7 +679,9 @@ var dbslice = (function (exports) {
         var a = addMenu.addPlotControls;
         var h = addMenu.helpers;
         d3.select("#" + config.plotSelectionMenuId).on("change", function () {
-          // Use the same switch to populate the appropriate properties in the 'newPlot' object, and to allow further selections.
+          // Check if the data variables have changed.
+          h.updateDataVariables(config); // Use the same switch to populate the appropriate properties in the 'newPlot' object, and to allow further selections.
+
           var selectedPlotType = $(this).val();
 
           switch (selectedPlotType) {
@@ -783,7 +760,7 @@ var dbslice = (function (exports) {
 
         dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots.push(plotToPush); // Redraw the screen.
 
-        render(dbsliceData.elementId, dbsliceData.session); // Clear newPlot to be ready for the next addition.
+        dbslice.render(dbsliceData.elementId, dbsliceData.session); // Clear newPlot to be ready for the next addition.
 
         addMenu.addPlotControls.clearNewPlot(config); // Reset the variable menu selections!
 
@@ -799,8 +776,14 @@ var dbslice = (function (exports) {
       cancelNewPlot: function cancelNewPlot(config) {
         addMenu.addPlotControls.clearNewPlot(config); // Reset the menu selection!
 
+        addMenu.helpers.resetVariableMenuSelections(config.plotSelectionMenuId);
         addMenu.helpers.resetVariableMenuSelections(config.xPropertyMenuId);
-        addMenu.helpers.resetVariableMenuSelections(config.yPropertyMenuId);
+        addMenu.helpers.resetVariableMenuSelections(config.yPropertyMenuId); // Remove the select menus from the view.
+
+        addMenu.helpers.removeMenuItemObject(config, config.xPropertyMenuId);
+        addMenu.helpers.removeMenuItemObject(config, config.yPropertyMenuId); // Update the menus so that the view reflects the state of the config.
+
+        addMenu.helpers.updateMenus(config);
       } // cancelNewPlot
 
     },
@@ -815,13 +798,18 @@ var dbslice = (function (exports) {
           var plotRowIndex = i;
           var allPlotTitles = d3.select(this).selectAll(".plotTitle");
           allPlotTitles.each(function (d, i) {
-            // Append the button, and its functionality.
-            d3.select(this).append("button").attr("class", "btn btn-danger float-right").html("x").on("click", function () {
-              // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
-              var plotIndex = i;
-              dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex, 1);
-              render(dbsliceData.elementId, dbsliceData.session);
-            }); // on
+            // Append the button, and its functionality, but only if it does no talready exist!
+            var addPlotButton = d3.select(this).select(".btn-danger");
+
+            if (addPlotButton.empty()) {
+              // If it dosn't exist, add it.
+              d3.select(this).append("button").attr("class", "btn btn-danger float-right").html("x").on("click", function () {
+                // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
+                var plotIndex = i;
+                dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex, 1);
+                render(dbsliceData.elementId, dbsliceData.session);
+              }); // on
+            }
           }); // each 
         }
       }); // each
@@ -863,6 +851,7 @@ var dbslice = (function (exports) {
             id: buttonId + 'MenuContainer' + "PlotRowSelectionMenu"
           }],
           menuOkButtonId: buttonId + 'MenuContainer' + "DialogButtonOk",
+          menuCancelButtonId: buttonId + 'MenuContainer' + "DialogButtonCancel",
           userSelectedVariables: [],
           newPlotRow: {
             title: "New row",
@@ -897,9 +886,9 @@ var dbslice = (function (exports) {
           plots: config.newPlotRow.plots,
           type: config.newPlotRow.type,
           addPlotButton: config.newPlotRow.addPlotButton
-        }; // Find the latest plot row index. Initiate with 0 to try allow for initialisation without ay plot rows! Start at -1 as 1 is always added!!
+        }; // Find the latest plot row index. Initiate with 0 to try allow for initialisation without ay plot rows!
 
-        var latestRowInd = [-1];
+        var latestRowInd = [0];
         d3.selectAll(".plotRow").each(function () {
           latestRowInd.push(d3.select(this).attr("plot-row-index"));
         });
@@ -909,7 +898,7 @@ var dbslice = (function (exports) {
         plotRowToPush.addPlotButton.id = "addPlotButton" + newRowInd; // Push and plot the new row.
 
         dbsliceData.session.plotRows.push(plotRowToPush);
-        render(dbsliceData.elementId, dbsliceData.session); // Reset the plot row type menu selection.
+        dbslice.render(dbsliceData.elementId, dbsliceData.session); // Reset the plot row type menu selection.
 
         document.getElementById(config.plotRowSelectionMenuId).value = "undefined"; // Clearthe config
 
@@ -951,11 +940,44 @@ var dbslice = (function (exports) {
     },
     // addPlotRowControls
     helpers: {
+      updateDataVariables: function updateDataVariables(config) {
+        // Categorical variables must have a val and text.
+        var categoricalVariables = [{
+          val: "undefined",
+          text: " "
+        }];
+
+        for (var i = 0; i < dbsliceData.data.metaDataProperties.length; i++) {
+          categoricalVariables.push({
+            val: dbsliceData.data.metaDataProperties[i],
+            text: dbsliceData.data.metaDataProperties[i]
+          });
+        }
+
+        var continuousVariables = [{
+          val: "undefined",
+          text: " "
+        }];
+
+        for (var i = 0; i < dbsliceData.data.dataProperties.length; i++) {
+          continuousVariables.push({
+            val: dbsliceData.data.dataProperties[i],
+            text: dbsliceData.data.dataProperties[i]
+          });
+        }
+        config.categoricalVariables = categoricalVariables;
+        config.continuousVariables = continuousVariables;
+      },
+      // updateDataVariables
       makeMenuContainer: function makeMenuContainer(config) {
         // CREATE THE CONTAINER FOR THE MENU IN THE BUTTONS CONTAINER.
-        var buttonElement = d3.select("#" + config.buttonId);
-        var menuContainer = d3.select(buttonElement.node().parentNode).append("div").attr("id", config.containerId).attr("ownerButton", config.buttonId).attr("class", "card ui-draggable-handle");
-        $("#" + config.containerId).hide();
+        // But do this only if it does not already exist.
+        if (d3.select("#" + config.containerId).empty()) {
+          var buttonElement = d3.select("#" + config.buttonId);
+          var menuContainer = d3.select(buttonElement.node().parentNode).append("div").attr("id", config.containerId).attr("ownerButton", config.buttonId).attr("class", "card ui-draggable-handle");
+          $("#" + config.containerId).hide();
+        } //
+
       },
       // makeMenuContainer
       updateMenus: function updateMenus(config) {
@@ -1003,27 +1025,40 @@ var dbslice = (function (exports) {
       },
       // updateMenus
       addUpdateMenuItemObject: function addUpdateMenuItemObject(config, menuItemId, variables) {
-        var menuItems = config.menuItems; // Check if the config object already has an item with the 'xPropertyMenu' id.
+        // Only add or update the menu item if some selection variables exist.
+        // >1 is used as the default option "undefined" is added to all menus.
+        if (variables.length > 1) {
+          var menuItems = config.menuItems; // Check if the config object already has an item with the 'xPropertyMenu' id.
 
-        var requiredItem = menuItems.find(function (x) {
-          return x.id === menuItemId;
-        });
-        var doesItemExist = requiredItem !== undefined;
+          var requiredItem = menuItems.find(function (x) {
+            return x.id === menuItemId;
+          });
+          var doesItemExist = requiredItem !== undefined;
 
-        if (doesItemExist) {
-          // If the item exists, just update it.
-          var index = menuItems.map(function (d) {
-            return d.id;
-          }).indexOf(menuItemId);
-          config.menuItems[index].options = variables;
+          if (doesItemExist) {
+            // If the item exists, just update it.
+            var index = menuItems.map(function (d) {
+              return d.id;
+            }).indexOf(menuItemId);
+            config.menuItems[index].options = variables;
+          } else {
+            // If it doesn't, create a new one.
+            requiredItem = {
+              options: variables,
+              label: "Select variable",
+              id: menuItemId
+            };
+            config.menuItems.push(requiredItem);
+          }
         } else {
-          // If it doesn't, create a new one.
-          requiredItem = {
-            options: variables,
-            label: "Select variable",
-            id: menuItemId
-          };
-          config.menuItems.push(requiredItem);
+          // There are no variables. No point in having an empty menu.
+          addMenu.helpers.removeMenuItemObject(config, menuItemId); // Tell the user that the data is empty.
+
+          var warning = d3.select("#" + config.containerId).selectAll(".warning");
+
+          if (warning.empty()) {
+            d3.select("#" + config.containerId).append("div").attr("class", "warning").html("No data has been loaded!").attr("style", "background-color:pink;font-size:25px;color:white");
+          }
         }
       },
       // addUpdateMenuItemObject
@@ -1048,7 +1083,12 @@ var dbslice = (function (exports) {
       },
       // resetVariableMenuSelections
       addButtonClickEvent: function addButtonClickEvent(config) {
+        // First
         $("#" + config.buttonId).click(function () {
+          // Disable all buttons:
+          d3.selectAll("button").each(function () {
+            $(this).prop("disabled", true);
+          });
           $("#" + config.containerId).dialog({
             draggable: false,
             autoOpen: true,
@@ -1062,19 +1102,37 @@ var dbslice = (function (exports) {
                   // Add the plot row to the session.
                   config.ok(config); // Close the dialogue.
 
-                  $(this).dialog("close");
-                }
+                  $(this).dialog("close"); // Enable all buttons.
+
+                  d3.selectAll("button").each(function () {
+                    $(this).prop("disabled", false);
+                  }); // Delete the warning if present.
+
+                  d3.select(this).selectAll(".warning").remove();
+                } // click
+
               },
+              // ok
               "Cancel": {
                 text: "Cancel",
                 id: config.menuCancelButtonId,
+                disabled: false,
                 click: function click() {
                   // Clearup the internal config objects
                   config.cancel(config);
-                  $(this).dialog("close");
-                }
-              }
+                  $(this).dialog("close"); // Enable all buttons.
+
+                  d3.selectAll("button").each(function () {
+                    $(this).prop("disabled", false);
+                  }); // Delete the warning if present.
+
+                  d3.select(this).selectAll(".warning").remove();
+                } // click
+
+              } // cancel
+
             },
+            // buttons
             show: {
               effect: "fade",
               duration: 50
@@ -1104,13 +1162,102 @@ var dbslice = (function (exports) {
 
   }; // addMenu
 
+  function loadData(filename) {
+    d3.json(filename, function (metadata) {
+      // The metadata has loaded. Add it to the already existing data.
+      // data.push(metadata);
+      // How do I join arrays?
+      // Dummy functionality - for now replace the data.
+      // This relies on the new data having the same variables!!
+      dbsliceData.data = cfInit(metadata); // Reinitialise! - Cannot!
+
+      render(dbsliceData.elementId, dbsliceData.session); // Update number of tasks in header.
+    });
+  } // loadData
+
+  function loadSession() {
+    d3.json('/examples/comp3row/session.json', function (sessionData) {
+      // Loop over all the plotRows.
+      var plotRows = [];
+
+      for (var i = 0; i < sessionData.plotRows.length; i++) {
+        var s = sessionData.plotRows[i]; // Assemble the plots.
+
+        var plots = [];
+
+        for (var j = 0; j < s.plots.length; j++) {
+          var plotToPush = {
+            plotFunc: string2function(s.plots[j].type),
+            layout: {
+              title: s.plots[j].title,
+              colWidth: 4,
+              height: 300
+            },
+            data: {
+              cfData: dbsliceData.data,
+              xProperty: s.plots[j].xProperty,
+              yProperty: s.plots[j].yProperty,
+              cProperty: s.plots[j].cProperty
+            }
+          };
+          plots.push(plotToPush);
+        }
+
+        var plotRowToPush = {
+          title: s.title,
+          plots: plots,
+          type: s.type,
+          addPlotButton: {
+            id: "undefined",
+            label: "Add plot"
+          }
+        };
+        plotRows.push(plotRowToPush);
+      }
+      // Finalise the session object.
+
+      var session = {
+        title: sessionData.title,
+        plotRows: plotRows
+      }; // Store into internal object
+
+      dbsliceData.session = session; // Render!
+
+      render(dbsliceData.elementId, dbsliceData.session);
+    }); // d3.json
+
+    function string2function(string) {
+      var func;
+
+      switch (string) {
+        case "cfD3BarChart":
+          func = cfD3BarChart;
+          break;
+
+        case "cfD3Histogram":
+          func = cfD3Histogram;
+          break;
+
+        case "cfD3Scatter":
+          func = cfD3Scatter;
+          break;
+
+        default:
+          func = undefined;
+          break;
+      }
+
+      return func;
+    }
+  } // loadSession
+
   function render(elementId, session) {
     var element = d3.select("#" + elementId);
 
     if (dbsliceData.filteredTaskIds !== undefined) {
-      element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = " + dbsliceData.filteredTaskIds.length + "</p>");
+      element.select(".filteredTaskCount").select("p").html("Number of Tasks in Filter = " + dbsliceData.filteredTaskIds.length);
     } else {
-      element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
+      element.select(".filteredTaskCount").select("p").html("<p> Number of Tasks in Filter = All </p>");
     }
 
     var plotRows = element.selectAll(".plotRow").data(session.plotRows);
@@ -1119,10 +1266,12 @@ var dbslice = (function (exports) {
     }); // Add in the container for the title of the plotting section.
     // Make this an input box so that it can be change on te go!
 
-    var newPlotRowsHeader = newPlotRows.append("div").attr("class", "card-header plotRowTitle");
+    var newPlotRowsHeader = newPlotRows.append("div").attr("class", "card-header plotRowTitle").attr("type", function (d) {
+      return d.type;
+    });
     newPlotRowsHeader.append("h3").attr("style", "display:inline").html(function (data) {
       return data.title;
-    }).attr("contenteditable", true); // Give all entering plot rows a body to hold the plots.
+    }).attr("spellcheck", "false").attr("contenteditable", true); // Give all entering plot rows a body to hold the plots.
 
     var newPlotRowsBody = newPlotRows.append("div").attr("class", "row no-gutters plotRowBody").attr("plot-row-index", function (d, i) {
       return i;
@@ -1146,7 +1295,7 @@ var dbslice = (function (exports) {
       return d.plots;
     }).each(function (plotData, index) {
       var plotWrapper = d3.select(this);
-      var plotTitle = plotWrapper.select(".plotTitle").html(plotData.layout.title);
+      var plotTitle = plotWrapper.select(".plotTitle").select("div").html(plotData.layout.title);
     }); // each
 
     plotRows.exit().remove();
@@ -1178,20 +1327,38 @@ var dbslice = (function (exports) {
         render(dbsliceData.elementId, dbsliceData.session);
       });
     }); // each
-    // ADD PLOT BUTTONS
+    // ADD PLOT BUTTONS - THESE CONTROLS SHOULD UPDATE. DO THEY?
 
     newPlotRowsHeader.each(function (data) {
       if (data.addPlotButton !== undefined) {
         // If a button is defined, add it in.
-        d3.select(this).append("button").attr("id", data.addPlotButton.id).attr("class", "btn btn-success float-right").html(data.addPlotButton.label); // Add functionality
-        // createAddPlotControls( data.addPlotButton.id )
+        d3.select(this).append("button").attr("style", "display:inline").attr("id", data.addPlotButton.id).attr("class", "btn btn-success float-right").html(data.addPlotButton.label); // Add functionality
 
         addMenu.addPlotControls.make(data.addPlotButton.id);
       }
     }); // each
     // REMOVE PLOT BUTTONS.
 
-    addMenu.removePlotControls();
+    addMenu.removePlotControls(); // ADD DATA BUTTON:
+    // This button is already created. Just add the functionaity.
+
+    var input = document.createElement('input');
+    input.type = 'file'; // When the file was selected include it in dbslice.
+
+    input.onchange = function (e) {
+      var file = e.target.files[0];
+      loadData(file.name); // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
+
+      render(dbsliceData.elementId, dbsliceData.session);
+    }; // Actually adding functionality to button.
+
+
+    d3.select("#getData").on("click", function () {
+      input.click();
+    }); // LOAD LAYOUT Button
+    // This button already exists. Just assign functionality.
+
+    d3.select("#getLayout").on("click", loadSession);
   } // render
 
   function cfUpdateFilters(crossfilter) {
@@ -1258,8 +1425,8 @@ var dbslice = (function (exports) {
       var svg = container.select("svg");
       var plotArea = svg.select(".plotArea"); // Get the data through crossfilters dimension functionality.
 
-      var dimId = data.cfData.metaDataProperties.indexOf(data.xProperty);
-      var group = data.cfData.metaDims[dimId].group();
+      var dimId = dbsliceData.data.metaDataProperties.indexOf(data.xProperty);
+      var group = dbsliceData.data.metaDims[dimId].group();
       var items = group.all(); // Remove any bars with no entries.
 
       var removeZeroBar = layout.removeZeroBar === undefined ? false : layout.removeZeroBar;
@@ -1274,28 +1441,29 @@ var dbslice = (function (exports) {
         return d.key;
       })).padding([0.2]).align([0.5]);
       var colour = layout.colourMap === undefined ? d3.scaleOrdinal().range(["cornflowerblue"]) : d3.scaleOrdinal(layout.colourMap);
-      colour.domain(data.cfData.metaDataUniqueValues[data.xProperty]); // Handle the entering/updating/exiting of bars.
+      colour.domain(dbsliceData.data.metaDataUniqueValues[data.xProperty]); // Handle the entering/updating/exiting of bars.
 
       var bars = plotArea.selectAll("rect").data(items, function (v) {
         return v.key;
       });
       bars.enter().append("rect").on("click", function (selectedItem) {
         // check if current filter is already active
-        if (data.cfData.filterSelected[dimId] === undefined) {
-          data.cfData.filterSelected[dimId] = [];
+        if (dbsliceData.data.filterSelected[dimId] === undefined) {
+          dbsliceData.data.filterSelected[dimId] = [];
         } // if
 
 
-        if (data.cfData.filterSelected[dimId].indexOf(selectedItem.key) !== -1) {
+        if (dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key) !== -1) {
           // Already active filter, let it remove this item from view.
-          var ind = data.cfData.filterSelected[dimId].indexOf(selectedItem.key);
-          data.cfData.filterSelected[dimId].splice(ind, 1);
+          var ind = dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key);
+          dbsliceData.data.filterSelected[dimId].splice(ind, 1);
         } else {
           // Filter not active, add the item to view.
-          data.cfData.filterSelected[dimId].push(selectedItem.key);
+          dbsliceData.data.filterSelected[dimId].push(selectedItem.key);
         }
 
-        cfUpdateFilters(data.cfData); // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
+        cfUpdateFilters(dbsliceData.data); // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
+        // It seems that if this one call the cfD3BarChart.update
 
         render(dbsliceData.elementId, dbsliceData.session);
       }).attr("height", y.bandwidth()).attr("y", function (v) {
@@ -1313,10 +1481,10 @@ var dbslice = (function (exports) {
       }).attr("height", y.bandwidth()).attr("opacity", function (v) {
         // Change color if the filter has been selected.
         // if no filters then all are selected
-        if (data.cfData.filterSelected[dimId] === undefined || data.cfData.filterSelected[dimId].length === 0) {
+        if (dbsliceData.data.filterSelected[dimId] === undefined || dbsliceData.data.filterSelected[dimId].length === 0) {
           return 1;
         } else {
-          return data.cfData.filterSelected[dimId].indexOf(v.key) === -1 ? 0.2 : 1;
+          return dbsliceData.data.filterSelected[dimId].indexOf(v.key) === -1 ? 0.2 : 1;
         } // if
 
       });
@@ -1421,7 +1589,8 @@ var dbslice = (function (exports) {
     }
 
     return Promise.all(plotPromises);
-  }
+  } // makePlotsFromPlotRowCtrl
+
 
   function makePromiseTaskPlot(ctrl, url, title, taskId) {
     return fetch(url).then(function (response) {
@@ -1512,7 +1681,7 @@ var dbslice = (function (exports) {
       plot.data.newData = true;
       return plot;
     });
-  }
+  } // makePromiseSlicePlot
 
   function refreshTasksInPlotRows() {
     var plotRows = dbsliceData.session.plotRows;
@@ -1545,26 +1714,31 @@ var dbslice = (function (exports) {
   }
 
   function makeSessionHeader(element, title, subtitle, config) {
-    element.append("div").attr("class", "row sessionHeader").append("div").attr("class", "col-md-12 sessionTitle");
-    var titleHtml = "<br/><h1 style='display:inline'>" + title + "</h1>";
+    var sessionTitle = element.append("div").attr("class", "row sessionHeader").append("div").attr("class", "col-md-12 sessionTitle");
+    sessionTitle.append("br");
+    sessionTitle.append("h1").attr("style", "display:inline").attr("spellcheck", "false").html(title).attr("contenteditable", true);
 
     if (config.plotTasksButton) {
-      titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
-    } else {
-      titleHtml += "<br/>";
-    }
+      sessionTitle.append("button").attr("class", "btn btn-success float-right").attr("id", "refreshTasks").html("Plot Selected Tasks");
+    } // if
 
-    if (subtitle === undefined) {
-      titleHtml += "<br/>";
-    } else {
-      titleHtml += "<p>" + subtitle + "</p>";
-    }
 
-    element.select(".sessionTitle").html(titleHtml).append("div").attr("class", "filteredTaskCount");
+    if (subtitle !== undefined) {
+      sessionTitle.append("p").html(subtitle);
+    } // if
+
+
+    sessionTitle.append("br");
+    sessionTitle.append("br");
+    sessionTitle.append("div").attr("class", "filteredTaskCount").append("p").attr("style", "display:inline");
+    sessionTitle.append("button").attr("class", "btn btn-info float-right").attr("style", "display:inline").attr("id", "getData").html("Add data");
+    sessionTitle.append("button").attr("class", "btn btn-info float-right").attr("style", "display:inline").attr("id", "getLayout").html("Load layout");
+    sessionTitle.append("br");
+    sessionTitle.append("br");
     $("#refreshTasks").on("click", function () {
       refreshTasksInPlotRows();
     });
-  }
+  } // makeSessionHeader
 
   function initialise(elementId, session, data) {
     var config = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {
@@ -1602,6 +1776,8 @@ var dbslice = (function (exports) {
   exports.getFilteredTaskIds = getFilteredTaskIds;
   exports.getFilteredTaskLabels = getFilteredTaskLabels;
   exports.initialise = initialise;
+  exports.loadData = loadData;
+  exports.loadSession = loadSession;
   exports.makeNewPlot = makeNewPlot;
   exports.makePlotsFromPlotRowCtrl = makePlotsFromPlotRowCtrl;
   exports.makeSessionHeader = makeSessionHeader;

@@ -49,48 +49,18 @@
 <script>
 
 
-d3.json( "./metadata.json" , function( metaData ) {
-
-// 1.) PUSH THE INITIALISATION INTO DBSLICE
-// 2.) SAVE ON GITHUB!
-
-    
-	// The buttons should be specified in the session object, because otherwise even the plotRows showing the selected instances for detailed data will have them! That might not be too bad - gives the opportunity to hand add a specific data point.
-	/*
-    var session = { 
-        title : "Axial compressor stator design",
-        plotRows : [ 
-            { title : "Database overview",
-			  type : "metadata",
-			  plots : [], 
-			  addPlotButton : {id : "addPlotButton0", label : "Add plot"}, 
-			  addDataButton : {id : "addDataButton0", label : "Add data"}}
-        ]
-    };
-	*/
-	
-	var session = { 
+var session = { 
         title : "Axial compressor stator design",
         plotRows : []
     };
 
-    // How are the detailed plots added in? They need to be in a new plotRow, but how does the code know which ones to get? It must take its cue from the filtered selection, and then it fetches the data, and draws it.
+var data = { header : { metaDataProperties : [],
+                            dataProperties : []
+					  },
+			 data	: []		
+		   };
 
-    dbslice.initialise ("target", session, metaData, { plotTasksButton : true } );
-
-
-
-
-	
-
-
-});
-
-
-
-
-
-
+dbslice.initialise ("target", session, data, { plotTasksButton : true } );
 
 
 </script>

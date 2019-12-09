@@ -37,12 +37,13 @@ const cfD3Histogram = {
 	    
 		
 		// Calculate the required data.
-	    var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
-	    var dim = data.cfData.dataDims[dimId];
+	    var dimId = dbsliceData.data.dataProperties.indexOf(data.xProperty);
+	    var dim = dbsliceData.data.dataDims[dimId];
 	    var items = dim.top(Infinity);
 	    
+		// The domain limits are extended to botch repair the bug that causes one of the bins be very small sometimes.
 	    var x = d3.scaleLinear()
-		  .domain(    [svg.attr("xDomMin"), svg.attr("xDomMax")])
+		  .domain([0.9*svg.attr("xDomMin"), svg.attr("xDomMax")*1.1])
 		  .rangeRound([0                  , svg.attr("plotWidth")]);
 	    
 		// The function in the histogram ensures that only a specific property is extracted from the data input to the function on the 'histogram(data)' call.
@@ -188,13 +189,13 @@ const cfD3Histogram = {
 			    var height = svgHeight - cfD3Histogram.margin.top - cfD3Histogram.margin.bottom;
 			  
 			    // Calculation the min and max values - based on all the data, otherwise crossfilter will remove some, and the x-axis will be rescaled every time the brush adds or removes data.
-				var items = data.cfData.cf.all();
+				var items = dbsliceData.data.cf.all();
 				
 				var xDomMin = d3.min(items, function (d) {return d[data.xProperty];}) * 0.9;
 				var xDomMax = d3.max(items, function (d) {return d[data.xProperty];}) * 1.1;
 				
 				// The dimId needs to be assigned here, otherwise there is confusion between the brush and the data if a hitogram plot inherits a histogram plot.
-				var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
+				var dimId = dbsliceData.data.dataProperties.indexOf(data.xProperty);
 				
 				// Curating the svg.				
 				container.select("svg")
@@ -282,8 +283,8 @@ const cfD3Histogram = {
 				}; // if
 				  
 				// sx is a pair the min/max values of the filter.
-				data.cfData.histogramSelectedRanges[svg.attr("dimId")] = sx;
-				cfUpdateFilters(data.cfData);
+				dbsliceData.data.histogramSelectedRanges[svg.attr("dimId")] = sx;
+				cfUpdateFilters( dbsliceData.data );
 				if (brushInit == false){
 					render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
 				}; // if
@@ -293,7 +294,7 @@ const cfD3Histogram = {
 		  
 	  } // setupInteractivity
 	  
-	}; // cfD3Histogram
+}; // cfD3Histogram
 
 
 export { cfD3Histogram };

@@ -60,23 +60,9 @@ const addMenu = {
 				buttonActivationFunction : a.enableDisableSubmitButton
 			};
 			
-			// Categorical variables must have a val and text.
-			var categoricalVariables = [{val: "undefined", text: " "}];
-			for (var i=0; i<dbsliceData.data.metaDataProperties.length; i++){
-				categoricalVariables.push({val: dbsliceData.data.metaDataProperties[i], 
-										  text: dbsliceData.data.metaDataProperties[i]});
-			};
-
-			// Continuous variables.
-			var continuousVariables = [{val: "undefined", text: " "}];
-			for (var i=0; i<dbsliceData.data.dataProperties.length; i++){
-				continuousVariables.push({val: dbsliceData.data.dataProperties[i], 
-										 text: dbsliceData.data.dataProperties[i]});
-			};
 			
-			config.categoricalVariables = categoricalVariables;
-			config.continuousVariables = continuousVariables;
-			
+			// Check which data variables there are.
+			addMenu.helpers.updateDataVariables(config);
 			
 			config.newPlot =  {
 				plotFunc : "undefined",
@@ -155,6 +141,9 @@ const addMenu = {
 			
 			d3.select("#" + config.plotSelectionMenuId).on("change", function(){ 
 	
+				// Check if the data variables have changed.
+				h.updateDataVariables(config);
+	
 				// Use the same switch to populate the appropriate properties in the 'newPlot' object, and to allow further selections.
 				var selectedPlotType = $(this).val();
 				switch( selectedPlotType ){
@@ -170,6 +159,7 @@ const addMenu = {
 					  break;
 					  
 					case "cfD3BarChart":
+					
 					  // One variable menu - categorical
 					  config.newPlot.plotFunc = cfD3BarChart;
 					  
@@ -252,7 +242,7 @@ const addMenu = {
 
 			
 			// Redraw the screen.
-			render(dbsliceData.elementId, dbsliceData.session);
+			dbslice.render(dbsliceData.elementId, dbsliceData.session);
 			
 			// Clear newPlot to be ready for the next addition.
 			addMenu.addPlotControls.clearNewPlot(config);
@@ -275,8 +265,17 @@ const addMenu = {
 			addMenu.addPlotControls.clearNewPlot(config);
 			
 			// Reset the menu selection!
+			addMenu.helpers.resetVariableMenuSelections(config.plotSelectionMenuId);
 			addMenu.helpers.resetVariableMenuSelections(config.xPropertyMenuId);
 			addMenu.helpers.resetVariableMenuSelections(config.yPropertyMenuId);
+			
+			
+			// Remove the select menus from the view.
+			addMenu.helpers.removeMenuItemObject( config, config.xPropertyMenuId );
+			addMenu.helpers.removeMenuItemObject( config, config.yPropertyMenuId );
+			
+			// Update the menus so that the view reflects the state of the config.
+			addMenu.helpers.updateMenus(config);
 			
 		} // cancelNewPlot
 		
@@ -296,18 +295,29 @@ const addMenu = {
 			
 			  var allPlotTitles = d3.select(this).selectAll(".plotTitle");
 			  allPlotTitles.each( function (d,i){
-				// Append the button, and its functionality.
-				d3.select(this).append("button")
-					.attr("class", "btn btn-danger float-right")
-					.html("x")
-					.on("click", function(){
-						// This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
-						var plotIndex = i;
+				// Append the button, and its functionality, but only if it does no talready exist!
+				var addPlotButton = d3.select(this).select(".btn-danger")
+				
+				if (addPlotButton.empty()){
+					// If it dosn't exist, add it.
+					d3.select(this).append("button")
+						.attr("class", "btn btn-danger float-right")
+						.html("x")
+						.on("click", function(){
+							// This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
+							var plotIndex = i;
 
-						dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex,1);
+							dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex,1);
 
-						render(dbsliceData.elementId, dbsliceData.session)
-					}); // on
+							render(dbsliceData.elementId, dbsliceData.session)
+						}); // on
+					
+				} else {
+					// If it does, do nothin.
+					
+				}; // if
+				
+				
 			  } ); // each 
 							
 		  }; // if
@@ -355,6 +365,7 @@ const addMenu = {
 											label  : "Select plot row type",
 											id     : buttonId + 'MenuContainer' + "PlotRowSelectionMenu"}],
 				menuOkButtonId          : buttonId + 'MenuContainer' + "DialogButtonOk",
+				menuCancelButtonId      : buttonId + 'MenuContainer' + "DialogButtonCancel",
 				userSelectedVariables   : [],
 				newPlotRow              : {title: "New row", 
 										   plots: [], 
@@ -386,8 +397,8 @@ const addMenu = {
 			};
 			
 			
-			// Find the latest plot row index. Initiate with 0 to try allow for initialisation without ay plot rows! Start at -1 as 1 is always added!!
-			var latestRowInd = [-1];
+			// Find the latest plot row index. Initiate with 0 to try allow for initialisation without ay plot rows!
+			var latestRowInd = [0];
 			d3.selectAll(".plotRow").each(function(){
 				latestRowInd.push(d3.select(this).attr("plot-row-index"));
 			})
@@ -399,7 +410,7 @@ const addMenu = {
 			
 			// Push and plot the new row.
 			dbsliceData.session.plotRows.push( plotRowToPush );
-			render(dbsliceData.elementId, dbsliceData.session);
+			dbslice.render(dbsliceData.elementId, dbsliceData.session);
 			
 			// Reset the plot row type menu selection.
 			document.getElementById(config.plotRowSelectionMenuId).value = "undefined";
@@ -456,18 +467,43 @@ const addMenu = {
 	}, // addPlotRowControls
 
 	helpers: {
+		
+		updateDataVariables: function updateDataVariables(config){
+			
+			// Categorical variables must have a val and text.
+			var categoricalVariables = [{val: "undefined", text: " "}];
+			for (var i=0; i<dbsliceData.data.metaDataProperties.length; i++){
+				categoricalVariables.push({val: dbsliceData.data.metaDataProperties[i], 
+										  text: dbsliceData.data.metaDataProperties[i]});
+			};
+
+			// Continuous variables.
+			var continuousVariables = [{val: "undefined", text: " "}];
+			for (var i=0; i<dbsliceData.data.dataProperties.length; i++){
+				continuousVariables.push({val: dbsliceData.data.dataProperties[i], 
+										 text: dbsliceData.data.dataProperties[i]});
+			};
+			
+			config.categoricalVariables = categoricalVariables;
+			config.continuousVariables = continuousVariables;
+			
+		}, // updateDataVariables
 	
 		makeMenuContainer: function makeMenuContainer(config){
 		
 			// CREATE THE CONTAINER FOR THE MENU IN THE BUTTONS CONTAINER.
-			var buttonElement = d3.select("#" + config.buttonId);
-			var menuContainer = d3.select( buttonElement.node().parentNode )
-			  .append("div")
-			  .attr("id", config.containerId )
-			  .attr("ownerButton", config.buttonId)
-			  .attr("class", "card ui-draggable-handle");
+			// But do this only if it does not already exist.
+			if (d3.select("#" + config.containerId).empty()){
+			
+				var buttonElement = d3.select("#" + config.buttonId);
+				var menuContainer = d3.select( buttonElement.node().parentNode )
+				  .append("div")
+				  .attr("id", config.containerId )
+				  .attr("ownerButton", config.buttonId)
+				  .attr("class", "card ui-draggable-handle");
 
-			$("#" + config.containerId ).hide();
+				$("#" + config.containerId ).hide();
+			}//
 		
 		}, // makeMenuContainer
 	
@@ -534,24 +570,47 @@ const addMenu = {
 
 		addUpdateMenuItemObject: function addUpdateMenuItemObject(config, menuItemId, variables){
 
-			var menuItems = config.menuItems;
-					  
-			// Check if the config object already has an item with the 'xPropertyMenu' id.
-			var requiredItem = menuItems.find(x => x.id === menuItemId);
-			var doesItemExist = requiredItem !== undefined;
+			// Only add or update the menu item if some selection variables exist.
+			// >1 is used as the default option "undefined" is added to all menus.
+			if (variables.length>1){
 
-			if (doesItemExist){
-			  // If the item exists, just update it.
-			  var index = menuItems.map(function(d) { return d.id; }).indexOf(menuItemId);
+				var menuItems = config.menuItems;
+						  
+				// Check if the config object already has an item with the 'xPropertyMenu' id.
+				var requiredItem = menuItems.find(x => x.id === menuItemId);
+				var doesItemExist = requiredItem !== undefined;
 
-			  config.menuItems[index].options =  variables;
-			  
+				if (doesItemExist){
+				  // If the item exists, just update it.
+				  var index = menuItems.map(function(d) { return d.id; }).indexOf(menuItemId);
+
+				  config.menuItems[index].options =  variables;
+
+				} else {
+				  // If it doesn't, create a new one.
+				  requiredItem = {options: variables, label: "Select variable", id: menuItemId}
+				  
+				  config.menuItems.push(requiredItem);
+				};      
+
+			
 			} else {
-			  // If it doesn't, create a new one.
-			  requiredItem = {options: variables, label: "Select variable", id: menuItemId}
-			  
-			  config.menuItems.push(requiredItem);
-			};          
+				  // There are no variables. No point in having an empty menu.
+				  addMenu.helpers.removeMenuItemObject(config, menuItemId);
+				  
+				  // Tell the user that the data is empty.
+				  
+				  var warning = d3.select("#" + config.containerId).selectAll(".warning");
+				  if (warning.empty()){
+					  d3.select("#" + config.containerId)
+						.append("div")
+						  .attr("class", "warning")
+						  .html("No data has been loaded!")
+						  .attr("style", "background-color:pink;font-size:25px;color:white")  
+				  }; // if
+					
+			}; // if
+			
 		}, // addUpdateMenuItemObject
 
 		removeMenuItemObject: function removeMenuItemObject(config, menuItemId){
@@ -564,6 +623,7 @@ const addMenu = {
 			};
 			
 			config.menuItems = menuItems;
+			
 		}, // removeMenuItemObject
 
 		resetVariableMenuSelections: function resetVariableMenuSelections(menuId){
@@ -576,39 +636,62 @@ const addMenu = {
 
 		addButtonClickEvent: function addButtonClickEvent(config){
 			
+			// First
+			
 			$("#" + config.buttonId).click(
-			  function() {
-				$( "#" + config.containerId ).dialog({
-				draggable: false,
-				autoOpen: true,
-				modal: true,
-				buttons: {  "Ok"    :{text: "Ok",
-									  id: config.menuOkButtonId,
-									  disabled: true,
-									  click: function() { 
-										  // Add the plot row to the session.
-										  config.ok(config);
-									  
-										  // Close the dialogue.
-										  $( this ).dialog( "close" )},
-										
-									 },
-							"Cancel":{text: "Cancel",
-									  id: config.menuCancelButtonId,
-									  click: function() { 
-										  // Clearup the internal config objects
-										  config.cancel(config)
-									
-										  $( this ).dialog( "close" )}  
-									 }
-						 },
-				show: {effect: "fade",duration: 50},
-				hide: {effect: "fade", duration: 50}
-				}).parent().draggable();
+				function() {
 				
-				$(".ui-dialog-titlebar").remove();
-				$(".ui-dialog-buttonpane").attr("class", "card");
-			  }
+					// Disable all buttons:
+					d3.selectAll("button").each(function(){$(this).prop("disabled", true)});
+				  
+					$( "#" + config.containerId ).dialog({
+					draggable: false,
+					autoOpen: true,
+					modal: true,
+					buttons: {  "Ok"    :{text: "Ok",
+										  id: config.menuOkButtonId,
+										  disabled: true,
+										  click: function() {
+											  // Add the plot row to the session.
+											  config.ok(config);
+										  
+											  // Close the dialogue.
+											  $( this ).dialog( "close" )
+											  
+											  // Enable all buttons.
+											  d3.selectAll("button")
+												.each(function(){
+														$(this).prop("disabled", false)
+													  })
+													  
+											  // Delete the warning if present.
+											  d3.select(this).selectAll(".warning").remove();
+											  } // click
+										 }, // ok
+								"Cancel":{text: "Cancel",
+										  id: config.menuCancelButtonId,
+										  disabled: false,
+										  click: function() { 
+											  // Clearup the internal config objects
+											  config.cancel(config)
+										
+											  $( this ).dialog( "close" ) 
+											  
+											  // Enable all buttons.
+											  d3.selectAll("button").each(function(){$(this).prop("disabled", false)})
+											  
+											  // Delete the warning if present.
+											  d3.select(this).selectAll(".warning").remove();
+											  } // click
+										 } // cancel
+							 }, // buttons
+					show: {effect: "fade",duration: 50},
+					hide: {effect: "fade", duration: 50}
+					}).parent().draggable();
+					
+					$(".ui-dialog-titlebar").remove();
+					$(".ui-dialog-buttonpane").attr("class", "card");
+				}
 			); // on click
 		
 		

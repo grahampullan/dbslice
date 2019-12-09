@@ -157,7 +157,7 @@ const cfD3Scatter = {
           // Here the color domain is defined. If a cProperty is specified this is ok,
           // but if it isn't it can cause trouble!
           if (data.cProperty !== undefined){
-              cfD3Scatter.colour.domain(data.cfData.metaDataUniqueValues[data.cProperty]);
+              cfD3Scatter.colour.domain(dbsliceData.data.metaDataUniqueValues[data.cProperty]);
           } else {
               cfD3Scatter.colour.domain([1]);
           }; // if
@@ -358,8 +358,8 @@ const cfD3Scatter = {
 			  
 			  // "dim" is a crossfilter.dimension(). It is the functionality that allows the user to perform specific filtering and grouping operations, two of which are "top(n)", and "bottom(n)", which return n top and bottom most elements along the chosen dimension. The returned elements are full data rows!
 			  // The functionality to select specific dimensions has been pushed to the plotting functions, as the data manipulation occurs here.
-			  var dimId = data.cfData.dataProperties.indexOf(data.xProperty);
-			  var dim = data.cfData.dataDims[dimId];
+			  var dimId = dbsliceData.data.dataProperties.indexOf(data.xProperty);
+			  var dim = dbsliceData.data.dataDims[dimId];
 			  var pointData = dim.top(Infinity);
 			  
 			  return pointData;
@@ -389,6 +389,6 @@ const cfD3Scatter = {
 		  
 	  } // helpers
 	  
-	}; // cfD3Scatter
+}; // cfD3Scatter
 
 export { cfD3Scatter };

@@ -42,6 +42,6 @@ function cfInit(metaData) {
 	  
 	  // Return the created cfData object to be assigned to individual plots.
 	  return cfData;
-	} // cfInit
+} // cfInit
 
 export { cfInit };

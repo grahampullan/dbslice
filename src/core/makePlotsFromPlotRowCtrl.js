@@ -24,7 +24,7 @@ function makePlotsFromPlotRowCtrl(ctrl) {
   }
 
   return Promise.all(plotPromises);
-}
+} // makePlotsFromPlotRowCtrl
 
 
 function makePromiseTaskPlot(ctrl, url, title, taskId) {
@@ -107,6 +107,6 @@ function makePromiseSlicePlot(ctrl, sliceId, sliceIndex) {
 	plot.data.newData = true;
 	return plot;
   });
-}
+} // makePromiseSlicePlot
 
 export { makePlotsFromPlotRowCtrl };

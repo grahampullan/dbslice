@@ -29,8 +29,8 @@ const cfD3BarChart = {
 	    var plotArea = svg.select(".plotArea");
 		
 		// Get the data through crossfilters dimension functionality.
-	    var dimId = data.cfData.metaDataProperties.indexOf(data.xProperty);
-	    var group = data.cfData.metaDims[dimId].group();
+	    var dimId = dbsliceData.data.metaDataProperties.indexOf(data.xProperty);
+	    var group = dbsliceData.data.metaDims[dimId].group();
 	    var items = group.all();
 		
 		// Remove any bars with no entries.
@@ -51,7 +51,7 @@ const cfD3BarChart = {
 		  .align([0.5]);
 	    
 		var colour = layout.colourMap === undefined ? d3.scaleOrdinal().range(["cornflowerblue"]) : d3.scaleOrdinal(layout.colourMap);
-	    colour.domain(data.cfData.metaDataUniqueValues[data.xProperty]);
+	    colour.domain( dbsliceData.data.metaDataUniqueValues[data.xProperty] );
 		
 		// Handle the entering/updating/exiting of bars.
 	    var bars = plotArea
@@ -63,24 +63,25 @@ const cfD3BarChart = {
 		    .on("click", function (selectedItem) {
 	          
 			  // check if current filter is already active
-			  if (data.cfData.filterSelected[dimId] === undefined) {
-	            data.cfData.filterSelected[dimId] = [];
+			  if ( dbsliceData.data.filterSelected[dimId] === undefined ) {
+	            dbsliceData.data.filterSelected[dimId] = [];
 	          } // if
 
 
-			  if (data.cfData.filterSelected[dimId].indexOf(selectedItem.key) !== -1) {
+			  if (dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key) !== -1) {
 				  // Already active filter, let it remove this item from view.
-				  var ind = data.cfData.filterSelected[dimId].indexOf(selectedItem.key);
-				  data.cfData.filterSelected[dimId].splice(ind, 1);
+				  var ind = dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key);
+				  dbsliceData.data.filterSelected[dimId].splice(ind, 1);
 			  } else {
 				  // Filter not active, add the item to view.
-				  data.cfData.filterSelected[dimId].push(selectedItem.key);
+				  dbsliceData.data.filterSelected[dimId].push(selectedItem.key);
 			  }
 
-			  cfUpdateFilters(data.cfData);
+			  cfUpdateFilters(dbsliceData.data);
 			  
 			  // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
-			  render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+			  // It seems that if this one call the cfD3BarChart.update
+			  render(dbsliceData.elementId, dbsliceData.session);
 			})
 			.attr("height", y.bandwidth())
 			.attr("y",     function (v) {return      y(v.key);})
@@ -96,10 +97,10 @@ const cfD3BarChart = {
 	      .attr("opacity", function (v) {
 			  // Change color if the filter has been selected.
 	          // if no filters then all are selected
-			  if (data.cfData.filterSelected[dimId] === undefined || data.cfData.filterSelected[dimId].length === 0) {
+			  if (dbsliceData.data.filterSelected[dimId] === undefined || dbsliceData.data.filterSelected[dimId].length === 0) {
 				return 1;
 			  } else {
-				return data.cfData.filterSelected[dimId].indexOf(v.key) === -1 ? 0.2 : 1;
+				return dbsliceData.data.filterSelected[dimId].indexOf(v.key) === -1 ? 0.2 : 1;
 			  } // if
 	      });
 		  
@@ -222,6 +223,6 @@ const cfD3BarChart = {
 	    
 
 	  } // setupSvg
-	}; // cfD3BarChart
+}; // cfD3BarChart
 
 export { cfD3BarChart };
