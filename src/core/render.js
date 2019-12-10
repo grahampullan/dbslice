@@ -75,10 +75,6 @@ function render(elementId, session) {
 	  plotRowPlotWrappers.exit().remove();
 	  
 	  
-	  
-	  
-	  
-	  
 	  // FUNCTIONALITY
 	  
 	  
@@ -145,15 +141,12 @@ function render(elementId, session) {
 	  var input = document.createElement('input');
 	  input.type = 'file';
 
-	  // When the file was selected include it in dbslice.
+	  // When the file was selected include it in dbslice. Rerender is done in the loading function, as the asynchronous operation can execute rendering before the data is loaded otherwise.
 	  input.onchange = function(e){
-	      var file = e.target.files[0]; 
-	      loadData(file.name);
-		  
 		  // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
-		  
-		  render(dbsliceData.elementId, dbsliceData.session)
-	  };
+	      var file = e.target.files[0]; 
+	      loadData.handler(file);
+	  }; // onchange
 	  // Actually adding functionality to button.
 	  d3.select("#getData")
 	      .on("click", function(){input.click()})

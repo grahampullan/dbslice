@@ -1162,18 +1162,93 @@ var dbslice = (function (exports) {
 
   }; // addMenu
 
-  function loadData(filename) {
-    d3.json(filename, function (metadata) {
-      // The metadata has loaded. Add it to the already existing data.
-      // data.push(metadata);
-      // How do I join arrays?
-      // Dummy functionality - for now replace the data.
-      // This relies on the new data having the same variables!!
-      dbsliceData.data = cfInit(metadata); // Reinitialise! - Cannot!
+  var loadData = {
+    handler: function handler(file) {
+      // Split the name by the '.', then select the last part.
+      var extension = file.name.split(".").pop();
 
-      render(dbsliceData.elementId, dbsliceData.session); // Update number of tasks in header.
-    });
-  } // loadData
+      switch (extension) {
+        case "csv":
+          loadData.csv(file.name);
+          break;
+
+        case "json":
+          loadData.json(file.name);
+          break;
+
+        default:
+          window.alert("Selected file must be either .csv or .json");
+          break;
+      }
+    },
+    // handler
+    json: function json(filename) {
+      d3.json(filename, function (metadata) {
+        // The metadata has loaded. Add it to the already existing data.
+        // data.push(metadata);
+        // How do I join arrays?
+        // Dummy functionality - for now replace the data.
+        // This relies on the new data having the same variables!!
+        dbsliceData.data = cfInit(metadata);
+        render(dbsliceData.elementId, dbsliceData.session);
+      });
+    },
+    // json
+    csv: function csv(filename) {
+      d3.csv(filename, function (metadata) {
+        // Change this into the appropriate internal data format.
+        var headerNames = d3.keys(metadata[0]); // Assemble dataProperties, and metadataProperties.
+
+        var dataProperties = [];
+        var metadataProperties = [];
+
+        for (var i = 0; i < headerNames.length; i++) {
+          // Look for a designator. This is either "n_" or "c_" prefix.
+          var variable = headerNames[i];
+          var variableNew = "";
+          var prefix = variable.substr(0, 2);
+
+          switch (prefix) {
+            case "n_":
+              variableNew = variable.substr(2);
+              dataProperties.push(variableNew);
+              loadData.helpers.renameVariables(metadata, variable, variableNew);
+              break;
+
+            case "c_":
+              variableNew = variable.substr(2);
+              metadataProperties.push(variableNew);
+              loadData.helpers.renameVariables(metadata, variable, variableNew);
+              break;
+          }
+        }
+        // Combine in an overall object.
+
+        var d = {
+          data: metadata,
+          header: {
+            dataProperties: dataProperties,
+            metaDataProperties: metadataProperties
+          }
+        }; // Store internally
+
+        dbsliceData.data = cfInit(d);
+        render(dbsliceData.elementId, dbsliceData.session);
+      }); // d3.csv
+    },
+    // csv
+    helpers: {
+      renameVariables: function renameVariables(data, oldVar, newVar) {
+        for (var j = 0; j < data.length; j++) {
+          // Have to change the names individually.
+          data[j][newVar] = data[j][oldVar];
+          delete data[j][oldVar];
+        }
+      } // renameVariable
+
+    } // helpers
+
+  }; // loadData
 
   function loadSession() {
     d3.json('/examples/comp3row/session.json', function (sessionData) {
@@ -1343,14 +1418,14 @@ var dbslice = (function (exports) {
     // This button is already created. Just add the functionaity.
 
     var input = document.createElement('input');
-    input.type = 'file'; // When the file was selected include it in dbslice.
+    input.type = 'file'; // When the file was selected include it in dbslice. Rerender is done in the loading function, as the asynchronous operation can execute rendering before the data is loaded otherwise.
 
     input.onchange = function (e) {
+      // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
       var file = e.target.files[0];
-      loadData(file.name); // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
-
-      render(dbsliceData.elementId, dbsliceData.session);
-    }; // Actually adding functionality to button.
+      loadData.handler(file);
+    }; // onchange
+    // Actually adding functionality to button.
 
 
     d3.select("#getData").on("click", function () {
