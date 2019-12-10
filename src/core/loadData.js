@@ -56,13 +56,13 @@ const loadData = {
 			
 			for(var i=0; i<headerNames.length;i++){
 				
-				// Look for a designator. This is either "n_" or "c_" prefix.
+				// Look for a designator. This is either "o_" or "c_" prefix.
 				var variable    = headerNames[i];
 				var variableNew = "";
 				var prefix = variable.substr(0,2);
 				
 				switch(prefix){
-					case "n_":
+					case "o_":
 						variableNew = variable.substr(2);
 						dataProperties.push( variableNew )
 						
