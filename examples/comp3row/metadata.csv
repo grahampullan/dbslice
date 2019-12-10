@@ -1,4 +1,4 @@
-taskId,n_Efficiency,label,n_Mass flow,c_Design,n_Pressure ratio,c_Speed
+taskId,o_Efficiency,label,o_Mass flow,c_Design,o_Pressure ratio,c_Speed
 0,8.31E+01," ""Design A 100% p2_140000""",5.18E+01," ""Design A""",1.71E+00," ""100%"""
 1,8.68E+01," ""Design A 100% p2_150000""",5.17E+01," ""Design A""",1.79E+00," ""100%"""
 2,9.02E+01," ""Design A 100% p2_160000""",5.15E+01," ""Design A""",1.87E+00," ""100%"""
