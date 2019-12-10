@@ -136,25 +136,50 @@ function render(elementId, session) {
 	  
 	  
 	  
+	  
+	  
 	  // ADD DATA BUTTON:
 	  // This button is already created. Just add the functionaity.
-	  var input = document.createElement('input');
-	  input.type = 'file';
+	  var dataInput = document.createElement('input');
+	  dataInput.type = 'file';
 
 	  // When the file was selected include it in dbslice. Rerender is done in the loading function, as the asynchronous operation can execute rendering before the data is loaded otherwise.
-	  input.onchange = function(e){
+	  dataInput.onchange = function(e){
 		  // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
 	      var file = e.target.files[0]; 
 	      loadData.handler(file);
 	  }; // onchange
 	  // Actually adding functionality to button.
 	  d3.select("#getData")
-	      .on("click", function(){input.click()})
+	      .on("click", function(){dataInput.click()})
+	  
+	  
+	  
+	  
 	  
 	  // LOAD LAYOUT Button
 	  // This button already exists. Just assign functionality.
+	  var sessionInput = document.createElement('input');
+	  sessionInput.type = 'file';
+	  
+	  sessionInput.onchange = function(e){
+		  // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
+	      var file = e.target.files[0]; 
+	      loadSession.handler(file);
+	  }; // onchange
+	  
+	  
 	  d3.select("#getLayout")
-		  .on("click", loadSession)
+		  .on("click", function(){sessionInput.click()})
+		  
+	  // if there is some data in the filter, then enable the button.
+	  if(dbsliceData.filteredTaskIds.length !== undefined && dbsliceData.filteredTaskIds.length > 0){
+		  // Enable the button
+		  $("#getLayout").prop("disabled",false)
+	  } else {
+		  // Disable the button
+		  $("#getLayout").prop("disabled",true)		  
+	  }; // if
 		  
 	  
 	  

@@ -1250,81 +1250,115 @@ var dbslice = (function (exports) {
 
   }; // loadData
 
-  function loadSession() {
-    d3.json('/examples/comp3row/session.json', function (sessionData) {
-      // Loop over all the plotRows.
-      var plotRows = [];
+  var loadSession = {
+    handler: function handler(file) {
+      // Split the name by the '.', then select the last part.
+      var extension = file.name.split(".").pop();
 
-      for (var i = 0; i < sessionData.plotRows.length; i++) {
-        var s = sessionData.plotRows[i]; // Assemble the plots.
+      switch (extension) {
+        case "json":
+          loadSession.json(file.name);
+          break;
 
+        default:
+          window.alert("Selected file must be either .csv or .json");
+          break;
+      }
+    },
+    // handler
+    json: function json(filename) {
+      d3.json(filename, function (sessionData) {
+        // Check if it is a session file!
+        if (sessionData.isSessionObject === "true") {
+          var plotRows = loadSession.helpers.assemblePlotRows(sessionData.plotRows); // Finalise the session object.
+
+          var session = {
+            title: sessionData.title,
+            plotRows: plotRows
+          }; // Store into internal object
+
+          dbsliceData.session = session; // Render!
+
+          render(dbsliceData.elementId, dbsliceData.session);
+        } else {
+          window.alert("Selected file is not a valid session object.");
+        }
+      }); // d3.json
+    },
+    // json
+    helpers: {
+      string2function: function string2function(string) {
+        var func;
+
+        switch (string) {
+          case "cfD3BarChart":
+            func = cfD3BarChart;
+            break;
+
+          case "cfD3Histogram":
+            func = cfD3Histogram;
+            break;
+
+          case "cfD3Scatter":
+            func = cfD3Scatter;
+            break;
+
+          default:
+            func = undefined;
+            break;
+        }
+
+        return func;
+      },
+      // string2function
+      assemblePlots: function assemblePlots(plotsData) {
+        // Assemble the plots.
         var plots = [];
 
-        for (var j = 0; j < s.plots.length; j++) {
+        for (var j = 0; j < plotsData.length; j++) {
           var plotToPush = {
-            plotFunc: string2function(s.plots[j].type),
+            plotFunc: loadSession.helpers.string2function(plotsData[j].type),
             layout: {
-              title: s.plots[j].title,
+              title: plotsData[j].title,
               colWidth: 4,
               height: 300
             },
             data: {
               cfData: dbsliceData.data,
-              xProperty: s.plots[j].xProperty,
-              yProperty: s.plots[j].yProperty,
-              cProperty: s.plots[j].cProperty
+              xProperty: plotsData[j].xProperty,
+              yProperty: plotsData[j].yProperty,
+              cProperty: plotsData[j].cProperty
             }
           };
           plots.push(plotToPush);
         }
 
-        var plotRowToPush = {
-          title: s.title,
-          plots: plots,
-          type: s.type,
-          addPlotButton: {
-            id: "undefined",
-            label: "Add plot"
-          }
-        };
-        plotRows.push(plotRowToPush);
-      }
-      // Finalise the session object.
+        return plots;
+      },
+      // assemblePlots
+      assemblePlotRows: function assemblePlotRows(plotRowsData) {
+        // Loop over all the plotRows.
+        var plotRows = [];
 
-      var session = {
-        title: sessionData.title,
-        plotRows: plotRows
-      }; // Store into internal object
+        for (var i = 0; i < plotRowsData.length; i++) {
+          var plotRowToPush = {
+            title: plotRowsData[i].title,
+            plots: loadSession.helpers.assemblePlots(plotRowsData[i].plots),
+            type: plotRowsData[i].type,
+            addPlotButton: {
+              id: "undefined",
+              label: "Add plot"
+            }
+          };
+          plotRows.push(plotRowToPush);
+        }
 
-      dbsliceData.session = session; // Render!
+        return plotRows;
+      } // assemblePlotRows
 
-      render(dbsliceData.elementId, dbsliceData.session);
-    }); // d3.json
+    } // helpers
 
-    function string2function(string) {
-      var func;
-
-      switch (string) {
-        case "cfD3BarChart":
-          func = cfD3BarChart;
-          break;
-
-        case "cfD3Histogram":
-          func = cfD3Histogram;
-          break;
-
-        case "cfD3Scatter":
-          func = cfD3Scatter;
-          break;
-
-        default:
-          func = undefined;
-          break;
-      }
-
-      return func;
-    }
-  } // loadSession
+  }; // loadSession
 
   function render(elementId, session) {
     var element = d3.select("#" + elementId);
@@ -1417,10 +1451,10 @@ var dbslice = (function (exports) {
     addMenu.removePlotControls(); // ADD DATA BUTTON:
     // This button is already created. Just add the functionaity.
 
-    var input = document.createElement('input');
-    input.type = 'file'; // When the file was selected include it in dbslice. Rerender is done in the loading function, as the asynchronous operation can execute rendering before the data is loaded otherwise.
+    var dataInput = document.createElement('input');
+    dataInput.type = 'file'; // When the file was selected include it in dbslice. Rerender is done in the loading function, as the asynchronous operation can execute rendering before the data is loaded otherwise.
 
-    input.onchange = function (e) {
+    dataInput.onchange = function (e) {
       // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
       var file = e.target.files[0];
       loadData.handler(file);
@@ -1429,11 +1463,31 @@ var dbslice = (function (exports) {
 
 
     d3.select("#getData").on("click", function () {
-      input.click();
+      dataInput.click();
     }); // LOAD LAYOUT Button
     // This button already exists. Just assign functionality.
 
-    d3.select("#getLayout").on("click", loadSession);
+    var sessionInput = document.createElement('input');
+    sessionInput.type = 'file';
+
+    sessionInput.onchange = function (e) {
+      // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
+      var file = e.target.files[0];
+      loadSession.handler(file);
+    }; // onchange
+
+
+    d3.select("#getLayout").on("click", function () {
+      sessionInput.click();
+    }); // if there is some data in the filter, then enable the button.
+
+    if (dbsliceData.filteredTaskIds.length !== undefined && dbsliceData.filteredTaskIds.length > 0) {
+      // Enable the button
+      $("#getLayout").prop("disabled", false);
+    } else {
+      // Disable the button
+      $("#getLayout").prop("disabled", true);
+    }
   } // render
 
   function cfUpdateFilters(crossfilter) {

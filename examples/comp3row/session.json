@@ -1,1 +1,1 @@
-{"title" : "Axial Compressor stator design", "plotRows" : [{"title": "Compressor database", "type" : "metadata", "plots": [{"type": "cfD3BarChart",	"title": "Design", "xProperty": "Design"}]}]}
+{"isSessionObject": "true", "title" : "Axial Compressor stator design", "plotRows" : [{"title": "Compressor database", "type" : "metadata", "plots": [{"type": "cfD3BarChart",	"title": "Design", "xProperty": "Design"}]}]}
