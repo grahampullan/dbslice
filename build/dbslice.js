@@ -1191,11 +1191,12 @@ var dbslice = (function (exports) {
         // This relies on the new data having the same variables!!
         dbsliceData.data = cfInit(metadata);
         render(dbsliceData.elementId, dbsliceData.session);
+        console.log(metadata);
       });
     },
     // json
     csv: function csv(filename) {
-      d3.csv(filename, function (metadata) {
+      d3.csv(filename, loadData.helpers.convertNumbers, function (metadata) {
         // Change this into the appropriate internal data format.
         var headerNames = d3.keys(metadata[0]); // Assemble dataProperties, and metadataProperties.
 
@@ -1203,13 +1204,13 @@ var dbslice = (function (exports) {
         var metadataProperties = [];
 
         for (var i = 0; i < headerNames.length; i++) {
-          // Look for a designator. This is either "n_" or "c_" prefix.
+          // Look for a designator. This is either "o_" or "c_" prefix.
           var variable = headerNames[i];
           var variableNew = "";
           var prefix = variable.substr(0, 2);
 
           switch (prefix) {
-            case "n_":
+            case "o_":
               variableNew = variable.substr(2);
               dataProperties.push(variableNew);
               loadData.helpers.renameVariables(metadata, variable, variableNew);
@@ -1233,7 +1234,9 @@ var dbslice = (function (exports) {
         }; // Store internally
 
         dbsliceData.data = cfInit(d);
-        render(dbsliceData.elementId, dbsliceData.session);
+        render(dbsliceData.elementId, dbsliceData.session); // The csv reader interpretes everything as a string...
+
+        console.log(d);
       }); // d3.csv
     },
     // csv
@@ -1244,7 +1247,21 @@ var dbslice = (function (exports) {
           data[j][newVar] = data[j][oldVar];
           delete data[j][oldVar];
         }
-      } // renameVariable
+      },
+      // renameVariable
+      convertNumbers: function convertNumbers(row) {
+        var r = {};
+
+        for (var k in row) {
+          r[k] = +row[k];
+
+          if (isNaN(r[k])) {
+            r[k] = row[k];
+          }
+        }
+
+        return r;
+      } // convertNumbers
 
     } // helpers
 
