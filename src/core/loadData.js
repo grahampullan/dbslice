@@ -40,8 +40,6 @@ const loadData = {
 				
 				render(dbsliceData.elementId, dbsliceData.session);
 				
-				console.log(metadata);
-				
 			})
 		
 		}, // json
@@ -102,8 +100,6 @@ const loadData = {
 				
 				render(dbsliceData.elementId, dbsliceData.session);
 				
-				// The csv reader interpretes everything as a string...
-				console.log(d);
 				
 			}) // d3.csv
 		}, // csv
