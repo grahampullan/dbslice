@@ -34,17 +34,16 @@ var dbslice = (function (exports) {
   var dbsliceData = new DbsliceData();
 
   function cfInit(metaData) {
-    // Gets called in the .html document!
     var cfData = {};
     cfData.metaDataProperties = metaData.header.metaDataProperties;
     cfData.dataProperties = metaData.header.dataProperties;
+    cfData.sliceProperties = metaData.header.sliceProperties;
     cfData.cf = crossfilter(metaData.data);
     cfData.metaDims = [];
     cfData.metaDataUniqueValues = {};
     cfData.dataDims = [];
     cfData.filterSelected = [];
-    cfData.histogramSelectedRanges = []; //
-    // Populate the metaDims and metaDataUniqueValues.
+    cfData.histogramSelectedRanges = []; // Populate the metaDims and metaDataUniqueValues.
 
     cfData.metaDataProperties.forEach(function (property, i) {
       cfData.metaDims.push(cfData.cf.dimension(function (d) {
@@ -64,11 +63,10 @@ var dbslice = (function (exports) {
     // Create a standalone array of taskIds
 
     var taskIds = [];
-    metaData.data.forEach(function (task, i) {
+    metaData.data.forEach(function (task) {
       taskIds.push(task.taskId);
     });
-    dbsliceData.filteredTaskIds = taskIds; //
-    // Return the created cfData object to be assigned to individual plots.
+    dbsliceData.filteredTaskIds = taskIds; // Return the created cfData object to be assigned to individual plots.
 
     return cfData;
   } // cfInit
@@ -545,23 +543,299 @@ var dbslice = (function (exports) {
 
   }; // cfD3Scatter
 
+  var d3LineSeries = {
+    make: function make(element, data, layout) {
+      var marginDefault = {
+        top: 20,
+        right: 20,
+        bottom: 30,
+        left: 50
+      };
+      var margin = layout.margin === undefined ? marginDefault : layout.margin;
+      var container = d3.select(element);
+      var svgWidth = container.node().offsetWidth,
+          svgHeight = layout.height;
+      var width = svgWidth - margin.left - margin.right;
+      var height = svgHeight - margin.top - margin.bottom;
+      var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
+      d3LineSeries.update(element, data, layout);
+    },
+    // make
+    update: function update(element, data, layout) {
+      var container = d3.select(element);
+      var svg = container.select("svg");
+      var plotArea = svg.select(".plotArea");
+      var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
+      if (layout.cSet !== undefined) colour.domain(layout.cSet);
+      var marginDefault = {
+        top: 20,
+        right: 20,
+        bottom: 30,
+        left: 50
+      };
+      var margin = layout.margin === undefined ? marginDefault : layout.margin;
+      var plotRowIndex = container.attr("plot-row-index");
+      var plotIndex = container.attr("plot-index");
+      var clipId = "clip-" + plotRowIndex + "-" + plotIndex;
+      var svgWidth = svg.attr("width");
+      var svgHeight = svg.attr("height");
+      var width = svgWidth - margin.left - margin.right;
+      var height = svgHeight - margin.top - margin.bottom;
+      var lines = plotArea.selectAll(".line"); // Line highlighting
+
+      if (layout.highlightTasks == true) {
+        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+          lines.style("opacity", 1.0).style("stroke-width", "2.5px").style("stroke", function (d) {
+            return colour(d.cKey);
+          });
+        } else {
+          lines.style("opacity", 0.2).style("stroke-width", "2.5px").style("stroke", "#d3d3d3");
+          dbsliceData.highlightTasks.forEach(function (taskId) {
+            lines.filter(function (d, i) {
+              return d.taskId == taskId;
+            }).style("opacity", 1.0).style("stroke", function (d) {
+              return colour(d.cKey);
+            }).style("stroke-width", "4px").each(function () {
+              this.parentNode.parentNode.appendChild(this.parentNode);
+            }); // each
+          }); // forEach
+        } // if
+
+      } // if
+      // End execution if there is no new data.
+
+
+      if (data.newData == false) {
+        return;
+      } // if
+
+
+      var nseries = data.series.length; // Finding the axis limits.
+
+      var xmin = d3.min(data.series[0].data, function (d) {
+        return d.x;
+      });
+      var xmax = d3.max(data.series[0].data, function (d) {
+        return d.x;
+      });
+      var ymin = d3.min(data.series[0].data, function (d) {
+        return d.y;
+      });
+      var ymax = d3.max(data.series[0].data, function (d) {
+        return d.y;
+      });
+
+      for (var n = 1; n < nseries; ++n) {
+        var xminNow = d3.min(data.series[n].data, function (d) {
+          return d.x;
+        });
+        xminNow < xmin ? xmin = xminNow : xmin = xmin;
+        var xmaxNow = d3.max(data.series[n].data, function (d) {
+          return d.x;
+        });
+        xmaxNow > xmax ? xmax = xmaxNow : xmax = xmax;
+        var yminNow = d3.min(data.series[n].data, function (d) {
+          return d.y;
+        });
+        yminNow < ymin ? ymin = yminNow : ymin = ymin;
+        var ymaxNow = d3.max(data.series[n].data, function (d) {
+          return d.y;
+        });
+        ymaxNow > ymax ? ymax = ymaxNow : ymax = ymax;
+      } // Setting the axis limits.
+
+
+      if (layout.xRange === undefined) {
+        var xRange = [xmin, xmax];
+      } else {
+        var xRange = layout.xRange;
+      } // if
+
+
+      if (layout.yRange === undefined) {
+        var yRange = [ymin, ymax];
+      } else {
+        var yRange = layout.yRange;
+      } // if
+      // Different scales for time
+
+
+      if (layout.xscale == "time") {
+        var xscale = d3.scaleTime();
+        var xscale0 = d3.scaleTime();
+      } else {
+        var xscale = d3.scaleLinear();
+        var xscale0 = d3.scaleLinear();
+      } // if
+
+
+      xscale.range([0, width]).domain(xRange);
+      xscale0.range([0, width]).domain(xRange);
+      var yscale = d3.scaleLinear().range([height, 0]).domain(yRange);
+      var yscale0 = d3.scaleLinear().range([height, 0]).domain(yRange); // Create a plotting function
+
+      var line = d3.line().x(function (d) {
+        return xscale(d.x);
+      }).y(function (d) {
+        return yscale(d.y);
+      });
+      var clip = svg.append("defs").append("clipPath").attr("id", clipId).append("rect").attr("width", width).attr("height", height);
+      var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
+      svg.transition().call(zoom.transform, d3.zoomIdentity);
+      svg.call(zoom);
+      var tip = d3.tip().attr('class', 'd3-tip').offset([-10, 0]).html(function (d) {
+        return "<span>" + d.label + "</span>";
+      });
+      svg.call(tip);
+      var focus = plotArea.append("g").style("display", "none").append("circle").attr("r", 1);
+      var allSeries = plotArea.selectAll(".plotSeries").data(data.series); // Create the lines
+
+      allSeries.enter().each(function () {
+        var series = d3.select(this);
+        var seriesLine = series.append("g").attr("class", "plotSeries").attr("series-name", function (d) {
+          return d.label;
+        }).attr("clip-path", "url(#" + clipId + ")").append("path").attr("class", "line").attr("d", function (d) {
+          return line(d.data);
+        }).style("stroke", function (d) {
+          return colour(d.cKey);
+        }).style("fill", "none").style("stroke-width", "2.5px").on("mouseover", tipOn).on("mouseout", tipOff);
+      }); // each
+
+      allSeries.each(function () {
+        var series = d3.select(this);
+        var seriesLine = series.select("path.line");
+        seriesLine.transition().attr("d", function (d) {
+          return line(d.data);
+        }).style("stroke", function (d) {
+          return colour(d.cKey);
+        });
+      }); // each
+
+      allSeries.exit().remove(); // Create the axes objects
+
+      var xAxis = d3.axisBottom(xscale).ticks(5);
+      var yAxis = d3.axisLeft(yscale);
+      var gX = plotArea.select(".axis--x");
+
+      if (gX.empty()) {
+        gX = plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "axis--x").call(xAxis);
+        gX.append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text(layout.xAxisLabel);
+      } else {
+        gX.transition().call(xAxis);
+      } // if
+
+
+      var gY = plotArea.select(".axis--y");
+
+      if (gY.empty()) {
+        gY = plotArea.append("g").attr("class", "axis--y").call(yAxis);
+        gY.append("text").attr("fill", "#000").attr("transform", "rotate(-90)").attr("x", 0).attr("y", -margin.left + 15).attr("text-anchor", "end").text(layout.yAxisLabel).attr("spellcheck", "false");
+      } else {
+        gY.transition().call(yAxis);
+      } // if
+
+
+      function zoomed() {
+        var t = d3.event.transform;
+        xscale.domain(t.rescaleX(xscale0).domain());
+        yscale.domain(t.rescaleY(yscale0).domain());
+        gX.call(xAxis);
+        gY.call(yAxis);
+        plotArea.selectAll(".line").attr("d", function (d) {
+          return line(d.data);
+        });
+      } // zoomed
+
+
+      function tipOn(d) {
+        lines.style("opacity", 0.2);
+        d3.select(this).style("opacity", 1.0).style("stroke-width", "4px");
+        focus.attr("cx", d3.mouse(this)[0]).attr("cy", d3.mouse(this)[1]);
+        tip.show(d, focus.node());
+
+        if (layout.highlightTasks == true) {
+          dbsliceData.highlightTasks = [d.taskId];
+          render(dbsliceData.elementId, dbsliceData.session);
+        } // if
+
+      } // tipOn
+
+
+      function tipOff() {
+        lines.style("opacity", 1.0);
+        d3.select(this).style("stroke-width", "2.5px");
+        tip.hide();
+
+        if (layout.highlightTasks == true) {
+          dbsliceData.highlightTasks = [];
+          render(dbsliceData.elementId, dbsliceData.session);
+        } // if
+
+      } // tipOff
+
+
+      data.newData = false;
+    } // update
+
+  }; // d3LineSeries
+
   var addMenu = {
     addPlotControls: {
-      elementOptionsArray: [{
-        val: "undefined",
-        text: " "
-      }, {
-        val: "cfD3BarChart",
-        text: 'Bar Chart'
-      }, {
-        val: "cfD3Scatter",
-        text: 'Scatter'
-      }, {
-        val: "cfD3Histogram",
-        text: 'Histogram'
-      }],
-      make: function make(buttonId) {
+      elementOptionsArray: function elementOptionsArray(plotRowType) {
+        var options;
+
+        switch (plotRowType) {
+          case 'metadata':
+            options = [{
+              val: "undefined",
+              text: " "
+            }, {
+              val: "cfD3BarChart",
+              text: 'Bar Chart'
+            }, {
+              val: "cfD3Scatter",
+              text: 'Scatter'
+            }, {
+              val: "cfD3Histogram",
+              text: 'Histogram'
+            }];
+            break;
+
+          case 'plotter':
+            options = [{
+              val: "undefined",
+              text: " "
+            }, {
+              val: "d3LineSeries",
+              text: 'Line'
+            }];
+            break;
+        }
+
+        return options;
+      },
+      make: function make(plotRowElement) {
+        var plotRowIndex = d3.select($(plotRowElement)[0].parentNode).attr("plot-row-index");
+        var plotRowType = d3.select(plotRowElement).attr("type");
+
+        switch (plotRowType) {
+          case "metadata":
+            var buttonLabel = "Add plot";
+            break;
+
+          case "plotter":
+            var buttonLabel = "Configure plot";
+        }
+        // Append a button to each plot row title, if it does not exist already.
+
+        if (d3.select(plotRowElement).selectAll(".btn-success").empty()) {
+          // If a button does not exist,make it.
+          var buttonId = "addPlotButton" + plotRowIndex;
+          d3.select(plotRowElement).append("button").attr("style", "display:inline").attr("id", buttonId).attr("class", "btn btn-success float-right").html(buttonLabel);
+        }
+        // FUNCTIONALITY!!
         // Create the config element with all required data.
+
         var config = addMenu.addPlotControls.createConfig(buttonId); // First create the ids of the required inputs
 
         addMenu.helpers.makeMenuContainer(config); // Update the menus with appropriate options
@@ -574,6 +848,8 @@ var dbslice = (function (exports) {
       },
       // make
       createConfig: function createConfig(buttonId) {
+        // The config depends on the plot row type.
+        var plotRowType = $("#" + buttonId)[0].parentElement.getAttribute('type');
         var a = addMenu.addPlotControls;
         var config = {
           title: "undefined",
@@ -582,47 +858,86 @@ var dbslice = (function (exports) {
           plotSelectionMenuId: buttonId + 'MenuContainer' + "PlotSelectionMenu",
           xPropertyMenuId: buttonId + 'MenuContainer' + "xPropertyMenu",
           yPropertyMenuId: buttonId + 'MenuContainer' + "yPropertyMenu",
+          sliceMenuId: buttonId + 'MenuContainer' + "sliceMenu",
           menuOkButtonId: buttonId + 'MenuContainer' + "DialogButtonOk",
           menuCancelButtonId: buttonId + 'MenuContainer' + "DialogButtonCancel",
           ok: a.submitNewPlot,
           cancel: a.cancelNewPlot,
-          userSelectedVariables: ["xProperty", "yProperty"],
+          userSelectedVariables: ["xProperty", "yProperty", "slice"],
           categoricalVariables: [],
           continuousVariables: [],
+          sliceVariables: [],
           menuItems: [{
-            options: a.elementOptionsArray,
+            options: a.elementOptionsArray(plotRowType),
             label: "Select plot type",
             id: buttonId + 'MenuContainer' + "PlotSelectionMenu"
           }],
           newPlot: [],
           ownerPlotRowIndex: $("#" + buttonId)[0].parentElement.parentElement.getAttribute("plot-row-index"),
+          ownerPlotRowType: plotRowType,
           buttonActivationFunction: a.enableDisableSubmitButton
-        }; // Check which data variables there are.
+        }; // Check and add the available data variables.
 
-        addMenu.helpers.updateDataVariables(config);
-        config.newPlot = {
-          plotFunc: "undefined",
-          layout: {
-            title: undefined,
-            colWidth: 4,
-            height: 300
-          },
-          data: {
-            cfData: dbsliceData.data,
-            xProperty: undefined,
-            yProperty: undefined,
-            cProperty: undefined
-          }
-        }; // new plot config
+        addMenu.helpers.updateDataVariables(config); // Create the appropriate newPlot object in the config.
 
+        addMenu.addPlotControls.createNewPlot(config);
         return config;
       },
       // createConfig
+      createNewPlot: function createNewPlot(config) {
+        switch (config.ownerPlotRowType) {
+          case "metadata":
+            config.newPlot = {
+              plotFunc: "undefined",
+              layout: {
+                title: undefined,
+                colWidth: 4,
+                height: 300
+              },
+              data: {
+                xProperty: undefined,
+                yProperty: undefined,
+                cProperty: undefined
+              }
+            }; // new plot config
+
+            break;
+
+          case "plotter":
+            // axis labels should come from the data!
+            // slices contains any previously added slices.
+            config.newPlot = {
+              plotFunc: undefined,
+              layout: {
+                title: undefined,
+                colWidth: 4,
+                height: 300
+              },
+              data: {
+                slice: undefined
+              },
+              slices: []
+            }; // new plot config
+            // FORMATDATAFUNC IS DIFFERENT FOR EACH PLOT TYPE!
+
+            break;
+        }
+      },
+      // createNewPlot
       clearNewPlot: function clearNewPlot(config) {
-        config.newPlot.plotFunc = undefined;
-        config.newPlot.layout.title = undefined;
-        config.newPlot.data.xProperty = undefined;
-        config.newPlot.data.yProperty = undefined;
+        switch (config.ownerPlotRowType) {
+          case "metadata":
+            config.newPlot.plotFunc = undefined;
+            config.newPlot.layout.title = undefined;
+            config.newPlot.data.xProperty = undefined;
+            config.newPlot.data.yProperty = undefined;
+            break;
+
+          case "plotter":
+            config.newPlot.plotFunc = undefined;
+            config.newPlot.data = {};
+            break;
+        }
       },
       // clearNewPlot
       enableDisableSubmitButton: function enableDisableSubmitButton(config) {
@@ -668,6 +983,11 @@ var dbslice = (function (exports) {
             }
             break;
 
+          case "d3LineSeries":
+            // Nothing else is needed, just enable the submit button.
+            submitButton.prop("disabled", false);
+            break;
+
           default:
             // Disable
             submitButton.prop("disabled", true);
@@ -688,10 +1008,12 @@ var dbslice = (function (exports) {
             case "undefined":
               // Remove all variable options.
               h.removeMenuItemObject(config, config.xPropertyMenuId);
-              h.removeMenuItemObject(config, config.yPropertyMenuId); // Update plot type selection.
+              h.removeMenuItemObject(config, config.yPropertyMenuId);
+              h.removeMenuItemObject(config, config.sliceMenuId); // Update plot type selection.
 
               a.clearNewPlot(config);
               break;
+            // METADATA PLOTS
 
             case "cfD3BarChart":
               // One variable menu - categorical
@@ -703,7 +1025,7 @@ var dbslice = (function (exports) {
               break;
 
             case "cfD3Histogram":
-              // One variable menu - normative
+              // One variable menu - ordinal
               config.newPlot.plotFunc = cfD3Histogram; // xProperty required.
 
               h.addUpdateMenuItemObject(config, config.xPropertyMenuId, config.continuousVariables); // yProperty must not be present.
@@ -712,19 +1034,28 @@ var dbslice = (function (exports) {
               break;
 
             case "cfD3Scatter":
-              // Two variables menu - normative
+              // Two variables menu - ordinal
               config.newPlot.plotFunc = cfD3Scatter; // xProperty and yProperty required.
 
               h.addUpdateMenuItemObject(config, config.xPropertyMenuId, config.continuousVariables);
               h.addUpdateMenuItemObject(config, config.yPropertyMenuId, config.continuousVariables);
               break;
+            // 2D/3D PLOTS
+
+            case "d3LineSeries":
+              // Menu offering different slices.
+              config.newPlot.plotFunc = d3LineSeries; // slice is required.
+
+              h.addUpdateMenuItemObject(config, config.sliceMenuId, config.sliceVariables);
+              break;
 
             default:
               // Update plot type selection.
-              a.clearNewPlot(); // Remove all variable options.
+              a.clearNewPlot(config); // Remove all variable options.
 
               h.removeMenuItemObject(config, config.xPropertyMenuId);
               h.removeMenuItemObject(config, config.yPropertyMenuId);
+              h.removeMenuItemObject(config, config.sliceMenuId);
               console.log("Unexpected plot type selected:", selectedPlotType);
               break;
           }
@@ -732,8 +1063,18 @@ var dbslice = (function (exports) {
 
           h.resetVariableMenuSelections(config.xPropertyMenuId);
           h.resetVariableMenuSelections(config.yPropertyMenuId);
-          config.newPlot.data.yProperty = undefined;
-          config.newPlot.data.xProperty = undefined; // Update.
+          h.resetVariableMenuSelections(config.sliceMenuId);
+
+          switch (config.ownerPlotRwoType) {
+            case "metadata":
+              config.newPlot.data.yProperty = undefined;
+              config.newPlot.data.xProperty = undefined;
+              break;
+
+            case "plotter":
+              config.newPlot.data.slice = undefined;
+          }
+          // Update.
 
           h.updateMenus(config);
         }); // on change
@@ -741,36 +1082,80 @@ var dbslice = (function (exports) {
       // onPlotTypeChangeEvent
       submitNewPlot: function submitNewPlot(config) {
         // IMPORTANT! A PHYSICAL COPY OF NEWPLOT MUST BE MADE!! If newPlot is pushed straight into the plots every time newPlot is updated all the plots created using it will be updated too.
-        var plotToPush = {
-          plotFunc: config.newPlot.plotFunc,
-          layout: {
-            title: config.newPlot.layout.title,
-            colWidth: config.newPlot.layout.colWidth,
-            height: config.newPlot.layout.height
-          },
-          data: {
-            cfData: config.newPlot.data.cfData,
-            xProperty: config.newPlot.data.xProperty,
-            yProperty: config.newPlot.data.yProperty,
-            cProperty: config.newPlot.data.cProperty
-          }
-        }; // Add the new plot to the session object. How does this know which section to add to? Get it from the parent of the button!! Button is not this!
+        switch (config.ownerPlotRowType) {
+          case "metadata":
+            var plotToPush = {
+              plotFunc: config.newPlot.plotFunc,
+              layout: {
+                title: config.newPlot.layout.title,
+                colWidth: config.newPlot.layout.colWidth,
+                height: config.newPlot.layout.height
+              },
+              data: {
+                cfData: dbsliceData.data,
+                xProperty: config.newPlot.data.xProperty,
+                yProperty: config.newPlot.data.yProperty,
+                cProperty: config.newPlot.data.cProperty
+              }
+            }; // plotToPush
+
+            dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots.push(plotToPush);
+            break;
+
+          case "plotter":
+            // Here a plot is not pushed, but rather a config is passed to the plotRow. The Promises funtionality then creates the plots.				
+            // Alternately the metadata should include the keys along which the roups can be formed. Then the user canselect how th edata should be grouped. This would allow easy comparison of different spans, or tasks.
+            // The keys are the variable names in 'metadata', which are prefixed with 's_' for splice. This allows the user to select which data to compare when setting up the metadata. More flexibility is gained this way, as no hardcoded templating needs to be introduced, and no clumsy user interfaces.
+            // Store the currently selected slice, then push everything forward.
+            config.newPlot.slices.push(config.newPlot.data.slice);
+            var plotCtrl = {
+              layout: {
+                colWidth: 4,
+                height: 400,
+                xAxisLabel: "Axial distance",
+                yAxisLabel: "Mach number"
+              },
+              data: dbsliceData.data,
+              plotFunc: config.newPlot.plotFunc,
+              taskIds: null,
+              sliceIds: config.newPlot.slices,
+              tasksByFilter: true,
+              maxTasks: 200,
+              urlTemplate: null,
+              formatDataFunc: function formatDataFunc(data) {
+                var series = [];
+                data.forEach(function (line) {
+                  series.push(line);
+                });
+                return {
+                  series: series
+                };
+              }
+            };
+            dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl = plotCtrl;
+            break;
+        }
+        // Add the new plot to the session object. How does this know which section to add to? Get it from the parent of the button!! Button is not this!
         // var plotRowIndex = d3.select(this).attr("plot-row-index")
         // console.log(element)
-
-        dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots.push(plotToPush); // Redraw the screen.
+        // Redraw the screen.
 
         dbslice.render(dbsliceData.elementId, dbsliceData.session); // Clear newPlot to be ready for the next addition.
 
         addMenu.addPlotControls.clearNewPlot(config); // Reset the variable menu selections!
 
+        addMenu.helpers.resetVariableMenuSelections(config.plotSelectionMenuId);
         addMenu.helpers.resetVariableMenuSelections(config.xPropertyMenuId);
-        addMenu.helpers.resetVariableMenuSelections(config.yPropertyMenuId); // Reset the plot type menu selection.
+        addMenu.helpers.resetVariableMenuSelections(config.yPropertyMenuId);
+        addMenu.helpers.resetVariableMenuSelections(config.sliceMenuId); // Reset the plot type menu selection.
 
         document.getElementById(config.plotSelectionMenuId).value = "undefined"; // Remove all variable options.
 
         addMenu.helpers.removeMenuItemObject(config, config.xPropertyMenuId);
         addMenu.helpers.removeMenuItemObject(config, config.yPropertyMenuId);
+        addMenu.helpers.removeMenuItemObject(config, config.sliceMenuId); // Update the menus so that the view reflects the state of the config.
+
+        addMenu.helpers.updateMenus(config);
       },
       // submitNewPlot
       cancelNewPlot: function cancelNewPlot(config) {
@@ -778,10 +1163,12 @@ var dbslice = (function (exports) {
 
         addMenu.helpers.resetVariableMenuSelections(config.plotSelectionMenuId);
         addMenu.helpers.resetVariableMenuSelections(config.xPropertyMenuId);
-        addMenu.helpers.resetVariableMenuSelections(config.yPropertyMenuId); // Remove the select menus from the view.
+        addMenu.helpers.resetVariableMenuSelections(config.yPropertyMenuId);
+        addMenu.helpers.resetVariableMenuSelections(config.sliceMenuId); // Remove the select menus from the view.
 
         addMenu.helpers.removeMenuItemObject(config, config.xPropertyMenuId);
-        addMenu.helpers.removeMenuItemObject(config, config.yPropertyMenuId); // Update the menus so that the view reflects the state of the config.
+        addMenu.helpers.removeMenuItemObject(config, config.yPropertyMenuId);
+        addMenu.helpers.removeMenuItemObject(config, config.sliceMenuId); // Update the menus so that the view reflects the state of the config.
 
         addMenu.helpers.updateMenus(config);
       } // cancelNewPlot
@@ -793,25 +1180,22 @@ var dbslice = (function (exports) {
       allPlotRows.each(function (d, i) {
         // This function operates on a plot row instance. It selects all the plots, and adds a button and its functionality to it. This is only done if the plot row is a metadata row.
         var plotRowType = d3.select(this).attr("type");
+        var plotRowIndex = i;
+        var allPlotTitles = d3.select(this).selectAll(".plotTitle");
+        allPlotTitles.each(function (d, i) {
+          // Append the button, and its functionality, but only if it does no talready exist!
+          var addPlotButton = d3.select(this).select(".btn-danger");
 
-        if (plotRowType == "metadata") {
-          var plotRowIndex = i;
-          var allPlotTitles = d3.select(this).selectAll(".plotTitle");
-          allPlotTitles.each(function (d, i) {
-            // Append the button, and its functionality, but only if it does no talready exist!
-            var addPlotButton = d3.select(this).select(".btn-danger");
-
-            if (addPlotButton.empty()) {
-              // If it dosn't exist, add it.
-              d3.select(this).append("button").attr("class", "btn btn-danger float-right").html("x").on("click", function () {
-                // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
-                var plotIndex = i;
-                dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex, 1);
-                render(dbsliceData.elementId, dbsliceData.session);
-              }); // on
-            }
-          }); // each 
-        }
+          if (addPlotButton.empty()) {
+            // If it dosn't exist, add it.
+            d3.select(this).append("button").attr("class", "btn btn-danger float-right").html("x").on("click", function () {
+              // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
+              var plotIndex = i;
+              dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex, 1);
+              render(dbsliceData.elementId, dbsliceData.session);
+            }); // on
+          }
+        }); // each 
       }); // each
     },
     // removePlotControls
@@ -886,15 +1270,14 @@ var dbslice = (function (exports) {
           plots: config.newPlotRow.plots,
           type: config.newPlotRow.type,
           addPlotButton: config.newPlotRow.addPlotButton
-        }; // Find the latest plot row index. Initiate with 0 to try allow for initialisation without ay plot rows!
+        }; // If this is a 'plotter' plot row it also requires a 'ctrl' field. This is filled out later by users actions.
 
-        var latestRowInd = [0];
-        d3.selectAll(".plotRow").each(function () {
-          latestRowInd.push(d3.select(this).attr("plot-row-index"));
-        });
-        latestRowInd = latestRowInd.map(Number);
-        var newRowInd = Math.max.apply(Math, _toConsumableArray(latestRowInd)) + 1; // 'spread' operator used!
+        if (plotRowToPush.type === "plotter") {
+          plotRowToPush.ctrl = undefined;
+        }
+        // Find the latest plot row index. Initiate with 0 to try allow for initialisation without any plot rows!
 
+        var newRowInd = addMenu.helpers.findLatestPlotRowInd();
         plotRowToPush.addPlotButton.id = "addPlotButton" + newRowInd; // Push and plot the new row.
 
         dbsliceData.session.plotRows.push(plotRowToPush);
@@ -965,8 +1348,21 @@ var dbslice = (function (exports) {
             text: dbsliceData.data.dataProperties[i]
           });
         }
+
+        var sliceVariables = [{
+          val: "undefined",
+          text: " "
+        }];
+
+        for (var i = 0; i < dbsliceData.data.sliceProperties.length; i++) {
+          sliceVariables.push({
+            val: dbsliceData.data.sliceProperties[i],
+            text: dbsliceData.data.sliceProperties[i]
+          });
+        }
         config.categoricalVariables = categoricalVariables;
         config.continuousVariables = continuousVariables;
+        config.sliceVariables = sliceVariables;
       },
       // updateDataVariables
       makeMenuContainer: function makeMenuContainer(config) {
@@ -1088,7 +1484,8 @@ var dbslice = (function (exports) {
           // Disable all buttons:
           d3.selectAll("button").each(function () {
             $(this).prop("disabled", true);
-          });
+          }); // Make the dialog
+
           $("#" + config.containerId).dialog({
             draggable: false,
             autoOpen: true,
@@ -1102,11 +1499,9 @@ var dbslice = (function (exports) {
                   // Add the plot row to the session.
                   config.ok(config); // Close the dialogue.
 
-                  $(this).dialog("close"); // Enable all buttons.
+                  $(this).dialog("close"); // Enable all relevant buttons.
 
-                  d3.selectAll("button").each(function () {
-                    $(this).prop("disabled", false);
-                  }); // Delete the warning if present.
+                  addMenu.helpers.enableDisableAllButtons(); // Delete the warning if present.
 
                   d3.select(this).selectAll(".warning").remove();
                 } // click
@@ -1122,9 +1517,7 @@ var dbslice = (function (exports) {
                   config.cancel(config);
                   $(this).dialog("close"); // Enable all buttons.
 
-                  d3.selectAll("button").each(function () {
-                    $(this).prop("disabled", false);
-                  }); // Delete the warning if present.
+                  addMenu.helpers.enableDisableAllButtons(); // Delete the warning if present.
 
                   d3.select(this).selectAll(".warning").remove();
                 } // click
@@ -1147,7 +1540,7 @@ var dbslice = (function (exports) {
         }); // on click
       },
       // addButtonClickEvent
-      addVariableChangeEvent: function addVariableChangeEent(config, variable) {
+      addVariableChangeEvent: function addVariableChangeEvent(config, variable) {
         var idOfMenuToListenTo = config.containerId + variable + "Menu";
         d3.select("#" + idOfMenuToListenTo).on("change", function () {
           // Populate the 'newPlot' object.
@@ -1156,7 +1549,110 @@ var dbslice = (function (exports) {
           config.newPlot.layout.title = selectedVariable;
           config.buttonActivationFunction(config);
         });
-      } //addVariableChangeEent
+      },
+      //addVariableChangeEent
+      enableDisableAllButtons: function enableDisableAllButtons() {
+        // This functionality decides which buttons should be enabled.
+        var isDataInFilter = dbsliceData.filteredTaskIds.length !== undefined && dbsliceData.filteredTaskIds.length > 0; // "Add data" is always available!
+
+        $("#getData").prop("disabled", false); // "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
+
+        var isPlotterPlotRowCtrlDefined = addMenu.helpers.checkIfArrayKeyIsDefined(dbsliceData.session.plotRows, 'ctrl');
+
+        if (isDataInFilter && isPlotterPlotRowCtrlDefined) {
+          // Enable the button
+          $("#refreshTasksButton").prop("disabled", false);
+        } else {
+          // Disable the button
+          $("#refreshTasksButton").prop("disabled", true);
+        }
+        // "Load session" only available after some data has been loaded.
+
+        if (isDataInFilter) {
+          // Enable the button
+          $("#getSessionButton").prop("disabled", false);
+        } else {
+          // Disable the button
+          $("#getSessionButton").prop("disabled", true);
+        }
+        // "Add plot row" should be available.
+
+        $("#addPlotRowButton").prop("disabled", false); // "Remove plot row" should always be available.
+
+        var removePlotRowButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-danger");
+        removePlotRowButtons.each(function () {
+          $(this).prop("disabled", false);
+        }); // "Add plot" should only be available if the data is loaded.
+
+        var addPlotButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-success");
+
+        if (isDataInFilter) {
+          addPlotButtons.each(function () {
+            $(this).prop("disabled", false);
+          });
+        } else {
+          addPlotButtons.each(function () {
+            $(this).prop("disabled", true);
+          });
+        }
+        // "Remove plot" should always be available.
+
+        var removePlotButtons = d3.selectAll(".plotTitle").selectAll(".btn-danger");
+        removePlotButtons.each(function () {
+          $(this).prop("disabled", false);
+        });
+      },
+      // enableDisableAllButtons
+      findLatestPlotRowInd: function findLatestPlotRowInd() {
+        var latestRowInd = [];
+        d3.selectAll(".plotRow").each(function () {
+          latestRowInd.push(d3.select(this).attr("plot-row-index"));
+        });
+
+        if (latestRowInd.length > 0) {
+          latestRowInd = latestRowInd.map(Number);
+          var newRowInd = Math.max.apply(Math, _toConsumableArray(latestRowInd)) + 1; // 'spread' operator used!
+        } else {
+          var newRowInd = 0;
+        }
+
+        return newRowInd;
+      },
+      // findLatestPlotRowInd
+      checkIfArrayKeyIsDefined: function checkIfArrayKeyIsDefined(array, key) {
+        // This function checks if any objects in the array <array> have a property called <key>, and if that property is not undefined. If there are no objects with the required property the function returns false. If the object has the property, but it isn't defined it returns false. Only if there are some objects with the required property, and it is defined does the function return true.
+        var isKeyDefined = true; // First check if there are any objects in the arra. Otherwise return false.
+
+        if (array.length > 0) {
+          // Now check if there are any plot rows with 'ctrl'
+          var compliantObjects = [];
+
+          for (var i = 0; i < array.length; i++) {
+            if (key in array[i]) {
+              compliantObjects.push(array[i]);
+            }
+          }
+          // If there are some, then check if their controls are defined.
+
+          if (compliantObjects.length > 0) {
+            isKeyDefined = true;
+
+            for (var j = 0; j < compliantObjects.length; j++) {
+              if (compliantObjects[j][key] !== undefined) {
+                isKeyDefined = isKeyDefined && true;
+              } else {
+                isKeyDefined = isKeyDefined && false;
+              }
+            }
+          } else {
+            isKeyDefined = false;
+          }
+        } else {
+          isKeyDefined = false;
+        }
+
+        return isKeyDefined;
+      } // checkIfArrayKeyIsDefined
 
     } // helpers
 
@@ -1187,11 +1683,11 @@ var dbslice = (function (exports) {
         // The metadata has loaded. Add it to the already existing data.
         // data.push(metadata);
         // How do I join arrays?
-        // Dummy functionality - for now replace the data.
+        console.log(metadata); // Dummy functionality - for now replace the data.
         // This relies on the new data having the same variables!!
+
         dbsliceData.data = cfInit(metadata);
         render(dbsliceData.elementId, dbsliceData.session);
-        console.log(metadata);
       });
     },
     // json
@@ -1202,25 +1698,38 @@ var dbslice = (function (exports) {
 
         var dataProperties = [];
         var metadataProperties = [];
+        var sliceProperties = [];
 
         for (var i = 0; i < headerNames.length; i++) {
           // Look for a designator. This is either "o_" or "c_" prefix.
           var variable = headerNames[i];
           var variableNew = "";
-          var prefix = variable.substr(0, 2);
+          var prefix = variable.slice(0, 2);
 
           switch (prefix) {
             case "o_":
-              variableNew = variable.substr(2);
+              // Ordinal variables.
+              variableNew = variable.slice(2);
               dataProperties.push(variableNew);
               loadData.helpers.renameVariables(metadata, variable, variableNew);
               break;
 
             case "c_":
-              variableNew = variable.substr(2);
+              // Categorical variables
+              variableNew = variable.slice(2);
               metadataProperties.push(variableNew);
               loadData.helpers.renameVariables(metadata, variable, variableNew);
               break;
+
+            case "s_":
+              // Slices the text into available slices. These must be separated by , and single space!
+              metadata.map(function (item) {
+                item[variable] = item[variable].split(', ');
+                return item;
+              });
+              variableNew = variable.slice(2);
+              sliceProperties.push(variableNew);
+              loadData.helpers.renameVariables(metadata, variable, variableNew);
           }
         }
         // Combine in an overall object.
@@ -1229,14 +1738,13 @@ var dbslice = (function (exports) {
           data: metadata,
           header: {
             dataProperties: dataProperties,
-            metaDataProperties: metadataProperties
+            metaDataProperties: metadataProperties,
+            sliceProperties: sliceProperties
           }
         }; // Store internally
 
         dbsliceData.data = cfInit(d);
-        render(dbsliceData.elementId, dbsliceData.session); // The csv reader interpretes everything as a string...
-
-        console.log(d);
+        render(dbsliceData.elementId, dbsliceData.session);
       }); // d3.csv
     },
     // csv
@@ -1284,6 +1792,8 @@ var dbslice = (function (exports) {
     },
     // handler
     json: function json(filename) {
+      // To simplify handling updating the existing plot rows, they are simply deleted here as the new session is loaded in. NOT THE MOST ELEGANT, OR NICE TO SEE IN ACTION, BUT IT GETS THE JOB DONE.
+      d3.selectAll(".plotRow").remove();
       d3.json(filename, function (sessionData) {
         // Check if it is a session file!
         if (sessionData.isSessionObject === "true") {
@@ -1362,10 +1872,7 @@ var dbslice = (function (exports) {
             title: plotRowsData[i].title,
             plots: loadSession.helpers.assemblePlots(plotRowsData[i].plots),
             type: plotRowsData[i].type,
-            addPlotButton: {
-              id: "undefined",
-              label: "Add plot"
-            }
+            addPlotButton: true
           };
           plotRows.push(plotRowToPush);
         }
@@ -1386,7 +1893,8 @@ var dbslice = (function (exports) {
       element.select(".filteredTaskCount").select("p").html("<p> Number of Tasks in Filter = All </p>");
     }
 
-    var plotRows = element.selectAll(".plotRow").data(session.plotRows);
+    var plotRows = element.selectAll(".plotRow").data(session.plotRows); // HANDLE ENTERING PLOT ROWS!
+
     var newPlotRows = plotRows.enter().append("div").attr("class", "card bg-light plotRow").attr("style", "margin-bottom:20px").attr("plot-row-index", function (d, i) {
       return i;
     }); // Add in the container for the title of the plotting section.
@@ -1407,7 +1915,8 @@ var dbslice = (function (exports) {
 
     var newPlots = newPlotRowsBody.selectAll(".plot").data(function (d) {
       return d.plots;
-    }).enter().each(makeNewPlot); // Based on the existing plotRowBodies, select all the plots in them, retrieve all the plotting data associated with this particular plot row, and assign it to the plots in the row. Then make any entering ones.
+    }).enter().each(makeNewPlot); // UPDATE EXISTING PLOT ROWS!!
+    // Based on the existing plotRowBodies, select all the plots in them, retrieve all the plotting data associated with this particular plot row, and assign it to the plots in the row. Then make any entering ones.
 
     plotRows.selectAll(".plotRowBody").selectAll(".plot").data(function (d) {
       return d.plots;
@@ -1423,6 +1932,7 @@ var dbslice = (function (exports) {
       var plotWrapper = d3.select(this);
       var plotTitle = plotWrapper.select(".plotTitle").select("div").html(plotData.layout.title);
     }); // each
+    // HANDLE EXITING PLOT ROWS!!
 
     plotRows.exit().remove();
     plotRowPlotWrappers.exit().remove(); // FUNCTIONALITY
@@ -1455,15 +1965,10 @@ var dbslice = (function (exports) {
     }); // each
     // ADD PLOT BUTTONS - THESE CONTROLS SHOULD UPDATE. DO THEY?
 
-    newPlotRowsHeader.each(function (data) {
-      if (data.addPlotButton !== undefined) {
-        // If a button is defined, add it in.
-        d3.select(this).append("button").attr("style", "display:inline").attr("id", data.addPlotButton.id).attr("class", "btn btn-success float-right").html(data.addPlotButton.label); // Add functionality
-
-        addMenu.addPlotControls.make(data.addPlotButton.id);
-      }
+    newPlotRowsHeader.each(function () {
+      addMenu.addPlotControls.make(this);
     }); // each
-    // REMOVE PLOT BUTTONS.
+    // REMOVE PLOT BUTTONS - THESE ALLOW PLOTS TO BE REMOVED.
 
     addMenu.removePlotControls(); // ADD DATA BUTTON:
     // This button is already created. Just add the functionaity.
@@ -1481,7 +1986,7 @@ var dbslice = (function (exports) {
 
     d3.select("#getData").on("click", function () {
       dataInput.click();
-    }); // LOAD LAYOUT Button
+    }); // LOAD SESSION Button
     // This button already exists. Just assign functionality.
 
     var sessionInput = document.createElement('input');
@@ -1494,17 +1999,11 @@ var dbslice = (function (exports) {
     }; // onchange
 
 
-    d3.select("#getLayout").on("click", function () {
+    d3.select("#getSessionButton").on("click", function () {
       sessionInput.click();
-    }); // if there is some data in the filter, then enable the button.
+    }); // Control all button activity;
 
-    if (dbsliceData.filteredTaskIds.length !== undefined && dbsliceData.filteredTaskIds.length > 0) {
-      // Enable the button
-      $("#getLayout").prop("disabled", false);
-    } else {
-      // Disable the button
-      $("#getLayout").prop("disabled", true);
-    }
+    addMenu.helpers.enableDisableAllButtons();
   } // render
 
   function cfUpdateFilters(crossfilter) {
@@ -1517,8 +2016,9 @@ var dbslice = (function (exports) {
       } else {
         crossfilter.metaDims[i].filter(function (d) {
           return filters.indexOf(d) > -1;
-        });
-      }
+        }); // filter
+      } // if
+
     }); // forEach
     // update crossfilter with the items selected at the histograms
 
@@ -1530,7 +2030,8 @@ var dbslice = (function (exports) {
         crossfilter.dataDims[i].filter(function (d) {
           return d >= selectedRange[0] && d <= selectedRange[1] ? true : false;
         });
-      }
+      } // if
+
     }); // forEach
 
     var currentMetaData = crossfilter.metaDims[0].top(Infinity);
@@ -1546,7 +2047,8 @@ var dbslice = (function (exports) {
       dbsliceData.filteredTaskLabels = currentMetaData.map(function (d) {
         return d.taskId;
       });
-    }
+    } // if
+
   } // cfUpdateFilter
 
   var cfD3BarChart = {
@@ -1713,6 +2215,7 @@ var dbslice = (function (exports) {
     var plotPromises = [];
 
     if (ctrl.sliceIds === undefined) {
+      // 'sliceIds' are undefined. These will be single task plots.
       var nTasks = ctrl.taskIds.length;
       if (ctrl.maxTasks !== undefined) nTasks = Math.min(nTasks, ctrl.maxTasks);
 
@@ -1721,18 +2224,24 @@ var dbslice = (function (exports) {
           var url = ctrl.taskIds[index];
         } else {
           var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]);
-        }
+        } // if
+
 
         var title = ctrl.taskLabels[index];
         var plotPromise = makePromiseTaskPlot(ctrl, url, title, ctrl.taskIds[index]);
         plotPromises.push(plotPromise);
-      }
+      } // for
+
     } else {
+      // CURRENTLY WORKING ON THIS PART ONLY
+      // 'sliceIds' were defined. These plots will be comparisons.
+      // For each of the slices required create all the data promises.
       ctrl.sliceIds.forEach(function (sliceId, sliceIndex) {
         var plotPromise = makePromiseSlicePlot(ctrl, sliceId, sliceIndex);
         plotPromises.push(plotPromise);
-      });
-    }
+      }); // forEach
+    } // if
+
 
     return Promise.all(plotPromises);
   } // makePlotsFromPlotRowCtrl
@@ -1742,42 +2251,48 @@ var dbslice = (function (exports) {
     return fetch(url).then(function (response) {
       if (ctrl.csv === undefined) {
         return response.json();
-      }
+      } // if
+
 
       if (ctrl.csv == true) {
         return response.text();
-      }
+      } // if
+
     }).then(function (responseJson) {
       if (ctrl.csv == true) {
         responseJson = d3.csvParse(responseJson);
-      }
+      } // if
+
+
       var plot = {};
 
       if (ctrl.formatDataFunc !== undefined) {
         plot.data = ctrl.formatDataFunc(responseJson, taskId);
       } else {
         plot.data = responseJson;
-      }
+      } // if
+
 
       plot.layout = Object.assign({}, ctrl.layout);
       plot.plotFunc = ctrl.plotFunc;
       plot.layout.title = title;
       plot.data.newData = true;
       return plot;
-    });
+    }); // fetch().then().then()
   } // makePromiseTaskPlot
 
 
   function makePromiseSlicePlot(ctrl, sliceId, sliceIndex) {
     var slicePromisesPerPlot = [];
-    var tasksOnPlot = [];
-    var nTasks = ctrl.taskIds.length;
-    if (ctrl.maxTasks !== undefined) Math.min(nTasks, ctrl.maxTasks);
 
-    for (var index = 0; index < nTasks; ++index) {
-      tasksOnPlot.push(ctrl.taskIds[index]);
-      var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]).replace("${sliceId}", sliceId); //console.log(url);
+    ctrl.maxTasks = ctrl.maxTasks !== undefined ? Math.min(ctrl.taskIds.length, ctrl.maxTasks) : undefined; // Collect all tasks that are on the plot. It should just collect all the file names that need to be read for this slice plot. But for that the slice needs to be selected already.
+    // THE USER SHOULD SELECT THE APPROPRIATE SLICE TO BE ADDED!! THE SLICE LOTTING WILL BE A SEPARATE PLOT ROW TYPE CALLED SUMMARY 2D.
 
+    var d = ctrl.data.dataDims[0].top(Infinity); // Make all the promises required for a single plot.
+
+    for (var index = 0; index < ctrl.taskIds.length; index++) {
+      // Currently just returns some, not the selected ones!!!
+      var url = d[index][sliceId];
       var slicePromise = fetch(url).then(function (response) {
         if (ctrl.csv === undefined) {
           return response.json();
@@ -1786,9 +2301,11 @@ var dbslice = (function (exports) {
         if (ctrl.csv == true) {
           return response.text();
         }
-      });
+      }); // fetch().then()
+
       slicePromisesPerPlot.push(slicePromise);
     } // for
+    // Evaluate the promises toget the plot.
 
 
     return Promise.all(slicePromisesPerPlot).then(function (responseJson) {
@@ -1803,7 +2320,7 @@ var dbslice = (function (exports) {
       var plot = {};
 
       if (ctrl.formatDataFunc !== undefined) {
-        plot.data = ctrl.formatDataFunc(responseJson, tasksOnPlot);
+        plot.data = ctrl.formatDataFunc(responseJson);
       } else {
         plot.data = responseJson;
       }
@@ -1833,31 +2350,40 @@ var dbslice = (function (exports) {
     var plotRows = dbsliceData.session.plotRows;
     var plotRowPromises = [];
     plotRows.forEach(function (plotRow) {
+      // For now nothing happens as there are no plotRow.ctrl
       if (plotRow.ctrl !== undefined) {
         var ctrl = plotRow.ctrl;
 
         if (ctrl.plotFunc !== undefined) {
+          // Get 
           if (ctrl.tasksByFilter) {
             ctrl.taskIds = dbsliceData.filteredTaskIds;
             ctrl.taskLabels = dbsliceData.filteredTaskLabels;
-          }
+          } // if
+          // This does nothing for now!!
+
 
           if (ctrl.tasksByList) {
             ctrl.taskIds = dbsliceData.manualListTaskIds;
-          }
+          } // if
+          // Create all the promises, and when they're met push the plots.
+
 
           var plotRowPromise = makePlotsFromPlotRowCtrl(ctrl).then(function (plots) {
             plotRow.plots = plots;
           });
           plotRowPromises.push(plotRowPromise);
-        }
-      }
-    });
+        } // if
+
+      } // if
+
+    }); // forEach
+
     Promise.all(plotRowPromises).then(function () {
-      //console.log("rendering....");
+      // When all the data has been loaded rerender.
       render(dbsliceData.elementId, dbsliceData.session);
-    });
-  }
+    }); // Promise
+  } // refreshTasksInPlotRows
 
   function makeSessionHeader(element, title, subtitle, config) {
     var sessionTitle = element.append("div").attr("class", "row sessionHeader").append("div").attr("class", "col-md-12 sessionTitle");
@@ -1865,7 +2391,7 @@ var dbslice = (function (exports) {
     sessionTitle.append("h1").attr("style", "display:inline").attr("spellcheck", "false").html(title).attr("contenteditable", true);
 
     if (config.plotTasksButton) {
-      sessionTitle.append("button").attr("class", "btn btn-success float-right").attr("id", "refreshTasks").html("Plot Selected Tasks");
+      sessionTitle.append("button").attr("class", "btn btn-success float-right").attr("id", "refreshTasksButton").html("Plot Selected Tasks");
     } // if
 
 
@@ -1878,10 +2404,10 @@ var dbslice = (function (exports) {
     sessionTitle.append("br");
     sessionTitle.append("div").attr("class", "filteredTaskCount").append("p").attr("style", "display:inline");
     sessionTitle.append("button").attr("class", "btn btn-info float-right").attr("style", "display:inline").attr("id", "getData").html("Add data");
-    sessionTitle.append("button").attr("class", "btn btn-info float-right").attr("style", "display:inline").attr("id", "getLayout").html("Load layout");
+    sessionTitle.append("button").attr("class", "btn btn-info float-right").attr("style", "display:inline").attr("id", "getSessionButton").html("Load session");
     sessionTitle.append("br");
     sessionTitle.append("br");
-    $("#refreshTasks").on("click", function () {
+    $("#refreshTasksButton").on("click", function () {
       refreshTasksInPlotRows();
     });
   } // makeSessionHeader
@@ -1919,6 +2445,7 @@ var dbslice = (function (exports) {
   exports.cfD3Scatter = cfD3Scatter;
   exports.cfInit = cfInit;
   exports.cfUpdateFilters = cfUpdateFilters;
+  exports.d3LineSeries = d3LineSeries;
   exports.getFilteredTaskIds = getFilteredTaskIds;
   exports.getFilteredTaskLabels = getFilteredTaskLabels;
   exports.initialise = initialise;

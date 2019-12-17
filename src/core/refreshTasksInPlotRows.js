@@ -4,34 +4,45 @@ import { makePlotsFromPlotRowCtrl } from './makePlotsFromPlotRowCtrl.js';
 
 
 function refreshTasksInPlotRows() {
-  var plotRows = dbsliceData.session.plotRows;
-  var plotRowPromises = [];
-  plotRows.forEach(function (plotRow) {
-	if (plotRow.ctrl !== undefined) {
-	  var ctrl = plotRow.ctrl;
+	var plotRows = dbsliceData.session.plotRows;
+	var plotRowPromises = [];
+  
+	
+	plotRows.forEach(function (plotRow) {
+		
+		// For now nothing happens as there are no plotRow.ctrl
+		if (plotRow.ctrl !== undefined) {
+			var ctrl = plotRow.ctrl;
 
-	  if (ctrl.plotFunc !== undefined) {
-		if (ctrl.tasksByFilter) {
-		  ctrl.taskIds = dbsliceData.filteredTaskIds;
-		  ctrl.taskLabels = dbsliceData.filteredTaskLabels;
-		}
+			if (ctrl.plotFunc !== undefined) {
+				
+				// Get 
+				if (ctrl.tasksByFilter) {
+					ctrl.taskIds = dbsliceData.filteredTaskIds;
+					ctrl.taskLabels = dbsliceData.filteredTaskLabels;
+				} // if
 
-		if (ctrl.tasksByList) {
-		  ctrl.taskIds = dbsliceData.manualListTaskIds;
-		}
 
-		var plotRowPromise = makePlotsFromPlotRowCtrl(ctrl).then(function (plots) {
-		  plotRow.plots = plots;
-		});
-		plotRowPromises.push(plotRowPromise);
-	  }
-	}
-  });
-  Promise.all(plotRowPromises).then(function () {
-	//console.log("rendering....");
-	render(dbsliceData.elementId, dbsliceData.session);
-  });
-}
+				// This does nothing for now!!
+				if (ctrl.tasksByList) {
+					ctrl.taskIds = dbsliceData.manualListTaskIds;
+				} // if
+
+				// Create all the promises, and when they're met push the plots.
+				var plotRowPromise = makePlotsFromPlotRowCtrl(ctrl).then(
+					function (plots) {
+						plotRow.plots = plots;
+					});
+				plotRowPromises.push(plotRowPromise);
+			} // if
+		} // if
+	}); // forEach
+	
+	Promise.all(plotRowPromises).then(function () {
+		// When all the data has been loaded rerender.
+		render(dbsliceData.elementId, dbsliceData.session);
+	}); // Promise
+} // refreshTasksInPlotRows
 
 export { refreshTasksInPlotRows };
 

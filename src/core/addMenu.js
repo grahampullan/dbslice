@@ -3,21 +3,65 @@ import { dbsliceData } from '../core/dbsliceData.js';
 import { cfD3BarChart } from '../plot/cfD3BarChart.js';
 import { cfD3Histogram } from '../plot/cfD3Histogram.js';
 import { cfD3Scatter } from '../plot/cfD3Scatter.js';
-
+import { d3LineSeries } from '../plot/d3LineSeries.js';
 
 const addMenu = {
 
 	addPlotControls: {
 		
-		elementOptionsArray: [
-				{val: "undefined", text: " "},
-				{val: "cfD3BarChart", text: 'Bar Chart'},
-				{val: "cfD3Scatter", text: 'Scatter'},
-				{val: "cfD3Histogram", text: 'Histogram'}
-			],
-						
-		make: function make(buttonId){
+		elementOptionsArray: function(plotRowType){
 			
+			var options;
+			switch(plotRowType){
+				case 'metadata':
+					options = [
+						{val: "undefined", text: " "},
+						{val: "cfD3BarChart", text: 'Bar Chart'},
+						{val: "cfD3Scatter", text: 'Scatter'},
+						{val: "cfD3Histogram", text: 'Histogram'}
+					]
+					break;
+				
+				case 'plotter':
+					options = [
+						{val: "undefined", text: " "},
+						{val: "d3LineSeries", text: 'Line'}
+					]
+					break;
+			}; // switch
+			
+			return options;
+			
+		},
+						
+		make: function make(plotRowElement){
+			
+			
+			
+			var plotRowIndex = d3.select($(plotRowElement)[0].parentNode).attr("plot-row-index");
+			var plotRowType = d3.select(plotRowElement).attr("type");
+			
+			switch(plotRowType){
+				case "metadata":
+					var buttonLabel = "Add plot"
+				  break;
+				case "plotter":
+					var buttonLabel = "Configure plot"
+			}; // switch
+			
+			// Append a button to each plot row title, if it does not exist already.
+			if(d3.select(plotRowElement).selectAll(".btn-success").empty()){
+				// If a button does not exist,make it.
+				var buttonId = "addPlotButton" + plotRowIndex;
+				d3.select(plotRowElement).append("button")
+					.attr("style","display:inline")
+					.attr("id", buttonId)
+					.attr("class", "btn btn-success float-right")
+					.html(buttonLabel);
+			}; // if
+			
+			
+			// FUNCTIONALITY!!
 			// Create the config element with all required data.
 			var config = addMenu.addPlotControls.createConfig(buttonId);
 			
@@ -32,10 +76,21 @@ const addMenu = {
 			
 			// Add listening to on plot type selection change
 			addMenu.addPlotControls.onPlotTypeChangeEvent(config);
+					
+					
+
+				
+				
+
+			
+			
 			
 		}, // make
 		
 		createConfig: function createConfig(buttonId){
+			
+			// The config depends on the plot row type.
+			var plotRowType = $("#" + buttonId)[0].parentElement.getAttribute('type');
 			
 			var a = addMenu.addPlotControls;
 			var config = {
@@ -45,44 +100,90 @@ const addMenu = {
 				plotSelectionMenuId  : buttonId + 'MenuContainer' + "PlotSelectionMenu",
 				xPropertyMenuId      : buttonId + 'MenuContainer' + "xPropertyMenu",		
 				yPropertyMenuId      : buttonId + 'MenuContainer' + "yPropertyMenu",
+					sliceMenuId      : buttonId + 'MenuContainer' +     "sliceMenu",
 				menuOkButtonId       : buttonId + 'MenuContainer' + "DialogButtonOk",
 				menuCancelButtonId   : buttonId + 'MenuContainer' + "DialogButtonCancel",
 				ok                   : a.submitNewPlot,
 				cancel               : a.cancelNewPlot,
-				userSelectedVariables: ["xProperty", "yProperty"],
+				userSelectedVariables: ["xProperty", "yProperty", "slice"],
 				categoricalVariables : [],
 				continuousVariables  : [],
-				menuItems            : [{options: a.elementOptionsArray,
+				sliceVariables       : [],
+				menuItems            : [{options: a.elementOptionsArray(plotRowType),
 										 label  : "Select plot type",
 										 id     : buttonId + 'MenuContainer' + "PlotSelectionMenu"}],
 				newPlot              : [],
 				ownerPlotRowIndex    : $("#" + buttonId)[0].parentElement.parentElement.getAttribute("plot-row-index"),
+				ownerPlotRowType     : plotRowType,
 				buttonActivationFunction : a.enableDisableSubmitButton
 			};
 			
 			
-			// Check which data variables there are.
+			// Check and add the available data variables.
 			addMenu.helpers.updateDataVariables(config);
 			
-			config.newPlot =  {
-				plotFunc : "undefined",
-				layout : { title : undefined, colWidth : 4, height : 300 }, 
-				data : { cfData    : dbsliceData.data, 
-						 xProperty : undefined, 
-						 yProperty : undefined, 
-						 cProperty : undefined}
-			}; // new plot config
+			// Create the appropriate newPlot object in the config.
+			addMenu.addPlotControls.createNewPlot(config);
 			
 			
 			return config;
 			
 		}, // createConfig
 		
+		createNewPlot: function createNewPlot(config){
+			
+			switch(config.ownerPlotRowType){
+				case "metadata":
+					config.newPlot =  {
+						plotFunc : "undefined",
+						layout : { title : undefined, colWidth : 4, height : 300 }, 
+						data : { xProperty : undefined, 
+								 yProperty : undefined, 
+								 cProperty : undefined}
+					}; // new plot config
+					break;
+					
+				case "plotter":
+					// axis labels should come from the data!
+					// slices contains any previously added slices.
+					config.newPlot = {
+						plotFunc : undefined,
+						layout : { title: undefined, colWidth : 4, height : 300},
+						data : { slice : undefined},
+						slices : []
+					}; // new plot config
+					
+					// FORMATDATAFUNC IS DIFFERENT FOR EACH PLOT TYPE!
+					
+					break;
+					
+				default:
+					// Do nothing?
+					break;
+				
+			}; // switch
+			
+			
+			
+		}, // createNewPlot
+		
 		clearNewPlot: function clearNewPlot(config){
-			config.newPlot.plotFunc = undefined;
-			config.newPlot.layout.title = undefined;
-			config.newPlot.data.xProperty = undefined;
-			config.newPlot.data.yProperty = undefined;
+			
+			switch(config.ownerPlotRowType){
+				case "metadata":
+					config.newPlot.plotFunc = undefined;
+					config.newPlot.layout.title = undefined;
+					config.newPlot.data.xProperty = undefined;
+					config.newPlot.data.yProperty = undefined;
+					break;
+				case "plotter":
+					config.newPlot.plotFunc = undefined;
+					config.newPlot.data = {};
+					break;
+				default:
+					// Do nothing?
+					break;
+			}; // switch
 		}, // clearNewPlot
 		
 		enableDisableSubmitButton: function enableDisableSubmitButton(config){
@@ -125,6 +226,12 @@ const addMenu = {
 					else             {submitButton.prop("disabled", true)};
 				  break;
 				  
+				case "d3LineSeries":
+					// Nothing else is needed, just enable the submit button.
+					submitButton.prop("disabled", false);
+				
+				  break;
+				  
 				default :
 					// Disable
 					submitButton.prop("disabled", true);
@@ -152,11 +259,14 @@ const addMenu = {
 					  // Remove all variable options.
 					  h.removeMenuItemObject( config, config.xPropertyMenuId );
 					  h.removeMenuItemObject( config, config.yPropertyMenuId );
+					  h.removeMenuItemObject( config, config.sliceMenuId );
 					  
 					  // Update plot type selection.
 					  a.clearNewPlot( config );
 					  
 					  break;
+					  
+					// METADATA PLOTS
 					  
 					case "cfD3BarChart":
 					
@@ -172,7 +282,7 @@ const addMenu = {
 					  break;
 					  
 					case "cfD3Histogram":
-					  // One variable menu - normative
+					  // One variable menu - ordinal
 					  config.newPlot.plotFunc = cfD3Histogram;
 					  
 					  // xProperty required.
@@ -184,7 +294,7 @@ const addMenu = {
 					  break;
 					  
 					case "cfD3Scatter":
-					  // Two variables menu - normative
+					  // Two variables menu - ordinal
 					  config.newPlot.plotFunc = cfD3Scatter;
 					  
 					  // xProperty and yProperty required.
@@ -192,13 +302,26 @@ const addMenu = {
 					  h.addUpdateMenuItemObject( config, config.yPropertyMenuId, config.continuousVariables);
 					  break;
 					  
+					  
+					// 2D/3D PLOTS
+					case "d3LineSeries":
+					  // Menu offering different slices.
+					  config.newPlot.plotFunc = d3LineSeries;
+					  
+					  // slice is required.
+					  h.addUpdateMenuItemObject( config, config.sliceMenuId, config.sliceVariables);
+					  
+					  
+					  break;
+					  
 					default :
 					  // Update plot type selection.
-					  a.clearNewPlot();
+					  a.clearNewPlot(config);
 					
 					  // Remove all variable options.
 					  h.removeMenuItemObject( config, config.xPropertyMenuId );
 					  h.removeMenuItemObject( config, config.yPropertyMenuId );
+					  h.removeMenuItemObject( config, config.sliceMenuId );
 											  
 					  console.log("Unexpected plot type selected:", selectedPlotType);
 					  break;
@@ -209,9 +332,17 @@ const addMenu = {
 				// Since there was a change in the plot type reset the variable selection menus. Also reset the config object selections.
 				h.resetVariableMenuSelections(config.xPropertyMenuId);
 				h.resetVariableMenuSelections(config.yPropertyMenuId);
+				h.resetVariableMenuSelections(config.sliceMenuId);
 				
-				config.newPlot.data.yProperty = undefined;
-				config.newPlot.data.xProperty = undefined;
+				switch(config.ownerPlotRwoType){
+					case "metadata":
+						config.newPlot.data.yProperty = undefined;
+						config.newPlot.data.xProperty = undefined;
+						break;
+					case "plotter":
+						config.newPlot.data.slice = undefined;
+				}; // if
+				
 				
 				// Update.
 				h.updateMenus(config);
@@ -223,22 +354,60 @@ const addMenu = {
 		submitNewPlot: function submitNewPlot(config){
 			
 			// IMPORTANT! A PHYSICAL COPY OF NEWPLOT MUST BE MADE!! If newPlot is pushed straight into the plots every time newPlot is updated all the plots created using it will be updated too.
-			var plotToPush = {
-			  plotFunc : config.newPlot.plotFunc,
-			  layout : { title : config.newPlot.layout.title, 
-					  colWidth : config.newPlot.layout.colWidth, 
-						height : config.newPlot.layout.height }, 
-			  data : {  cfData : config.newPlot.data.cfData, 
-					 xProperty : config.newPlot.data.xProperty, 
-					 yProperty : config.newPlot.data.yProperty, 
-					 cProperty : config.newPlot.data.cProperty}
-			};
+			switch(config.ownerPlotRowType){
+				case "metadata":
+					var plotToPush = {
+						plotFunc : config.newPlot.plotFunc,
+						layout : { title : config.newPlot.layout.title, 
+								colWidth : config.newPlot.layout.colWidth, 
+								  height : config.newPlot.layout.height }, 
+						data : {  cfData : dbsliceData.data, 
+							   xProperty : config.newPlot.data.xProperty, 
+							   yProperty : config.newPlot.data.yProperty, 
+							   cProperty : config.newPlot.data.cProperty}
+					}; // plotToPush
+					
+					dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots.push(plotToPush);
+					break;
+					
+				case "plotter":
+					// Here a plot is not pushed, but rather a config is passed to the plotRow. The Promises funtionality then creates the plots.				
+					
+					// Alternately the metadata should include the keys along which the roups can be formed. Then the user canselect how th edata should be grouped. This would allow easy comparison of different spans, or tasks.
+					
+					// The keys are the variable names in 'metadata', which are prefixed with 's_' for splice. This allows the user to select which data to compare when setting up the metadata. More flexibility is gained this way, as no hardcoded templating needs to be introduced, and no clumsy user interfaces.
+					
+					// Store the currently selected slice, then push everything forward.
+					config.newPlot.slices.push(config.newPlot.data.slice)
+					
+					var plotCtrl = {
+						layout : { colWidth : 4, height : 400, xAxisLabel : "Axial distance",yAxisLabel : "Mach number" },
+						data : dbsliceData.data,
+						plotFunc : config.newPlot.plotFunc,
+						taskIds : null,
+						sliceIds : config.newPlot.slices,
+						tasksByFilter : true,
+						maxTasks : 200,
+						urlTemplate : null,
+						formatDataFunc : function ( data ) {
+							var series = [];
+							data.forEach( function( line ) { series.push( line ) } );
+							return { series : series };
+						}
+					};
+				
+					dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl = plotCtrl;
+					
+					
+					break;
+			}; // switch
+			
 			
 			// Add the new plot to the session object. How does this know which section to add to? Get it from the parent of the button!! Button is not this!
 			// var plotRowIndex = d3.select(this).attr("plot-row-index")
 			// console.log(element)
 			
-			dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots.push(plotToPush);
+			
 
 			
 			// Redraw the screen.
@@ -248,8 +417,10 @@ const addMenu = {
 			addMenu.addPlotControls.clearNewPlot(config);
 			
 			// Reset the variable menu selections!
+			addMenu.helpers.resetVariableMenuSelections(config.plotSelectionMenuId);
 			addMenu.helpers.resetVariableMenuSelections(config.xPropertyMenuId);
 			addMenu.helpers.resetVariableMenuSelections(config.yPropertyMenuId);
+			addMenu.helpers.resetVariableMenuSelections(config.sliceMenuId);
 			
 			// Reset the plot type menu selection.
 			document.getElementById(config.plotSelectionMenuId).value = "undefined";
@@ -257,6 +428,10 @@ const addMenu = {
 			// Remove all variable options.
 			addMenu.helpers.removeMenuItemObject( config, config.xPropertyMenuId );
 			addMenu.helpers.removeMenuItemObject( config, config.yPropertyMenuId );
+			addMenu.helpers.removeMenuItemObject( config, config.sliceMenuId );
+			
+			// Update the menus so that the view reflects the state of the config.
+			addMenu.helpers.updateMenus(config);
 			
 		}, // submitNewPlot
 		
@@ -268,11 +443,13 @@ const addMenu = {
 			addMenu.helpers.resetVariableMenuSelections(config.plotSelectionMenuId);
 			addMenu.helpers.resetVariableMenuSelections(config.xPropertyMenuId);
 			addMenu.helpers.resetVariableMenuSelections(config.yPropertyMenuId);
+			addMenu.helpers.resetVariableMenuSelections(config.sliceMenuId);
 			
 			
 			// Remove the select menus from the view.
 			addMenu.helpers.removeMenuItemObject( config, config.xPropertyMenuId );
 			addMenu.helpers.removeMenuItemObject( config, config.yPropertyMenuId );
+			addMenu.helpers.removeMenuItemObject( config, config.sliceMenuId );
 			
 			// Update the menus so that the view reflects the state of the config.
 			addMenu.helpers.updateMenus(config);
@@ -286,16 +463,14 @@ const addMenu = {
 		
 		var allPlotRows = d3.select("#" + dbsliceData.elementId).selectAll(".plotRowBody");
 		allPlotRows.each( function(d,i){
-		  // This function operates on a plot row instance. It selects all the plots, and adds a button and its functionality to it. This is only done if the plot row is a metadata row.
-		  var plotRowType = d3.select(this).attr("type"); 
-		  if (plotRowType == "metadata"){
+			// This function operates on a plot row instance. It selects all the plots, and adds a button and its functionality to it. This is only done if the plot row is a metadata row.
+			var plotRowType = d3.select(this).attr("type"); 
 			
+			var plotRowIndex = i;
 			
-			  var plotRowIndex = i;
-			
-			  var allPlotTitles = d3.select(this).selectAll(".plotTitle");
-			  allPlotTitles.each( function (d,i){
-				// Append the button, and its functionality, but only if it does no talready exist!
+			var allPlotTitles = d3.select(this).selectAll(".plotTitle");
+			allPlotTitles.each( function (d,i){
+			// Append the button, and its functionality, but only if it does no talready exist!
 				var addPlotButton = d3.select(this).select(".btn-danger")
 				
 				if (addPlotButton.empty()){
@@ -313,14 +488,14 @@ const addMenu = {
 						}); // on
 					
 				} else {
-					// If it does, do nothin.
+					// If it doesn't, do nothing.
 					
 				}; // if
 				
 				
-			  } ); // each 
+			} ); // each 
 							
-		  }; // if
+			
 		  
 		} ) // each
 		
@@ -390,20 +565,20 @@ const addMenu = {
 		
 		submitNewPlotRow: function submitNewPlotRow(config){
 			
+			
 			var plotRowToPush = {title: config.newPlotRow.title, 
 								 plots: config.newPlotRow.plots, 
 								  type: config.newPlotRow.type,
 						addPlotButton : config.newPlotRow.addPlotButton
 			};
 			
+			// If this is a 'plotter' plot row it also requires a 'ctrl' field. This is filled out later by users actions.
+			if(plotRowToPush.type === "plotter"){
+				plotRowToPush.ctrl = undefined;
+			}; // if
 			
-			// Find the latest plot row index. Initiate with 0 to try allow for initialisation without ay plot rows!
-			var latestRowInd = [0];
-			d3.selectAll(".plotRow").each(function(){
-				latestRowInd.push(d3.select(this).attr("plot-row-index"));
-			})
-			latestRowInd = latestRowInd.map(Number);
-			var newRowInd = Math.max( ...latestRowInd )+1; // 'spread' operator used!
+			// Find the latest plot row index. Initiate with 0 to try allow for initialisation without any plot rows!
+			var newRowInd = addMenu.helpers.findLatestPlotRowInd();
 			
 			plotRowToPush.addPlotButton.id = "addPlotButton" + newRowInd;
 			
@@ -484,8 +659,17 @@ const addMenu = {
 										 text: dbsliceData.data.dataProperties[i]});
 			};
 			
+			// Slice variables
+			var sliceVariables = [{val: "undefined", text: " "}];
+			for (var i=0; i<dbsliceData.data.sliceProperties.length; i++){
+				sliceVariables.push({val: dbsliceData.data.sliceProperties[i], 
+									text: dbsliceData.data.sliceProperties[i]});
+			};
+			
 			config.categoricalVariables = categoricalVariables;
-			config.continuousVariables = continuousVariables;
+			 config.continuousVariables =  continuousVariables;
+				  config.sliceVariables =       sliceVariables;
+			
 			
 		}, // updateDataVariables
 	
@@ -614,9 +798,10 @@ const addMenu = {
 		}, // addUpdateMenuItemObject
 
 		removeMenuItemObject: function removeMenuItemObject(config, menuItemId){
-	
+			
 			var menuItems = config.menuItems;
 			var index = config.menuItems.map(function(d) { return d.id; }).indexOf(menuItemId);
+			
 			
 			if (index>-1){
 				menuItems.splice(index,1);
@@ -644,6 +829,7 @@ const addMenu = {
 					// Disable all buttons:
 					d3.selectAll("button").each(function(){$(this).prop("disabled", true)});
 				  
+					// Make the dialog
 					$( "#" + config.containerId ).dialog({
 					draggable: false,
 					autoOpen: true,
@@ -658,11 +844,8 @@ const addMenu = {
 											  // Close the dialogue.
 											  $( this ).dialog( "close" )
 											  
-											  // Enable all buttons.
-											  d3.selectAll("button")
-												.each(function(){
-														$(this).prop("disabled", false)
-													  })
+											  // Enable all relevant buttons.
+											  addMenu.helpers.enableDisableAllButtons();
 													  
 											  // Delete the warning if present.
 											  d3.select(this).selectAll(".warning").remove();
@@ -678,7 +861,7 @@ const addMenu = {
 											  $( this ).dialog( "close" ) 
 											  
 											  // Enable all buttons.
-											  d3.selectAll("button").each(function(){$(this).prop("disabled", false)})
+											  addMenu.helpers.enableDisableAllButtons();
 											  
 											  // Delete the warning if present.
 											  d3.select(this).selectAll(".warning").remove();
@@ -697,7 +880,7 @@ const addMenu = {
 		
 		}, // addButtonClickEvent
 			
-		addVariableChangeEvent: function addVariableChangeEent(config, variable){
+		addVariableChangeEvent: function addVariableChangeEvent(config, variable){
 			
 			var idOfMenuToListenTo = config.containerId + variable + "Menu";
 			
@@ -712,8 +895,111 @@ const addMenu = {
 			  
 			});
 			
-		} //addVariableChangeEent
+		}, //addVariableChangeEent
 	
+		enableDisableAllButtons: function enableDisableAllButtons(){
+			// This functionality decides which buttons should be enabled.
+			var isDataInFilter = dbsliceData.filteredTaskIds.length !== undefined                  && dbsliceData.filteredTaskIds.length > 0;
+			
+			// "Add data" is always available!
+			$("#getData").prop("disabled",false);
+			
+			// "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
+			var isPlotterPlotRowCtrlDefined = addMenu.helpers.checkIfArrayKeyIsDefined(dbsliceData.session.plotRows, 'ctrl');
+			if(isDataInFilter && isPlotterPlotRowCtrlDefined){
+				// Enable the button
+				$("#refreshTasksButton").prop("disabled",false)
+			} else {
+				// Disable the button
+				$("#refreshTasksButton").prop("disabled",true)		  
+			}; // if
+			
+			// "Load session" only available after some data has been loaded.
+			if(isDataInFilter){
+				// Enable the button
+				$("#getSessionButton").prop("disabled",false)
+			} else {
+				// Disable the button
+				$("#getSessionButton").prop("disabled",true)		  
+			}; // if
+			
+			// "Add plot row" should be available.
+			$("#addPlotRowButton").prop("disabled",false);
+			
+			// "Remove plot row" should always be available.
+			var removePlotRowButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-danger")
+			removePlotRowButtons.each(function(){$(this).prop("disabled", false)});
+			
+			// "Add plot" should only be available if the data is loaded.
+			var addPlotButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-success");
+			if(isDataInFilter){
+				addPlotButtons.each(function(){$(this).prop("disabled", false)})
+			} else {
+				addPlotButtons.each(function(){$(this).prop("disabled", true)})
+			}; // if
+			
+			// "Remove plot" should always be available.
+			var removePlotButtons = d3.selectAll(".plotTitle").selectAll(".btn-danger");
+			removePlotButtons.each(function(){$(this).prop("disabled", false)})
+			
+		}, // enableDisableAllButtons
+		
+		findLatestPlotRowInd: function findLatestPlotRowInd(){
+			
+			var latestRowInd = [];
+			d3.selectAll(".plotRow").each(function(){
+				latestRowInd.push(d3.select(this).attr("plot-row-index"));
+			})
+			if(latestRowInd.length > 0){
+				latestRowInd = latestRowInd.map(Number);
+				var newRowInd = Math.max( ...latestRowInd ) + 1; // 'spread' operator used!
+			} else {
+				var newRowInd = 0;
+			}; // if
+			
+			return newRowInd;
+			
+		}, // findLatestPlotRowInd
+		
+		checkIfArrayKeyIsDefined: function checkIfArrayKeyIsDefined(array, key){
+			
+			// This function checks if any objects in the array <array> have a property called <key>, and if that property is not undefined. If there are no objects with the required property the function returns false. If the object has the property, but it isn't defined it returns false. Only if there are some objects with the required property, and it is defined does the function return true.
+			
+			var isKeyDefined = true;
+			
+			// First check if there are any objects in the arra. Otherwise return false.
+			if(array.length > 0){
+				
+				// Now check if there are any plot rows with 'ctrl'
+				var compliantObjects = []
+				for(var i = 0; i<array.length; i++){
+					if(key in array[i]){
+						compliantObjects.push(array[i]);
+					}; // if
+				}; // for
+				
+				// If there are some, then check if their controls are defined.
+				if(compliantObjects.length > 0){
+					isKeyDefined = true;
+					for(var j = 0; j<compliantObjects.length; j++){
+						if(compliantObjects[j][key] !== undefined){
+							isKeyDefined = isKeyDefined && true;
+						} else {
+							isKeyDefined = isKeyDefined && false;
+						}; // if
+					}; // for
+					
+				} else {
+					isKeyDefined = false;
+				}; // if
+				
+			} else {
+				isKeyDefined = false;
+			}; // if
+			
+			return isKeyDefined;
+			
+		} // checkIfArrayKeyIsDefined
 	} // helpers
 
 }; // addMenu

@@ -5,6 +5,7 @@ export { cfInit } from './core/cfInit.js';
 export { cfD3BarChart } from './plot/cfD3BarChart.js';
 export { cfD3Histogram } from './plot/cfD3Histogram.js';
 export { cfD3Scatter } from './plot/cfD3Scatter.js';
+export { d3LineSeries } from './plot/d3LineSeries.js';
 export { render } from './core/render.js';
 export { initialise } from './core/initialise.js';
 export { makeNewPlot } from './core/makeNewPlot.js';
