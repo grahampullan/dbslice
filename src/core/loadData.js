@@ -30,13 +30,10 @@ const loadData = {
 	
 		d3.json(filename, function(metadata){
 			// The metadata has loaded. Add it to the already existing data.
-			// data.push(metadata);
-			
 			// How do I join arrays?
-			console.log(metadata)
+			
 			
 			// Dummy functionality - for now replace the data.
-			// This relies on the new data having the same variables!!
 			dbsliceData.data = cfInit(metadata);
 			
 			render(dbsliceData.elementId, dbsliceData.session);

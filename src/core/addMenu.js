@@ -482,7 +482,13 @@ const addMenu = {
 							// This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
 							var plotIndex = i;
 
+							// Remove the plot from view.
 							dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex,1);
+
+							// If necesary also remove the corresponding ctrl from the plotter rows.
+							if('ctrl' in dbsliceData.session.plotRows[plotRowIndex]){
+								dbsliceData.session.plotRows[plotRowIndex].ctrl.sliceIds.splice(plotIndex,1);
+							}; // if
 
 							render(dbsliceData.elementId, dbsliceData.session)
 						}); // on

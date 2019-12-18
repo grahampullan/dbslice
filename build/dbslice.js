@@ -1190,8 +1190,14 @@ var dbslice = (function (exports) {
             // If it dosn't exist, add it.
             d3.select(this).append("button").attr("class", "btn btn-danger float-right").html("x").on("click", function () {
               // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
-              var plotIndex = i;
-              dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex, 1);
+              var plotIndex = i; // Remove the plot from view.
+
+              dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex, 1); // If necesary also remove the corresponding ctrl from the plotter rows.
+
+              if ('ctrl' in dbsliceData.session.plotRows[plotRowIndex]) {
+                dbsliceData.session.plotRows[plotRowIndex].ctrl.sliceIds.splice(plotIndex, 1);
+              }
+
               render(dbsliceData.elementId, dbsliceData.session);
             }); // on
           }
@@ -1681,11 +1687,8 @@ var dbslice = (function (exports) {
     json: function json(filename) {
       d3.json(filename, function (metadata) {
         // The metadata has loaded. Add it to the already existing data.
-        // data.push(metadata);
         // How do I join arrays?
-        console.log(metadata); // Dummy functionality - for now replace the data.
-        // This relies on the new data having the same variables!!
-
+        // Dummy functionality - for now replace the data.
         dbsliceData.data = cfInit(metadata);
         render(dbsliceData.elementId, dbsliceData.session);
       });
