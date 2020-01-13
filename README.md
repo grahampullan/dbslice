@@ -9,7 +9,11 @@ It adds the functionality that allows the user to dynamically add or remove:
 
 The functionality to load in predefined session layouts has been introduced.
 
-The titles, the session header, individual plot rows, and plots can now be interactively changed.
+The title texts of:
+- the session header
+- individual plot rows
+- individual plots
+can now be interactively changed.
 
 Known bugs and missing desired behaviour:
 - Histograms have their y-axis labels hidden
