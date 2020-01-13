@@ -19,6 +19,7 @@ Known bugs and missing desired behaviour:
 - On passing a filtered subset to neighbouring plot on delete actions the full data is displayed on the moved plot as opposed to the filtered subset.
 - Color coding has not yet been implemented
 - Scatter plots do not have points remain selected when clicked
+- Highlighting tasks across plots on mouseover not yet implemented
 - Error thrown if plot rows are created before data is loaded
 - If the layout is loaded before data an error is thrown as there is no data for any plots.
 
