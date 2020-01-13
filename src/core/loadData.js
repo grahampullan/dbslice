@@ -3,7 +3,7 @@ import { cfInit } from '../core/cfInit.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 
 const loadData = {
-		
+	
 	handler: function handler(file){
 		
 		
@@ -52,30 +52,31 @@ const loadData = {
 			var dataProperties = [];
 			var metadataProperties = [];
 			var sliceProperties = [];
+			var contourProperties = [];
 			
 			for(var i=0; i<headerNames.length;i++){
 				
 				// Look for a designator. This is either "o_" or "c_" prefix.
 				var variable    = headerNames[i];
-				var variableNew = "";
-				var prefix = variable.slice(0,2);
+				var prefix      = variable.split("_")[0];
+				var variableNew = variable.split("_").slice(1).join(" ");
+				
 				
 				switch(prefix){
-					case "o_":
+					case "o":
 						// Ordinal variables.
-						variableNew = variable.slice(2);
 						dataProperties.push( variableNew )
 						
 						loadData.helpers.renameVariables(metadata, variable, variableNew)
 						break;
-					case "c_":
+					case "c":
 						// Categorical variables
-						variableNew = variable.slice(2);
 						metadataProperties.push( variableNew )
 						
 						loadData.helpers.renameVariables(metadata, variable, variableNew)
 						break;
-					case "s_":
+					case "s":
+						// Slices
 						// Slices the text into available slices. These must be separated by , and single space!
 						
 						metadata.map(function(item){ 
@@ -83,10 +84,20 @@ const loadData = {
 							return item;
 						});
 						
-						variableNew = variable.slice(2);
 						sliceProperties.push(variableNew);
 						
 						loadData.helpers.renameVariables(metadata, variable, variableNew)
+						break;
+						
+					case "c2d":
+					  // Contours
+					  contourProperties.push(variableNew);
+						
+					  loadData.helpers.renameVariables(metadata, variable, variableNew)
+					  
+					  break;
+						
+						
 					default:
 						
 						break;
@@ -95,15 +106,14 @@ const loadData = {
 				
 			}; // for
 			
-			
-			
 			// Combine in an overall object.
 			var d = {
 				 data : metadata,
 				 header: {
 						  dataProperties :     dataProperties,
 					  metaDataProperties : metadataProperties,
-						 sliceProperties :    sliceProperties
+						 sliceProperties :    sliceProperties,
+					   contourProperties :  contourProperties,
 				 }
 			};
 			

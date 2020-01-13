@@ -4,7 +4,7 @@ function getFilteredTaskIds() {
 
 	return dbsliceData.filteredTaskIds;
 
-}
+} // getFilteredTaskIds
 
 export { getFilteredTaskIds };
 

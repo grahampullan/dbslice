@@ -4,8 +4,9 @@ import { cfD3BarChart } from '../plot/cfD3BarChart.js';
 import { cfD3Histogram } from '../plot/cfD3Histogram.js';
 import { cfD3Scatter } from '../plot/cfD3Scatter.js';
 
+
 const loadSession = {
-		
+	
 	handler: function handler(file){
 		
 		// Split the name by the '.', then select the last part.
@@ -115,7 +116,7 @@ const loadSession = {
 				var plotRowToPush = {title: plotRowsData[i].title, 
 									 plots: loadSession.helpers.assemblePlots(plotRowsData[i].plots), 
 									  type: plotRowsData[i].type,
-							addPlotButton : true	}
+							addPlotButton : true    }
 				plotRows.push(plotRowToPush);
 			}; // for
 			
@@ -126,5 +127,6 @@ const loadSession = {
 	} // helpers
 	
 } // loadSession
+
 
 export { loadSession };

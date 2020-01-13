@@ -4,6 +4,8 @@ import { cfD3BarChart } from '../plot/cfD3BarChart.js';
 import { cfD3Histogram } from '../plot/cfD3Histogram.js';
 import { cfD3Scatter } from '../plot/cfD3Scatter.js';
 import { d3LineSeries } from '../plot/d3LineSeries.js';
+import { d3Contour2d } from '../plot/d3Contour2d.js';
+
 
 const addMenu = {
 
@@ -13,19 +15,20 @@ const addMenu = {
 			
 			var options;
 			switch(plotRowType){
-				case 'metadata':
+				case "metadata":
 					options = [
-						{val: "undefined", text: " "},
-						{val: "cfD3BarChart", text: 'Bar Chart'},
-						{val: "cfD3Scatter", text: 'Scatter'},
-						{val: "cfD3Histogram", text: 'Histogram'}
+						{val: "undefined"    , text: " "},
+						{val: "cfD3BarChart" , text: "Bar Chart"},
+						{val: "cfD3Scatter"  , text: "Scatter"},
+						{val: "cfD3Histogram", text: "Histogram"}
 					]
 					break;
 				
-				case 'plotter':
+				case "plotter":
 					options = [
-						{val: "undefined", text: " "},
-						{val: "d3LineSeries", text: 'Line'}
+						{val: "undefined"        , text: " "},
+						{val: "d3LineSeries"     , text: "Line"},
+						{val: "d3Contour2d", text: "Contour"}
 					]
 					break;
 			}; // switch
@@ -43,10 +46,10 @@ const addMenu = {
 			
 			switch(plotRowType){
 				case "metadata":
-					var buttonLabel = "Add plot"
+					var buttonLabel = "Add plot";
 				  break;
 				case "plotter":
-					var buttonLabel = "Configure plot"
+					var buttonLabel = "Configure plot";
 			}; // switch
 			
 			// Append a button to each plot row title, if it does not exist already.
@@ -98,7 +101,7 @@ const addMenu = {
 				buttonId             : buttonId,
 				containerId          : buttonId + 'MenuContainer',
 				plotSelectionMenuId  : buttonId + 'MenuContainer' + "PlotSelectionMenu",
-				xPropertyMenuId      : buttonId + 'MenuContainer' + "xPropertyMenu",		
+				xPropertyMenuId      : buttonId + 'MenuContainer' + "xPropertyMenu",        
 				yPropertyMenuId      : buttonId + 'MenuContainer' + "yPropertyMenu",
 					sliceMenuId      : buttonId + 'MenuContainer' +     "sliceMenu",
 				menuOkButtonId       : buttonId + 'MenuContainer' + "DialogButtonOk",
@@ -109,6 +112,7 @@ const addMenu = {
 				categoricalVariables : [],
 				continuousVariables  : [],
 				sliceVariables       : [],
+				contourVariables     : [],
 				menuItems            : [{options: a.elementOptionsArray(plotRowType),
 										 label  : "Select plot type",
 										 id     : buttonId + 'MenuContainer' + "PlotSelectionMenu"}],
@@ -135,7 +139,7 @@ const addMenu = {
 			switch(config.ownerPlotRowType){
 				case "metadata":
 					config.newPlot =  {
-						plotFunc : "undefined",
+						plotFunc : undefined,
 						layout : { title : undefined, colWidth : 4, height : 300 }, 
 						data : { xProperty : undefined, 
 								 yProperty : undefined, 
@@ -166,6 +170,86 @@ const addMenu = {
 			
 			
 		}, // createNewPlot
+		
+		copyNewPlot:   function copyNewPlot(config){
+			// Based on the type of plot selected a config ready to be submitted to the plotting functions is assembled.
+
+			var selectedPlotType = $("#" + config.plotSelectionMenuId).val();
+			
+			var plotCtrl = {};
+			switch(selectedPlotType){
+				
+				case "cfD3BarChart":
+				case "cfD3Histogram":
+					plotCtrl = {
+						plotFunc : config.newPlot.plotFunc,
+						layout : { title : config.newPlot.layout.title, 
+								colWidth : config.newPlot.layout.colWidth, 
+								  height : config.newPlot.layout.height }, 
+						data : {  cfData : dbsliceData.data, 
+							   xProperty : config.newPlot.data.xProperty, 
+							   cProperty : config.newPlot.data.cProperty}
+					};
+				  break;
+				  
+				case "cfD3Scatter":
+					plotCtrl = {
+						plotFunc : config.newPlot.plotFunc,
+						layout : { title : config.newPlot.layout.title, 
+								colWidth : config.newPlot.layout.colWidth, 
+								  height : config.newPlot.layout.height }, 
+						data : {  cfData : dbsliceData.data, 
+							   xProperty : config.newPlot.data.xProperty,
+							   yProperty : config.newPlot.data.yProperty,
+							   cProperty : config.newPlot.data.cProperty}
+					};
+				  break;
+				  
+				case "d3LineSeries":
+				
+					// The user selected variable to plot is stored in config.newPlot.data, with all other user selected variables. However, for this type of plot it needs to be one level above, which is achieved here.
+					// Store the currently selected slice, then push everything forward.
+					config.newPlot.slices.push(config.newPlot.data.slice)
+				
+					// Set the other options.
+					plotCtrl = {
+						plotType : "d3LineSeries",
+						layout : { colWidth: 4, xAxisLabel : "Axial distance",yAxisLabel : "Mach number" },
+						data : dbsliceData.data,
+						plotFunc : config.newPlot.plotFunc,
+						taskIds : null,
+						sliceIds : config.newPlot.slices,
+						tasksByFilter : true,
+						formatDataFunc : function ( data ) {
+							var series = [];
+							data.forEach( function( line ) { series.push( line ) } );
+							return { series : series };
+						}
+					};
+				  break;
+				  
+				case "d3Contour2d":
+				
+					plotCtrl = {
+						plotType : "d3Contour2d",
+						layout : { colWidth : 2, height : 200 },
+						data : dbsliceData.data,
+						limits : {},
+						plotFunc : config.newPlot.plotFunc,
+						taskIds : dbsliceData.filteredTaskIds,
+						sliceIds : [config.newPlot.data.slice],
+						tasksByFilter : true,
+					};
+
+				default:
+					break;
+				
+			}; // switch
+
+			
+			return plotCtrl;
+			
+		}, // copyNewPlot
 		
 		clearNewPlot: function clearNewPlot(config){
 			
@@ -227,6 +311,12 @@ const addMenu = {
 				  break;
 				  
 				case "d3LineSeries":
+					// Nothing else is needed, just enable the submit button.
+					submitButton.prop("disabled", false);
+				
+				  break;
+				  
+				case "d3Contour2d":
 					// Nothing else is needed, just enable the submit button.
 					submitButton.prop("disabled", false);
 				
@@ -310,8 +400,15 @@ const addMenu = {
 					  
 					  // slice is required.
 					  h.addUpdateMenuItemObject( config, config.sliceMenuId, config.sliceVariables);
+					  break;
 					  
+					case "d3Contour2d":
+					  // Menu offering different variables.
+					  config.newPlot.plotFunc = d3Contour2d;
 					  
+					  // Contour locations need to be predetermined by grouping the appropriate file names in the metadata excel sheet. The group names should be available here.
+					  h.addUpdateMenuItemObject( config, config.sliceMenuId, config.contourVariables);
+					
 					  break;
 					  
 					default :
@@ -322,7 +419,7 @@ const addMenu = {
 					  h.removeMenuItemObject( config, config.xPropertyMenuId );
 					  h.removeMenuItemObject( config, config.yPropertyMenuId );
 					  h.removeMenuItemObject( config, config.sliceMenuId );
-											  
+												
 					  console.log("Unexpected plot type selected:", selectedPlotType);
 					  break;
 				}; // switch( selectedPlotType )
@@ -356,59 +453,42 @@ const addMenu = {
 			// IMPORTANT! A PHYSICAL COPY OF NEWPLOT MUST BE MADE!! If newPlot is pushed straight into the plots every time newPlot is updated all the plots created using it will be updated too.
 			switch(config.ownerPlotRowType){
 				case "metadata":
-					var plotToPush = {
-						plotFunc : config.newPlot.plotFunc,
-						layout : { title : config.newPlot.layout.title, 
-								colWidth : config.newPlot.layout.colWidth, 
-								  height : config.newPlot.layout.height }, 
-						data : {  cfData : dbsliceData.data, 
-							   xProperty : config.newPlot.data.xProperty, 
-							   yProperty : config.newPlot.data.yProperty, 
-							   cProperty : config.newPlot.data.cProperty}
-					}; // plotToPush
 					
+					// Make a pysical copy of the object.
+					var plotToPush = addMenu.addPlotControls.copyNewPlot(config);
+				
 					dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots.push(plotToPush);
-					break;
+				  break;
 					
 				case "plotter":
-					// Here a plot is not pushed, but rather a config is passed to the plotRow. The Promises funtionality then creates the plots.				
-					
-					// Alternately the metadata should include the keys along which the roups can be formed. Then the user canselect how th edata should be grouped. This would allow easy comparison of different spans, or tasks.
+					// Here plots are not pushed, but rather a config is passed to the plotRow.    The number of slices then defines how many plots appear. The slices are contained in 'plotCtrl.sliceIds'.
 					
 					// The keys are the variable names in 'metadata', which are prefixed with 's_' for splice. This allows the user to select which data to compare when setting up the metadata. More flexibility is gained this way, as no hardcoded templating needs to be introduced, and no clumsy user interfaces.
 					
-					// Store the currently selected slice, then push everything forward.
-					config.newPlot.slices.push(config.newPlot.data.slice)
+					// Make a pysical copy of the object. This function also includes the functionality in which the 'line' plot
+					var newPlotCtrl = addMenu.addPlotControls.copyNewPlot(config);
+
+					// If the plot type is changing remove all the plots first.
+					var oldPlotCtrl = dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl;
 					
-					var plotCtrl = {
-						layout : { colWidth : 4, height : 400, xAxisLabel : "Axial distance",yAxisLabel : "Mach number" },
-						data : dbsliceData.data,
-						plotFunc : config.newPlot.plotFunc,
-						taskIds : null,
-						sliceIds : config.newPlot.slices,
-						tasksByFilter : true,
-						maxTasks : 200,
-						urlTemplate : null,
-						formatDataFunc : function ( data ) {
-							var series = [];
-							data.forEach( function( line ) { series.push( line ) } );
-							return { series : series };
-						}
-					};
+					if(oldPlotCtrl !== undefined){
+						if(oldPlotCtrl.plotType !== newPlotCtrl.plotType){
+							dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots = [];
+						}; // if
+					} // if
 				
-					dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl = plotCtrl;
+					// Assign the new control.
+					dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl = newPlotCtrl;
 					
+					console.log(dbsliceData.session)
 					
-					break;
+				  break;
 			}; // switch
 			
 			
 			// Add the new plot to the session object. How does this know which section to add to? Get it from the parent of the button!! Button is not this!
 			// var plotRowIndex = d3.select(this).attr("plot-row-index")
 			// console.log(element)
-			
-			
-
 			
 			// Redraw the screen.
 			dbslice.render(dbsliceData.elementId, dbsliceData.session);
@@ -482,13 +562,14 @@ const addMenu = {
 							// This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
 							var plotIndex = i;
 
-							// Remove the plot from view.
+							// Remove the plot from viewv
 							dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex,1);
 
 							// If necesary also remove the corresponding ctrl from the plotter rows.
 							if('ctrl' in dbsliceData.session.plotRows[plotRowIndex]){
 								dbsliceData.session.plotRows[plotRowIndex].ctrl.sliceIds.splice(plotIndex,1);
 							}; // if
+							
 
 							render(dbsliceData.elementId, dbsliceData.session)
 						}); // on
@@ -672,9 +753,19 @@ const addMenu = {
 									text: dbsliceData.data.sliceProperties[i]});
 			};
 			
+			// Contour variables
+			var contourVariables = [{val: "undefined", text: " "}];
+			for (var i=0; i<dbsliceData.data.contourProperties.length; i++){
+				contourVariables.push({val: dbsliceData.data.contourProperties[i], 
+									text: dbsliceData.data.contourProperties[i]});
+			};
+			
+			
+			// Assign
 			config.categoricalVariables = categoricalVariables;
 			 config.continuousVariables =  continuousVariables;
 				  config.sliceVariables =       sliceVariables;
+				config.contourVariables =   contourVariables;
 			
 			
 		}, // updateDataVariables
@@ -760,6 +851,10 @@ const addMenu = {
 
 		addUpdateMenuItemObject: function addUpdateMenuItemObject(config, menuItemId, variables){
 
+
+			// First remove any warnings. If they are needed they are added later on.
+			d3.select("#" + config.containerId).selectAll(".warning").remove();
+
 			// Only add or update the menu item if some selection variables exist.
 			// >1 is used as the default option "undefined" is added to all menus.
 			if (variables.length>1){
@@ -787,6 +882,7 @@ const addMenu = {
 			} else {
 				  // There are no variables. No point in having an empty menu.
 				  addMenu.helpers.removeMenuItemObject(config, menuItemId);
+				  
 				  
 				  // Tell the user that the data is empty.
 				  
@@ -917,7 +1013,7 @@ const addMenu = {
 				$("#refreshTasksButton").prop("disabled",false)
 			} else {
 				// Disable the button
-				$("#refreshTasksButton").prop("disabled",true)		  
+				$("#refreshTasksButton").prop("disabled",true)          
 			}; // if
 			
 			// "Load session" only available after some data has been loaded.
@@ -926,7 +1022,7 @@ const addMenu = {
 				$("#getSessionButton").prop("disabled",false)
 			} else {
 				// Disable the button
-				$("#getSessionButton").prop("disabled",true)		  
+				$("#getSessionButton").prop("disabled",true)          
 			}; // if
 			
 			// "Add plot row" should be available.
@@ -1006,8 +1102,11 @@ const addMenu = {
 			return isKeyDefined;
 			
 		} // checkIfArrayKeyIsDefined
+		
 	} // helpers
 
 }; // addMenu
+
+
 
 export { addMenu };

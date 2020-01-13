@@ -38,6 +38,7 @@ var dbslice = (function (exports) {
     cfData.metaDataProperties = metaData.header.metaDataProperties;
     cfData.dataProperties = metaData.header.dataProperties;
     cfData.sliceProperties = metaData.header.sliceProperties;
+    cfData.contourProperties = metaData.header.contourProperties;
     cfData.cf = crossfilter(metaData.data);
     cfData.metaDims = [];
     cfData.metaDataUniqueValues = {};
@@ -63,7 +64,7 @@ var dbslice = (function (exports) {
     // Create a standalone array of taskIds
 
     var taskIds = [];
-    metaData.data.forEach(function (task) {
+    metaData.data.forEach(function (task, i) {
       taskIds.push(task.taskId);
     });
     dbsliceData.filteredTaskIds = taskIds; // Return the created cfData object to be assigned to individual plots.
@@ -118,9 +119,8 @@ var dbslice = (function (exports) {
 
       var dimId = dbsliceData.data.dataProperties.indexOf(data.xProperty);
       var dim = dbsliceData.data.dataDims[dimId];
-      var items = dim.top(Infinity); // The domain limits are extended to botch repair the bug that causes one of the bins be very small sometimes.
-
-      var x = d3.scaleLinear().domain([0.9 * svg.attr("xDomMin"), svg.attr("xDomMax") * 1.1]).rangeRound([0, svg.attr("plotWidth")]); // The function in the histogram ensures that only a specific property is extracted from the data input to the function on the 'histogram(data)' call.
+      var items = dim.top(Infinity);
+      var x = d3.scaleLinear().domain([svg.attr("xDomMin"), svg.attr("xDomMax")]).rangeRound([0, svg.attr("plotWidth")]); // The function in the histogram ensures that only a specific property is extracted from the data input to the function on the 'histogram(data)' call.
 
       var histogram = d3.histogram().value(function (d) {
         return d[data.xProperty];
@@ -223,7 +223,7 @@ var dbslice = (function (exports) {
           return d[data.xProperty];
         }) * 1.1; // The dimId needs to be assigned here, otherwise there is confusion between the brush and the data if a hitogram plot inherits a histogram plot.
 
-        var dimId = dbsliceData.data.dataProperties.indexOf(data.xProperty); // Curating the svg.				
+        var dimId = dbsliceData.data.dataProperties.indexOf(data.xProperty); // Curating the svg.                
 
         container.select("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height).attr("xDomMin", xDomMin).attr("xDomMax", xDomMax).attr("dimId", dimId);
         var plotArea = container.select("svg").select(".plotArea");
@@ -310,12 +310,10 @@ var dbslice = (function (exports) {
 
       var svg = d3.select(element).select("svg"); // Get the points data, and calculate its range.
 
-      var pointData = cfD3Scatter.helpers.getPointData(data);
-      var xRange_ = cfD3Scatter.helpers.getRange(svg, "x");
-      var yRange_ = cfD3Scatter.helpers.getRange(svg, "y"); // Create the scales that position the points in the svg area.
+      var pointData = cfD3Scatter.helpers.getPointData(data); // Create the scales required for plotting. These convert data values into pixel positions on the screen.
 
-      var xscale = d3.scaleLinear().range([0, svg.attr("plotWidth")]).domain(xRange_);
-      var yscale = d3.scaleLinear().range([svg.attr("plotHeight"), 0]).domain(yRange_); // Handle entering/updating/removing points.
+      var xscale = createScale("x");
+      var yscale = createScale("y"); // Handle entering/updating/removing points.
 
       var points = svg.select(".plotArea").selectAll("circle").data(pointData);
       points.enter().append("circle").attr("r", 5).attr("cx", function (d) {
@@ -344,6 +342,23 @@ var dbslice = (function (exports) {
       cfD3Scatter.addInteractivity.addTooltip(svg); // Add zooming.
 
       cfD3Scatter.addInteractivity.addZooming(svg, data); // HELPER FUNCTIONS
+
+      function createScale(axis) {
+        // Create the scales that position the points in the svg area.
+        switch (axis) {
+          case "x":
+            var xRange_ = cfD3Scatter.helpers.getRange(svg, "x");
+            var scale = d3.scaleLinear().range([0, svg.attr("plotWidth")]).domain(xRange_);
+            break;
+
+          case "y":
+            var yRange_ = cfD3Scatter.helpers.getRange(svg, "y");
+            var scale = d3.scaleLinear().range([svg.attr("plotHeight"), 0]).domain(yRange_);
+            break;
+        }
+
+        return scale;
+      }
 
       function returnPointColor(d, cProperty) {
         var pointColor = [];
@@ -430,15 +445,16 @@ var dbslice = (function (exports) {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
         var pointData = cfD3Scatter.helpers.getPointData(data);
-        var xRange = layout.xRange === undefined ? cfD3Scatter.helpers.calculateRange(pointData, data.xProperty) : layout.xRange;
-        var yRange = layout.yRange === undefined ? cfD3Scatter.helpers.calculateRange(pointData, data.yProperty) : layout.yRange;
+        var xRange = cfD3Scatter.helpers.calculateRange(pointData, data.xProperty);
+        var yRange = cfD3Scatter.helpers.calculateRange(pointData, data.yProperty);
         container.select("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height).attr("xDomMin", xRange[0]).attr("xDomMax", xRange[1]).attr("yDomMin", yRange[0]).attr("yDomMax", yRange[1]);
         var plotArea = container.select("svg").select(".plotArea");
 
         if (plotArea.empty()) {
           container.select("svg").append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
         }
-        // Add a clipPath: everything out of this area won't be drawn.
+        // Add a clipPath: everything outside the size of this area won't be drawn.
+        // I think just the size of this element matters, not where it is actually located on the screen.
 
         var clipId = "clip-" + container.attr("plot-row-index") + "-" + container.attr("plot-index");
         var clip = container.select("svg").select("clipPath");
@@ -544,240 +560,482 @@ var dbslice = (function (exports) {
   }; // cfD3Scatter
 
   var d3LineSeries = {
+    name: "d3LineSeries",
+    margin: {
+      top: 20,
+      right: 20,
+      bottom: 30,
+      left: 50
+    },
+    layout: {
+      colWidth: 4,
+      height: 400
+    },
+    colour: [],
     make: function make(element, data, layout) {
-      var marginDefault = {
-        top: 20,
-        right: 20,
-        bottom: 30,
-        left: 50
-      };
-      var margin = layout.margin === undefined ? marginDefault : layout.margin;
-      var container = d3.select(element);
-      var svgWidth = container.node().offsetWidth,
-          svgHeight = layout.height;
-      var width = svgWidth - margin.left - margin.right;
-      var height = svgHeight - margin.top - margin.bottom;
-      var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
       d3LineSeries.update(element, data, layout);
     },
     // make
     update: function update(element, data, layout) {
-      var container = d3.select(element);
-      var svg = container.select("svg");
-      var plotArea = svg.select(".plotArea");
-      var colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
-      if (layout.cSet !== undefined) colour.domain(layout.cSet);
-      var marginDefault = {
-        top: 20,
-        right: 20,
-        bottom: 30,
-        left: 50
-      };
-      var margin = layout.margin === undefined ? marginDefault : layout.margin;
-      var plotRowIndex = container.attr("plot-row-index");
-      var plotIndex = container.attr("plot-index");
-      var clipId = "clip-" + plotRowIndex + "-" + plotIndex;
-      var svgWidth = svg.attr("width");
-      var svgHeight = svg.attr("height");
-      var width = svgWidth - margin.left - margin.right;
-      var height = svgHeight - margin.top - margin.bottom;
-      var lines = plotArea.selectAll(".line"); // Line highlighting
-
-      if (layout.highlightTasks == true) {
-        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-          lines.style("opacity", 1.0).style("stroke-width", "2.5px").style("stroke", function (d) {
-            return colour(d.cKey);
-          });
-        } else {
-          lines.style("opacity", 0.2).style("stroke-width", "2.5px").style("stroke", "#d3d3d3");
-          dbsliceData.highlightTasks.forEach(function (taskId) {
-            lines.filter(function (d, i) {
-              return d.taskId == taskId;
-            }).style("opacity", 1.0).style("stroke", function (d) {
-              return colour(d.cKey);
-            }).style("stroke-width", "4px").each(function () {
-              this.parentNode.parentNode.appendChild(this.parentNode);
-            }); // each
-          }); // forEach
-        } // if
-
-      } // if
       // End execution if there is no new data.
-
-
       if (data.newData == false) {
         return;
       } // if
+      // Setup the svg.
 
 
-      var nseries = data.series.length; // Finding the axis limits.
+      d3LineSeries.setupSvg(element, data, layout); // Some convenient handles.
 
-      var xmin = d3.min(data.series[0].data, function (d) {
-        return d.x;
-      });
-      var xmax = d3.max(data.series[0].data, function (d) {
-        return d.x;
-      });
-      var ymin = d3.min(data.series[0].data, function (d) {
-        return d.y;
-      });
-      var ymax = d3.max(data.series[0].data, function (d) {
-        return d.y;
-      });
+      var svg = d3.select(element).select("svg"); // Create the required scales.
 
-      for (var n = 1; n < nseries; ++n) {
-        var xminNow = d3.min(data.series[n].data, function (d) {
-          return d.x;
-        });
-        xminNow < xmin ? xmin = xminNow : xmin = xmin;
-        var xmaxNow = d3.max(data.series[n].data, function (d) {
-          return d.x;
-        });
-        xmaxNow > xmax ? xmax = xmaxNow : xmax = xmax;
-        var yminNow = d3.min(data.series[n].data, function (d) {
-          return d.y;
-        });
-        yminNow < ymin ? ymin = yminNow : ymin = ymin;
-        var ymaxNow = d3.max(data.series[n].data, function (d) {
-          return d.y;
-        });
-        ymaxNow > ymax ? ymax = ymaxNow : ymax = ymax;
-      } // Setting the axis limits.
-
-
-      if (layout.xRange === undefined) {
-        var xRange = [xmin, xmax];
-      } else {
-        var xRange = layout.xRange;
-      } // if
-
-
-      if (layout.yRange === undefined) {
-        var yRange = [ymin, ymax];
-      } else {
-        var yRange = layout.yRange;
-      } // if
-      // Different scales for time
-
-
-      if (layout.xscale == "time") {
-        var xscale = d3.scaleTime();
-        var xscale0 = d3.scaleTime();
-      } else {
-        var xscale = d3.scaleLinear();
-        var xscale0 = d3.scaleLinear();
-      } // if
-
-
-      xscale.range([0, width]).domain(xRange);
-      xscale0.range([0, width]).domain(xRange);
-      var yscale = d3.scaleLinear().range([height, 0]).domain(yRange);
-      var yscale0 = d3.scaleLinear().range([height, 0]).domain(yRange); // Create a plotting function
+      var xscale = d3.scaleLinear().range([0, svg.attr("plotWidth")]).domain(d3LineSeries.helpers.getDomain(data, 'x'));
+      var yscale = d3.scaleLinear().range([svg.attr("plotHeight"), 0]).domain(d3LineSeries.helpers.getDomain(data, 'y')); // Create a plotting function
 
       var line = d3.line().x(function (d) {
         return xscale(d.x);
       }).y(function (d) {
         return yscale(d.y);
-      });
-      var clip = svg.append("defs").append("clipPath").attr("id", clipId).append("rect").attr("width", width).attr("height", height);
-      var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
-      svg.transition().call(zoom.transform, d3.zoomIdentity);
-      svg.call(zoom);
-      var tip = d3.tip().attr('class', 'd3-tip').offset([-10, 0]).html(function (d) {
-        return "<span>" + d.label + "</span>";
-      });
-      svg.call(tip);
-      var focus = plotArea.append("g").style("display", "none").append("circle").attr("r", 1);
-      var allSeries = plotArea.selectAll(".plotSeries").data(data.series); // Create the lines
+      }); // Assign the data
+
+      var allSeries = svg.select(".plotArea").selectAll(".plotSeries").data(data.series); // Enter/update/exit 
 
       allSeries.enter().each(function () {
         var series = d3.select(this);
         var seriesLine = series.append("g").attr("class", "plotSeries").attr("series-name", function (d) {
           return d.label;
-        }).attr("clip-path", "url(#" + clipId + ")").append("path").attr("class", "line").attr("d", function (d) {
+        }).attr("clip-path", "url(#" + svg.select("clipPath").attr("id") + ")").append("path").attr("class", "line").attr("d", function (d) {
           return line(d.data);
         }).style("stroke", function (d) {
-          return colour(d.cKey);
-        }).style("fill", "none").style("stroke-width", "2.5px").on("mouseover", tipOn).on("mouseout", tipOff);
-      }); // each
-
+          return d3LineSeries.colour(d.cKey);
+        }).style("fill", "none").style("stroke-width", "2.5px");
+      });
       allSeries.each(function () {
         var series = d3.select(this);
         var seriesLine = series.select("path.line");
         seriesLine.transition().attr("d", function (d) {
           return line(d.data);
         }).style("stroke", function (d) {
-          return colour(d.cKey);
+          return d3LineSeries.colour(d.cKey);
         });
-      }); // each
+      });
+      allSeries.exit().remove(); // Create some axes
 
-      allSeries.exit().remove(); // Create the axes objects
+      createAxes(); // ADD SOME INTERACTIVITY
 
-      var xAxis = d3.axisBottom(xscale).ticks(5);
-      var yAxis = d3.axisLeft(yscale);
-      var gX = plotArea.select(".axis--x");
+      d3LineSeries.addInteractivity.addTooltip(svg);
+      d3LineSeries.addInteractivity.addZooming(svg, data); // Update marker.
 
-      if (gX.empty()) {
-        gX = plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "axis--x").call(xAxis);
-        gX.append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text(layout.xAxisLabel);
-      } else {
-        gX.transition().call(xAxis);
-      } // if
+      data.newData = false; // HELPER FUNCTIONS
 
+      function createAxes() {
+        // Create the axes objects
+        var xAxis = d3.axisBottom(xscale).ticks(5);
+        var yAxis = d3.axisLeft(yscale);
+        var gX = svg.select(".plotArea").select(".axis--x");
 
-      var gY = plotArea.select(".axis--y");
-
-      if (gY.empty()) {
-        gY = plotArea.append("g").attr("class", "axis--y").call(yAxis);
-        gY.append("text").attr("fill", "#000").attr("transform", "rotate(-90)").attr("x", 0).attr("y", -margin.left + 15).attr("text-anchor", "end").text(layout.yAxisLabel).attr("spellcheck", "false");
-      } else {
-        gY.transition().call(yAxis);
-      } // if
-
-
-      function zoomed() {
-        var t = d3.event.transform;
-        xscale.domain(t.rescaleX(xscale0).domain());
-        yscale.domain(t.rescaleY(yscale0).domain());
-        gX.call(xAxis);
-        gY.call(yAxis);
-        plotArea.selectAll(".line").attr("d", function (d) {
-          return line(d.data);
-        });
-      } // zoomed
-
-
-      function tipOn(d) {
-        lines.style("opacity", 0.2);
-        d3.select(this).style("opacity", 1.0).style("stroke-width", "4px");
-        focus.attr("cx", d3.mouse(this)[0]).attr("cy", d3.mouse(this)[1]);
-        tip.show(d, focus.node());
-
-        if (layout.highlightTasks == true) {
-          dbsliceData.highlightTasks = [d.taskId];
-          render(dbsliceData.elementId, dbsliceData.session);
+        if (gX.empty()) {
+          gX = svg.select(".plotArea").append("g").attr("transform", "translate(0," + svg.attr("plotHeight") + ")").attr("class", "axis--x").call(xAxis);
+          gX.append("text").attr("fill", "#000").attr("x", svg.attr("plotWidth")).attr("y", d3LineSeries.margin.bottom).attr("text-anchor", "end").text(layout.xAxisLabel);
+        } else {
+          gX.transition().call(xAxis);
         } // if
 
-      } // tipOn
 
+        var gY = svg.select(".plotArea").select(".axis--y");
 
-      function tipOff() {
-        lines.style("opacity", 1.0);
-        d3.select(this).style("stroke-width", "2.5px");
-        tip.hide();
-
-        if (layout.highlightTasks == true) {
-          dbsliceData.highlightTasks = [];
-          render(dbsliceData.elementId, dbsliceData.session);
+        if (gY.empty()) {
+          gY = svg.select(".plotArea").append("g").attr("class", "axis--y").call(yAxis);
+          gY.append("text").attr("fill", "#000").attr("transform", "rotate(-90)").attr("x", 0).attr("y", -d3LineSeries.margin.left + 15).attr("text-anchor", "end").text(layout.yAxisLabel).attr("spellcheck", "false");
+        } else {
+          gY.transition().call(yAxis);
         } // if
 
-      } // tipOff
+      } // createAxes
 
+    },
+    // update
+    setupSvg: function setupSvg(element, data, layout) {
+      d3LineSeries.margin = layout.margin === undefined ? d3LineSeries.margin : layout.margin;
+      d3LineSeries.colour = layout.colourMap === undefined ? d3.scaleOrdinal(d3.schemeCategory10) : d3.scaleOrdinal(layout.colourMap);
+      var container = d3.select(element); // Check if there is a svg first.
 
-      data.newData = false;
-    } // update
+      var svg = container.select("svg");
+
+      if (svg.empty()) {
+        // Append new svg
+        svg = container.append("svg"); // Update its dimensions.
+
+        curateSvg();
+      } else {
+        // Differentiate between changing plot types, or just changing the data!!
+        // If just the data is changing nothing needs to be done here. If the plot type is changing then the svg needs to be refreshed, its attributes updated, the 'plotWrapper' 'plottype' changed, and the interactivity restored.
+        var plotWrapper = container.select(function () {
+          return this.parentElement.parentElement;
+        });
+        var expectedPlotType = plotWrapper.attr("plottype");
+
+        if (expectedPlotType !== "d3LineSeries") {
+          // If the plot type has changed, then the svg contents need to be removed completely.
+          plotWrapper.attr("plottype", "d3LineSeries");
+          svg.selectAll("*").remove();
+          curateSvg();
+        } else {
+          // Axes might need to be updated, thus the svg element needs to be refreshed.
+          curateSvg();
+        }
+      }
+
+      function curateSvg() {
+        // Also try to resize the plot to fit the data nicer.
+        // d3.select(element.parentNode.parentNode).attr("class", "col-md-" + d3LineSeries.layout.colWidth);
+        // For some reason this causes a bug which leaves redundant plots in the plot rows.
+        var svgWidth = container.node().offsetWidth;
+        var svgHeight = d3LineSeries.layout.height;
+        var width = svgWidth - d3LineSeries.margin.left - d3LineSeries.margin.right;
+        var height = svgHeight - d3LineSeries.margin.top - d3LineSeries.margin.bottom; // Curating the svg.                
+
+        container.select("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height);
+        var plotArea = container.select("svg").select(".plotArea");
+
+        if (plotArea.empty()) {
+          // If there's none, add it.
+          container.select("svg").append("g").attr("transform", "translate(" + d3LineSeries.margin.left + "," + d3LineSeries.margin.top + ")").attr("class", "plotArea");
+        }
+        // The same with the clip path for zooming.
+
+        var clipId = "clip-" + container.attr("plot-row-index") + "-" + container.attr("plot-index");
+        var clip = container.select("svg").select("clipPath");
+
+        if (clip.empty()) {
+          container.select("svg").append("defs").append("clipPath").attr("id", clipId).append("rect").attr("width", svg.attr("plotWidth")).attr("height", svg.attr("plotHeight"));
+        } else {
+          clip.select("rect").attr("width", svg.attr("plotWidth")).attr("height", svg.attr("plotHeight"));
+        }
+      }
+    },
+    // setupSvg
+    addInteractivity: {
+      addTooltip: function addTooltip(svg) {
+        // This controls al the tooltip functionality.
+        var lines = svg.selectAll(".line");
+        lines.on("mouseover", tipOn).on("mouseout", tipOff); // Do the tooltip
+
+        var tip = d3.tip().attr('class', 'd3-tip').offset([-12, 0]).html(function (d) {
+          return "<span>" + d.label + "</span>";
+        }); // Add an anchorPoint for the tooltip.
+
+        var anchorPoint = svg.select(".plotArea").append("g").style("display", "none").append("circle").attr("r", 1);
+        svg.call(tip);
+
+        function tipOn(d) {
+          lines.style("opacity", 0.2);
+          d3.select(this).style("opacity", 1.0).style("stroke-width", "4px"); // To control tip location another element must be added onto the svg. This can then be used as an anchor for the tooltip.
+
+          anchorPoint.attr("cx", d3.mouse(this)[0]).attr("cy", d3.mouse(this)[1]);
+          tip.show(d, anchorPoint.node());
+        }
+
+        function tipOff() {
+          lines.style("opacity", 1.0);
+          d3.select(this).style("stroke-width", "2.5px");
+          tip.hide();
+        }
+      },
+      // addTooltip
+      addZooming: function addZooming(svg, data) {
+        var zoom = d3.zoom().scaleExtent([0.01, Infinity]).on("zoom", zoomed);
+        svg.transition().call(zoom.transform, d3.zoomIdentity);
+        svg.call(zoom);
+
+        function zoomed() {
+          var t = d3.event.transform; // Get the domains:
+
+          var xRange = d3LineSeries.helpers.getDomain(data, "x");
+          var yRange = d3LineSeries.helpers.getDomain(data, "y"); // Recreate original scales.
+
+          var xscale = d3.scaleLinear().range([0, svg.attr("plotWidth")]).domain(xRange);
+          var yscale = d3.scaleLinear().range([svg.attr("plotHeight"), 0]).domain(yRange); // In scales the range is the target, and the domain the source.
+          // Create new axes based on the zoom, which altered the domain.
+          // d3.event.transform.rescaleX(xScale2).domain() to get the exact input of the location showing in the zooming aera and brush area.
+
+          var newXRange = t.rescaleX(xscale).domain();
+          var newYRange = t.rescaleY(yscale).domain(); // Create new scales in the zoomed area.
+
+          xscale.domain(newXRange);
+          yscale.domain(newYRange); // Redo the axes.
+
+          svg.select(".plotArea").select(".axis--x").call(d3.axisBottom(xscale));
+          svg.select(".plotArea").select(".axis--y").call(d3.axisLeft(yscale)); // Reposition all lines
+
+          var line = d3.line().x(function (d) {
+            return xscale(d.x);
+          }).y(function (d) {
+            return yscale(d.y);
+          });
+          svg.select(".plotArea").selectAll(".line").attr("d", function (d) {
+            return line(d.data);
+          });
+        }
+      } // addZooming
+
+    },
+    // addInteractivity
+    helpers: {
+      getDomain: function getDomain(data, variable) {
+        // Finding the axis limits.
+        var minVal = d3.min(data.series[0].data, function (d) {
+          return d[variable];
+        });
+        var maxVal = d3.max(data.series[0].data, function (d) {
+          return d[variable];
+        });
+
+        for (var n = 1; n < data.series.length; ++n) {
+          var minVal_ = d3.min(data.series[n].data, function (d) {
+            return d[variable];
+          });
+          minVal = minVal_ < minVal ? minVal_ : minVal;
+          var maxVal_ = d3.max(data.series[n].data, function (d) {
+            return d[variable];
+          });
+          maxVal = maxVal_ > maxVal ? maxVal_ : maxVal;
+        }
+
+        return [minVal, maxVal];
+      } // getDomain
+
+    } // helpers
 
   }; // d3LineSeries
+
+  var d3Contour2d = {
+    name: "d3Contour2d",
+    margin: {
+      top: 20,
+      right: 65,
+      bottom: 20,
+      left: 10
+    },
+    colour: [],
+    make: function make(element, data, layout) {
+      d3Contour2d.update(element, data, layout);
+    },
+    // make
+    update: function update(element, data, layout) {
+      if (data.newData == false) {
+        return;
+      }
+
+      var container = d3.select(element);
+      d3Contour2d.setupSvg(container, data, layout);
+      var svg = container.select("svg"); // Make a projection for the points
+
+      var projection = d3Contour2d.helpers.createProjection(data, svg); // Claculate threshold values
+
+      var vMinAll = data.limits.v[0];
+      var vMaxAll = data.limits.v[1];
+      var thresholds = d3.range(vMinAll, vMaxAll, (vMaxAll - vMinAll) / 21); // Setup colour scale
+
+      var colourScale = d3Contour2d.colour;
+      colourScale.domain(d3.extent(thresholds)); // Initialise contours
+
+      var contours = d3.contours().size(data.surfaces.size).smooth(true).thresholds(thresholds); // make and project the contours
+
+      svg.select(".plotArea").selectAll("path").data(contours(data.surfaces.v)).enter().append("path").attr("d", d3.geoPath(projection)).attr("fill", function (d) {
+        return colourScale(d.value);
+      }).attr("transform", "translate(5,20)"); // Create a colourbar
+
+      var scaleHeight = svg.attr("height") / 2;
+      colourScale.domain([0, scaleHeight]);
+      var scaleBars = svg.select(".scaleArea").selectAll(".scaleBar").data(d3.range(scaleHeight), function (d) {
+        return d;
+      }).enter().append("rect").attr("class", "scaleBar").attr("x", 0).attr("y", function (d, i) {
+        return scaleHeight - i;
+      }).attr("height", 1).attr("width", 20).style("fill", function (d, i) {
+        return colourScale(d);
+      });
+      var cscale = d3.scaleLinear().domain(d3.extent(thresholds)).range([scaleHeight, 0]);
+      var cAxis = d3.axisRight(cscale).ticks(5);
+      svg.select(".scaleArea").append("g").attr("transform", "translate(20,0)").call(cAxis); // ADD INTERACTIVITY
+
+      d3Contour2d.addInteractivity.addZooming(svg); // Mark the data flag
+
+      data.newData = false;
+    },
+    // update
+    setupSvg: function setupSvg(container, data, layout) {
+      // DON'T MOVE THIS TO MAKE!
+      d3Contour2d.margin = layout.margin === undefined ? d3Contour2d.margin : layout.margin;
+      d3Contour2d.colour = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap); // Check if there is a svg first.
+
+      var svg = container.select("svg");
+
+      if (svg.empty()) {
+        // Append new svg
+        svg = container.append("svg"); // Update its dimensions.
+
+        curateSvg();
+      } else {
+        // Differentiate between changing plot types, or just changing the data!!
+        // If just the data is changing nothing needs to be done here. If the plot type is changing then the svg needs to be refreshed, its attributes updated, the 'plotWrapper' 'plottype' changed, and the interactivity restored.
+        var plotWrapper = container.select(function () {
+          return this.parentElement.parentElement;
+        });
+        var expectedPlotType = plotWrapper.attr("plottype");
+
+        if (expectedPlotType !== "d3Contour2d") {
+          // If the plot type has changed, then the svg contents need to be removed completely.
+          plotWrapper.attr("plottype", "d3Contour2d");
+          svg.selectAll("*").remove();
+          curateSvg(); // ADD FUNCTIONALITY.
+          // cfD3Histogram.setupInteractivity(container, data);
+        } else {
+          // Axes might need to be updated, thus the svg element needs to be refreshed.
+          curateSvg();
+        }
+      }
+
+      function curateSvg() {
+        var svgWidth = container.node().offsetWidth;
+        var svgHeight = layout.height;
+        var width = svgWidth - d3Contour2d.margin.left - d3Contour2d.margin.right;
+        var height = svgHeight - d3Contour2d.margin.top - d3Contour2d.margin.bottom; // Curating the svg.                
+
+        container.select("svg").attr("width", svgWidth).attr("height", svgHeight).attr("plotWidth", width).attr("plotHeight", height);
+        var plotArea = container.select("svg").select(".plotArea");
+
+        if (plotArea.empty()) {
+          // If there's none, add it.
+          container.select("svg").append("g").attr("transform", "translate(" + d3Contour2d.margin.left + "," + d3Contour2d.margin.top + ")").attr("class", "plotArea");
+        }
+        // The same with the clip path for zooming.
+
+        var clipId = "clip-" + container.attr("plot-row-index") + "-" + container.attr("plot-index");
+        var clip = container.select("svg").select("clipPath");
+
+        if (clip.empty()) {
+          container.select("svg").append("defs").append("clipPath").attr("id", clipId).append("rect").attr("width", svg.attr("plotWidth")).attr("height", svg.attr("plotHeight"));
+        } else {
+          clip.select("rect").attr("width", svg.attr("plotWidth")).attr("height", svg.attr("plotHeight"));
+        }
+        // Create a 'g' for the colorbar.
+
+        var colorbar = container.select("svg").select(".scaleArea");
+
+        if (colorbar.empty()) {
+          container.select("svg").append("g").attr("class", "scaleArea").attr("transform", "translate(" + (svgWidth - 60) + "," + d3Contour2d.margin.top + ")");
+        }
+      }
+    },
+    // setupSvg
+    addInteractivity: {
+      addZooming: function addZooming(svg) {
+        var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
+        svg.transition().call(zoom.transform, d3.zoomIdentity);
+        svg.call(zoom);
+
+        function zoomed() {
+          var t = d3.event.transform;
+          svg.select(".plotArea").attr("transform", t);
+        }
+      } // addZooming
+
+    },
+    // addInteractivity
+    helpers: {
+      getScaleRange: function getScaleRange(data, svg) {
+        var width = svg.attr("plotWidth");
+        var height = svg.attr("plotHeight"); // set x and y scale to maintain 1:1 aspect ratio  
+
+        var domainAspectRatio = d3Contour2d.helpers.calculateDataAspectRatio(data);
+        var rangeAspectRatio = d3Contour2d.helpers.calculateSvgAspectRatio(svg);
+
+        if (rangeAspectRatio > domainAspectRatio) {
+          var xScaleRange = [0, width];
+          var yScaleRange = [domainAspectRatio * width, 0];
+        } else {
+          var xScaleRange = [0, height / domainAspectRatio];
+          var yScaleRange = [height, 0];
+        } // if
+
+
+        return {
+          x: xScaleRange,
+          y: yScaleRange
+        };
+      },
+      // getScaleRange
+      calculateDataAspectRatio: function calculateDataAspectRatio(data) {
+        var xMinAll = data.limits.x[0];
+        var yMinAll = data.limits.y[0];
+        var xMaxAll = data.limits.x[1];
+        var yMaxAll = data.limits.y[1];
+        var xRange = xMaxAll - xMinAll;
+        var yRange = yMaxAll - yMinAll; // set x and y scale to maintain 1:1 aspect ratio  
+
+        return yRange / xRange;
+      },
+      // calculateDataAspectRatio
+      calculateSvgAspectRatio: function calculateSvgAspectRatio(svg) {
+        var width = svg.attr("plotWidth");
+        var height = svg.attr("plotHeight");
+        return height / width;
+      },
+      // calculateSvgAspectRatio
+      createProjection: function createProjection(data, svg) {
+        // Create the scale ranges, and ensure that a 1:1 aspect ratio is kept.
+        var scaleRanges = d3Contour2d.helpers.getScaleRange(data, svg);
+        var xscale = d3.scaleLinear().domain(data.limits.x).range(scaleRanges.x);
+        var yscale = d3.scaleLinear().domain(data.limits.y).range(scaleRanges.y);
+        var x = data.surfaces.x;
+        var y = data.surfaces.y;
+        var v = data.surfaces.v;
+        var m = data.surfaces.size[0];
+        var n = data.surfaces.size[1]; // configure a projection to map the contour coordinates returned by
+        // d3.contours (px,py) to the input data (xgrid,ygrid)
+
+        var projection = d3.geoTransform({
+          point: function point(px, py) {
+            var xfrac, yfrac, xnow, ynow;
+            var xidx, yidx, idx0, idx1, idx2, idx3; // remove the 0.5 offset that comes from d3-contour
+
+            px = px - 0.5;
+            py = py - 0.5; // clamp to the limits of the xgrid and ygrid arrays (removes "bevelling" from outer perimeter of contours)
+
+            px < 0 ? px = 0 : px;
+            py < 0 ? py = 0 : py;
+            px > n - 1 ? px = n - 1 : px;
+            py > m - 1 ? py = m - 1 : py; // xidx and yidx are the array indices of the "bottom left" corner
+            // of the cell in which the point (px,py) resides
+
+            xidx = Math.floor(px);
+            yidx = Math.floor(py);
+            xidx == n - 1 ? xidx = n - 2 : xidx;
+            yidx == m - 1 ? yidx = m - 2 : yidx; // xfrac and yfrac give the coordinates, between 0 and 1,
+            // of the point within the cell 
+
+            xfrac = px - xidx;
+            yfrac = py - yidx; // indices of the 4 corners of the cell
+
+            idx0 = xidx + yidx * n;
+            idx1 = idx0 + 1;
+            idx2 = idx0 + n;
+            idx3 = idx2 + 1; // bilinear interpolation to find projected coordinates (xnow,ynow)
+            // of the current contour coordinate
+
+            xnow = (1 - xfrac) * (1 - yfrac) * x[idx0] + xfrac * (1 - yfrac) * x[idx1] + yfrac * (1 - xfrac) * x[idx2] + xfrac * yfrac * x[idx3];
+            ynow = (1 - xfrac) * (1 - yfrac) * y[idx0] + xfrac * (1 - yfrac) * y[idx1] + yfrac * (1 - xfrac) * y[idx2] + xfrac * yfrac * y[idx3];
+            this.stream.point(xscale(xnow), yscale(ynow));
+          } // point
+
+        }); // geoTransform
+
+        return projection;
+      } // createProjection
+
+    } // helpers
+
+  }; // d3Contour2d
 
   var addMenu = {
     addPlotControls: {
@@ -785,29 +1043,32 @@ var dbslice = (function (exports) {
         var options;
 
         switch (plotRowType) {
-          case 'metadata':
+          case "metadata":
             options = [{
               val: "undefined",
               text: " "
             }, {
               val: "cfD3BarChart",
-              text: 'Bar Chart'
+              text: "Bar Chart"
             }, {
               val: "cfD3Scatter",
-              text: 'Scatter'
+              text: "Scatter"
             }, {
               val: "cfD3Histogram",
-              text: 'Histogram'
+              text: "Histogram"
             }];
             break;
 
-          case 'plotter':
+          case "plotter":
             options = [{
               val: "undefined",
               text: " "
             }, {
               val: "d3LineSeries",
-              text: 'Line'
+              text: "Line"
+            }, {
+              val: "d3Contour2d",
+              text: "Contour"
             }];
             break;
         }
@@ -867,6 +1128,7 @@ var dbslice = (function (exports) {
           categoricalVariables: [],
           continuousVariables: [],
           sliceVariables: [],
+          contourVariables: [],
           menuItems: [{
             options: a.elementOptionsArray(plotRowType),
             label: "Select plot type",
@@ -888,7 +1150,7 @@ var dbslice = (function (exports) {
         switch (config.ownerPlotRowType) {
           case "metadata":
             config.newPlot = {
-              plotFunc: "undefined",
+              plotFunc: undefined,
               layout: {
                 title: undefined,
                 colWidth: 4,
@@ -924,6 +1186,94 @@ var dbslice = (function (exports) {
         }
       },
       // createNewPlot
+      copyNewPlot: function copyNewPlot(config) {
+        // Based on the type of plot selected a config ready to be submitted to the plotting functions is assembled.
+        var selectedPlotType = $("#" + config.plotSelectionMenuId).val();
+        var plotCtrl = {};
+
+        switch (selectedPlotType) {
+          case "cfD3BarChart":
+          case "cfD3Histogram":
+            plotCtrl = {
+              plotFunc: config.newPlot.plotFunc,
+              layout: {
+                title: config.newPlot.layout.title,
+                colWidth: config.newPlot.layout.colWidth,
+                height: config.newPlot.layout.height
+              },
+              data: {
+                cfData: dbsliceData.data,
+                xProperty: config.newPlot.data.xProperty,
+                cProperty: config.newPlot.data.cProperty
+              }
+            };
+            break;
+
+          case "cfD3Scatter":
+            plotCtrl = {
+              plotFunc: config.newPlot.plotFunc,
+              layout: {
+                title: config.newPlot.layout.title,
+                colWidth: config.newPlot.layout.colWidth,
+                height: config.newPlot.layout.height
+              },
+              data: {
+                cfData: dbsliceData.data,
+                xProperty: config.newPlot.data.xProperty,
+                yProperty: config.newPlot.data.yProperty,
+                cProperty: config.newPlot.data.cProperty
+              }
+            };
+            break;
+
+          case "d3LineSeries":
+            // The user selected variable to plot is stored in config.newPlot.data, with all other user selected variables. However, for this type of plot it needs to be one level above, which is achieved here.
+            // Store the currently selected slice, then push everything forward.
+            config.newPlot.slices.push(config.newPlot.data.slice); // Set the other options.
+
+            plotCtrl = {
+              plotType: "d3LineSeries",
+              layout: {
+                colWidth: 4,
+                xAxisLabel: "Axial distance",
+                yAxisLabel: "Mach number"
+              },
+              data: dbsliceData.data,
+              plotFunc: config.newPlot.plotFunc,
+              taskIds: null,
+              sliceIds: config.newPlot.slices,
+              tasksByFilter: true,
+              formatDataFunc: function formatDataFunc(data) {
+                var series = [];
+                data.forEach(function (line) {
+                  series.push(line);
+                });
+                return {
+                  series: series
+                };
+              }
+            };
+            break;
+
+          case "d3Contour2d":
+            plotCtrl = {
+              plotType: "d3Contour2d",
+              layout: {
+                colWidth: 2,
+                height: 200
+              },
+              data: dbsliceData.data,
+              limits: {},
+              plotFunc: config.newPlot.plotFunc,
+              taskIds: dbsliceData.filteredTaskIds,
+              sliceIds: [config.newPlot.data.slice],
+              tasksByFilter: true
+            };
+        }
+
+        return plotCtrl;
+      },
+      // copyNewPlot
       clearNewPlot: function clearNewPlot(config) {
         switch (config.ownerPlotRowType) {
           case "metadata":
@@ -984,6 +1334,11 @@ var dbslice = (function (exports) {
             break;
 
           case "d3LineSeries":
+            // Nothing else is needed, just enable the submit button.
+            submitButton.prop("disabled", false);
+            break;
+
+          case "d3Contour2d":
             // Nothing else is needed, just enable the submit button.
             submitButton.prop("disabled", false);
             break;
@@ -1049,6 +1404,13 @@ var dbslice = (function (exports) {
               h.addUpdateMenuItemObject(config, config.sliceMenuId, config.sliceVariables);
               break;
 
+            case "d3Contour2d":
+              // Menu offering different variables.
+              config.newPlot.plotFunc = d3Contour2d; // Contour locations need to be predetermined by grouping the appropriate file names in the metadata excel sheet. The group names should be available here.
+
+              h.addUpdateMenuItemObject(config, config.sliceMenuId, config.contourVariables);
+              break;
+
             default:
               // Update plot type selection.
               a.clearNewPlot(config); // Remove all variable options.
@@ -1084,55 +1446,29 @@ var dbslice = (function (exports) {
         // IMPORTANT! A PHYSICAL COPY OF NEWPLOT MUST BE MADE!! If newPlot is pushed straight into the plots every time newPlot is updated all the plots created using it will be updated too.
         switch (config.ownerPlotRowType) {
           case "metadata":
-            var plotToPush = {
-              plotFunc: config.newPlot.plotFunc,
-              layout: {
-                title: config.newPlot.layout.title,
-                colWidth: config.newPlot.layout.colWidth,
-                height: config.newPlot.layout.height
-              },
-              data: {
-                cfData: dbsliceData.data,
-                xProperty: config.newPlot.data.xProperty,
-                yProperty: config.newPlot.data.yProperty,
-                cProperty: config.newPlot.data.cProperty
-              }
-            }; // plotToPush
-
+            // Make a pysical copy of the object.
+            var plotToPush = addMenu.addPlotControls.copyNewPlot(config);
             dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots.push(plotToPush);
             break;
 
           case "plotter":
-            // Here a plot is not pushed, but rather a config is passed to the plotRow. The Promises funtionality then creates the plots.				
-            // Alternately the metadata should include the keys along which the roups can be formed. Then the user canselect how th edata should be grouped. This would allow easy comparison of different spans, or tasks.
+            // Here plots are not pushed, but rather a config is passed to the plotRow.    The number of slices then defines how many plots appear. The slices are contained in 'plotCtrl.sliceIds'.
             // The keys are the variable names in 'metadata', which are prefixed with 's_' for splice. This allows the user to select which data to compare when setting up the metadata. More flexibility is gained this way, as no hardcoded templating needs to be introduced, and no clumsy user interfaces.
-            // Store the currently selected slice, then push everything forward.
-            config.newPlot.slices.push(config.newPlot.data.slice);
-            var plotCtrl = {
-              layout: {
-                colWidth: 4,
-                height: 400,
-                xAxisLabel: "Axial distance",
-                yAxisLabel: "Mach number"
-              },
-              data: dbsliceData.data,
-              plotFunc: config.newPlot.plotFunc,
-              taskIds: null,
-              sliceIds: config.newPlot.slices,
-              tasksByFilter: true,
-              maxTasks: 200,
-              urlTemplate: null,
-              formatDataFunc: function formatDataFunc(data) {
-                var series = [];
-                data.forEach(function (line) {
-                  series.push(line);
-                });
-                return {
-                  series: series
-                };
+            // Make a pysical copy of the object. This function also includes the functionality in which the 'line' plot
+            var newPlotCtrl = addMenu.addPlotControls.copyNewPlot(config); // If the plot type is changing remove all the plots first.
+
+            var oldPlotCtrl = dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl;
+
+            if (oldPlotCtrl !== undefined) {
+              if (oldPlotCtrl.plotType !== newPlotCtrl.plotType) {
+                dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots = [];
               }
-            };
-            dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl = plotCtrl;
+            } // if
+            // Assign the new control.
+
+
+            dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl = newPlotCtrl;
+            console.log(dbsliceData.session);
             break;
         }
         // Add the new plot to the session object. How does this know which section to add to? Get it from the parent of the button!! Button is not this!
@@ -1190,7 +1526,7 @@ var dbslice = (function (exports) {
             // If it dosn't exist, add it.
             d3.select(this).append("button").attr("class", "btn btn-danger float-right").html("x").on("click", function () {
               // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
-              var plotIndex = i; // Remove the plot from view.
+              var plotIndex = i; // Remove the plot from viewv
 
               dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex, 1); // If necesary also remove the corresponding ctrl from the plotter rows.
 
@@ -1366,9 +1702,23 @@ var dbslice = (function (exports) {
             text: dbsliceData.data.sliceProperties[i]
           });
         }
+
+        var contourVariables = [{
+          val: "undefined",
+          text: " "
+        }];
+
+        for (var i = 0; i < dbsliceData.data.contourProperties.length; i++) {
+          contourVariables.push({
+            val: dbsliceData.data.contourProperties[i],
+            text: dbsliceData.data.contourProperties[i]
+          });
+        }
+
         config.categoricalVariables = categoricalVariables;
         config.continuousVariables = continuousVariables;
         config.sliceVariables = sliceVariables;
+        config.contourVariables = contourVariables;
       },
       // updateDataVariables
       makeMenuContainer: function makeMenuContainer(config) {
@@ -1427,8 +1777,10 @@ var dbslice = (function (exports) {
       },
       // updateMenus
       addUpdateMenuItemObject: function addUpdateMenuItemObject(config, menuItemId, variables) {
-        // Only add or update the menu item if some selection variables exist.
+        // First remove any warnings. If they are needed they are added later on.
+        d3.select("#" + config.containerId).selectAll(".warning").remove(); // Only add or update the menu item if some selection variables exist.
         // >1 is used as the default option "undefined" is added to all menus.
+
         if (variables.length > 1) {
           var menuItems = config.menuItems; // Check if the config object already has an item with the 'xPropertyMenu' id.
 
@@ -1702,37 +2054,43 @@ var dbslice = (function (exports) {
         var dataProperties = [];
         var metadataProperties = [];
         var sliceProperties = [];
+        var contourProperties = [];
 
         for (var i = 0; i < headerNames.length; i++) {
           // Look for a designator. This is either "o_" or "c_" prefix.
           var variable = headerNames[i];
-          var variableNew = "";
-          var prefix = variable.slice(0, 2);
+          var prefix = variable.split("_")[0];
+          var variableNew = variable.split("_").slice(1).join(" ");
 
           switch (prefix) {
-            case "o_":
+            case "o":
               // Ordinal variables.
-              variableNew = variable.slice(2);
               dataProperties.push(variableNew);
               loadData.helpers.renameVariables(metadata, variable, variableNew);
               break;
 
-            case "c_":
+            case "c":
               // Categorical variables
-              variableNew = variable.slice(2);
               metadataProperties.push(variableNew);
               loadData.helpers.renameVariables(metadata, variable, variableNew);
               break;
 
-            case "s_":
+            case "s":
+              // Slices
               // Slices the text into available slices. These must be separated by , and single space!
               metadata.map(function (item) {
                 item[variable] = item[variable].split(', ');
                 return item;
               });
-              variableNew = variable.slice(2);
               sliceProperties.push(variableNew);
               loadData.helpers.renameVariables(metadata, variable, variableNew);
+              break;
+
+            case "c2d":
+              // Contours
+              contourProperties.push(variableNew);
+              loadData.helpers.renameVariables(metadata, variable, variableNew);
+              break;
           }
         }
         // Combine in an overall object.
@@ -1742,7 +2100,8 @@ var dbslice = (function (exports) {
           header: {
             dataProperties: dataProperties,
             metaDataProperties: metadataProperties,
-            sliceProperties: sliceProperties
+            sliceProperties: sliceProperties,
+            contourProperties: contourProperties
           }
         }; // Store internally
 
@@ -1964,7 +2323,7 @@ var dbslice = (function (exports) {
         var ownerPlotRowInd = d3.select(this.parentNode.parentNode).attr("plot-row-index");
         dbsliceData.session.plotRows.splice(ownerPlotRowInd, 1);
         render(dbsliceData.elementId, dbsliceData.session);
-      });
+      }); // on
     }); // each
     // ADD PLOT BUTTONS - THESE CONTROLS SHOULD UPDATE. DO THEY?
 
@@ -2010,32 +2369,42 @@ var dbslice = (function (exports) {
   } // render
 
   function cfUpdateFilters(crossfilter) {
-    // update crossfilter with the filters selected at the bar charts
+    // Crossfilter works by applying the filtering operations, and then selecting the data.
+    // E.g.:
+    //
+    // var dim = dataArrayCfObject.dimension(function(d) { return d.[variable]; });
+    // dim.filter(“Design A”)
+    //
+    // This created a 'crossfilter' dimension obeject on the first line, which operates on the poperty named by the string 'variable'. his objecathen be used to perform filtering operations onthe data.
+    // On the second line a filter is added. In this case the filter selects only 'facts' (individual items of data), for which the 'variable' is equal to "Design A". The selection is applied directly on the dataArrayCfObject, so trying to retrive the top 10 data points using dataArrayCfObject.top(10) will return the first 10 points of "Design A".
+    //
+    // Thus the filters can be applied here, and will be observed in the rest of the code.
+    // UPDATE THE CROSSFILTER DATA SELECTION:
+    // Bar charts
     crossfilter.filterSelected.forEach(function (filters, i) {
       // if the filters array is empty: ie. all are selected, then reset the dimension
       if (filters.length === 0) {
-        //reset filter
+        //Reset all filters
         crossfilter.metaDims[i].filterAll();
       } else {
         crossfilter.metaDims[i].filter(function (d) {
           return filters.indexOf(d) > -1;
         }); // filter
-      } // if
-
+      }
     }); // forEach
-    // update crossfilter with the items selected at the histograms
+    // Histograms
 
     crossfilter.histogramSelectedRanges.forEach(function (selectedRange, i) {
-      // first reset all filters
+      // Reset all filters
       crossfilter.dataDims[i].filterAll();
 
       if (selectedRange.length !== 0) {
         crossfilter.dataDims[i].filter(function (d) {
           return d >= selectedRange[0] && d <= selectedRange[1] ? true : false;
-        });
-      } // if
-
+        }); // filter
+      }
     }); // forEach
+    // HERE THE SELECTED TASKIDS ARE UPDATED
 
     var currentMetaData = crossfilter.metaDims[0].top(Infinity);
     dbsliceData.filteredTaskIds = currentMetaData.map(function (d) {
@@ -2111,7 +2480,8 @@ var dbslice = (function (exports) {
         } else {
           // Filter not active, add the item to view.
           dbsliceData.data.filterSelected[dimId].push(selectedItem.key);
-        }
+        } // if
+
 
         cfUpdateFilters(dbsliceData.data); // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
         // It seems that if this one call the cfD3BarChart.update
@@ -2214,44 +2584,116 @@ var dbslice = (function (exports) {
 
   }; // cfD3BarChart
 
+  var plotHelpers = {
+    getDomain: function getDomain(series, accessor) {
+      // This function expects an array of objects 'series', that contains all the information about the data, as well as the data itself. 'series' is expected to have the data itself stored in a lover level [dataWrapper]. It expects that the 'variable' data can be accessed using series[n][plotWrapper][variable]  
+      // Finding the axis limits.
+      var minVal = d3.min(accessor(series[0]));
+      var maxVal = d3.max(accessor(series[0]));
+
+      for (var n = 1; n < series.length; ++n) {
+        var minVal_ = d3.min(accessor(series[n]));
+        var maxVal_ = d3.max(accessor(series[n]));
+        minVal = minVal_ < minVal ? minVal_ : minVal;
+        maxVal = maxVal_ > maxVal ? maxVal_ : maxVal;
+      }
+
+      return [minVal, maxVal];
+    },
+    // getDomain
+    collectAllPropertyNames: function collectAllPropertyNames(series, accessor) {
+      // This function collects all the property names in an array of objects.
+      var allPropertyNames = [];
+
+      for (var i = 0; i < series.length; i++) {
+        allPropertyNames.push(Object.getOwnPropertyNames(accessor(series[i])));
+      }
+
+      return allPropertyNames;
+    },
+    // collectAllPropertyNames
+    findCommonElements: function findCommonElements(arrs) {
+      // This function goes through all the arrays and finds only the common elements. // Adapted from "https://codereview.stackexchange.com/questions/96096/find-common-elements-in-a-list-of-arrays".
+      // It expects an array of arrays as an input.
+      var resArr = []; // Loop over elements in the first array.
+
+      for (var i = 0; i < arrs[0].length; i++) {
+        // Check if all subsequent arrays have this. If they don't, break the loop and try again. 
+        for (var j = arrs.length - 1; j > 0; j--) {
+          if (arrs[j].indexOf(arrs[0][i]) == -1) {
+            break;
+          } // if
+
+        } // for
+        // If the loop executed to the end store this property.
+
+
+        if (j === 0) {
+          resArr.push(arrs[0][i]);
+        }
+      }
+
+      return resArr;
+    } // findCommonElements
+
+  }; // plotHelpers
+
   function makePlotsFromPlotRowCtrl(ctrl) {
-    var plotPromises = [];
+    var plotPromises = []; // A decision is made whether the ctrl dictates a 'slice' or 'task' plot should be made. 'Task' creates an individual plot for each task, and 'slice' ummaries many on the same plot.
 
-    if (ctrl.sliceIds === undefined) {
-      // 'sliceIds' are undefined. These will be single task plots.
-      var nTasks = ctrl.taskIds.length;
-      if (ctrl.maxTasks !== undefined) nTasks = Math.min(nTasks, ctrl.maxTasks);
+    switch (ctrl.plotType) {
+      case "d3LineSeries":
+        // Summary plot of all the selected task line plots.
+        // The sliceIds are also variable names!
+        ctrl.sliceIds.forEach(function (sliceId, sliceIndex) {
+          var plotPromise = makePromiseSlicePlot(ctrl, sliceId, sliceIndex);
+          plotPromises.push(plotPromise);
+        }); // forEach
 
-      for (var index = 0; index < nTasks; ++index) {
-        if (ctrl.urlTemplate == null) {
-          var url = ctrl.taskIds[index];
-        } else {
-          var url = ctrl.urlTemplate.replace("${taskId}", ctrl.taskIds[index]);
-        } // if
+        break;
+
+      case "d3Contour2d":
+        // Individual task plot. Loop through the tasks and create a promise for each.
+        var d = ctrl.data.dataDims[0].top(Infinity);
+
+        for (var index = 0; index < ctrl.taskIds.length; ++index) {
+          var url = d[index][ctrl.sliceIds];
+          var title = d[index].label;
+          var plotPromise = makePromiseTaskPlot(ctrl, url, title, ctrl.taskIds[index]);
+          plotPromises.push(plotPromise);
+        } // for
+        // Calculate the data limits. Here it is known what the properties are since this branch only executes for 'd3Contour2d'.
 
 
-        var title = ctrl.taskLabels[index];
-        var plotPromise = makePromiseTaskPlot(ctrl, url, title, ctrl.taskIds[index]);
-        plotPromises.push(plotPromise);
-      } // for
+        Promise.all(plotPromises).then(function (plots) {
+          // The input 'plots' is an array of objects, which all include their relevant data in the .data.surfaces property. In the case of a 2d contour there will only be one surface.
+          // Find all the properties that are in all the loaded files. First collect the properties of all the files in an array of arrays.
+          var allPropertyNames = plotHelpers.collectAllPropertyNames(plots, function (d) {
+            return d.data.surfaces;
+          }); // Check which ones are in all of them.
 
-    } else {
-      // CURRENTLY WORKING ON THIS PART ONLY
-      // 'sliceIds' were defined. These plots will be comparisons.
-      // For each of the slices required create all the data promises.
-      ctrl.sliceIds.forEach(function (sliceId, sliceIndex) {
-        var plotPromise = makePromiseSlicePlot(ctrl, sliceId, sliceIndex);
-        plotPromises.push(plotPromise);
-      }); // forEach
-    } // if
+          var commonPropertyNames = plotHelpers.findCommonElements(allPropertyNames); // Loop over all the common properties and calculate their ranges.
 
+          for (var i = 0; i < commonPropertyNames.length; i++) {
+            var property = commonPropertyNames[i];
+            ctrl.limits[property] = plotHelpers.getDomain(plots, function (d) {
+              return d.data.surfaces[property];
+            });
+          }
+          // ctrl is from dbsliceData.session.plotRows.ctrl.
+        }); // Promise.all().then
+
+        break;
+      // Do nothing.
+    }
+    // Bundle all the promises together again?
 
     return Promise.all(plotPromises);
   } // makePlotsFromPlotRowCtrl
 
 
   function makePromiseTaskPlot(ctrl, url, title, taskId) {
-    return fetch(url).then(function (response) {
+    var promise = fetch(url).then(function (response) {
       if (ctrl.csv === undefined) {
         return response.json();
       } // if
@@ -2259,7 +2701,7 @@ var dbslice = (function (exports) {
 
       if (ctrl.csv == true) {
         return response.text();
-      } // if
+      } // if 
 
     }).then(function (responseJson) {
       if (ctrl.csv == true) {
@@ -2281,20 +2723,22 @@ var dbslice = (function (exports) {
       plot.layout.title = title;
       plot.data.newData = true;
       return plot;
-    }); // fetch().then().then()
+    }); // then
+
+    return promise;
   } // makePromiseTaskPlot
 
 
   function makePromiseSlicePlot(ctrl, sliceId, sliceIndex) {
+    // This creates all the data retrieval promises required to make a 'slice' plot. 'Slice' plots summarise data of multiple tasks, as opposed to 'task' plots which produce an individual plot for each of the tasks.
     var slicePromisesPerPlot = [];
 
-    ctrl.maxTasks = ctrl.maxTasks !== undefined ? Math.min(ctrl.taskIds.length, ctrl.maxTasks) : undefined; // Collect all tasks that are on the plot. It should just collect all the file names that need to be read for this slice plot. But for that the slice needs to be selected already.
-    // THE USER SHOULD SELECT THE APPROPRIATE SLICE TO BE ADDED!! THE SLICE LOTTING WILL BE A SEPARATE PLOT ROW TYPE CALLED SUMMARY 2D.
+    ctrl.maxTasks = ctrl.maxTasks !== undefined ? Math.min(ctrl.taskIds.length, ctrl.maxTasks) : undefined; // The data is selected here. As the filtering has already been applied in 'cfUpdateFilters' all of the data can be selected here, and will respect the filters.
 
     var d = ctrl.data.dataDims[0].top(Infinity); // Make all the promises required for a single plot.
 
-    for (var index = 0; index < ctrl.taskIds.length; index++) {
-      // Currently just returns some, not the selected ones!!!
+    for (var index = 0; index < d.length; index++) {
+      // The URL must be given in the data. The sliceId comes from the variable name in the data.
       var url = d[index][sliceId];
       var slicePromise = fetch(url).then(function (response) {
         if (ctrl.csv === undefined) {
@@ -2308,7 +2752,7 @@ var dbslice = (function (exports) {
 
       slicePromisesPerPlot.push(slicePromise);
     } // for
-    // Evaluate the promises toget the plot.
+    // Bundle together all the promises required for the plot.
 
 
     return Promise.all(slicePromisesPerPlot).then(function (responseJson) {
@@ -2318,7 +2762,8 @@ var dbslice = (function (exports) {
           responseCsv.push(d3.csvParse(d));
         });
         responseJson = responseCsv;
-      }
+      } // if
+
 
       var plot = {};
 
@@ -2346,7 +2791,7 @@ var dbslice = (function (exports) {
       plot.layout.title = sliceId;
       plot.data.newData = true;
       return plot;
-    });
+    }); // then
   } // makePromiseSlicePlot
 
   function refreshTasksInPlotRows() {
@@ -2363,7 +2808,7 @@ var dbslice = (function (exports) {
             ctrl.taskIds = dbsliceData.filteredTaskIds;
             ctrl.taskLabels = dbsliceData.filteredTaskLabels;
           } // if
-          // This does nothing for now!!
+          // THIS DOES NOTHING FOR NOW!!
 
 
           if (ctrl.tasksByList) {
@@ -2373,8 +2818,13 @@ var dbslice = (function (exports) {
 
 
           var plotRowPromise = makePlotsFromPlotRowCtrl(ctrl).then(function (plots) {
-            plotRow.plots = plots;
-          });
+            plotRow.plots = plots; // The plot limits have to be assigned to the plots as they are passed into the plotting functions alone, without the rest of the plotRow object. This allows all the colorbars to be the same.
+
+            plotRow.plots.forEach(function (plot) {
+              plot.data.limits = plotRow.ctrl.limits;
+            }); // forEach
+          }); // then
+
           plotRowPromises.push(plotRowPromise);
         } // if
 
@@ -2383,7 +2833,7 @@ var dbslice = (function (exports) {
     }); // forEach
 
     Promise.all(plotRowPromises).then(function () {
-      // When all the data has been loaded rerender.
+      // Render when all the data for all the plots in all plot rows has been loaded.
       render(dbsliceData.elementId, dbsliceData.session);
     }); // Promise
   } // refreshTasksInPlotRows
@@ -2436,11 +2886,11 @@ var dbslice = (function (exports) {
 
   function getFilteredTaskIds() {
     return dbsliceData.filteredTaskIds;
-  }
+  } // getFilteredTaskIds
 
   function getFilteredTaskLabels() {
     return dbsliceData.session.filteredTaskLabels;
-  }
+  } // getFilteredTaskLabels
 
   exports.addMenu = addMenu;
   exports.cfD3BarChart = cfD3BarChart;
@@ -2448,6 +2898,7 @@ var dbslice = (function (exports) {
   exports.cfD3Scatter = cfD3Scatter;
   exports.cfInit = cfInit;
   exports.cfUpdateFilters = cfUpdateFilters;
+  exports.d3Contour2d = d3Contour2d;
   exports.d3LineSeries = d3LineSeries;
   exports.getFilteredTaskIds = getFilteredTaskIds;
   exports.getFilteredTaskLabels = getFilteredTaskLabels;
@@ -2457,6 +2908,7 @@ var dbslice = (function (exports) {
   exports.makeNewPlot = makeNewPlot;
   exports.makePlotsFromPlotRowCtrl = makePlotsFromPlotRowCtrl;
   exports.makeSessionHeader = makeSessionHeader;
+  exports.plotHelpers = plotHelpers;
   exports.refreshTasksInPlotRows = refreshTasksInPlotRows;
   exports.render = render;
   exports.updatePlot = updatePlot;

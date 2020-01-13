@@ -2,7 +2,7 @@ function makeNewPlot( plotData, index ) {
 
     
 	var plotRowIndex = d3.select(this._parent).attr("plot-row-index");
-	  
+          
 	var plot = d3.select(this)
 	  .append("div")
 		.attr("class", "col-md-" + plotData.layout.colWidth + " plotWrapper")
