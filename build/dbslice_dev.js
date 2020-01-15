@@ -141,13 +141,21 @@ var dbslice = (function (exports) {
                             break;
                             
                         case "c2d":
-                          // Contours
-                          contourProperties.push(variableNew);
+                            // Contours
+                            contourProperties.push(variableNew);
                             
-                          loadData.helpers.renameVariables(metadata, variable, variableNew)
+                            loadData.helpers.renameVariables(metadata, variable, variableNew)
                           
                           break;
                             
+						case "taskId":
+							// This is a special case, as it is advantageous that any '\' in the value of taskId be changed into '/'. It is intended that the taskId is the url to the location ofthe data, thus this can prove important.						
+							metadata.forEach(function(d){
+								var taskId_ = d.taskId;
+								d.taskId    = taskId_.replace(/\\/g, "/");
+							}) // forEach
+							
+						  break;
                             
                         default:
                             
@@ -471,9 +479,9 @@ var dbslice = (function (exports) {
                 if(plotArea.empty()){
                     // If there's nonoe, add it.
                     container.select("svg")
-                    .append("g")
-                      .attr("transform", "translate(" + cfD3Histogram.margin.left + "," + cfD3Histogram.margin.top + ")")
-                      .attr("class", "plotArea");
+                      .append("g")
+                        .attr("transform", "translate(" + cfD3Histogram.margin.left + "," + cfD3Histogram.margin.top + ")")
+                        .attr("class", "plotArea");
                     
                 }; // if
                 
@@ -855,15 +863,21 @@ var dbslice = (function (exports) {
                       
                       
                 function tipOn(d) {
-                    points.style("opacity", 0.2);
-                    d3.select(this).style("opacity", 1.0).attr("r", 7);
+                    // points.style("opacity", 0.2);
+                    // d3.select(this).style("opacity", 1.0).attr("r", 7);
                     tip.show(d);
+					
+					// Here I want to add cross highlighting.
+					crossPlotHighlighting.on(d, "cfD3Scatter")
                 }; // tipOn
 
-                function tipOff() {
-                    points.style("opacity", cfD3Scatter.opacity);
-                    d3.select(this).attr("r", 5);
+                function tipOff(d) {
+                    // points.style("opacity", cfD3Scatter.opacity);
+                    // d3.select(this).attr("r", 5);
                     tip.hide();
+					
+					// Add cross highlighting effect.
+					crossPlotHighlighting.off(d, "cfD3Scatter")
                 }; // tipOff
                   
                   
@@ -980,143 +994,107 @@ var dbslice = (function (exports) {
 			
 			// Create some common handles.
 			var svg = container.select("svg");
-			var plotArea = svg.select(".plotArea");
 			
-			// Get the data through crossfilters dimension functionality.
-			var dimId = dbsliceData.data.metaDataProperties.indexOf(data.xProperty);
-			var group = dbsliceData.data.metaDims[dimId].group();
-			var items = group.all();
-			
-			// Remove any bars with no entries.
-			var removeZeroBar = layout.removeZeroBar === undefined ? false : layout.removeZeroBar;
-			if (removeZeroBar) items = items.filter(function (item) {
-			    return item.value > 0;
-			});
+			// Get the items to plot.
+			var items = cfD3BarChart.helpers.getItems(data.xProperty);
 			
 			// Create the x and y plotting scales.
-			var x = d3.scaleLinear()
-			  .range([0, svg.attr("plotWidth")])
-			  .domain([0, d3.max(items, function (v){return v.value;}) ]);
+			var x = cfD3BarChart.helpers.getScaleX(svg, items);
+			var y = cfD3BarChart.helpers.getScaleY(svg, items);
 			
-			var y = d3.scaleBand()
-			  .range([0, svg.attr("plotHeight")])
-			  .domain(  items.map(function (d) {return d.key;})  )
-			  .padding([0.2])
-			  .align([0.5]);
-			
-			var colour = layout.colourMap === undefined ? d3.scaleOrdinal().range(["cornflowerblue"]) : d3.scaleOrdinal(layout.colourMap);
+			// Color scale
+			var colour = d3.scaleOrdinal().range(["cornflowerblue"]);
 			colour.domain( dbsliceData.data.metaDataUniqueValues[data.xProperty] );
 			
 			// Handle the entering/updating/exiting of bars.
-			var bars = plotArea
-			  .selectAll("rect")
+			var bars = svg.select(".plotArea").selectAll("rect")
 			  .data(items, function (v) {return v.key;});
-			  
+			
 			bars.enter()
 			  .append("rect")
-				.on("click", function (selectedItem) {
-				  
-				    // check if current filter is already active
-				    if (dbsliceData.data.filterSelected[dimId] === undefined){
-					    dbsliceData.data.filterSelected[dimId] = [];
-				    } // if
-
-
-				    if (dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key) !== -1){
-					    // Already active filter, let it remove this item from view.
-					    var ind = dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key);
-					    dbsliceData.data.filterSelected[dimId].splice(ind, 1);
-				    } else {
-					    // Filter not active, add the item to view.
-					    dbsliceData.data.filterSelected[dimId].push(selectedItem.key);
-				    } // if
-
-				    cfUpdateFilters(dbsliceData.data);
-				  
-				    // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
-				    // It seems that if this one call the cfD3BarChart.update
-				    render(dbsliceData.elementId, dbsliceData.session);
-				})
+				.attr("keyVal", function(v){return v.key})
 				.attr("height", y.bandwidth())
 				.attr("y",     function (v) {return      y(v.key);})
 				.style("fill", function (v) {return colour(v.key);})
-				.transition()
+			  .transition()
 				.attr("width", function (v) {return    x(v.value);})
 				.attr("opacity", 1); // updating the bar chart bars
 
-			bars.transition()
-			  .attr("width", function (v) {return x(v.value);})
-			  .attr("y",     function (v) {return y(v.key);})
-			  .attr("height", y.bandwidth()) 
-			  .attr("opacity", function (v) {
-				  // Change color if the filter has been selected.
-				  // if no filters then all are selected
-				  if (dbsliceData.data.filterSelected[dimId] === undefined || dbsliceData.data.filterSelected[dimId].length === 0) {
-					return 1;
-				  } else {
-					return dbsliceData.data.filterSelected[dimId].indexOf(v.key) === -1 ? 0.2 : 1;
-				  } // if
-			  });
-			  
 			bars.exit().transition().attr("width", 0).remove();
 			
 			
 			// Handle the axes.
-			var xAxis = plotArea.select(".xAxis");
-			var yAxis = plotArea.select(".yAxis");
-
-			if (xAxis.empty()){
-			  
-			    plotArea
-				  .append("g")
-				    .attr("transform", "translate(0," + svg.attr("plotHeight") + ")")
-				    .attr("class", "xAxis")
-				    .call(d3.axisBottom(x))
-				  .append("text")
-				    .attr("fill", "#000")
-				    .attr("x", svg.attr("plotWidth"))
-				    .attr("y", cfD3BarChart.margin.bottom)
-				    .attr("text-anchor", "end")
-				    .text("Number of Tasks");
-			} else {
-			    xAxis
-				  .attr("transform", "translate(0," + svg.attr("plotHeight") + ")")
-				  .transition()
-				  .call(d3.axisBottom(x));
-			}; // if
-
-			if (yAxis.empty()){
-			    plotArea
-				  .append("g")
-				    .attr("class", "yAxis")
-				    .call(d3.axisLeft(y).tickValues([]));
-			} else {
-			    yAxis
-				  .transition()
-				  .call(d3.axisLeft(y).tickValues([]));
-			}; // if
-
-			// Add the labels to the bars
-			var keyLabels = plotArea.selectAll(".keyLabel")
-				.data(items, function (v) {return v.key;});
-				
-			keyLabels.enter()
-			  .append("text")
-				.attr("class", "keyLabel")
-				.attr("x", 0)
-				.attr("y", function (v){return y(v.key) + 0.5 * y.bandwidth();})
-				.attr("dx", 5)
-				.attr("dy", ".35em")
-				.attr("text-anchor", "start")
-				.text(function (v) {return v.key;}); // updating meta Labels
-
-			keyLabels
-			  .transition()
-			  .attr("y", function (v){return y(v.key) + 0.5 * y.bandwidth();})
-			  .text(function (v){return v.key;});
+			createAxes();
 			
-			keyLabels.exit().remove();
+			
+			// Add interactivity:
+			cfD3BarChart.addInteractivity.addOnMouseOver(svg);
+			cfD3BarChart.addInteractivity.addOnMouseClick(svg, data.xProperty);
         
+		
+			// Helper functions
+			function createAxes(){
+				
+				var plotArea = svg.select(".plotArea");
+				
+				var xAxis = plotArea.select(".xAxis");
+				var yAxis = plotArea.select(".yAxis");
+
+				if (xAxis.empty()){
+				  
+					plotArea
+					  .append("g")
+						.attr("transform", "translate(0," + svg.attr("plotHeight") + ")")
+						.attr("class", "xAxis")
+						.call(d3.axisBottom(x))
+					  .append("text")
+						.attr("fill", "#000")
+						.attr("x", svg.attr("plotWidth"))
+						.attr("y", cfD3BarChart.margin.bottom)
+						.attr("text-anchor", "end")
+						.text("Number of Tasks");
+				} else {
+					xAxis
+					  .attr("transform", "translate(0," + svg.attr("plotHeight") + ")")
+					  .transition()
+					  .call(d3.axisBottom(x));
+				}; // if
+
+				if (yAxis.empty()){
+					plotArea
+					  .append("g")
+						.attr("class", "yAxis")
+						.call(d3.axisLeft(y).tickValues([]));
+				} else {
+					yAxis
+					  .transition()
+					  .call(d3.axisLeft(y).tickValues([]));
+				}; // if
+
+				// Add the labels to the bars
+				var keyLabels = plotArea.selectAll(".keyLabel")
+					.data(items, function (v) {return v.key;});
+					
+				keyLabels.enter()
+				  .append("text")
+					.attr("class", "keyLabel")
+					.attr("x", 0)
+					.attr("y", function (v){return y(v.key) + 0.5 * y.bandwidth();})
+					.attr("dx", 5)
+					.attr("dy", ".35em")
+					.attr("text-anchor", "start")
+					.text(function (v) {return v.key;}); // updating meta Labels
+
+				keyLabels
+				  .transition()
+				  .attr("y", function (v){return y(v.key) + 0.5 * y.bandwidth();})
+				  .text(function (v){return v.key;});
+				
+				keyLabels.exit().remove();
+				
+			} // createAxes
+			
+			
         }, // update
       
         setupSvg: function setupSvg(container, data, layout){
@@ -1124,8 +1102,7 @@ var dbslice = (function (exports) {
           
           
             // If layout has a margin specified store it as the internal property.
-            var margin = cfD3BarChart.margin;
-            margin = layout.margin === undefined ? cfD3BarChart.margin : layout.margin;
+            var margin = layout.margin === undefined ? cfD3BarChart.margin : layout.margin;
           
             var svg = container.select("svg");          
             if (svg.empty()){
@@ -1168,15 +1145,184 @@ var dbslice = (function (exports) {
                     .attr("width", svgWidth)
                     .attr("height", svgHeight)
                     .attr("plotWidth", width).attr("plotHeight", height)
-                  .append("g")
-                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                    .attr("class", "plotArea");
+										
+				var plotArea = container.select("svg").select(".plotArea");
+                if(plotArea.empty()){
+                    // If there's nonoe, add it.
+                    container.select("svg")
+                      .append("g")
+                        .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+                        .attr("class", "plotArea");
+                    
+                }; // if
             
             }; // curateSvg
         
 
-        } // setupSvg
-    }; // cfD3BarChart
+        }, // setupSvg
+    
+		addInteractivity: {
+			
+			addOnMouseClick: function addOnMouseClick(svg, property){
+				
+				// Add the mouse click event
+				svg.selectAll("rect").on("click", onClick);
+				
+				// Add the associated transition effects.
+				svg.selectAll("rect").transition()
+				  .attr("width", transitionWidthEffects)
+				  .attr("y",     transitionYEffects)
+				  .attr("height", transitionHeightEffects) 
+				  .attr("opacity", transitionOpacityEffects);
+				
+				function onClick(selectedItem){
+					
+					var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
+					
+					// check if current filter is already active
+				    if (dbsliceData.data.filterSelected[dimId] === undefined){
+					    dbsliceData.data.filterSelected[dimId] = [];
+				    } // if
+
+
+				    if (dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key) !== -1){
+					    // Already active filter, let it remove this item from view.
+					    var ind = dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key);
+					    dbsliceData.data.filterSelected[dimId].splice(ind, 1);
+				    } else {
+					    // Filter not active, add the item to view.
+					    dbsliceData.data.filterSelected[dimId].push(selectedItem.key);
+				    } // if
+
+				    cfUpdateFilters(dbsliceData.data);
+				  
+				    // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
+				    // It seems that if this one call the cfD3BarChart.update
+				    render(dbsliceData.elementId, dbsliceData.session);
+					
+				} // onClick
+				
+				function transitionOpacityEffects(v){
+					
+					// Change color if the filter has been selected.
+					// if no filters then all are selected
+					var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
+					  
+					if (dbsliceData.data.filterSelected[dimId] === undefined || dbsliceData.data.filterSelected[dimId].length === 0) {
+						return 1;
+					} else {
+						return dbsliceData.data.filterSelected[dimId].indexOf(v.key) === -1 ? 0.2 : 1;
+					} // if
+					
+				} // transitionEffects
+				
+				function transitionWidthEffects(v){
+					
+					// Get the items.
+					var items = cfD3BarChart.helpers.getItems(property);
+					
+					// Get th eappropriate scale.
+					var xscale = cfD3BarChart.helpers.getScaleX(svg, items);
+					
+					// Get the new width;
+				  return xscale(v.value);
+					
+				} // transitionWidthEffects
+				
+				function transitionHeightEffects(){
+					
+					// Get the items.
+					var items = cfD3BarChart.helpers.getItems(property);
+					
+					// Get th eappropriate scale.
+					var yscale = cfD3BarChart.helpers.getScaleY(svg, items);
+					
+				  return yscale.bandwidth();
+					
+				} // transitionHeightEffects
+				
+				function transitionYEffects(v){
+					
+					// Get the items.
+					var items = cfD3BarChart.helpers.getItems(property);
+					
+					// Get th eappropriate scale.
+					var yscale = cfD3BarChart.helpers.getScaleY(svg, items);
+					
+					// Get the new width;
+				  return yscale(v.key);
+					
+				} // transitionYEffects
+				
+			}, // addOnMouseClick
+			
+			addOnMouseOver: function addOnMouseOver(svg){
+				
+				var rects = svg.selectAll("rect");
+				
+				rects.on("mouseover", crossHighlightOn)
+                     .on("mouseout",  crossHighlightOff);
+					  
+				function crossHighlightOn(d){
+					
+					// Here 'd' is just an object with properties 'key', and 'value'. The first denotes the value of the plotting property belonging to the bar, and the second how many items with that property value are currently selected.
+					crossPlotHighlighting.on(d, "cfD3BarChart");
+					
+					// crossPlotHighlighting.helpers.findAllData(d, "cfD3BarChart");
+					
+				}; // crossHighlightOn
+				
+				function crossHighlightOff(d){
+					
+					crossPlotHighlighting.off(d, "cfD3BarChart");
+					
+				}; // crossHighlightOff
+				
+			} // addOnMouseOver
+			
+		}, // addInteractivity
+	
+		helpers: {
+			
+			getItems: function getItems(property){
+				
+				// Get the data through crossfilters dimension functionality.
+				var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
+				var group = dbsliceData.data.metaDims[dimId].group();
+				var items = group.all();
+				
+				// Remove any bars with no entries.
+				items = items.filter(function (item){return item.value > 0;});
+				
+				// Add the property to it for convenience.
+				items.forEach(function(d){d.keyProperty = property})
+				
+			  return items;
+			}, // getItems
+			
+			getScaleX: function getScaleX(svg, items){
+				
+				var scale = d3.scaleLinear()
+					.range([0, svg.attr("plotWidth")])
+					.domain([0, d3.max(items, function (v){return v.value;}) ]);
+				
+			  return scale;
+			}, // getScaleX
+			
+			getScaleY: function getScaleY(svg, items){
+				
+				var scale = d3.scaleBand()
+				    .range([0, svg.attr("plotHeight")])
+				    .domain(  items.map(function (d) {return d.key;})  )
+				    .padding([0.2])
+				    .align([0.5]);
+			
+              return scale;			
+			} // getScaleY
+			
+		} // helpers
+	
+	}; // cfD3BarChart
 
     var d3LineSeries = {
         
@@ -1195,7 +1341,6 @@ var dbslice = (function (exports) {
         }, // make
 
         update : function ( element, data, layout ) {
-
 
             // End execution if there is no new data.
             if (data.newData == false) {
@@ -1226,7 +1371,6 @@ var dbslice = (function (exports) {
 
             // Assign the data
             var allSeries = svg.select(".plotArea").selectAll( ".plotSeries" ).data( data.series );
-            
 
             // Enter/update/exit 
             allSeries.enter()
@@ -1235,8 +1379,8 @@ var dbslice = (function (exports) {
                   var seriesLine = series.append( "g" )
                       .attr( "class", "plotSeries")
                       .attr( "series-name", function(d){ return d.label; })
-                      .attr( "clip-path", "url(#" + svg.select("clipPath")
-					  .attr("id") + ")")
+					  .attr( "task-id", function(d){ return d.taskId; })
+                      .attr( "clip-path", "url(#" + svg.select("clipPath").attr("id") + ")")
                     .append( "path" )
                       .attr( "class", "line" )
                       .attr( "d", function(d){ return line( d.data ); } )
@@ -1246,10 +1390,13 @@ var dbslice = (function (exports) {
             });
 
             allSeries.each( function() {
-                var series = d3.select( this );
+                var series = d3.select( this )
+				    .attr( "series-name", function(d){ return d.label; })
+					.attr( "task-id",     function(d){ return d.taskId; });
+					
                 var seriesLine = series.select( "path.line" );
                 seriesLine.transition()
-                  .attr( "d", function(d){return line( d.data );})
+                  .attr( "d",       function(d){return line( d.data );})
                   .style( "stroke", function(d){ return d3LineSeries.colour( d.cKey ); })  ;
             });
 
@@ -1452,14 +1599,17 @@ var dbslice = (function (exports) {
                         .attr( "cy" , d3.mouse(this)[1] );
                     
                     tip.show(d, anchorPoint.node());
+					
+					
                 }; // tipOn
 
-                function tipOff() {
+                function tipOff(d) {
                     lines.style("opacity", 1.0);
                     d3.select(this)
                         .style( "stroke-width", "2.5px" );
                     
                     tip.hide();
+					
                 }; // tipOff
               
               
@@ -1711,7 +1861,8 @@ var dbslice = (function (exports) {
                     container.select("svg")
                       .append("g")
                         .attr("transform", "translate(" + d3Contour2d.margin.left + "," + d3Contour2d.margin.top + ")")
-                        .attr("class", "plotArea");
+                        .attr("class", "plotArea")
+						.attr("task-id", data.taskId);
                     
                 }; // if
                 
@@ -1904,8 +2055,7 @@ var dbslice = (function (exports) {
             return [minVal, maxVal]
             
         }, // getDomain
-        
-        
+             
         collectAllPropertyNames: function collectAllPropertyNames(series, accessor){
             // This function collects all the property names in an array of objects.
             var allPropertyNames = [];        
@@ -1943,8 +2093,8 @@ var dbslice = (function (exports) {
             }
             return resArr;
         } // findCommonElements
-        
-    } // plotHelpers
+        	
+	} // plotHelpers
 
 
 
@@ -2420,8 +2570,6 @@ var dbslice = (function (exports) {
                     
                         // Assign the new control.
                         dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl = newPlotCtrl;
-                        
-                        console.log(dbsliceData.session)
                         
                       break;
                 }; // switch
@@ -3049,6 +3197,269 @@ var dbslice = (function (exports) {
     }; // addMenu
     
     
+	var crossPlotHighlighting = {
+		
+		
+		
+		on: function on(d, sourcePlotName){
+		
+			// Functionality:
+			//    - highlight points in scatter plots on other plots too on mouseover.
+			//    - same for bar plots and histograms?
+			
+			// The input is a data object. For scatter plots this is the entire line from metadata.csv corresponding to a particular point.
+			
+			
+			// For this datapoint find all other plots that might be interesting, determine what they are plotting, and which variables they are using, collect the elements belonging to the particular datapoint, and highlight it by updating it's style.
+			
+			// First go through all plot rows to see if there are data.
+			
+			// Note that different functionality must be allowed for different source and target plots. For each of the available plot types (bar, histogram, scatter, line, contour) for which the on-mouseover effects are required a different functionality might be needed.
+			
+			// Find all the data that needs to be highlighted.
+			var allDataPoints = crossPlotHighlighting.helpers.findAllData(d, sourcePlotName);
+			
+			for(var i=0; i<dbsliceData.session.plotRows.length; i++){
+				var plotRow = dbsliceData.session.plotRows[i];
+				var plotRowDOM = $(".plotRow")[i];
+				
+				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
+				d3.select(plotRowDOM).selectAll(".plotArea").each(function(plot, i){
+					
+					var plotDOM = this;
+					
+					// First all the elements need to be unhiglighted.
+					crossPlotHighlighting.helpers.unHighlightAll(plotDOM, plot);
+					
+					// Now highlight the needed datapoints.
+					allDataPoints.forEach(function(d){
+						crossPlotHighlighting.helpers.highlightDataPoint(plotDOM, plot, d);
+					}) // forEach
+					
+				}) // each
+				
+				
+			}; // for
+		
+		}, // on
+		
+		off: function off(d, sourcePlotName){
+		
+			
+			for(var i=0; i<dbsliceData.session.plotRows.length; i++){
+				var plotRow = dbsliceData.session.plotRows[i];
+				var plotRowDOM = $(".plotRow")[i];
+				
+				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
+				d3.select(plotRowDOM).selectAll(".plotArea").each(function(plot, i){
+					
+					crossPlotHighlighting.helpers.offHandler(this, plot);
+				}) // each
+				
+				
+			}; // for
+		
+		}, // off
+		
+		helpers: {
+			
+			unHighlightAll: function unHighlightAll(element, plot){
+				
+				// This function highlights all elments in the plot corresponding to the 'plot' data object.
+				
+				switch(plot.plotFunc.name){
+					case "cfD3Scatter":
+						// Collect the appropriate circles, and change their style.
+								
+						// Find all the circles, and set them to appropriate values.
+						d3.select(element).selectAll("circle")
+						  .style("opacity", 0.2);
+						
+					  break;
+					  
+					case "cfD3BarChart":
+					    // Find the appropriate rects, and change their border stroke.
+						d3.select(element).selectAll("rect")
+						  .attr("stroke", "none")
+						  .attr("stroke-width", 3);
+						
+				      break;
+					  
+					case "cfD3Histogram":
+						// Do nothing for this one.
+						
+					  break;
+					  
+					case "d3LineSeries":
+						// Find all the circles, and set them to appropriate values.
+						d3.select(element).selectAll(".line")
+						  .style("opacity", 0.2);
+						
+					  break;
+					  
+					default:
+					  break;
+				} // switch
+				
+			}, // unHighlightAll
+			
+			highlightDataPoint: function highlightDataPoint(element, plot, d){
+				// This function distributes the functionality. It has access to the plot information, data information, and the handle to the corresponding DOM plotArea element.
+				
+				// This handlercan be invoked for all data d that are found.
+				
+				switch(plot.plotFunc.name){
+					case "cfD3Scatter":
+						// Find the circle corresponding to the data point. Look for it by taskId.
+						d3.select(element).selectAll("circle[task-id='" + d.taskId + "']")
+						  .style("opacity", 1.0)
+						  .attr("r", 7);
+						
+					  break;
+					  
+					case "cfD3BarChart":
+					    // Find the appropriate rects, and change their border stroke.						  
+						d3.select(element).selectAll("rect[keyVal='"+d[plot.data.xProperty]+"']")
+						  .attr("stroke", "rgb(214, 39, 40)")
+						  .attr("stroke-width", 3); 
+						
+				      break;
+					  
+					case "cfD3Histogram":
+						// Find within which bar the point falls.
+						var property = plot.data.xProperty;
+						var bars = d3.select(element).selectAll("rect");
+						
+						bars.each(function(barData){
+							// d3 connects each of the bars with its data! here 'barData' is an array containing all the data points relating to it, as well as the range of values it represents.
+							
+							// If there is any data connected to this bar check if it needs to be highlighted.
+							for(var i=0; i < barData.length; i++){
+								
+								// Check if the datapoint with the taskId is in this array. In this case check with a for loop, as otherwise the x0 and x1 properties are interpreted as array elements too.
+								if(d.taskId == barData[i].taskId){
+									
+									// If this is the correct bar draw a circle on it.
+									
+									// Plot height is the bottom of the y-axis.
+									var plotHeight = d3.select(this.parentElement.parentElement).attr("plotHeight");
+									
+									// Plot a single dot at 1 on the y-axis.
+									var x = this.transform.baseVal[0].matrix.e + this.width.baseVal.value/2 + 1;
+									var y = plotHeight - this.height.baseVal.value/barData.length + 5;
+									
+									// Ensure that this is always above 0.
+									if((y + 5)>plotHeight){
+										y = plotHeight - 5;
+									} // if
+									
+									d3.select(element)
+									  .append("circle")
+									    .attr("r", 5)
+									    .attr("cx", x)
+										.attr("cy", y)
+										.attr("fill", "rgb(214, 39, 40)");
+									  
+									
+								}; // if
+								
+							}; //if
+							
+							
+							
+						}); // each
+						
+					  break;
+					  
+					case "d3LineSeries":
+						// Find the line corresponding to the data point. Look for it by taskId.
+						d3.select(element).selectAll(".plotSeries[task-id='" + d.taskId + "']").selectAll(".line")
+						  .style("opacity", 1.0)
+						  .style( "stroke-width", "4px" );
+						
+					  break;
+					  
+					default:
+					  break;
+				} // switch
+				
+			}, // highlightDataPoint
+			
+			offHandler: function offHandler(element, plot){
+				// This function returns all expected elements on the plots back to their default styles.
+				
+				switch(plot.plotFunc.name){
+					case "cfD3Scatter":
+						// Find all the circles, style them appropriately.
+						d3.select(element).selectAll("circle")
+						  .style("opacity", cfD3Scatter.opacity)
+						  .attr("r", 5);
+						
+					  break;
+					  
+					case "cfD3BarChart":
+					    // Remove the border stroke.
+						d3.select(element).selectAll("rect")
+						  .attr("stroke", "none");
+						  
+				      break;
+					  
+					case "cfD3Histogram":
+						// Find within which bar the point falls.
+						d3.select(element).selectAll("circle").remove()
+						
+					  break;
+					  
+					case "d3LineSeries":
+						// Revert the opacity and width.
+						d3.select(element).selectAll(".line")
+						  .style("opacity", 1.0)
+                          .style( "stroke-width", "2.5px" );
+					  
+					default:
+					  break;
+				} // switch
+				
+			}, // offHandler
+			
+			findAllData: function findAllData(d, sourcePlotName){
+				
+				// console.log(d);
+				// console.log(sourcePlotName);
+				
+				var allDataPoints;
+			    switch(sourcePlotName){
+					
+					case "cfD3Scatter":
+					    allDataPoints = [d];
+					  break;
+					  
+					case "cfD3BarChart":
+						// Collect all the relevant data points. An additional filter needs to be applied here!! DON'T USE FILTER - IT MESSES UP WITH ORIGINAL FUNCTIONALITY
+						var cfDataPoints = dbsliceData.data.metaDims[0].top(Infinity)
+						allDataPoints = cfDataPoints.filter(function(p){return p[d.keyProperty] == d.key})
+						
+						
+					  break;
+					  
+					default:
+					  break;
+				} // switch
+				
+				// ow the reults
+				// console.log(allDataPoints)
+				
+			  return allDataPoints;
+				
+			} // findAllData
+		} // helpers
+		
+	} // crossPlotHighlighting 
+		
+		
+		
+	
+	
 
     function render(elementId, session) {
         var element = d3.select("#" + elementId);
@@ -3393,6 +3804,9 @@ var dbslice = (function (exports) {
               } else {
                   plot.data = responseJson;
               } // if
+			  
+			  // Add the taskId for identification purposes.
+			  plot.data.taskId = taskId;
 
               plot.layout = Object.assign({}, ctrl.layout);
               plot.plotFunc = ctrl.plotFunc;
@@ -3409,7 +3823,6 @@ var dbslice = (function (exports) {
         // This creates all the data retrieval promises required to make a 'slice' plot. 'Slice' plots summarise data of multiple tasks, as opposed to 'task' plots which produce an individual plot for each of the tasks.
       
         var slicePromisesPerPlot = [];
-        var tasksOnPlot = [];
       
         // Determine the maximum number of plots if a limit is imposed.
         ctrl.maxTasks = ctrl.maxTasks !== undefined ? Math.min(ctrl.taskIds.length, ctrl.maxTasks) : undefined;
@@ -3421,19 +3834,11 @@ var dbslice = (function (exports) {
         // Make all the promises required for a single plot.
         for (var index = 0; index < d.length; index++){
           
-            // The URL must be given in the data. The sliceId comes from the variable name in the data.
-            var url = d[index][sliceId];
+		    // The URL must be given in the data. The sliceId comes from the variable name in the data. The task Id is added to track the loaded data.
+			var taskData = d[index];
+            var url = taskData[sliceId];
             
-            var slicePromise = fetch(url)
-			  .then(function (response) {
-                  if (ctrl.csv === undefined){
-                    return response.json();
-                  }; // if
-
-                  if (ctrl.csv == true){
-                    return response.text();
-                  }; // if
-              }); // fetch().then()
+            var slicePromise = makeSlicePromise(url, taskData.taskId);
             
 			slicePromisesPerPlot.push(slicePromise);
         } // for
@@ -3453,6 +3858,7 @@ var dbslice = (function (exports) {
 
                 var plot = {};
 
+				
                 if (ctrl.formatDataFunc !== undefined) {
                     plot.data = ctrl.formatDataFunc(responseJson);
                 } else {
@@ -3479,7 +3885,31 @@ var dbslice = (function (exports) {
                 
               return plot;
             }); // then
+			
+			
+		function makeSlicePromise(url, taskId){
+			// This is done in the following manner to allow the correct taskId to be added to each of hte loaded data sets. This allows the data in the files to not need the appropriate task id in order to be tracked on the plots.
+			var slicePromise = fetch(url)
+			  .then(function (response) {
+					  var dataPromise = response.json();
+					  
+					  dataPromise.then(function(data){
+						  data.taskId = taskId;
+						  return data;
+					  });
+					  
+					return dataPromise; 
+
+              }); // fetch().then()
+			
+			
+		  return slicePromise;
+		} // makeSlicePromise
+
+			
     } // makePromiseSlicePlot
+
+
 
     function refreshTasksInPlotRows() {
         var plotRows = dbsliceData.session.plotRows;
@@ -3499,7 +3929,6 @@ var dbslice = (function (exports) {
                         ctrl.taskLabels = dbsliceData.filteredTaskLabels;
                     } // if
 
-
                     // THIS DOES NOTHING FOR NOW!!
                     if (ctrl.tasksByList) {
                         ctrl.taskIds = dbsliceData.manualListTaskIds;
@@ -3514,6 +3943,7 @@ var dbslice = (function (exports) {
                             plotRow.plots.forEach(function(plot){
                                 plot.data.limits = plotRow.ctrl.limits;
                             }); // forEach
+					
                         }); // then
                     plotRowPromises.push(plotRowPromise);
                 } // if
@@ -3545,7 +3975,7 @@ var dbslice = (function (exports) {
         
         // Bar charts
         crossfilter.filterSelected.forEach(function (filters, i) {
-            // if the filters array is empty: ie. all are selected, then reset the dimension
+            // if the filters array is empty: ie. all values are selected, then reset the dimension
             if (filters.length === 0) {
                 //Reset all filters
                 crossfilter.metaDims[i].filterAll();
