@@ -3,10 +3,8 @@ import { cfInit } from '../core/cfInit.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 
 const loadData = {
-	
+        
 	handler: function handler(file){
-		
-		
 		
 		// Split the name by the '.', then select the last part.
 		var extension = file.name.split(".").pop();
@@ -30,10 +28,13 @@ const loadData = {
 	
 		d3.json(filename, function(metadata){
 			// The metadata has loaded. Add it to the already existing data.
-			// How do I join arrays?
 			
 			
-			// Dummy functionality - for now replace the data.
+			// Change any backslashes with forward slashes
+			metadata.data.forEach(function(d){
+				loadData.helpers.replaceSlashes(d, "taskId");
+			}) // forEach
+			
 			dbsliceData.data = cfInit(metadata);
 			
 			render(dbsliceData.elementId, dbsliceData.session);
@@ -77,26 +78,26 @@ const loadData = {
 						break;
 					case "s":
 						// Slices
-						// Slices the text into available slices. These must be separated by , and single space!
-						
-						metadata.map(function(item){ 
-							item[variable] = item[variable].split(', ');
-							return item;
-						});
-						
 						sliceProperties.push(variableNew);
 						
 						loadData.helpers.renameVariables(metadata, variable, variableNew)
 						break;
 						
 					case "c2d":
-					  // Contours
-					  contourProperties.push(variableNew);
+						// Contours
+						contourProperties.push(variableNew);
 						
-					  loadData.helpers.renameVariables(metadata, variable, variableNew)
+						loadData.helpers.renameVariables(metadata, variable, variableNew)
 					  
 					  break;
 						
+					case "taskId":
+						// This is a special case, as it is advantageous that any '\' in the value of taskId be changed into '/'. It is intended that the taskId is the url to the location ofthe data, thus this can prove important.						
+						metadata.forEach(function(d){
+							loadData.helpers.replaceSlashes(d, "taskId");
+						}) // forEach
+						
+					  break;
 						
 					default:
 						
@@ -134,7 +135,7 @@ const loadData = {
 								data[j][newVar] = data[j][oldVar];
 								delete data[j][oldVar];
 							}; // for
-						}, // renameVariable
+		}, // renameVariable
 						
 		convertNumbers: function convertNumbers(row) {
 						  var r = {};
@@ -145,10 +146,17 @@ const loadData = {
 							}
 						  }
 						  return r;
-						} // convertNumbers
+		}, // convertNumbers
+						
+		replaceSlashes: function replaceSlashes(d, variable){
+			
+			var variable_ = d[variable];
+			d[variable] = variable_.replace(/\\/g, "/");
+				
+		} // replaceSlashes
 
 	} // helpers
 	
 } // loadData
-
+	
 export { loadData };

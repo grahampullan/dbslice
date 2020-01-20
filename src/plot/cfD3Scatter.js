@@ -1,8 +1,9 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
+import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
 
 const cfD3Scatter = {
-	
+        
 	name: "cfD3Scatter",
   
 	margin: {top: 20, right: 20, bottom: 30, left: 50},
@@ -300,15 +301,21 @@ const cfD3Scatter = {
 				  
 				  
 			function tipOn(d) {
-				points.style("opacity", 0.2);
-				d3.select(this).style("opacity", 1.0).attr("r", 7);
+				// points.style("opacity", 0.2);
+				// d3.select(this).style("opacity", 1.0).attr("r", 7);
 				tip.show(d);
+				
+				// Here I want to add cross highlighting.
+				crossPlotHighlighting.on(d, "cfD3Scatter")
 			}; // tipOn
 
-			function tipOff() {
-				points.style("opacity", cfD3Scatter.opacity);
-				d3.select(this).attr("r", 5);
+			function tipOff(d) {
+				// points.style("opacity", cfD3Scatter.opacity);
+				// d3.select(this).attr("r", 5);
 				tip.hide();
+				
+				// Add cross highlighting effect.
+				crossPlotHighlighting.off(d, "cfD3Scatter")
 			}; // tipOff
 			  
 			  
@@ -400,5 +407,6 @@ const cfD3Scatter = {
 	} // helpers
   
 }; // cfD3Scatter
+
 
 export { cfD3Scatter };

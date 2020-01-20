@@ -18,7 +18,7 @@ function cfUpdateFilters(crossfilter) {
 	
 	// Bar charts
 	crossfilter.filterSelected.forEach(function (filters, i) {
-		// if the filters array is empty: ie. all are selected, then reset the dimension
+		// if the filters array is empty: ie. all values are selected, then reset the dimension
 		if (filters.length === 0) {
 			//Reset all filters
 			crossfilter.metaDims[i].filterAll();

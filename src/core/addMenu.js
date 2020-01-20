@@ -480,8 +480,6 @@ const addMenu = {
 					// Assign the new control.
 					dbsliceData.session.plotRows[config.ownerPlotRowIndex].ctrl = newPlotCtrl;
 					
-					console.log(dbsliceData.session)
-					
 				  break;
 			}; // switch
 			
@@ -1106,7 +1104,6 @@ const addMenu = {
 	} // helpers
 
 }; // addMenu
-
 
 
 export { addMenu };

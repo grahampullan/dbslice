@@ -1,7 +1,7 @@
 import { dbsliceData } from './dbsliceData.js'
 
 function cfInit(metaData) {
-	
+      
 	var cfData = {};
 	cfData.metaDataProperties = metaData.header.metaDataProperties;
 	cfData.dataProperties = metaData.header.dataProperties;

@@ -6,7 +6,7 @@ import { cfD3Scatter } from '../plot/cfD3Scatter.js';
 
 
 const loadSession = {
-	
+        
 	handler: function handler(file){
 		
 		// Split the name by the '.', then select the last part.

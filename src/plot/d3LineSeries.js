@@ -1,8 +1,9 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
+import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
 
 const d3LineSeries = {
-	
+        
 	name: "d3LineSeries",
   
 	margin: {top: 20, right: 20, bottom: 30, left: 50},
@@ -18,7 +19,6 @@ const d3LineSeries = {
 	}, // make
 
 	update : function ( element, data, layout ) {
-
 
 		// End execution if there is no new data.
 		if (data.newData == false) {
@@ -49,7 +49,6 @@ const d3LineSeries = {
 
 		// Assign the data
 		var allSeries = svg.select(".plotArea").selectAll( ".plotSeries" ).data( data.series );
-		
 
 		// Enter/update/exit 
 		allSeries.enter()
@@ -58,8 +57,8 @@ const d3LineSeries = {
 			  var seriesLine = series.append( "g" )
 				  .attr( "class", "plotSeries")
 				  .attr( "series-name", function(d){ return d.label; })
-				  .attr( "clip-path", "url(#" + svg.select("clipPath")
-				  .attr("id") + ")")
+				  .attr( "task-id", function(d){ return d.taskId; })
+				  .attr( "clip-path", "url(#" + svg.select("clipPath").attr("id") + ")")
 				.append( "path" )
 				  .attr( "class", "line" )
 				  .attr( "d", function(d){ return line( d.data ); } )
@@ -69,10 +68,13 @@ const d3LineSeries = {
 		});
 
 		allSeries.each( function() {
-			var series = d3.select( this );
+			var series = d3.select( this )
+				.attr( "series-name", function(d){ return d.label; })
+				.attr( "task-id",     function(d){ return d.taskId; });
+				
 			var seriesLine = series.select( "path.line" );
 			seriesLine.transition()
-			  .attr( "d", function(d){return line( d.data );})
+			  .attr( "d",       function(d){return line( d.data );})
 			  .style( "stroke", function(d){ return d3LineSeries.colour( d.cKey ); })  ;
 		});
 
@@ -275,14 +277,20 @@ const d3LineSeries = {
 					.attr( "cy" , d3.mouse(this)[1] );
 				
 				tip.show(d, anchorPoint.node());
+				
+				crossPlotHighlighting.on(d, "d3LineSeries")
+				
 			}; // tipOn
 
-			function tipOff() {
+			function tipOff(d) {
 				lines.style("opacity", 1.0);
 				d3.select(this)
 					.style( "stroke-width", "2.5px" );
 				
 				tip.hide();
+				
+				crossPlotHighlighting.off(d, "d3LineSeries")
+				
 			}; // tipOff
 		  
 		  
@@ -370,5 +378,6 @@ const d3LineSeries = {
 	} // helpers
 	
 } // d3LineSeries
+
 
 export { d3LineSeries };

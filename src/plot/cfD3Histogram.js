@@ -1,10 +1,11 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
 import { render } from '../core/render.js';
 import { dbsliceData } from '../core/dbsliceData.js';
+import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
 
 
 const cfD3Histogram = {
-	  
+          
 	name: "cfD3Histogram",
 	
 	margin: {top: 20, right: 20, bottom: 30, left: 20},
@@ -71,7 +72,7 @@ const cfD3Histogram = {
 			.attr("width",  function (d){return x(d.x1) - x(d.x0) - 1;})
 			.attr("height", function (d){return svg.attr("plotHeight") - y(d.length);})
 			.style("fill", cfD3Histogram.colour)
-			.attr("opacity", "1");
+			.attr("opacity", 1);
 				
 		bars.transition()
 		  .attr("transform", function (d){
@@ -211,9 +212,9 @@ const cfD3Histogram = {
 			if(plotArea.empty()){
 				// If there's nonoe, add it.
 				container.select("svg")
-				.append("g")
-				  .attr("transform", "translate(" + cfD3Histogram.margin.left + "," + cfD3Histogram.margin.top + ")")
-				  .attr("class", "plotArea");
+				  .append("g")
+					.attr("transform", "translate(" + cfD3Histogram.margin.left + "," + cfD3Histogram.margin.top + ")")
+					.attr("class", "plotArea");
 				
 			}; // if
 			

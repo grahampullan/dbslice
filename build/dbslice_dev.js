@@ -34,7 +34,9 @@ var dbslice = (function (exports) {
             .attr("plot-index", index);
               
         plotData.plotFunc.make(plotBody.node(), plotData.data, plotData.layout);
-         
+		
+		
+		
         // Listen to the changes of the plot card, and update the plot
         $(window).resize(  function(){ 
             // console.log( plot.node().offsetWidth )
@@ -56,8 +58,6 @@ var dbslice = (function (exports) {
     var loadData = {
         
         handler: function handler(file){
-            
-            
             
             // Split the name by the '.', then select the last part.
             var extension = file.name.split(".").pop();
@@ -81,10 +81,13 @@ var dbslice = (function (exports) {
         
             d3.json(filename, function(metadata){
                 // The metadata has loaded. Add it to the already existing data.
-                // How do I join arrays?
                 
+				
+				// Change any backslashes with forward slashes
+				metadata.data.forEach(function(d){
+					loadData.helpers.replaceSlashes(d, "taskId");
+				}) // forEach
                 
-                // Dummy functionality - for now replace the data.
                 dbsliceData.data = cfInit(metadata);
                 
                 render(dbsliceData.elementId, dbsliceData.session);
@@ -128,13 +131,6 @@ var dbslice = (function (exports) {
                             break;
                         case "s":
                             // Slices
-                            // Slices the text into available slices. These must be separated by , and single space!
-                            
-                            metadata.map(function(item){ 
-                                item[variable] = item[variable].split(', ');
-                                return item;
-                            });
-                            
                             sliceProperties.push(variableNew);
                             
                             loadData.helpers.renameVariables(metadata, variable, variableNew)
@@ -151,8 +147,7 @@ var dbslice = (function (exports) {
 						case "taskId":
 							// This is a special case, as it is advantageous that any '\' in the value of taskId be changed into '/'. It is intended that the taskId is the url to the location ofthe data, thus this can prove important.						
 							metadata.forEach(function(d){
-								var taskId_ = d.taskId;
-								d.taskId    = taskId_.replace(/\\/g, "/");
+								loadData.helpers.replaceSlashes(d, "taskId");
 							}) // forEach
 							
 						  break;
@@ -193,7 +188,7 @@ var dbslice = (function (exports) {
                                     data[j][newVar] = data[j][oldVar];
                                     delete data[j][oldVar];
                                 }; // for
-                            }, // renameVariable
+            }, // renameVariable
                             
             convertNumbers: function convertNumbers(row) {
                               var r = {};
@@ -204,7 +199,14 @@ var dbslice = (function (exports) {
                                 }
                               }
                               return r;
-                            } // convertNumbers
+            }, // convertNumbers
+							
+			replaceSlashes: function replaceSlashes(d, variable){
+				
+				var variable_ = d[variable];
+				d[variable] = variable_.replace(/\\/g, "/");
+					
+			} // replaceSlashes
 
         } // helpers
         
@@ -339,7 +341,7 @@ var dbslice = (function (exports) {
                 .attr("width",  function (d){return x(d.x1) - x(d.x0) - 1;})
                 .attr("height", function (d){return svg.attr("plotHeight") - y(d.length);})
                 .style("fill", cfD3Histogram.colour)
-                .attr("opacity", "1");
+                .attr("opacity", 1);
                     
             bars.transition()
               .attr("transform", function (d){
@@ -1175,7 +1177,7 @@ var dbslice = (function (exports) {
 				  .attr("height", transitionHeightEffects) 
 				  .attr("opacity", transitionOpacityEffects);
 				
-				function onClick(selectedItem){
+				function onClick(d){
 					
 					var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
 					
@@ -1185,20 +1187,24 @@ var dbslice = (function (exports) {
 				    } // if
 
 
-				    if (dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key) !== -1){
+				    if (dbsliceData.data.filterSelected[dimId].indexOf(d.key) !== -1){
 					    // Already active filter, let it remove this item from view.
-					    var ind = dbsliceData.data.filterSelected[dimId].indexOf(selectedItem.key);
+					    var ind = dbsliceData.data.filterSelected[dimId].indexOf(d.key);
 					    dbsliceData.data.filterSelected[dimId].splice(ind, 1);
 				    } else {
 					    // Filter not active, add the item to view.
-					    dbsliceData.data.filterSelected[dimId].push(selectedItem.key);
+					    dbsliceData.data.filterSelected[dimId].push(d.key);
 				    } // if
 
 				    cfUpdateFilters(dbsliceData.data);
 				  
+				    
 				    // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
-				    // It seems that if this one call the cfD3BarChart.update
 				    render(dbsliceData.elementId, dbsliceData.session);
+					
+					// Adjust the styling: first revert back to default, then apply the mouseover.
+					crossPlotHighlighting.off(d, "cfD3BarChart");
+					crossPlotHighlighting.on(d, "cfD3BarChart");
 					
 				} // onClick
 				
@@ -1267,8 +1273,6 @@ var dbslice = (function (exports) {
 					
 					// Here 'd' is just an object with properties 'key', and 'value'. The first denotes the value of the plotting property belonging to the bar, and the second how many items with that property value are currently selected.
 					crossPlotHighlighting.on(d, "cfD3BarChart");
-					
-					// crossPlotHighlighting.helpers.findAllData(d, "cfD3BarChart");
 					
 				}; // crossHighlightOn
 				
@@ -1368,7 +1372,7 @@ var dbslice = (function (exports) {
                 .x( function( d ) { return xscale( d.x ); } )
                 .y( function( d ) { return yscale( d.y ); } );
 
-
+			
             // Assign the data
             var allSeries = svg.select(".plotArea").selectAll( ".plotSeries" ).data( data.series );
 
@@ -1600,6 +1604,7 @@ var dbslice = (function (exports) {
                     
                     tip.show(d, anchorPoint.node());
 					
+					crossPlotHighlighting.on(d, "d3LineSeries")
 					
                 }; // tipOn
 
@@ -1609,6 +1614,8 @@ var dbslice = (function (exports) {
                         .style( "stroke-width", "2.5px" );
                     
                     tip.hide();
+					
+					crossPlotHighlighting.off(d, "d3LineSeries")
 					
                 }; // tipOff
               
@@ -1779,15 +1786,23 @@ var dbslice = (function (exports) {
 
             var cAxis = d3.axisRight( cscale ).ticks(5);
 
-            svg.select(".scaleArea")
-			  .append("g")
-                .attr("transform", "translate(20,0)")
-                .call(cAxis);
+
+            var colorAxisDOM = svg.select(".scaleArea").select("g");
+			if(colorAxisDOM.empty()){
+				svg.select(".scaleArea")
+				  .append("g")
+                    .attr("transform", "translate(20,0)")
+                    .call(cAxis);
+			} else {
+				colorAxisDOM.call(cAxis);
+			} // if
+			  
             
             
             // ADD INTERACTIVITY
             d3Contour2d.addInteractivity.addZooming(svg);
             
+			d3Contour2d.addInteractivity.addOnMouseOver(svg);
 
             // Mark the data flag
             data.newData = false;
@@ -1912,7 +1927,29 @@ var dbslice = (function (exports) {
                     svg.select(".plotArea").attr( "transform", t );
                 }; // zoomed
               
-            } // addZooming
+            }, // addZooming
+			
+			addOnMouseOver: function addOnMouseOver(svg){
+				
+				// Select the whole card for mouseover, but what needs to be returned is the data of the plot.
+				var contour = svg.selectAll(".plotArea");
+				
+				contour.on("mouseover", crossHighlightOn)
+                       .on("mouseout",  crossHighlightOff);
+					  
+				function crossHighlightOn(d){
+					
+					crossPlotHighlighting.on(d, "d3Contour2d")
+					
+				}; // crossHighlightOn
+				
+				function crossHighlightOff(d){
+					
+					crossPlotHighlighting.off(d, "d3Contour2d")
+					
+				}; // crossHighlightOff
+				
+			} // addOnMouseOver
             
         }, // addInteractivity
         
@@ -3250,10 +3287,12 @@ var dbslice = (function (exports) {
 				var plotRow = dbsliceData.session.plotRows[i];
 				var plotRowDOM = $(".plotRow")[i];
 				
+				
+				
 				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
 				d3.select(plotRowDOM).selectAll(".plotArea").each(function(plot, i){
 					
-					crossPlotHighlighting.helpers.offHandler(this, plot);
+					crossPlotHighlighting.helpers.setDefaultStyle(this, plot);
 				}) // each
 				
 				
@@ -3266,7 +3305,6 @@ var dbslice = (function (exports) {
 			unHighlightAll: function unHighlightAll(element, plot){
 				
 				// This function highlights all elments in the plot corresponding to the 'plot' data object.
-				
 				switch(plot.plotFunc.name){
 					case "cfD3Scatter":
 						// Collect the appropriate circles, and change their style.
@@ -3286,7 +3324,9 @@ var dbslice = (function (exports) {
 				      break;
 					  
 					case "cfD3Histogram":
-						// Do nothing for this one.
+						// Set opacity of bars to 0.2.
+						d3.select(element).selectAll("rect")
+						  .attr("opacity", 0.2)
 						
 					  break;
 					  
@@ -3297,6 +3337,10 @@ var dbslice = (function (exports) {
 						
 					  break;
 					  
+					case "d3Contour2d":
+						// Do nothing for this one.
+					  break;
+					  
 					default:
 					  break;
 				} // switch
@@ -3305,7 +3349,7 @@ var dbslice = (function (exports) {
 			
 			highlightDataPoint: function highlightDataPoint(element, plot, d){
 				// This function distributes the functionality. It has access to the plot information, data information, and the handle to the corresponding DOM plotArea element.
-				
+
 				// This handlercan be invoked for all data d that are found.
 				
 				switch(plot.plotFunc.name){
@@ -3319,53 +3363,82 @@ var dbslice = (function (exports) {
 					  
 					case "cfD3BarChart":
 					    // Find the appropriate rects, and change their border stroke.						  
-						d3.select(element).selectAll("rect[keyVal='"+d[plot.data.xProperty]+"']")
-						  .attr("stroke", "rgb(214, 39, 40)")
-						  .attr("stroke-width", 3); 
+						  
+						// Instead of the border turn the text to bold??
+						var labels = d3.select(element).selectAll('.keyLabel')._groups[0];
+						labels.forEach(function(labelDOM){
+							if(labelDOM.innerHTML == d[plot.data.xProperty]){
+								// Turn the text bold.
+								labelDOM.style.fontWeight = 'bold'
+							} // if
+						}); // forEach
 						
 				      break;
 					  
 					case "cfD3Histogram":
+						// NOTE THAT THE TRANSITION EFFECTS CAUSE SLIGHT BUGS - THE MARKERS ARE CREATED BEFORE THE TRANSITION COMPLETES!
+					
 						// Find within which bar the point falls.
 						var property = plot.data.xProperty;
 						var bars = d3.select(element).selectAll("rect");
+						 
 						
-						bars.each(function(barData){
+						bars.each(function(barData, barInd){
 							// d3 connects each of the bars with its data! here 'barData' is an array containing all the data points relating to it, as well as the range of values it represents.
+							
+							// Pick the corresponding marker.
+							var marker = d3.select(element).selectAll('.tempMarker[ind="'+barInd+'"]');
 							
 							// If there is any data connected to this bar check if it needs to be highlighted.
 							for(var i=0; i < barData.length; i++){
 								
-								// Check if the datapoint with the taskId is in this array. In this case check with a for loop, as otherwise the x0 and x1 properties are interpreted as array elements too.
+								// Check if the datapoint with the taskId is in this array. In this case check with a for loop (as opposed to forEach), as otherwise the x0 and x1 properties are interpreted as array elements too.
 								if(d.taskId == barData[i].taskId){
 									
-									// If this is the correct bar draw a circle on it.
+									// Find the height corresponding to 1 task.
+									var h = this.height.baseVal.value/barData.length;
 									
-									// Plot height is the bottom of the y-axis.
-									var plotHeight = d3.select(this.parentElement.parentElement).attr("plotHeight");
 									
-									// Plot a single dot at 1 on the y-axis.
-									var x = this.transform.baseVal[0].matrix.e + this.width.baseVal.value/2 + 1;
-									var y = plotHeight - this.height.baseVal.value/barData.length + 5;
-									
-									// Ensure that this is always above 0.
-									if((y + 5)>plotHeight){
-										y = plotHeight - 5;
+									// Get the marker rectangle, and update its attributes.
+									if(marker.empty()){
+										// There is none, so append one.
+										var n = 1;
+										
+										marker = d3.select(element)
+										  .append("rect")
+										    .attr("class", "tempMarker")
+											.attr("height", n*h)
+											.attr("transform", getTranslate(this, n, h))
+											.attr("n", n)
+											.attr("ind", barInd)
+											.attr("width", this.width.baseVal.value)
+											.attr("opacity", 1)
+											.style("fill","cornflowerblue")
+										
+									} else {
+										// Add to the height.
+										var n = Number(marker.attr("n")) + 1;
+										
+										marker
+											.attr("height", n*h)
+											.attr("transform", getTranslate(this, n, h))
+											.attr("n", n)
+										
 									} // if
-									
-									d3.select(element)
-									  .append("circle")
-									    .attr("r", 5)
-									    .attr("cx", x)
-										.attr("cy", y)
-										.attr("fill", "rgb(214, 39, 40)");
-									  
 									
 								}; // if
 								
 							}; //if
 							
-							
+							function getTranslate(barDOM, n, h){
+								
+								var plotHeight = d3.select(barDOM.parentElement.parentElement).attr("plotHeight");
+								
+								var leftEdgeX = barDOM.transform.baseVal[0].matrix.e + 1;
+								var topEdgeY = plotHeight - n*h;
+								var t = "translate(" + leftEdgeX + "," + topEdgeY + ")";
+							  return t;
+							} // getTranslate
 							
 						}); // each
 						
@@ -3373,9 +3446,21 @@ var dbslice = (function (exports) {
 					  
 					case "d3LineSeries":
 						// Find the line corresponding to the data point. Look for it by taskId.
-						d3.select(element).selectAll(".plotSeries[task-id='" + d.taskId + "']").selectAll(".line")
+						d3.select(element).selectAll('.plotSeries[task-id="' + d.taskId + '"]').selectAll(".line")
 						  .style("opacity", 1.0)
 						  .style( "stroke-width", "4px" );
+						
+					  break;
+					  
+					case "d3Contour2d":
+					    // Find the appropriate contour plot card, and draw a border around it.
+					    if(d3.select(element).attr("task-id") == d.taskId){
+							d3.select(element.parentElement.parentElement.parentElement)
+							  .attr("class", "card border border-dark")
+							  
+							d3.select(element.parentElement.parentElement.parentElement).select(".plotTitle")
+							  .style("font-weight", "bold")
+						} // if
 						
 					  break;
 					  
@@ -3385,28 +3470,30 @@ var dbslice = (function (exports) {
 				
 			}, // highlightDataPoint
 			
-			offHandler: function offHandler(element, plot){
+			setDefaultStyle: function setDefaultStyle(element, plot){
 				// This function returns all expected elements on the plots back to their default styles.
 				
 				switch(plot.plotFunc.name){
 					case "cfD3Scatter":
 						// Find all the circles, style them appropriately.
 						d3.select(element).selectAll("circle")
-						  .style("opacity", cfD3Scatter.opacity)
+						  .style("opacity", 1)
 						  .attr("r", 5);
 						
 					  break;
 					  
 					case "cfD3BarChart":
-					    // Remove the border stroke.
-						d3.select(element).selectAll("rect")
-						  .attr("stroke", "none");
+					    // Remove the text bolding.
+						d3.select(element).selectAll('.keyLabel')
+						  .style("font-weight", "")
 						  
 				      break;
 					  
 					case "cfD3Histogram":
 						// Find within which bar the point falls.
-						d3.select(element).selectAll("circle").remove()
+						d3.select(element).selectAll(".tempMarker").remove()
+						d3.select(element).selectAll("rect")
+						  .attr("opacity", 1)
 						
 					  break;
 					  
@@ -3415,17 +3502,26 @@ var dbslice = (function (exports) {
 						d3.select(element).selectAll(".line")
 						  .style("opacity", 1.0)
                           .style( "stroke-width", "2.5px" );
+						  
+					  break;
+						
+					case "d3Contour2d":
+						// Remove any border
+						d3.select(element.parentElement.parentElement.parentElement)
+						  .attr("class", "card");
+						  
+						d3.select(element.parentElement.parentElement.parentElement).select(".plotTitle")
+							  .style("font-weight", "")
+					  break;
 					  
 					default:
 					  break;
 				} // switch
 				
-			}, // offHandler
+			}, // setDefaultStyle
 			
 			findAllData: function findAllData(d, sourcePlotName){
 				
-				// console.log(d);
-				// console.log(sourcePlotName);
 				
 				var allDataPoints;
 			    switch(sourcePlotName){
@@ -3438,8 +3534,19 @@ var dbslice = (function (exports) {
 						// Collect all the relevant data points. An additional filter needs to be applied here!! DON'T USE FILTER - IT MESSES UP WITH ORIGINAL FUNCTIONALITY
 						var cfDataPoints = dbsliceData.data.metaDims[0].top(Infinity)
 						allDataPoints = cfDataPoints.filter(function(p){return p[d.keyProperty] == d.key})
-						
-						
+					  break;
+					  
+					case "d3LineSeries":
+						// Collect all the relevant data points by tskId.
+						var cfDataPoints = dbsliceData.data.metaDims[0].top(Infinity)
+						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.taskId});
+						// console.log(allDataPoints);
+					  break;
+					  
+					case "d3Contour2d":
+						// Find the datapoint by taskId.
+						var cfDataPoints = dbsliceData.data.metaDims[0].top(Infinity)
+						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.data.taskId});
 					  break;
 					  
 					default:

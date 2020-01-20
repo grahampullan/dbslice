@@ -21,3 +21,4 @@ export { getFilteredTaskLabels } from './core/getFilteredTaskLabels.js';
 export { addMenu } from './core/addMenu.js';
 export { loadData } from './core/loadData.js';
 export { loadSession } from './core/loadSession.js';
+export { crossPlotHighlighting } from './core/crossPlotHighlighting.js';

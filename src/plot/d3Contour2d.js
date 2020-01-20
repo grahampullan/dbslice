@@ -1,5 +1,7 @@
+import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
+
 const d3Contour2d = {
-	
+        
 	name: "d3Contour2d",
   
 	margin: {top: 20, right: 65, bottom: 20, left: 10},
@@ -79,15 +81,23 @@ const d3Contour2d = {
 
 		var cAxis = d3.axisRight( cscale ).ticks(5);
 
-		svg.select(".scaleArea")
-		  .append("g")
-			.attr("transform", "translate(20,0)")
-			.call(cAxis);
+
+		var colorAxisDOM = svg.select(".scaleArea").select("g");
+		if(colorAxisDOM.empty()){
+			svg.select(".scaleArea")
+			  .append("g")
+				.attr("transform", "translate(20,0)")
+				.call(cAxis);
+		} else {
+			colorAxisDOM.call(cAxis);
+		} // if
+		  
 		
 		
 		// ADD INTERACTIVITY
 		d3Contour2d.addInteractivity.addZooming(svg);
 		
+		d3Contour2d.addInteractivity.addOnMouseOver(svg);
 
 		// Mark the data flag
 		data.newData = false;
@@ -161,7 +171,8 @@ const d3Contour2d = {
 				container.select("svg")
 				  .append("g")
 					.attr("transform", "translate(" + d3Contour2d.margin.left + "," + d3Contour2d.margin.top + ")")
-					.attr("class", "plotArea");
+					.attr("class", "plotArea")
+					.attr("task-id", data.taskId);
 				
 			}; // if
 			
@@ -211,7 +222,29 @@ const d3Contour2d = {
 				svg.select(".plotArea").attr( "transform", t );
 			}; // zoomed
 		  
-		} // addZooming
+		}, // addZooming
+		
+		addOnMouseOver: function addOnMouseOver(svg){
+			
+			// Select the whole card for mouseover, but what needs to be returned is the data of the plot.
+			var contour = svg.selectAll(".plotArea");
+			
+			contour.on("mouseover", crossHighlightOn)
+				   .on("mouseout",  crossHighlightOff);
+				  
+			function crossHighlightOn(d){
+				
+				crossPlotHighlighting.on(d, "d3Contour2d")
+				
+			}; // crossHighlightOn
+			
+			function crossHighlightOff(d){
+				
+				crossPlotHighlighting.off(d, "d3Contour2d")
+				
+			}; // crossHighlightOff
+			
+		} // addOnMouseOver
 		
 	}, // addInteractivity
 	
@@ -331,5 +364,6 @@ const d3Contour2d = {
 	} // helpers
 	
 } // d3Contour2d
+
 
 export { d3Contour2d };

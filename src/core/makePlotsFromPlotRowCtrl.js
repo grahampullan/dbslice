@@ -84,6 +84,9 @@ function makePromiseTaskPlot(ctrl, url, title, taskId) {
 		  } else {
 			  plot.data = responseJson;
 		  } // if
+		  
+		  // Add the taskId for identification purposes.
+		  plot.data.taskId = taskId;
 
 		  plot.layout = Object.assign({}, ctrl.layout);
 		  plot.plotFunc = ctrl.plotFunc;
@@ -100,7 +103,6 @@ function makePromiseSlicePlot(ctrl, sliceId, sliceIndex) {
 	// This creates all the data retrieval promises required to make a 'slice' plot. 'Slice' plots summarise data of multiple tasks, as opposed to 'task' plots which produce an individual plot for each of the tasks.
   
 	var slicePromisesPerPlot = [];
-	var tasksOnPlot = [];
   
 	// Determine the maximum number of plots if a limit is imposed.
 	ctrl.maxTasks = ctrl.maxTasks !== undefined ? Math.min(ctrl.taskIds.length, ctrl.maxTasks) : undefined;
@@ -112,19 +114,11 @@ function makePromiseSlicePlot(ctrl, sliceId, sliceIndex) {
 	// Make all the promises required for a single plot.
 	for (var index = 0; index < d.length; index++){
 	  
-		// The URL must be given in the data. The sliceId comes from the variable name in the data.
-		var url = d[index][sliceId];
+		// The URL must be given in the data. The sliceId comes from the variable name in the data. The task Id is added to track the loaded data.
+		var taskData = d[index];
+		var url = taskData[sliceId];
 		
-		var slicePromise = fetch(url)
-		  .then(function (response) {
-			  if (ctrl.csv === undefined){
-				return response.json();
-			  }; // if
-
-			  if (ctrl.csv == true){
-				return response.text();
-			  }; // if
-		  }); // fetch().then()
+		var slicePromise = makeSlicePromise(url, taskData.taskId);
 		
 		slicePromisesPerPlot.push(slicePromise);
 	} // for
@@ -144,6 +138,7 @@ function makePromiseSlicePlot(ctrl, sliceId, sliceIndex) {
 
 			var plot = {};
 
+			
 			if (ctrl.formatDataFunc !== undefined) {
 				plot.data = ctrl.formatDataFunc(responseJson);
 			} else {
@@ -170,6 +165,28 @@ function makePromiseSlicePlot(ctrl, sliceId, sliceIndex) {
 			
 		  return plot;
 		}); // then
+		
+		
+	function makeSlicePromise(url, taskId){
+		// This is done in the following manner to allow the correct taskId to be added to each of hte loaded data sets. This allows the data in the files to not need the appropriate task id in order to be tracked on the plots.
+		var slicePromise = fetch(url)
+		  .then(function (response) {
+				  var dataPromise = response.json();
+				  
+				  dataPromise.then(function(data){
+					  data.taskId = taskId;
+					  return data;
+				  });
+				  
+				return dataPromise; 
+
+		  }); // fetch().then()
+		
+		
+	  return slicePromise;
+	} // makeSlicePromise
+
+		
 } // makePromiseSlicePlot
 
 export { makePlotsFromPlotRowCtrl };

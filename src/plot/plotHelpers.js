@@ -1,5 +1,5 @@
 const plotHelpers = {
-	
+        
 	getDomain: function getDomain(series, accessor){
 		// This function expects an array of objects 'series', that contains all the information about the data, as well as the data itself. 'series' is expected to have the data itself stored in a lover level [dataWrapper]. It expects that the 'variable' data can be accessed using series[n][plotWrapper][variable]  
 		
@@ -20,8 +20,7 @@ const plotHelpers = {
 		return [minVal, maxVal]
 		
 	}, // getDomain
-	
-	
+		 
 	collectAllPropertyNames: function collectAllPropertyNames(series, accessor){
 		// This function collects all the property names in an array of objects.
 		var allPropertyNames = [];        
@@ -59,7 +58,8 @@ const plotHelpers = {
 		}
 		return resArr;
 	} // findCommonElements
-	
+		
 } // plotHelpers
+
 
 export { plotHelpers };

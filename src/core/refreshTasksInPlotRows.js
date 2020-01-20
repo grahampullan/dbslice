@@ -22,7 +22,6 @@ function refreshTasksInPlotRows() {
 					ctrl.taskLabels = dbsliceData.filteredTaskLabels;
 				} // if
 
-
 				// THIS DOES NOTHING FOR NOW!!
 				if (ctrl.tasksByList) {
 					ctrl.taskIds = dbsliceData.manualListTaskIds;
@@ -37,6 +36,7 @@ function refreshTasksInPlotRows() {
 						plotRow.plots.forEach(function(plot){
 							plot.data.limits = plotRow.ctrl.limits;
 						}); // forEach
+				
 					}); // then
 				plotRowPromises.push(plotRowPromise);
 			} // if
