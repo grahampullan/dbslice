@@ -1,6 +1,7 @@
 import { refreshTasksInPlotRows } from './refreshTasksInPlotRows.js';
 
 function makeSessionHeader(element, title, subtitle, config) {
+	
 	var sessionTitle = element
 	  .append("div")
 		.attr("class", "row sessionHeader")

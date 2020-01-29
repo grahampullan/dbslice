@@ -158,5 +158,5 @@ const loadData = {
 	} // helpers
 	
 } // loadData
-	
+
 export { loadData };

@@ -53,7 +53,7 @@ const cfD3BarChart = {
 			.attr("width", function (v) {return    x(v.value);})
 			.attr("opacity", 1); // updating the bar chart bars
 
-		bars.exit().transition().attr("width", 0).remove();
+		bars.exit().remove();
 		
 		
 		// Handle the axes.
@@ -177,7 +177,8 @@ const cfD3BarChart = {
 			container.select("svg")
 				.attr("width", svgWidth)
 				.attr("height", svgHeight)
-				.attr("plotWidth", width).attr("plotHeight", height)
+				.attr("plotWidth", width)
+				.attr("plotHeight", height)
 									
 			var plotArea = container.select("svg").select(".plotArea");
 			if(plotArea.empty()){

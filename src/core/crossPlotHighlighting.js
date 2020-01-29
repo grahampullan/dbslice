@@ -2,8 +2,6 @@ import { dbsliceData } from '../core/dbsliceData.js';
 
 const crossPlotHighlighting = {
 		
-		
-		
 	on: function on(d, sourcePlotName){
 	
 		// Functionality:

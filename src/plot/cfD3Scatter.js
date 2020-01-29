@@ -13,11 +13,6 @@ const cfD3Scatter = {
 	opacity: 1,
 	
 	make: function make(element, data, layout) {
-	
-		// Select where the plot should go.
-		var container = d3.select(element);
-	
-		cfD3Scatter.setupSvg(container, data, layout);
 		
 		// Update the plot.
 		cfD3Scatter.update(element, data, layout);
@@ -287,8 +282,7 @@ const cfD3Scatter = {
 			points.on("mouseover", tipOn)
 				  .on("mouseout", tipOff);
 			  
-			  
-			// Do the tooltip
+			// Cannot erase these by some property as there will be other tips corresponding to other plots with the same propertry - unless they are given a unique id, which is difficult to keep track of.
 			var tip = d3.tip()
 			  .attr('class', 'd3-tip')
 			  .offset([-10, 0])

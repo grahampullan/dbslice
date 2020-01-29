@@ -7,6 +7,7 @@ import { loadSession } from '../core/loadSession.js';
 
 
 function render(elementId, session) {
+	
 	var element = d3.select("#" + elementId);
 
 	if (dbsliceData.filteredTaskIds !== undefined) {
@@ -16,6 +17,9 @@ function render(elementId, session) {
 		element.select(".filteredTaskCount").select("p")
 		  .html("<p> Number of Tasks in Filter = All </p>");
 	}; // if
+  
+	// Remove all d3-tip elements because they end up cluttering the DOM.
+	d3.selectAll(".d3-tip").remove();
   
   
   

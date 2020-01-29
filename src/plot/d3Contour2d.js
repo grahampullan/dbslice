@@ -8,17 +8,13 @@ const d3Contour2d = {
   
 	colour: [],
 
-	make : function ( element, data, layout ) {
+	make : function ( element, data, layout ){
 
 		d3Contour2d.update ( element, data, layout )
 
 	}, // make
 
-	update : function ( element, data, layout ) {
-
-		if (data.newData == false) {
-			return
-		}; // if
+	update : function ( element, data, layout ){
 
 		var container = d3.select(element);
 

@@ -19,11 +19,8 @@ const d3LineSeries = {
 	}, // make
 
 	update : function ( element, data, layout ) {
-
-		// End execution if there is no new data.
-		if (data.newData == false) {
-			return
-		} // if
+		
+		
 
 		// Setup the svg.
 		d3LineSeries.setupSvg(element, data, layout);
@@ -46,7 +43,7 @@ const d3LineSeries = {
 			.x( function( d ) { return xscale( d.x ); } )
 			.y( function( d ) { return yscale( d.y ); } );
 
-
+		
 		// Assign the data
 		var allSeries = svg.select(".plotArea").selectAll( ".plotSeries" ).data( data.series );
 
@@ -247,7 +244,7 @@ const d3LineSeries = {
 				 .on("mouseout", tipOff);
 		  
 		  
-			// Do the tooltip
+			// Cannot erase these by some property as there will be other tips corresponding to other plots with the same propertry - unless they are given a unique id, which is difficult to keep track of.
 			var tip = d3.tip()
 				.attr('class', 'd3-tip')
 				.offset([-12, 0])

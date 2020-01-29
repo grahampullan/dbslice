@@ -47,12 +47,16 @@ function cfUpdateFilters(crossfilter) {
 	var currentMetaData = crossfilter.metaDims[0].top(Infinity);
 	dbsliceData.filteredTaskIds = currentMetaData.map(function (d){return d.taskId;});
 
-	if (currentMetaData[0].label !== undefined) {
-		dbsliceData.filteredTaskLabels = currentMetaData.map(function (d){return d.label;});
-	} else {
-		dbsliceData.filteredTaskLabels = currentMetaData.map(function (d){return d.taskId;});
+	
+	if(currentMetaData.length > 0){
+		if (currentMetaData[0].label !== undefined) {
+			dbsliceData.filteredTaskLabels = currentMetaData.map(function (d){return d.label;});
+		} else {
+			dbsliceData.filteredTaskLabels = currentMetaData.map(function (d){return d.taskId;});
+		} // if
+	} else {	
+		dbsliceData.filteredTaskLabels = [];
 	} // if
-  
 } // cfUpdateFilter
 
 

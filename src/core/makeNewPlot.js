@@ -1,6 +1,6 @@
 function makeNewPlot( plotData, index ) {
 
-
+    
 	var plotRowIndex = d3.select(this._parent).attr("plot-row-index");
 	  
 	var plot = d3.select(this)
@@ -31,13 +31,26 @@ function makeNewPlot( plotData, index ) {
 		.attr("plot-index", index);
 		  
 	plotData.plotFunc.make(plotBody.node(), plotData.data, plotData.layout);
-	 
-	// Listen to the changes of the plot card, and update the plot
-	$(window).resize(  function(){ 
-		// console.log( plot.node().offsetWidth )
-		var container = d3.select(plotBody.node());
-		plotData.plotFunc.update( plotBody.node(), plotData.data, plotData.layout )
+	
+	
+	
+	// Redraw the plot on window resize!
+	$(window).resize(  function(){
+		// Check if the element containing the plot to be resized is still in the visible dom (document). If not, then do not resize anything, as that will cause errors.
+		if( document.body.contains(plotBody.node()) ){
+			
+			// Use the data assigned to the node to execute the redraw.
+			d3.select(plotBody.node()).each(function(d){
+				d.layout.isWindowResized = true
+				d.plotFunc.update( plotBody.node(), d.data, d.layout );
+				d.layout.isWindowResized = false
+			}) // each
+			
+			
+		} // if
+		
 	}  );
+	
 
 } // makeNewPlot
 
