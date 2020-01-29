@@ -1,41 +1,71 @@
 import { refreshTasksInPlotRows } from './refreshTasksInPlotRows.js';
 
-function makeSessionHeader( element, title, subtitle, config ) {
+function makeSessionHeader(element, title, subtitle, config) {
+	
+	var sessionTitle = element
+	  .append("div")
+		.attr("class", "row sessionHeader")
+	  .append("div")
+		.attr("class", "col-md-12 sessionTitle");
+ 
+	sessionTitle
+	  .append("br");
+	
+	sessionTitle
+	  .append("h1")
+		.attr("style", "display:inline")
+		.attr("spellcheck", "false")
+		.html(title)
+		.attr("contenteditable", true);
+  
+	if (config.plotTasksButton) {
+		sessionTitle
+		  .append("button")
+			.attr("class", "btn btn-success float-right")
+			.attr("id", "refreshTasksButton")
+			.html("Plot Selected Tasks");
+	} // if
 
-	element.append( "div" )
-		.attr( "class" , "row sessionHeader" )
-		.append( "div" )
-			.attr( "class" , "col-md-12 sessionTitle" );
+	if (subtitle !== undefined) {
+		sessionTitle
+		  .append("p")
+		  .html(subtitle);
+	} // if
+  
+	sessionTitle
+	  .append("br")
+	sessionTitle
+	  .append("br");
 
-	var titleHtml = "<br/><h1 style='display:inline'>" + title + "</h1>";
-
-	if ( config.plotTasksButton ) {
-
-		titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
-
-	} else {
-		titleHtml += "<br/>";
-	} 
-
-	if ( subtitle === undefined ) {
-
-		titleHtml += "<br/>";
-
-	} else {
-
-		titleHtml += "<p>" + subtitle + "</p>";
-
-	}
-
-	element.select( ".sessionTitle" )
-		.html( titleHtml )
-		.append( "div" )
-			.attr( "class" , "filteredTaskCount" );	
-
-
-	$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows() } );
-
-}
+	sessionTitle
+	  .append("div")
+		.attr("class", "filteredTaskCount")
+	  .append("p")
+		.attr("style", "display:inline");
+	
+	sessionTitle
+	  .append("button")
+		.attr("class", "btn btn-info float-right")
+		.attr("style", "display:inline")
+		.attr("id", "getData")
+		.html("Add data");
+	  
+	sessionTitle
+	  .append("button")
+		.attr("class", "btn btn-info float-right")
+		.attr("style", "display:inline")
+		.attr("id", "getSessionButton")
+		.html("Load session");
+	  
+	sessionTitle
+	  .append("br")
+	sessionTitle
+	  .append("br")
+	  
+	$("#refreshTasksButton").on("click", function () {
+		refreshTasksInPlotRows();
+	});
    
+} // makeSessionHeader
 
 export { makeSessionHeader };

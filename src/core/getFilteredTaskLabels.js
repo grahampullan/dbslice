@@ -4,7 +4,7 @@ function getFilteredTaskLabels() {
 
 	return dbsliceData.session.filteredTaskLabels;
 
-}
+} // getFilteredTaskLabels
 
 export { getFilteredTaskLabels };
 

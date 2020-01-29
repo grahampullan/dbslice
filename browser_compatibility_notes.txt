@@ -1,0 +1,14 @@
+three.js does not support:
+IE: 6-10
+Firefox: 2-3.6
+Chrome: 4-7
+Safari: 3.1-5
+Opera: 10-11.5
+iOS Safari: 3.2-7.1
+Opera Mini: any
+Android Browser: 2.1-4.4.4
+
+crossfilter.js does not support:
+IE: 9
+
+Support for IE added ~7000 lines of code (~82%) of transformed dbslice library. Is support for IE required?
