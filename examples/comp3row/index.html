@@ -49,22 +49,31 @@
 <script>
 
 
-var session = { 
-        title : "Axial compressor stator design",
-        plotRows : []
-    };
+	var session = { 
+			title : "Axial compressor stator design",
+			plotRows : []
+		};
 
-var data = { header : { metaDataProperties : [],
-                            dataProperties : [],
-							sliceProperties: []
-					  },
-			 data	: []		
-		   };
+	var data = { header : { metaDataProperties : [],
+								dataProperties : [],
+								sliceProperties: []
+						  },
+				 data	: []		
+			   };
 
-dbslice.initialise ("target", session, data, { plotTasksButton : true } );
+	dbslice.initialise ("target", session, data, { plotTasksButton : true } );
 
+	var ld = dbslice.importExportFunctionality.importData
+	var ls = dbslice.importExportFunctionality.loadSession
 
-
+	d3.csv("metadata_A.csv", ld.helpers.convertNumbers, function(metadata){
+					
+			metadata.forEach(function(d){d.file = "metadata_A.csv"})
+			ld.csv(metadata, dbslice.cfDataManagement.cfInit );
+			
+			ls.handler({name : "session.json"})
+							
+	})
 
 
 </script>

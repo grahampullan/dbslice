@@ -1,0 +1,7 @@
+{
+"isSessionObject": "true", 
+"title": "Axial Compressor stator design", 
+"plotRows": [ 
+	{"title": "Compressor database", "type": "metadata", "plots": [{"type": "cfD3BarChart", "title": "Design", "xProperty": "Design"}, {"type": "cfD3Scatter", "title": "Efficiency vs. Mass flow", "xProperty": "Mass flow", "yProperty": "Efficiency"}, {"type": "cfD3Histogram", "title": "Efficiency", "xProperty": "Eddiciency"}]}
+			]
+}

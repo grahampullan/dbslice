@@ -1,7 +1,7 @@
 // import "@babel/polyfill";
 import 'whatwg-fetch';
 
-export { cfInit } from './core/cfInit.js';
+
 export { cfD3BarChart } from './plot/cfD3BarChart.js';
 export { cfD3Histogram } from './plot/cfD3Histogram.js';
 export { cfD3Scatter } from './plot/cfD3Scatter.js';
@@ -16,9 +16,7 @@ export { cfUpdateFilters } from './core/cfUpdateFilters.js';
 export { makePlotsFromPlotRowCtrl } from './core/makePlotsFromPlotRowCtrl.js'; 
 export { refreshTasksInPlotRows } from './core/refreshTasksInPlotRows.js'; 
 export { makeSessionHeader } from './core/makeSessionHeader.js';
-export { getFilteredTaskIds } from './core/getFilteredTaskIds.js';
-export { getFilteredTaskLabels } from './core/getFilteredTaskLabels.js';
 export { addMenu } from './core/addMenu.js';
-export { loadData } from './core/loadData.js';
-export { loadSession } from './core/loadSession.js';
 export { crossPlotHighlighting } from './core/crossPlotHighlighting.js';
+export { cfDataManagement } from './core/cfDataManagement.js';
+export { importExportFunctionality } from './core/importExportFunctionality.js';

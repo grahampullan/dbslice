@@ -66,206 +66,177 @@ var dbslice = (function (exports) {
 	} // updatePlot
 
 
-    var loadData = {
-        
-        handler: function handler(file){
-            
-            // Split the name by the '.', then select the last part.
-            var extension = file.name.split(".").pop();
-            
-            switch(extension){
-                
-                case "csv":
-                    loadData.csv(file.name);
-                    break;
-                case "json":
-                    loadData.json(file.name);
-                    break;
-                    
-                default:
-                    window.alert("Selected file must be either .csv or .json")
-                    break;
-            }; // switch
-        }, // handler
-
-        json: function json(filename){
-        
-            d3.json(filename, function(metadata){
-                // The metadata has loaded. Add it to the already existing data.
-                
-				
-				// Change any backslashes with forward slashes
-				metadata.data.forEach(function(d){
-					loadData.helpers.replaceSlashes(d, "taskId");
-				}) // forEach
-                
-                dbsliceData.data = cfInit(metadata);
-                
-                render(dbsliceData.elementId, dbsliceData.session);
-                
-            })
-        
-        }, // json
-        
-        csv: function csv(filename){
-        
-            d3.csv(filename, loadData.helpers.convertNumbers, function(metadata){
-                // Change this into the appropriate internal data format.
-                var headerNames = d3.keys(metadata[0])
-                
-                // Assemble dataProperties, and metadataProperties.
-                var dataProperties = [];
-                var metadataProperties = [];
-                var sliceProperties = [];
-                var contourProperties = [];
-                
-                for(var i=0; i<headerNames.length;i++){
-                    
-                    // Look for a designator. This is either "o_" or "c_" prefix.
-                    var variable    = headerNames[i];
-                    var prefix      = variable.split("_")[0];
-                    var variableNew = variable.split("_").slice(1).join(" ");
-                    
-                    
-                    switch(prefix){
-                        case "o":
-                            // Ordinal variables.
-                            dataProperties.push( variableNew )
-                            
-                            loadData.helpers.renameVariables(metadata, variable, variableNew)
-                            break;
-                        case "c":
-                            // Categorical variables
-                            metadataProperties.push( variableNew )
-                            
-                            loadData.helpers.renameVariables(metadata, variable, variableNew)
-                            break;
-                        case "s":
-                            // Slices
-                            sliceProperties.push(variableNew);
-                            
-                            loadData.helpers.renameVariables(metadata, variable, variableNew)
-                            break;
-                            
-                        case "c2d":
-                            // Contours
-                            contourProperties.push(variableNew);
-                            
-                            loadData.helpers.renameVariables(metadata, variable, variableNew)
-                          
-                          break;
-                            
-						case "taskId":
-							// This is a special case, as it is advantageous that any '\' in the value of taskId be changed into '/'. It is intended that the taskId is the url to the location ofthe data, thus this can prove important.						
-							metadata.forEach(function(d){
-								loadData.helpers.replaceSlashes(d, "taskId");
-							}) // forEach
-							
-						  break;
-                            
-                        default:
-                            
-                            break;
-                    
-                    }; // switch
-                    
-                }; // for
-                
-                // Combine in an overall object.
-                var d = {
-                     data : metadata,
-                     header: {
-                              dataProperties :     dataProperties,
-                          metaDataProperties : metadataProperties,
-                             sliceProperties :    sliceProperties,
-                           contourProperties :  contourProperties,
-                     }
-                };
-                
-                // Store internally
-                dbsliceData.data = cfInit(d);
-                
-                render(dbsliceData.elementId, dbsliceData.session);
-                
-            }) // d3.csv
-        }, // csv
-        
-        helpers: {
-            
-            renameVariables: function renameVariables(data, oldVar, newVar){
-                
-                                for(var j=0; j<data.length; j++){
-                                    // Have to change the names individually.
-                                    data[j][newVar] = data[j][oldVar];
-                                    delete data[j][oldVar];
-                                }; // for
-            }, // renameVariable
-                            
-            convertNumbers: function convertNumbers(row) {
-                              var r = {};
-                              for (var k in row) {
-                                r[k] = +row[k];
-                                if (isNaN(r[k])) {
-                                  r[k] = row[k];
-                                }
-                              }
-                              return r;
-            }, // convertNumbers
-							
-			replaceSlashes: function replaceSlashes(d, variable){
-				
-				var variable_ = d[variable];
-				d[variable] = variable_.replace(/\\/g, "/");
-					
-			} // replaceSlashes
-
-        } // helpers
-        
-    } // loadData
-
-
-    function cfInit(metaData) {
+	var cfDataManagement = {
+		
+		cfInit: function cfInit(metadata){
       
-        var cfData = {};
-        cfData.metaDataProperties = metaData.header.metaDataProperties;
-        cfData.dataProperties = metaData.header.dataProperties;
-        cfData.sliceProperties = metaData.header.sliceProperties;
-        cfData.contourProperties = metaData.header.contourProperties;
-        cfData.cf = crossfilter(metaData.data);
-        cfData.metaDims = [];
-        cfData.metaDataUniqueValues = {};
-        cfData.dataDims = [];
-        cfData.filterSelected = [];
-        cfData.histogramSelectedRanges = []; 
-        
-        // Populate the metaDims and metaDataUniqueValues.
-        cfData.metaDataProperties.forEach(function (property, i) {
-            cfData.metaDims.push(cfData.cf.dimension(function (d){return d[property];}));
-            cfData.metaDataUniqueValues[property] = Array.from(new Set( metaData.data.map(
-                function (d){return d[property];}
-            )));
-        }); // forEach
-        
-        
-        // Populate the dataDims. cf.dimension(function(d){return d.<property>}) sets up a dimension, which is an object that can perform some specific tasks based on the data it is give. Two of these are "top(n)", and "bottom(n)", whih return topmost and bottommost n elements respectively.
-        cfData.dataProperties.forEach(function (property, i) {
-          cfData.dataDims.push(cfData.cf.dimension(function (d) {
-            return d[property];
-          }));
-        }); // forEach
-        
-        
-        // Create a standalone array of taskIds
-        var taskIds = [];
-        metaData.data.forEach(function (task, i) {
-          taskIds.push(task.taskId);
-        });
-        dbsliceData.filteredTaskIds = taskIds; 
-        
-        // Return the created cfData object to be assigned to individual plots.
-      return cfData;
-        
-    } // cfInit
+			var cfData = {};
+			cfData.metaDataProperties = metadata.header.metaDataProperties;
+			cfData.dataProperties = metadata.header.dataProperties;
+			cfData.sliceProperties = metadata.header.sliceProperties;
+			cfData.contourProperties = metadata.header.contourProperties;
+			cfData.cf = crossfilter(metadata.data);
+			cfData.metaDims = [];
+			cfData.metaDataUniqueValues = {};
+			cfData.dataDims = [];
+			cfData.fileDim = [];
+			cfData.filterSelected = [];
+			cfData.histogramSelectedRanges = []; 
+			
+			// Populate the metaDims and metaDataUniqueValues.
+			cfData.metaDataProperties.forEach(function (property, i) {
+				cfData.metaDims.push(cfData.cf.dimension(function (d){return d[property];}));
+				cfData.metaDataUniqueValues[property] = Array.from(new Set( metadata.data.map(
+					function (d){return d[property];}
+				)));
+			}); // forEach
+			
+			
+			// Populate the dataDims. cf.dimension(function(d){return d.<property>}) sets up a dimension, which is an object that can perform some specific tasks based on the data it is give. Two of these are "top(n)", and "bottom(n)", whih return topmost and bottommost n elements respectively.
+			cfData.dataProperties.forEach(function (property, i) {
+			  cfData.dataDims.push(cfData.cf.dimension(function (d) {
+				return d[property];
+			  }));
+			}); // forEach
+			
+			
+
+			cfData.fileDim = cfData.cf.dimension(function (d){return d.file;})
+			
+			
+			// Create a standalone array of taskIds
+			dbsliceData.filteredTaskIds = cfDataManagement.helpers.getTaskIds(metadata);
+			
+			// Store data internally
+		    dbsliceData.data = cfData;
+			
+			
+			
+			
+			
+			
+			
+		}, // cfInit
+		
+		
+		cfAdd: function cfAdd(metadata){
+			// This function attempts to add data to the already existing dataset. It allows a compromise between searching for all available data and loading it in, and personally creating additional combinations of the metadata in csv files.
+			// The ideal solution would be for each individual task to have it's own small metadata file, which could then by parsed by a search engine. This is unpractical for a localised application - this functionality is usable however.
+			
+			// If no data is currently loaded then call cfInit instead - this allows the dimensions to be overrun.
+			if (dbsliceData.data !== undefined){
+				if (dbsliceData.data.cf.all().length < 1){
+					cfDataManagement.cfInit(metadata)
+			
+				} else {
+			
+					// Here the compatibility of data needs to be assessed. If the new dataset has the same variables as the existing datasets, then add those in. If it does not do nothing.
+					var canMerge = cfDataManagement.helpers.crossCheckProperties(dbsliceData.data, metadata)
+					
+					if(canMerge){
+						
+						// Add these records into the dataset.
+						dbsliceData.data.cf.add(metadata.data)
+						
+						// Update the filtered taskIds - note that these could fall into some filters, and therefore not be active straight away...
+						var currentMetaData = dbsliceData.data.metaDims[0].top(Infinity);
+						dbsliceData.filteredTaskIds = currentMetaData.map(function (d){return d.taskId;});
+						
+					} // if
+			
+			
+				} // if
+			} // if
+			
+			
+		}, // cfAdd
+		
+		
+		cfRemove: function cfRemove(dataFilesToRemove){
+			// This function will remove the data from the crossfilter.
+						
+			// Loop though all the dimensions and remove the filters.
+			dbsliceData.data.metaDims.forEach(function(metaDim){
+				metaDim.filterAll()
+			}) // forEach
+			
+			dbsliceData.data.dataDims.forEach(function(dataDim){
+				dataDim.filterAll()
+			}) // forEach
+			
+			// Apply the new filter. - I think this isn't working.
+			dbsliceData.data.fileDim.filter(function(d){
+				return dataFilesToRemove.indexOf(d) > -1
+			})
+			
+			
+			// Remove the data.
+			dbsliceData.data.cf.remove()
+			
+			
+			// Remove the filter.
+			dbsliceData.data.fileDim.filterAll()
+			
+			// Reinstate other data filters.
+			cfUpdateFilters( dbsliceData.data )
+			
+			
+			
+		}, // cfRemove
+		
+		
+		helpers : {
+			
+			getTaskIds: function getTaskIds(metadata){
+				var taskIds = [];
+				metadata.data.forEach(function (task, i) {
+				  taskIds.push(task.taskId);
+				});
+			  return taskIds
+			}, // getTaskIds
+			
+			crossCheckProperties: function crossCheckProperties(existingData, newData){
+				
+				
+				// oldData.header.dataProperties.filter(function(d){  return !newData.includes(d) })
+				var missingDataProperties = existingData.dataProperties.filter(function(d){  return !newData.header.dataProperties.includes(d) })
+				
+				var missingMetadataProperties = existingData.metaDataProperties.filter(function(d){  return !newData.header.metaDataProperties.includes(d) })
+				
+				var missingSliceProperties = existingData.sliceProperties.filter(function(d){  return !newData.header.sliceProperties.includes(d) })
+					
+				var missingContourProperties = existingData.contourProperties.filter(function(d){  return !newData.header.contourProperties.includes(d) })
+				
+				var allPropertiesIncluded =     (missingDataProperties.length == 0) && 
+										    (missingMetadataProperties.length == 0) &&
+										       (missingSliceProperties.length == 0) &&
+										     (missingContourProperties.length == 0)
+											 
+				
+				
+				if(allPropertiesIncluded){
+					return true
+				} else {
+					// Which ones are not included?
+					var warningText = "Selected data has been rejected. It requires additional variables:\n" + 
+					"Data variables:     " +     missingDataProperties.join(", ") + "\n" +
+				    "Metadata variables: " + missingMetadataProperties.join(", ") + "\n" +
+					"Slice variables:    " +    missingSliceProperties.join(", ") + "\n" +
+					"Contour variables:  " +  missingContourProperties.join(", ") + "\n"
+					
+					
+					window.alert(warningText)
+					return false
+				} // if
+				
+			} // checkProperties
+			
+		} // helpers
+		
+	} // cfDataManagement
+    
+
+    
 
     function _classCallCheck(instance, Constructor) {
         if (!(instance instanceof Constructor)) {
@@ -3133,6 +3104,136 @@ var dbslice = (function (exports) {
             
         }, // addPlotRowControls
 
+		removeDataControls: {
+			
+			make: function make(elementId){
+			
+				// Create the container required
+				addMenu.removeDataControls.createRemoveDataContainer(elementId);
+			  
+			  
+				// Add teh functonaliy to the option in the "sesson options" menu.
+				d3.select("#" + elementId)
+					.on("click", function(){
+						
+						// Get the options required
+						var options = dbsliceData.data.fileDim.group().all()
+
+						
+						// Create the appropriate checkboxes.
+						addMenu.removeDataControls.addCheckboxesToTheForm(elementId, options);
+							  
+
+						// Bring up the prompt
+						addMenu.removeDataControls.createDialog(elementId);
+						
+					   
+					   })
+			}, // make
+			
+			createRemoveDataContainer: function createRemoveDataContainer(elementId){
+				
+				var removeDataMenuId = elementId + "Menu"
+				var removeDataMenu = d3.select("#" + removeDataMenuId)
+				if (removeDataMenu.empty()){
+					
+					removeDataMenu = d3.select( ".sessionHeader" )
+							  .append("div")
+								.attr("id", removeDataMenuId )
+								.attr("class", "card ui-draggable-handle")
+							  .append("form")
+								.attr("id", removeDataMenuId + "Form")
+
+							$("#" + removeDataMenuId ).hide();
+				} // if
+				
+			}, // createRemoveDataContainer
+			
+			addCheckboxesToTheForm: function addCheckboxesToTheForm(elementId, options){
+				
+				// Create teh expected target for the checkboxes.
+				var checkboxFormId = elementId + "MenuForm"
+				
+				// Create the checkboxes
+				var checkboxes = d3.select("#" + checkboxFormId).selectAll(".checkbox").data(options)
+				checkboxes.enter()
+					.append("div")
+					  .attr("class", "checkbox")
+					.append("input")
+					  .attr("type", "checkbox")
+					  .attr("name", function(d, i){ return "dataset"+i })
+					  .attr("value", function(d){ return d.key })
+					  .attr("checked", true)
+				
+				// Append the labels after it
+				checkboxes = d3.select("#" + checkboxFormId).selectAll(".checkbox")
+        		checkboxes.selectAll("label").remove()
+				checkboxes
+					.append("label")
+					  .html(function(d){ return d.key })
+				
+			}, // addCheckboxesToTheForm
+			
+			createDialog: function createDialog(elementId){
+				
+				// Create the dialog box, and it's functionality.
+				$("#" + elementId + "Menu" )
+					.dialog({
+						draggable: false,
+						autoOpen: true,
+						modal: true,
+						show: {effect: "fade",duration: 50},
+						hide: {effect: "fade", duration: 50},
+						buttons: {  "Ok"    :{text: "Submit",
+											  id: "submitRemoveData",
+											  disabled: false,
+											  click: onSubmitClick
+											 }, // ok
+									"Cancel":{text: "Cancel",
+											  id: "cancelRemoveData",
+											  disabled: false,
+											  click: onCancelClick
+											 } // cancel
+								 }  })
+					.parent()
+					.draggable();
+			   
+			   
+				$(".ui-dialog-titlebar").remove();
+				$(".ui-dialog-buttonpane").attr("class", "card");
+				
+				function onSubmitClick(){
+					// Figure out which options are unchecked.
+					var checkboxInputs = d3.select(this).selectAll(".checkbox").selectAll("input")
+					
+					var uncheckedInputs = checkboxInputs.nodes().filter(function(d){return !d.checked})
+					
+					
+					var uncheckedDataFiles = uncheckedInputs.map(function(d){return d.value})
+					
+					
+					// Pass these to the data remover.
+					cfDataManagement.cfRemove(uncheckedDataFiles)
+					
+					
+					// Close the dialog.
+					$( this ).dialog( "close" )
+					
+					// Redraw the view.
+					render(dbsliceData.elementId, dbsliceData.session);
+					
+				} // onSubmitClick
+				
+				function onCancelClick(){
+					// Just close the dialog.
+					$( this ).dialog( "close" )
+					
+				} // onSubmitClick
+				
+			} // createDialog
+			
+		}, // removeDataControls
+
         helpers: {
             
             updateDataVariables: function updateDataVariables(config){
@@ -3448,6 +3549,9 @@ var dbslice = (function (exports) {
                 // "Remove plot" should always be available.
                 var removePlotButtons = d3.selectAll(".plotTitle").selectAll(".btn-danger");
                 removePlotButtons.each(function(){$(this).prop("disabled", false)})
+				
+				
+				
                 
             }, // enableDisableAllButtons
             
@@ -3863,6 +3967,13 @@ var dbslice = (function (exports) {
       
 	  
 	  
+	    // THIS CAN CURRENTLY RESOLVE PROBLEMS F THE DATA IS INCOMPATIBLE.
+		// This should work both when new data is loaded and when a new session is loaded.
+	    importExportFunctionality.helpers.onDataAndSessionChangeResolve()
+		
+	  
+	  
+	  
         var plotRows = element.selectAll(".plotRow").data(session.plotRows);
       
         // HANDLE ENTERING PLOT ROWS!
@@ -3928,9 +4039,19 @@ var dbslice = (function (exports) {
         plotRowPlotWrappers.exit().remove();
       
       
+	  
+	  
+	    
+	  
+	  
+	  
+	  
+	  
+	  
         // FUNCTIONALITY
       
-      
+	  
+	  
         // ADD PLOT ROW BUTTON.
         var addPlotRowButtonId = "addPlotRowButton";
         var addPlotRowButton   = d3.select("#" + addPlotRowButtonId);
@@ -3979,45 +4100,69 @@ var dbslice = (function (exports) {
       
       
       
-      
-      
-        // ADD DATA BUTTON:
-        // This button is already created. Just add the functionaity.
-        var dataInput = document.createElement('input');
-        dataInput.type = 'file';
 
-        // When the file was selected include it in dbslice. Rerender is done in the loading function, as the asynchronous operation can execute rendering before the data is loaded otherwise.
-        dataInput.onchange = function(e){
-            // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
-            var file = e.target.files[0]; 
-            loadData.handler(file);
-        }; // onchange
-        
-		// Actually adding functionality to button.
-        d3.select("#getData")
+	  
+      
+      
+        // REPLACE CURRENT DATA OPTION:
+		var dataReplace = createFileInputElement( importExportFunctionality.importData.load, "replace")
+        d3.select("#replaceData")
+          .on("click", function(){dataReplace.click()})
+		  
+		// ADD TO CURRENT DATA OPTION:
+		var dataInput = createFileInputElement( importExportFunctionality.importData.load, "add")
+        d3.select("#addData")
           .on("click", function(){dataInput.click()})
+		  
+		  
+		  
+		  
+		// REMOVE SOME CURRENT DATA OPTION:
+		// This requires a popup. The popup needs to be opened on clicking the option. Upon submitting a form the underlying functionality is then called.
+		addMenu.removeDataControls.make("removeData")
       
-      
-      
-      
-      
+
+	  
+	  
+	  
         // LOAD SESSION Button
-        // This button already exists. Just assign functionality.
-        var sessionInput = document.createElement('input');
-        sessionInput.type = 'file';
-      
-        sessionInput.onchange = function(e){
-            // BE CAREFULT HERE: file.name IS JUST THE local name without any path!
-            var file = e.target.files[0]; 
-            loadSession.handler(file);
-        }; // onchange
-      
-        d3.select("#getSessionButton")
+	    var sessionInput = createFileInputElement( importExportFunctionality.loadSession.handler )
+        d3.select("#getSession")
           .on("click", function(){sessionInput.click()})
       
-      
-        // Control all button activity;
+        
+		
+		
+		
+        // Control all button and menu activity;
         addMenu.helpers.enableDisableAllButtons();
+		
+		
+		
+		
+		
+		// HELPER FUNCTIONS:
+		function createFileInputElement(loadFunction, dataAction){
+			
+			
+			
+			
+			// This button is already created. Just add the functionaity.
+			var dataInput = document.createElement('input');
+			dataInput.type = 'file';
+
+			// When the file was selected include it in dbslice. Rerender is done in the loading function, as the asynchronous operation can execute rendering before the data is loaded otherwise.
+			dataInput.onchange = function(e){
+				// BE CAREFULT HERE: file.name IS JUST THE local name without any path!
+				var file = e.target.files[0]; 
+				// importExportFunctionality.importData.handler(file);
+				loadFunction(file, dataAction)
+			}; // onchange
+			
+		  return dataInput
+			
+		} // createGetDataFunctionality
+
       
     } // render
 
@@ -4025,7 +4170,7 @@ var dbslice = (function (exports) {
         var config = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {plotTasksButton: false};
       
       
-        dbsliceData.data = cfInit( data );
+        dbsliceData.data = cfDataManagement.cfInit( data );
         dbsliceData.session = session;
         dbsliceData.elementId = elementId;
         dbsliceData.config = config;
@@ -4082,19 +4227,44 @@ var dbslice = (function (exports) {
           .append("p")
             .attr("style", "display:inline");
         
-        sessionTitle
-          .append("button")
-            .attr("class", "btn btn-info float-right")
-            .attr("style", "display:inline")
-            .attr("id", "getData")
-            .html("Add data");
-          
-        sessionTitle
-          .append("button")
-            .attr("class", "btn btn-info float-right")
-            .attr("style", "display:inline")
-            .attr("id", "getSessionButton")
-            .html("Load session");
+		
+
+		// CREATE THE MENU WITH SESSION OPTIONS
+		var sessionGroup = sessionTitle
+		  .append("div")
+		    .attr("class", "btn-group float-right")
+			.attr("style", "display:inline")
+			
+		sessionGroup
+		  .append("button")
+		    .attr("type", "button")
+			.attr("class", "btn btn-info dropdown-toggle")
+			.attr("data-toggle", "dropdown")
+			.attr("aria-haspopup", true)
+			.attr("aria-expanded", false)
+			.html("Session options")
+			
+		var sessionMenu = sessionGroup
+		  .append("div")
+		    .attr("class", "dropdown-menu")
+		  
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+		    .attr("id", "replaceData")
+		    .html("Replace data")
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+		    .attr("id", "addData")
+		    .html("Add data")
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+		    .attr("id", "removeData")
+		    .html("Remove data")
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+			.attr("id", "getSession")
+		    .html("Load session")
+		  
+		
+			
+			
+			
           
         sessionTitle
           .append("br")
@@ -4405,147 +4575,526 @@ var dbslice = (function (exports) {
         } // if
     } // cfUpdateFilter
 
-    function getFilteredTaskIds() {
-      return dbsliceData.filteredTaskIds;
-    } // getFilteredTaskIds
-
-    function getFilteredTaskLabels() {
-      return dbsliceData.session.filteredTaskLabels;
-    } // getFilteredTaskLabels
+    
 
     
-    var loadSession = {
-        
-        handler: function handler(file){
+	var importExportFunctionality = {
+		// This object controls all the behaviour exhibited when loading in data or session layouts, as well as all behaviour when saving the layout.
+		
+		// The loading of sessions and data must be available separately, and loading the session should include an option to load in a predefined dataset too.
+		
+		// It is possible that the session configuration and data will have incompatible variable names. In these cases the user should resolve the incompatibility, but the incompatibility should be presented to them!
+		
+		// Saving the session is done by downloading a created object. Therefore a session object should be written everytime the view is refreshed.
+		
+		// The views depending on "Plot Selected Tasks" to be pressed should be loaded in merely as configs in their plotrows, and the corresponding filtering values need to be loaded into their corresponding plots.
+		
+		
+		importData : {
+			// WIP: This has to be able to load in data from anywhere on the client computer, not just the server root.
+			
+			// WIP: It must be able to load in additional data. The user must be prompted to identify variables that are different in loaded, and to be loaded data.
+			
+			// DONE: It must be able to load both csv and json fle formats.
+			
+			// DONE/WIP: Must prompt the user if the variables don't include those in existing plots. Solution: does not prompt the user, but for now just removed any incompatible plots. The prompt for the user to resolve the incompatibility is the next step.
+			
+			load : function load(file, dataAction){
+				
+				// Create convenient handles.
+				var ld = importExportFunctionality.importData
+				
+				
+				// Split the name by the '.', then select the last part.
+				var extension = file.name.split(".").pop();
+				
+				
+				// Determine if the input adds new data, or if it replaces the data.
+				switch(dataAction){
+					case "add":
+						var actionOnInternalStorage = cfDataManagement.cfAdd
+					  break
+					  
+					case "replace":
+						var actionOnInternalStorage = cfDataManagement.cfInit
+					  break
+					  
+					default:
+						var actionOnInternalStorage = cfDataManagement.cfInit
+					  break
+					
+				} // switch
+				
+				
+				
+				switch(extension){
+					
+					case "csv":
+						d3.csv(file.name, ld.helpers.convertNumbers, function(metadata){
+							// Add the filename to the data.
+							metadata.forEach(function(d){d.file = file.name})
+							ld.csv(metadata, actionOnInternalStorage);
+							
+						}) // d3.csv
+						break;
+						
+					case "json":
+						d3.json(file.name, function(metadata){
+							metadata.data.forEach(function(d){d.file = file.name})
+							ld.json(metadata, actionOnInternalStorage);
+							
+						}) // d3.json
+						break;
+						
+					default:
+						window.alert("Selected file must be either .csv or .json")
+						break;
+				}; // switch
+				
+				
+				
+			}, // load
+			
+			
+			
+			csv: function csv(metadata, actionOnInternalStorage){
+				// Process the metadata read in the csv format.
+				var d = importExportFunctionality.importData.helpers.csv2json(metadata)
+				
+				// Perform the requested internal storage assignment.
+				actionOnInternalStorage(d);
+				// cfDataManagement.cfInit(d)
+							
+				render(dbsliceData.elementId, dbsliceData.session);
+					
+				
+			}, // csv
+			
+			json : function json(metadata, actionOnInternalStorage){
+				
+				
+				// Change any backslashes with forward slashes
+				metadata.data.forEach(function(d){
+					importExportFunctionality.importData.helpers.replaceSlashes(d, "taskId");
+				}) // forEach
+				
+				// Initialise the crossfilter
+				actionOnInternalStorage(metadata)
+				// cfDataManagement.cfInit(metadata)
+				
+				
+				render(dbsliceData.elementId, dbsliceData.session);
+				
+				
+                
+				
+			}, // json
+			
+			helpers: {
+				
+				loadDataAndEvaluate: function loadDataAndEvaluate(){
+					
+					
+					
+				}, // loadDataAndEvaluate
+				
+				renameVariables: function renameVariables(data, oldVar, newVar){
+						// This function renames the variable of a dataset.
+						for(var j=0; j<data.length; j++){
+							// Have to change the names individually.
+							data[j][newVar] = data[j][oldVar];
+							delete data[j][oldVar];
+						}; // for
+				}, // renameVariable
+								
+				convertNumbers: function convertNumbers(row) {
+						// Convert the values from strings to numbers.
+						var r = {};
+						for (var k in row) {
+							r[k] = +row[k];
+							if (isNaN(r[k])) {
+								r[k] = row[k];
+							} // if
+						} // for
+					  return r;
+				}, // convertNumbers
+								
+				replaceSlashes: function replaceSlashes(d, variable){
+						// Replace all the slashes in the variable for ease of handling in the rest of the code.
+						var variable_ = d[variable];
+						d[variable] = variable_.replace(/\\/g, "/");
+						
+				}, // replaceSlashes
+				
+				csv2json: function csv2json(metadata){
+					
+					// Create a short handle to the helpers
+					var h = importExportFunctionality.importData.helpers
+					
+					// Change this into the appropriate internal data format.
+					var headerNames = d3.keys(metadata[0])
+					
+					// Assemble dataProperties, and metadataProperties.
+					var dataProperties = [];
+					var metadataProperties = [];
+					var sliceProperties = [];
+					var contourProperties = [];
+					
+					for(var i=0; i<headerNames.length;i++){
+						
+						// Look for a designator. This is either "o_" or "c_" prefix.
+						var variable    = headerNames[i];
+						var prefix      = variable.split("_")[0];
+						var variableNew = variable.split("_").slice(1).join(" ");
+						
+						
+						switch(prefix){
+							case "o":
+								// Ordinal variables.
+								dataProperties.push( variableNew )
+								
+								h.renameVariables(metadata, variable, variableNew)
+								break;
+							case "c":
+								// Categorical variables
+								metadataProperties.push( variableNew )
+								
+								h.renameVariables(metadata, variable, variableNew)
+								break;
+							case "s":
+								// Slices
+								sliceProperties.push(variableNew);
+								
+								h.renameVariables(metadata, variable, variableNew)
+								break;
+								
+							case "c2d":
+								// Contours
+								contourProperties.push(variableNew);
+								
+								h.renameVariables(metadata, variable, variableNew)
+							  
+							  break;
+								
+							case "taskId":
+								// This is a special case, as it is advantageous that any '\' in the value of taskId be changed into '/'. It is intended that the taskId is the url to the location ofthe data, thus this can prove important.						
+								metadata.forEach(function(d){
+									h.replaceSlashes(d, "taskId");
+								}) // forEach
+								
+							  break;
+								
+							default:
+								
+								break;
+						
+						}; // switch
+						
+					}; // for
+					
+					// Combine in an overall object.
+					var d = {
+						 data : metadata,
+						 header: {
+								  dataProperties :     dataProperties,
+							  metaDataProperties : metadataProperties,
+								 sliceProperties :    sliceProperties,
+							   contourProperties :  contourProperties,
+						 }
+					};
+					
+				  return d
+				} // csv2json
+				
+			} // helpers
+			
+		}, // loadData
+		
+		
+		loadSession : {
+			// WIP: Must be able to load a session file from anywhere.
+			
+			// DONE: Must load in metadata plots
+
+			// WIP: Must be able to load in data automatically. If the data is already loaded the loading of additional data must be ignored. Or the user should be asked if they want to add it on top.
+			
+			// WIP: Must be able to load without data.
+			
+			// DONE: Must only load json files.
+			
+			// WIP: Must prompt the user if the variables don't include those in loaded data.
+			
+			handler: function handler(file){
             
-            // Split the name by the '.', then select the last part.
-            var extension = file.name.split(".").pop();
+				var ls = importExportFunctionality.loadSession
+			
+				// Split the name by the '.', then select the last part.
+				var extension = file.name.split(".").pop();
+				
+				switch(extension){
+					
+					case "json":
+						d3.json(file.name, function(sessionData){
+							ls.json(sessionData);
+						}) // d3.json
+						break;
+						
+					default:
+						window.alert("Selected file must be either .csv or .json")
+						break;
+				}; // switch
+				
+				
+			}, // handler
+			
+			json: function json(sessionData){
+				
+				
+				var h = importExportFunctionality.loadSession.helpers
+				
+				// Check if it is a session file!
+				if (sessionData.isSessionObject === "true"){
+					
+					// To simplify handling updating the existing plot rows, they are simply deleted here as the new session is loaded in. NOT THE MOST ELEGANT, OR NICE TO SEE IN ACTION, BUT IT GETS THE JOB DONE.
+					// This is done here in case a file that is not a json is selected.
+					d3.selectAll(".plotRow").remove();
+					
+					
+					var plotRows = h.assemblePlotRows(sessionData.plotRows);
+					
+					// Finalise the session object.
+					var session = {
+						title : sessionData.title,
+						plotRows: plotRows
+					};
+					
+					// Store into internal object
+					dbsliceData.session = session;
+					
+					// Render!
+					render(dbsliceData.elementId, dbsliceData.session)
+					
+				} else {
+					window.alert("Selected file is not a valid session object.")
+				}; // if
+					
+				
+			}, // json
+			
+			helpers: {
             
-            switch(extension){
-                
-                case "json":
-                    loadSession.json(file.name);
-                    break;
-                    
-                default:
-                    window.alert("Selected file must be either .csv or .json")
-                    break;
-            }; // switch
-            
-        }, // handler
-        
-        json: function json(filename){
-            
-            // To simplify handling updating the existing plot rows, they are simply deleted here as the new session is loaded in. NOT THE MOST ELEGANT, OR NICE TO SEE IN ACTION, BUT IT GETS THE JOB DONE.
-            d3.selectAll(".plotRow").remove();
-            
-            d3.json(filename, function(sessionData){
-                
-                // Check if it is a session file!
-                if (sessionData.isSessionObject === "true"){
-                    
-                    
-                    var plotRows = loadSession.helpers.assemblePlotRows(sessionData.plotRows);
-                    
-                    // Finalise the session object.
-                    var session = {
-                        title : sessionData.title,
-                        plotRows: plotRows
-                    };
-                    
-                    // Store into internal object
-                    dbsliceData.session = session;
-                    
-                    // Render!
-                    render(dbsliceData.elementId, dbsliceData.session)
-                    
-                } else {
-                    window.alert("Selected file is not a valid session object.")
-                }; // if
-                
-                
-                
-            }) // d3.json
-            
-        }, // json
-        
-        helpers: {
-            
-            string2function: function string2function(string){
-                
-                var func;
-                switch(string){
-                    case "cfD3BarChart":
-                        func = cfD3BarChart;
-                        break;
-                    case "cfD3Histogram":
-                        func = cfD3Histogram;
-                        break;
-                    case "cfD3Scatter":
-                        func = cfD3Scatter;
-                        break;
-                    default :
-                        func = undefined;
-                        break;
-                }; // switch
-                return func;
-                
-            }, // string2function
-            
-            assemblePlots: function assemblePlots(plotsData){
-                
-                // Assemble the plots.
-                var plots = [];
-                for(var j=0;j<plotsData.length;j++){
-                    
-                    var plotToPush = {
-                      plotFunc : loadSession.helpers.string2function( plotsData[j].type ),
-                      layout : { title : plotsData[j].title, 
-                              colWidth : 4, 
-                                height : 300 }, 
-                      data : {  cfData : dbsliceData.data, 
-                             xProperty : plotsData[j].xProperty, 
-                             yProperty : plotsData[j].yProperty, 
-                             cProperty : plotsData[j].cProperty}
-                    };
-                    plots.push(plotToPush);
-                    
-                }; // for
-                
-                return plots;
-                
-            }, // assemblePlots
-            
-            assemblePlotRows: function assemblePlotRows(plotRowsData){
-                
-                // Loop over all the plotRows.
-                var plotRows = [];
-                for(var i=0;i<plotRowsData.length;i++){
-                    
-                    var plotRowToPush = {title: plotRowsData[i].title, 
-                                         plots: loadSession.helpers.assemblePlots(plotRowsData[i].plots), 
-                                          type: plotRowsData[i].type,
-                                addPlotButton : true    }
-                    plotRows.push(plotRowToPush);
-                }; // for
-                
-                return plotRows;
-                
-            } // assemblePlotRows
-            
-        } // helpers
-        
-    } // loadSession
-    
+				string2function: function string2function(string){
+					
+					var func;
+					switch(string){
+						case "cfD3BarChart":
+							func = cfD3BarChart;
+							break;
+						case "cfD3Histogram":
+							func = cfD3Histogram;
+							break;
+						case "cfD3Scatter":
+							func = cfD3Scatter;
+							break;
+						default :
+							func = undefined;
+							break;
+					}; // switch
+					return func;
+					
+				}, // string2function
+				
+				assemblePlots: function assemblePlots(plotsData){
+					
+					var h = importExportFunctionality.loadSession.helpers
+					
+					// Assemble the plots.
+					var plots = [];
+					for(var j=0;j<plotsData.length;j++){
+						
+						var plotToPush = {
+						  plotFunc : h.string2function( plotsData[j].type ),
+						  layout : { title : plotsData[j].title, 
+								  colWidth : 4, 
+									height : 300 }, 
+						  data : {  cfData : dbsliceData.data, 
+								 xProperty : plotsData[j].xProperty, 
+								 yProperty : plotsData[j].yProperty, 
+								 cProperty : plotsData[j].cProperty}
+						};
+						plots.push(plotToPush);
+						
+					}; // for
+					
+					return plots;
+					
+				}, // assemblePlots
+				
+				assemblePlotRows: function assemblePlotRows(plotRowsData){
+					
+					var h = importExportFunctionality.loadSession.helpers
+					
+					// Loop over all the plotRows.
+					var plotRows = [];
+					for(var i=0;i<plotRowsData.length;i++){
+						
+						var plotRowToPush = {title: plotRowsData[i].title, 
+											 plots: h.assemblePlots(plotRowsData[i].plots), 
+											  type: plotRowsData[i].type,
+									addPlotButton : true    }
+						plotRows.push(plotRowToPush);
+					}; // for
+					
+					return plotRows;
+					
+				} // assemblePlotRows
+				
+			} // helpers
+			
+		}, // loadSession
+		
+		
+		helpers : {
+			
+			variableMatching : function variableMatching(){
+				// Functionality that allows the user to resolve any issues between datasets with different names that hold th esame quantities.
+			}, // variableMatching
+			
+			collectPlotProperties : function collectPlotProperties(){
+				// Collect all the variables in the current plots (by type!), the variables in the current data, and return them.
+				// If there is a variable in th eplot, but not in hthe new data it must either be given, or the plot needs to be removed.
+				
+		
+				
+				
+				// First go through all the metadata plots and getthe variables. This is probably more conveniently done through the dbsliceData object.
+				var metadataPlotRows = dbsliceData.session.plotRows.filter(function(plotRow){
+					return plotRow.type == "metadata"
+				}) // filter
+				
+				var plotProperties = []
+				metadataPlotRows.forEach(function(metadataPlotRow){
+					metadataPlotRow.plots.forEach(function(metadataPlot){
+						
+						plotProperties.push( metadataPlot.data.xProperty )
+						if(metadataPlot.data.yProperty !== undefined){
+							plotProperties.push( metadataPlot.data.yProperty )
+						} // if
+					}) // forEach
+				}) // forEach
+				
+				
+				// Remove any duplicates: 
+				plotProperties = unique( plotProperties )
+
+				
+			  return plotProperties
+				
+				function unique(d){
+				
+					
+					// https://stackoverflow.com/questions/1960473/get-all-unique-values-in-a-javascript-array-remove-duplicates
+					function onlyUnique(value, index, self) { 
+						return self.indexOf(value) === index;
+					} // unique
+					
+					return d.filter( onlyUnique )
+				
+				} // unique
+
+
+
+				/*
+				// CURRENTLY THE FLOW FIELD PLOTS DO NOT FEATURE SEPARATE PROPERTIES, THEREFORE IT's NOT REALLY POSSIBLE TO CAPTURE THIS FOR NOW.
+				
+				// Now go through the flow field plots and get the variables. These will either be plots with data from multiple plots on them (slice), or a single case (contour).
+				var plotterPlotRows = dbsliceData.session.plotRows.filter(function(plotRow){
+					return plotRow.type == "plotter"
+				}) // filter
+				
+				var plotProperties = []
+				plotterPlotRows.forEach(function(plotterPlotRow){
+					
+					plotterPlotRow.plots.forEach(function(plotterPlot){
+						plotProperties.push( plotterPlot.d )
+					}) // forEach
+				}) // forEach
+				*/
+				
+				// console.log(metadataPlotRow)
+				// console.log(d)
+				// console.log(dbsliceData)
+				
+			}, // collectPlotProperties
+			
+
+			onDataAndSessionChangeResolve : function onDataAndSessionChangeResolve(){
+				// The data dominates what can be plotted. Perform a check between the session and data to see which properties are available, and if the plots want properties that are not in the data they are removed.
+				
+				// Resolve any issues between existing plots and data by removing any plots with variables that are not in the data.
+				var plotProperties = importExportFunctionality.helpers.collectPlotProperties()
+				
+				
+				// Find the variables that are on hte plots, but not in the data.
+				var incompatibleProperties = plotProperties.filter(function(property){
+					var isInMetadata = dbsliceData.data.metaDataProperties.includes(property)
+					var isInData     = dbsliceData.data.dataProperties.includes(property)
+				  return !(isInMetadata || isInData)
+				}) // filter
+				
+				// Furthermore it is possible that the user has removed all data. In this case just remove all the plots, by specifying all plot properties as incompatible.
+				if(dbsliceData.data !== undefined){
+					if(dbsliceData.data.fileDim.top(Infinity).length < 1){
+					incompatibleProperties = plotProperties
+					} // if					
+				} // if
+				
+				
+				
+				
+				// Loop through all incompatible properties, and remove the plots that are not needed.
+				dbsliceData.session.plotRows.forEach(function(plotRow){
+					if(plotRow.type == "metadata"){
+						var removeIndex = plotRow.plots.map(function(plot){
+							// If the plot features an incompatible metadata or data property return true.	
+							
+						  return incompatibleProperties.includes( plot.data.xProperty ) ||
+								 incompatibleProperties.includes( plot.data.yProperty )
+							
+						}) // map
+						
+						
+						for(var i = removeIndex.length-1; i>=0; i--){
+							// Negative loop facilitates the use of splice. Otherwise the indexes get messed up by splice as it reindexes the array upon removal.
+							if(removeIndex[i]){
+								plotRow.plots.splice(i,1)
+							} // if
+						} // for
+						
+					} // if
+				}) // forEach
+				
+				
+			} // onDataChangeResolve
+
+			
+			
+			
+		} // helpers
+		
+	} // importExportFunctionality
+
+
+
+
+	
     exports.cfD3BarChart = cfD3BarChart;
     exports.cfD3Histogram = cfD3Histogram;
     exports.cfD3Scatter = cfD3Scatter;
     exports.d3LineSeries = d3LineSeries;
-    exports.cfInit = cfInit;
+    exports.cfDataManagement = cfDataManagement;
     exports.cfUpdateFilters = cfUpdateFilters;
     exports.addMenu = addMenu;
-    exports.getFilteredTaskIds = getFilteredTaskIds;
-    exports.getFilteredTaskLabels = getFilteredTaskLabels;
     exports.makeNewPlot = makeNewPlot;
     exports.makePlotsFromPlotRowCtrl = makePlotsFromPlotRowCtrl;
     exports.makeSessionHeader = makeSessionHeader;
@@ -4553,9 +5102,8 @@ var dbslice = (function (exports) {
     exports.initialise = initialise;
     exports.render = render;
     exports.updatePlot = updatePlot;
-    exports.loadSession = loadSession;
-    exports.loadData = loadData;
     exports.makePromiseSlicePlot = makePromiseSlicePlot;
+	exports.importExportFunctionality = importExportFunctionality;
 
     return exports;
 

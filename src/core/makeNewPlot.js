@@ -54,4 +54,5 @@ function makeNewPlot( plotData, index ) {
 
 } // makeNewPlot
 
+
 export { makeNewPlot };
