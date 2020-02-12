@@ -552,11 +552,15 @@ const addMenu = {
                     var addPlotButton = d3.select(this).select(".btn-danger")
                     
                     if (addPlotButton.empty()){
-                        // If it dosn't exist, add it.
-                        d3.select(this).append("button")
+                        // If it dosn't exist, add it. It should be the last element!
+						var ctrlGroup = d3.select(this).select(".ctrlGrp")
+						var otherControls = $(ctrlGroup.node()).children().detach();
+						
+                        ctrlGroup.append("button")
                             .attr("class", "btn btn-danger float-right")
                             .html("x")
                             .on("click", function(){
+								
                                 // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
                                 var plotIndex = i;
 
@@ -570,7 +574,18 @@ const addMenu = {
                                 
 
                                 render(dbsliceData.elementId, dbsliceData.session)
+								
+								// Manually realign elements that are moveable - histogram brush.
+								var svgs = d3.selectAll(".plotWrapper[plottype='cfD3Histogram']").selectAll("svg").each(function(d){
+									var svg = d3.select(this)
+									cfD3Histogram.addInteractivity.addBrush(svg)
+								}) // each
+								
+								// Go back into the selection and de-select the object?
+							
                             }); // on
+							
+						otherControls.appendTo($(ctrlGroup.node()))
                         
                     } else {
                         // If it doesn't, do nothing.
@@ -583,6 +598,9 @@ const addMenu = {
                 
               
             } ) // each
+			
+			
+
             
         }, // removePlotControls
 

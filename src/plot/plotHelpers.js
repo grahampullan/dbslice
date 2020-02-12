@@ -57,8 +57,16 @@ const plotHelpers = {
                 }; // if
             }
             return resArr;
-        } // findCommonElements
+        }, // findCommonElements
         	
+		removePlotTitleControls: function removePlotTitleControls(element){
+			
+			var controlGroup = d3.select(element.parentElement).select(".plotTitle").select(".ctrlGrp")
+			
+			// Remove everything.
+			controlGroup.selectAll("*").remove()
+			
+		} // removePlotTitleControls
 	} // plotHelpers
 
 

@@ -2,7 +2,7 @@ import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
 import { render } from '../core/render.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
-
+import { plotHelpers } from '../plot/plotHelpers.js';
 
 const cfD3Histogram = {
           
@@ -14,7 +14,8 @@ const cfD3Histogram = {
           
         make: function make(element, data, layout) {
          
-          
+            // Update the controls as required
+			cfD3Histogram.addInteractivity.updatePlotTitleControls(element)
           
             // Update the view
             cfD3Histogram.update(element, data, layout);
@@ -22,12 +23,10 @@ const cfD3Histogram = {
         },
         
         update: function update(element, data, layout) {
-
-            var container = d3.select(element);
           
-            cfD3Histogram.setupSvg(container, data, layout);
+            cfD3Histogram.setupSvg(element, data, layout);
           
-            var svg = container.select("svg");
+            var svg = d3.select(element).select("svg");
           
           
             // Get the required data.
@@ -51,7 +50,7 @@ const cfD3Histogram = {
                 .attr("transform", function (d){
                     return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
                 .attr("x", 1)
-                .attr("width",  function (d){return x(d.x1) - x(d.x0) - 1;})
+                .attr("width",  calculateWidth )
                 .attr("height", function (d){return svg.attr("plotHeight") - y(d.length);})
                 .style("fill", cfD3Histogram.colour)
                 .attr("opacity", 1);
@@ -60,7 +59,7 @@ const cfD3Histogram = {
               .attr("transform", function (d){
                   return "translate(" + x(d.x0) + "," + y(d.length) + ")";})
               .attr("x", 1)
-              .attr("width", function (d){return x(d.x1) - x(d.x0) - 1;})
+              .attr("width", calculateWidth )
               .attr("height", function (d){return svg.attr("plotHeight") - y(d.length);});
               
             bars.exit().remove();
@@ -70,15 +69,21 @@ const cfD3Histogram = {
 			cfD3Histogram.helpers.createAxes(svg, x, y, data.xProperty, "Number of tasks")
 		
 		
-		
+			function calculateWidth(d_){
+				var width = x(d_.x1) - x(d_.x0) - 1;
+				width = width < 0 ? 0 : width
+				return width	
+			} // calculateWidth
 		
 			
         
         }, // update
         
-        setupSvg: function setupSvg(container, data, layout){
+        setupSvg: function setupSvg(element, data, layout){
             // Add the setupSvg function!!
             
+			var container = d3.select(element);
+			
             // If layout has a margin specified store it as the internal property.
             cfD3Histogram.margin = layout.margin === undefined ? cfD3Histogram.margin : layout.margin;
             cfD3Histogram.colour = layout.colour === undefined ? "cornflowerblue" : layout.colour;
@@ -94,7 +99,7 @@ const cfD3Histogram = {
                 curateSvg();
 				
 				// Add functionality.
-				cfD3Histogram.setupInteractivity.addBrush(svg);
+				cfD3Histogram.addInteractivity.addBrush(svg);
                  
             } else {
                 
@@ -113,7 +118,10 @@ const cfD3Histogram = {
                     curateSvg();
                     
 					// Add functionality.
-					cfD3Histogram.setupInteractivity.addBrush(svg);
+					cfD3Histogram.addInteractivity.addBrush(svg);
+					
+					plotHelpers.removePlotTitleControls(element)
+					
                     
                 } else {
                     // Axes might need to be updated, thus the svg element needs to be refreshed.
@@ -121,9 +129,12 @@ const cfD3Histogram = {
                     
 					// Only update the brush if the window is resized - otherwise the functionality should remain the same
 					if(layout.isWindowResized){
-						cfD3Histogram.setupInteractivity.addBrush(svg);
+						cfD3Histogram.addInteractivity.addBrush(svg);
 					} // if
 					
+					if(layout.isPlotBeingRemoved){
+						cfD3Histogram.addInteractivity.addBrush(svg);
+					} // if
 					
                 }; // if        
                 
@@ -138,8 +149,6 @@ const cfD3Histogram = {
                 var svgHeight = layout.height;
                 var width = svgWidth - cfD3Histogram.margin.left - cfD3Histogram.margin.right;
                 var height = svgHeight - cfD3Histogram.margin.top - cfD3Histogram.margin.bottom;
-				
-				
 				
               
                 // Calculation the min and max values - based on all the data, otherwise crossfilter will remove some, and the x-axis will be rescaled every time the brush adds or removes data.
@@ -182,7 +191,7 @@ const cfD3Histogram = {
           
         }, // setupSvg
       
-        setupInteractivity: {
+        addInteractivity: {
 			
 			addBrush: function addBrush(svg){
 				// The hardcoded values need to be declared upfront, and abstracted.
@@ -196,6 +205,7 @@ const cfD3Histogram = {
 				// Why is there no brush here on redraw??
 				var brush = svg.select(".brush")
 				if(brush.empty()){
+					
 					brush = svg
 					  .append("g")
 						.attr("class","brush")
@@ -206,15 +216,27 @@ const cfD3Histogram = {
 					var xMin = svg.attr("xDomMin")
 					var xMax = svg.attr("xDomMax")
 					
+					// Initialise the filter if it isn't already.
+					var filter = dbsliceData.data.histogramSelectedRanges[svg.attr("dimId")]
+					if(filter !== undefined){
+						xMin = filter[0]
+						xMax = filter[1]
+					} else {
+						dbsliceData.data.histogramSelectedRanges[svg.attr("dimId")] = [xMin, xMax]
+					} // if
+					
 				} else {
-					var xMin = brush.select(".selection").attr("xMin")
-					var xMax = brush.select(".selection").attr("xMax")
+					// Setup th efilter bounds in the cfInit??
+					var filter = dbsliceData.data.histogramSelectedRanges[svg.attr("dimId")]
+					var xMin = filter[0]
+					var xMax = filter[1]
+					
 					
 					brush.selectAll("*").remove();
 					
 				}// if
 				
-				
+
 					
 				var rect = brush
 				  .append("rect")
@@ -308,10 +330,10 @@ const cfD3Histogram = {
 					var newEast = oldEast + d3.event.dx;
 					
 					// Check to make sure the boundaries are within the axis limits.
-					if (x.invert(newWest) <  brush.attr("xDomMin")){
-						newWest = x(brush.attr("xDomMin"))
-					} else if (x.invert(newEast) >  brush.attr("xDomMax")){
-						newEast = x(brush.attr("xDomMax"))
+					if (x.invert(newWest) <  svg.attr("xDomMin")){
+						newWest = x(svg.attr("xDomMin"))
+					} else if (x.invert(newEast) >  svg.attr("xDomMax")){
+						newEast = x(svg.attr("xDomMax"))
 					} // if
 					
 					
@@ -321,7 +343,7 @@ const cfD3Histogram = {
 					
 					
 					// Update the selection rect.
-					cfD3Histogram.setupInteractivity.updateBrush(svg);
+					cfD3Histogram.addInteractivity.updateBrush(svg);
 					
 					// Update the data selection
 					updateSelection(brush)
@@ -363,10 +385,10 @@ const cfD3Histogram = {
 					
 					
 					// Check to make sure the boundaries are within the axis limits.
-					if (x.invert(newWest) <  brush.attr("xDomMin")){
-						newWest = x(brush.attr("xDomMin"))
-					} else if (x.invert(newEast) >  brush.attr("xDomMax")){
-						newEast = x(brush.attr("xDomMax"))
+					if (x.invert(newWest) <  svg.attr("xDomMin")){
+						newWest = x(svg.attr("xDomMin"))
+					} else if (x.invert(newEast) >  svg.attr("xDomMax")){
+						newEast = x(svg.attr("xDomMax"))
 					} // if
 					
 					// Handle the event in which a handle has been dragged over the other.
@@ -384,12 +406,15 @@ const cfD3Histogram = {
 					} // if
 					
 					
+					// Update all brushes corresponding to the same dimId. This will take an overhaul of the process here. The update will have to read the min and max values straight from the filter, but this causes accelerated movement of the brush...
+					
+					
 					// Update the xMin and xMax values.
 					brush.select(".selection").attr("xMin", x.invert(newWest))
 					brush.select(".selection").attr("xMax", x.invert(newEast))
 					
 					// Update the brush rectangle
-					cfD3Histogram.setupInteractivity.updateBrush(svg);
+					cfD3Histogram.addInteractivity.updateBrush(svg);
 					
 					
 					// Update the data selection
@@ -419,13 +444,13 @@ const cfD3Histogram = {
 			
 			updateBrush: function updateBrush(svg){
 				
-				
 				// First get the scale
 				var x = cfD3Histogram.helpers.getXScale(svg)
 				
 				// Now get the values that are supposed to be selected.
 				var xMin = Number(svg.select(".selection").attr("xMin"))
 				var xMax = Number(svg.select(".selection").attr("xMax"))
+				
 				
 				// Update teh rect.
 				svg.select(".selection")
@@ -473,8 +498,13 @@ const cfD3Histogram = {
 				}// drawHandle
 
 				
-			} // updateBrush
+			}, // updateBrush
 			
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				plotHelpers.removePlotTitleControls(element)
+				
+			} // updatePlotTitleControls
 			
 		}, // setupInteractivity
 		
@@ -571,6 +601,8 @@ const cfD3Histogram = {
 				} // if
 
 			} // createAxes
+			
+			
 			
 		} // helpers
 		

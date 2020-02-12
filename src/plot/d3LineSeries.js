@@ -1,6 +1,7 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
+import { plotHelpers } from '../plot/plotHelpers.js';
 
 const d3LineSeries = {
         
@@ -13,6 +14,9 @@ const d3LineSeries = {
         colour: [],
 
         make : function ( element, data, layout ) {
+			
+			// Remove any controls in the plot title.
+			d3LineSeries.addInteractivity.updatePlotTitleControls(element)
             
             d3LineSeries.update( element, data, layout );
 
@@ -347,8 +351,19 @@ const d3LineSeries = {
               
 
               
-            } // addZooming
+            }, // addZooming
             
+			
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				// Remove any controls in the plot title.
+				plotHelpers.removePlotTitleControls(element)
+				
+				
+			} // updatePlotTitleControls
+			
+			
+			
         }, // addInteractivity
         
         helpers: {

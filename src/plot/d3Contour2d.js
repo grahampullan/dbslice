@@ -1,4 +1,5 @@
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
+import { plotHelpers } from '../plot/plotHelpers.js';
 
 const d3Contour2d = {
         
@@ -9,6 +10,9 @@ const d3Contour2d = {
         colour: [],
 
         make : function ( element, data, layout ){
+			
+			// Remove any controls in the plot title.
+			d3Contour2d.addInteractivity.updatePlotTitleControls(element)
 
             d3Contour2d.update ( element, data, layout )
 
@@ -134,7 +138,7 @@ const d3Contour2d = {
                     curateSvg();
                     
                     // ADD FUNCTIONALITY.
-                    // cfD3Histogram.setupInteractivity(container, data);
+                    // cfD3Histogram.addInteractivity(container, data);
                     
                 } else {
                     // Axes might need to be updated, thus the svg element needs to be refreshed.
@@ -240,8 +244,15 @@ const d3Contour2d = {
 					
 				}; // crossHighlightOff
 				
-			} // addOnMouseOver
+			}, // addOnMouseOver
             
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				// Remove any controls in the plot title.
+				plotHelpers.removePlotTitleControls(element)
+				
+			} // updatePlotTitleControls
+			
         }, // addInteractivity
         
         helpers: {

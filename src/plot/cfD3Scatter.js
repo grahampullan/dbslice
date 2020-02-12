@@ -1,6 +1,8 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
+import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { plotHelpers } from '../plot/plotHelpers.js';
 
 const cfD3Scatter = {
         
@@ -13,7 +15,10 @@ const cfD3Scatter = {
         opacity: 1,
         
         make: function make(element, data, layout) {
-            
+			
+			// Add the manual selection toggle to its title.
+            cfD3Scatter.addInteractivity.updatePlotTitleControls(element)
+			
             // Update the plot.
             cfD3Scatter.update(element, data, layout);
         },
@@ -21,7 +26,7 @@ const cfD3Scatter = {
         update: function update(element, data, layout) {
             
             
-            cfD3Scatter.setupSvg(d3.select(element), data, layout);
+            cfD3Scatter.setupSvg(element, data, layout);
             
             // Selections for plotting.
             var svg = d3.select(element).select("svg");
@@ -45,7 +50,8 @@ const cfD3Scatter = {
                 .style("fill", function (d) { return returnPointColor(d, data.cProperty); })
                 .style("opacity", cfD3Scatter.opacity)
                 .attr("clip-path", "url(#" + svg.select("clipPath").attr("id") + ")")
-                .attr("task-id", function (d) { return d.taskId; });
+                .attr("task-id", function (d) { return d.taskId; })
+				.attr("manuallySelected", false);
                 
             points
               .attr("r", 5)
@@ -68,7 +74,13 @@ const cfD3Scatter = {
             // Add zooming.
             cfD3Scatter.addInteractivity.addZooming(svg, data);
             
-        
+			
+			// Add zooming.
+            cfD3Scatter.addInteractivity.addSelection(svg);
+			
+			
+			// Highlight any manually selected tasks.
+			cfD3Scatter.helpers.updateManualSelections()
             
             // HELPER FUNCTIONS
             function createScale(axis){
@@ -154,9 +166,9 @@ const cfD3Scatter = {
             
         }, // update
       
-        setupSvg: function setupSvg(container, data, layout){
+        setupSvg: function setupSvg(element, data, layout){
             // Create o clear existing svg to fix the bug of entering different plot types onto exting graphics.
-              
+            var container = d3.select(element)
               
             // If layout has a margin specified store it as the internal property.
             var margin = cfD3Scatter.margin;
@@ -206,7 +218,8 @@ const cfD3Scatter = {
                     svg.selectAll("*").remove();
                     curateSvg();
                         
-                    // The interactivity is added in the main update function!
+                    // Add the manual selection toggle to its title.
+					cfD3Scatter.addInteractivity.updatePlotTitleControls(element)
                         
                 } else {
                     // The plot is being inherited by another scatter plot. Just update the plot.
@@ -317,7 +330,7 @@ const cfD3Scatter = {
               
             addZooming: function addZooming(svg, data){
                   
-                  
+                // The current layout will keep adding on zoom. Rethink this for more responsiveness of the website.
                 var zoom = d3.zoom().scaleExtent([0.01, Infinity]).on("zoom", zoomed);
             
                 svg.transition().call(zoom.transform, d3.zoomIdentity);
@@ -360,9 +373,91 @@ const cfD3Scatter = {
                   
 
                   
-            } // addZooming
+            }, // addZooming
               
-              
+            addSelection: function addSelection(svg){
+				// This function adds the functionality to select elements on click. A switch must then be built into the header of the plot t allow this filter to be added on.
+				
+				var points = svg.selectAll("circle");
+				
+				points.on("click", selectPoint)
+				
+				
+				function selectPoint(d){
+					// Toggle the selection
+					var point = d3.select(this);
+					var toggle = point.attr("manuallySelected") == "true"
+					
+					point.attr("manuallySelected", toggle ? false : true)
+					
+
+					var p = dbsliceData.data.scatterManualSelectedTasks
+					if(toggle){
+						// The poinhas currently been selected, but must now be removed
+						p.splice(p.indexOf(d.taskId),1)
+					} else {
+						p.push(d.taskId)
+					}// if
+
+					// console.log(dbsliceData.data.scatterManualSelectedTasks)
+					
+					
+					// Highlight the manually selected options.
+					cfD3Scatter.helpers.updateManualSelections()
+					
+				} // selectPoint
+				
+			}, // addSelecton
+			  
+			addToggle: function addToggle(element){
+				
+				// THIS IS THE TOGGLE.
+				// Additional styling was added to dbslice.css to control the appearance of the toggle.
+				var controlGroup = d3.select(element.parentElement).select(".plotTitle").select(".ctrlGrp")
+				
+				var toggleGroup = controlGroup
+				  .append("label")
+					.attr("class", "switch float-right")
+				var toggle = toggleGroup
+				  .append("input")
+					.attr("type", "checkbox")
+				toggleGroup
+				  .append("span")
+					.attr("class", "slider round")
+					
+				// Add it's functionality.
+				toggle.on("change", function(){ 
+					
+					var currentVal = this.checked
+					
+					// All such switches need to be activated.
+					var allToggleSwitches = d3.selectAll(".plotWrapper[plottype='cfD3Scatter']").selectAll("input[type='checkbox']")
+					
+					allToggleSwitches.each(function(){
+						
+						this.checked = currentVal
+						// console.log("checking")
+					})
+					
+					// Update filters
+					cfUpdateFilters( dbsliceData.data )
+					
+					render(dbsliceData.elementId, dbsliceData.session)
+				})
+				
+			}, // addToggle
+			  
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				// Remove any controls in the plot title.
+				plotHelpers.removePlotTitleControls(element)
+				
+				// Add the toggle to switch manual selection filter on/off
+				cfD3Scatter.addInteractivity.addToggle(element)
+				
+				
+			} // updatePlotTitleControls
+			
         }, // addInteractivity
       
         helpers: {
@@ -395,9 +490,32 @@ const cfD3Scatter = {
                 var domMin = Number( svg.attr( dimName + "DomMin") );
                 var domMax = Number( svg.attr( dimName + "DomMax") );
               return [domMin, domMax]
-            } // getRange
+            }, // getRange
           
-          
+            updateManualSelections: function updateManualSelections(){
+				
+				// Loop through all scatter plots.
+				var allScatterPlots = d3.selectAll(".plotWrapper[plottype='cfD3Scatter']")
+				
+				allScatterPlots.each(function(){
+					var svg = d3.select(this).select("svg")
+					
+					// Default color
+					svg.selectAll("circle").style("fill", "rgb(31, 119, 180)")
+					
+					// Color in selected circles.
+					dbsliceData.data.scatterManualSelectedTasks.forEach(function(d){
+						svg.selectAll("circle[task-id='" + d + "']").style("fill", "rgb(255, 127, 14)")
+					}) //forEach
+					
+					
+				})
+				
+				
+					
+				
+			} // updateManualSelections
+			
         } // helpers
       
     }; // cfD3Scatter

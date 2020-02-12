@@ -26,6 +26,14 @@ var dbslice = (function (exports) {
             .attr("spellcheck", "false")
             .attr("contenteditable", true);
             
+			
+			
+		// Add a div to hold all the control elements.
+		var controlGroup = plotHeader
+		  .append("div")
+		    .attr("class", "ctrlGrp float-right")
+			.attr("style", "display:inline-block")
+		
           
         var plotBody = plot
           .append("div")
@@ -79,9 +87,11 @@ var dbslice = (function (exports) {
 			cfData.metaDims = [];
 			cfData.metaDataUniqueValues = {};
 			cfData.dataDims = [];
+			cfData.taskDim = []
 			cfData.fileDim = [];
 			cfData.filterSelected = [];
-			cfData.histogramSelectedRanges = []; 
+			cfData.histogramSelectedRanges = [];
+			cfData.scatterManualSelectedTasks = [];
 			
 			// Populate the metaDims and metaDataUniqueValues.
 			cfData.metaDataProperties.forEach(function (property, i) {
@@ -102,6 +112,7 @@ var dbslice = (function (exports) {
 			
 
 			cfData.fileDim = cfData.cf.dimension(function (d){return d.file;})
+			cfData.taskDim = cfData.cf.dimension(function (d){return d.taskId;})
 			
 			
 			// Create a standalone array of taskIds
@@ -265,7 +276,8 @@ var dbslice = (function (exports) {
           
         make: function make(element, data, layout) {
          
-          
+            // Update the controls as required
+			cfD3Histogram.addInteractivity.updatePlotTitleControls(element)
           
             // Update the view
             cfD3Histogram.update(element, data, layout);
@@ -273,12 +285,10 @@ var dbslice = (function (exports) {
         },
         
         update: function update(element, data, layout) {
-
-            var container = d3.select(element);
           
-            cfD3Histogram.setupSvg(container, data, layout);
+            cfD3Histogram.setupSvg(element, data, layout);
           
-            var svg = container.select("svg");
+            var svg = d3.select(element).select("svg");
           
           
             // Get the required data.
@@ -302,7 +312,7 @@ var dbslice = (function (exports) {
                 .attr("transform", function (d){
                     return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
                 .attr("x", 1)
-                .attr("width",  function (d){return x(d.x1) - x(d.x0) - 1;})
+                .attr("width",  calculateWidth )
                 .attr("height", function (d){return svg.attr("plotHeight") - y(d.length);})
                 .style("fill", cfD3Histogram.colour)
                 .attr("opacity", 1);
@@ -311,7 +321,7 @@ var dbslice = (function (exports) {
               .attr("transform", function (d){
                   return "translate(" + x(d.x0) + "," + y(d.length) + ")";})
               .attr("x", 1)
-              .attr("width", function (d){return x(d.x1) - x(d.x0) - 1;})
+              .attr("width", calculateWidth )
               .attr("height", function (d){return svg.attr("plotHeight") - y(d.length);});
               
             bars.exit().remove();
@@ -321,15 +331,21 @@ var dbslice = (function (exports) {
 			cfD3Histogram.helpers.createAxes(svg, x, y, data.xProperty, "Number of tasks")
 		
 		
-		
+			function calculateWidth(d_){
+				var width = x(d_.x1) - x(d_.x0) - 1;
+				width = width < 0 ? 0 : width
+				return width	
+			} // calculateWidth
 		
 			
         
         }, // update
         
-        setupSvg: function setupSvg(container, data, layout){
+        setupSvg: function setupSvg(element, data, layout){
             // Add the setupSvg function!!
             
+			var container = d3.select(element);
+			
             // If layout has a margin specified store it as the internal property.
             cfD3Histogram.margin = layout.margin === undefined ? cfD3Histogram.margin : layout.margin;
             cfD3Histogram.colour = layout.colour === undefined ? "cornflowerblue" : layout.colour;
@@ -345,7 +361,7 @@ var dbslice = (function (exports) {
                 curateSvg();
 				
 				// Add functionality.
-				cfD3Histogram.setupInteractivity.addBrush(svg);
+				cfD3Histogram.addInteractivity.addBrush(svg);
                  
             } else {
                 
@@ -364,7 +380,10 @@ var dbslice = (function (exports) {
                     curateSvg();
                     
 					// Add functionality.
-					cfD3Histogram.setupInteractivity.addBrush(svg);
+					cfD3Histogram.addInteractivity.addBrush(svg);
+					
+					plotHelpers.removePlotTitleControls(element)
+					
                     
                 } else {
                     // Axes might need to be updated, thus the svg element needs to be refreshed.
@@ -372,9 +391,12 @@ var dbslice = (function (exports) {
                     
 					// Only update the brush if the window is resized - otherwise the functionality should remain the same
 					if(layout.isWindowResized){
-						cfD3Histogram.setupInteractivity.addBrush(svg);
+						cfD3Histogram.addInteractivity.addBrush(svg);
 					} // if
 					
+					if(layout.isPlotBeingRemoved){
+						cfD3Histogram.addInteractivity.addBrush(svg);
+					} // if
 					
                 }; // if        
                 
@@ -389,8 +411,6 @@ var dbslice = (function (exports) {
                 var svgHeight = layout.height;
                 var width = svgWidth - cfD3Histogram.margin.left - cfD3Histogram.margin.right;
                 var height = svgHeight - cfD3Histogram.margin.top - cfD3Histogram.margin.bottom;
-				
-				
 				
               
                 // Calculation the min and max values - based on all the data, otherwise crossfilter will remove some, and the x-axis will be rescaled every time the brush adds or removes data.
@@ -433,7 +453,7 @@ var dbslice = (function (exports) {
           
         }, // setupSvg
       
-        setupInteractivity: {
+        addInteractivity: {
 			
 			addBrush: function addBrush(svg){
 				// The hardcoded values need to be declared upfront, and abstracted.
@@ -447,6 +467,7 @@ var dbslice = (function (exports) {
 				// Why is there no brush here on redraw??
 				var brush = svg.select(".brush")
 				if(brush.empty()){
+					
 					brush = svg
 					  .append("g")
 						.attr("class","brush")
@@ -457,15 +478,27 @@ var dbslice = (function (exports) {
 					var xMin = svg.attr("xDomMin")
 					var xMax = svg.attr("xDomMax")
 					
+					// Initialise the filter if it isn't already.
+					var filter = dbsliceData.data.histogramSelectedRanges[svg.attr("dimId")]
+					if(filter !== undefined){
+						xMin = filter[0]
+						xMax = filter[1]
+					} else {
+						dbsliceData.data.histogramSelectedRanges[svg.attr("dimId")] = [xMin, xMax]
+					} // if
+					
 				} else {
-					var xMin = brush.select(".selection").attr("xMin")
-					var xMax = brush.select(".selection").attr("xMax")
+					// Setup th efilter bounds in the cfInit??
+					var filter = dbsliceData.data.histogramSelectedRanges[svg.attr("dimId")]
+					var xMin = filter[0]
+					var xMax = filter[1]
+					
 					
 					brush.selectAll("*").remove();
 					
 				}// if
 				
-				
+
 					
 				var rect = brush
 				  .append("rect")
@@ -559,10 +592,10 @@ var dbslice = (function (exports) {
 					var newEast = oldEast + d3.event.dx;
 					
 					// Check to make sure the boundaries are within the axis limits.
-					if (x.invert(newWest) <  brush.attr("xDomMin")){
-						newWest = x(brush.attr("xDomMin"))
-					} else if (x.invert(newEast) >  brush.attr("xDomMax")){
-						newEast = x(brush.attr("xDomMax"))
+					if (x.invert(newWest) <  svg.attr("xDomMin")){
+						newWest = x(svg.attr("xDomMin"))
+					} else if (x.invert(newEast) >  svg.attr("xDomMax")){
+						newEast = x(svg.attr("xDomMax"))
 					} // if
 					
 					
@@ -572,7 +605,7 @@ var dbslice = (function (exports) {
 					
 					
 					// Update the selection rect.
-					cfD3Histogram.setupInteractivity.updateBrush(svg);
+					cfD3Histogram.addInteractivity.updateBrush(svg);
 					
 					// Update the data selection
 					updateSelection(brush)
@@ -614,10 +647,10 @@ var dbslice = (function (exports) {
 					
 					
 					// Check to make sure the boundaries are within the axis limits.
-					if (x.invert(newWest) <  brush.attr("xDomMin")){
-						newWest = x(brush.attr("xDomMin"))
-					} else if (x.invert(newEast) >  brush.attr("xDomMax")){
-						newEast = x(brush.attr("xDomMax"))
+					if (x.invert(newWest) <  svg.attr("xDomMin")){
+						newWest = x(svg.attr("xDomMin"))
+					} else if (x.invert(newEast) >  svg.attr("xDomMax")){
+						newEast = x(svg.attr("xDomMax"))
 					} // if
 					
 					// Handle the event in which a handle has been dragged over the other.
@@ -635,12 +668,15 @@ var dbslice = (function (exports) {
 					} // if
 					
 					
+					// Update all brushes corresponding to the same dimId. This will take an overhaul of the process here. The update will have to read the min and max values straight from the filter, but this causes accelerated movement of the brush...
+					
+					
 					// Update the xMin and xMax values.
 					brush.select(".selection").attr("xMin", x.invert(newWest))
 					brush.select(".selection").attr("xMax", x.invert(newEast))
 					
 					// Update the brush rectangle
-					cfD3Histogram.setupInteractivity.updateBrush(svg);
+					cfD3Histogram.addInteractivity.updateBrush(svg);
 					
 					
 					// Update the data selection
@@ -670,13 +706,13 @@ var dbslice = (function (exports) {
 			
 			updateBrush: function updateBrush(svg){
 				
-				
 				// First get the scale
 				var x = cfD3Histogram.helpers.getXScale(svg)
 				
 				// Now get the values that are supposed to be selected.
 				var xMin = Number(svg.select(".selection").attr("xMin"))
 				var xMax = Number(svg.select(".selection").attr("xMax"))
+				
 				
 				// Update teh rect.
 				svg.select(".selection")
@@ -724,8 +760,13 @@ var dbslice = (function (exports) {
 				}// drawHandle
 
 				
-			} // updateBrush
+			}, // updateBrush
 			
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				plotHelpers.removePlotTitleControls(element)
+				
+			} // updatePlotTitleControls
 			
 		}, // setupInteractivity
 		
@@ -823,6 +864,8 @@ var dbslice = (function (exports) {
 
 			} // createAxes
 			
+			
+			
 		} // helpers
 		
       
@@ -839,7 +882,10 @@ var dbslice = (function (exports) {
         opacity: 1,
         
         make: function make(element, data, layout) {
-            
+			
+			// Add the manual selection toggle to its title.
+            cfD3Scatter.addInteractivity.updatePlotTitleControls(element)
+			
             // Update the plot.
             cfD3Scatter.update(element, data, layout);
         },
@@ -847,7 +893,7 @@ var dbslice = (function (exports) {
         update: function update(element, data, layout) {
             
             
-            cfD3Scatter.setupSvg(d3.select(element), data, layout);
+            cfD3Scatter.setupSvg(element, data, layout);
             
             // Selections for plotting.
             var svg = d3.select(element).select("svg");
@@ -871,7 +917,8 @@ var dbslice = (function (exports) {
                 .style("fill", function (d) { return returnPointColor(d, data.cProperty); })
                 .style("opacity", cfD3Scatter.opacity)
                 .attr("clip-path", "url(#" + svg.select("clipPath").attr("id") + ")")
-                .attr("task-id", function (d) { return d.taskId; });
+                .attr("task-id", function (d) { return d.taskId; })
+				.attr("manuallySelected", false);
                 
             points
               .attr("r", 5)
@@ -894,7 +941,13 @@ var dbslice = (function (exports) {
             // Add zooming.
             cfD3Scatter.addInteractivity.addZooming(svg, data);
             
-        
+			
+			// Add zooming.
+            cfD3Scatter.addInteractivity.addSelection(svg);
+			
+			
+			// Highlight any manually selected tasks.
+			cfD3Scatter.helpers.updateManualSelections()
             
             // HELPER FUNCTIONS
             function createScale(axis){
@@ -980,9 +1033,9 @@ var dbslice = (function (exports) {
             
         }, // update
       
-        setupSvg: function setupSvg(container, data, layout){
+        setupSvg: function setupSvg(element, data, layout){
             // Create o clear existing svg to fix the bug of entering different plot types onto exting graphics.
-              
+            var container = d3.select(element)
               
             // If layout has a margin specified store it as the internal property.
             var margin = cfD3Scatter.margin;
@@ -1032,7 +1085,8 @@ var dbslice = (function (exports) {
                     svg.selectAll("*").remove();
                     curateSvg();
                         
-                    // The interactivity is added in the main update function!
+                    // Add the manual selection toggle to its title.
+					cfD3Scatter.addInteractivity.updatePlotTitleControls(element)
                         
                 } else {
                     // The plot is being inherited by another scatter plot. Just update the plot.
@@ -1143,7 +1197,7 @@ var dbslice = (function (exports) {
               
             addZooming: function addZooming(svg, data){
                   
-                  
+                // The current layout will keep adding on zoom. Rethink this for more responsiveness of the website.
                 var zoom = d3.zoom().scaleExtent([0.01, Infinity]).on("zoom", zoomed);
             
                 svg.transition().call(zoom.transform, d3.zoomIdentity);
@@ -1186,9 +1240,91 @@ var dbslice = (function (exports) {
                   
 
                   
-            } // addZooming
+            }, // addZooming
               
-              
+            addSelection: function addSelection(svg){
+				// This function adds the functionality to select elements on click. A switch must then be built into the header of the plot t allow this filter to be added on.
+				
+				var points = svg.selectAll("circle");
+				
+				points.on("click", selectPoint)
+				
+				
+				function selectPoint(d){
+					// Toggle the selection
+					var point = d3.select(this);
+					var toggle = point.attr("manuallySelected") == "true"
+					
+					point.attr("manuallySelected", toggle ? false : true)
+					
+
+					var p = dbsliceData.data.scatterManualSelectedTasks
+					if(toggle){
+						// The poinhas currently been selected, but must now be removed
+						p.splice(p.indexOf(d.taskId),1)
+					} else {
+						p.push(d.taskId)
+					}// if
+
+					// console.log(dbsliceData.data.scatterManualSelectedTasks)
+					
+					
+					// Highlight the manually selected options.
+					cfD3Scatter.helpers.updateManualSelections()
+					
+				} // selectPoint
+				
+			}, // addSelecton
+			  
+			addToggle: function addToggle(element){
+				
+				// THIS IS THE TOGGLE.
+				// Additional styling was added to dbslice.css to control the appearance of the toggle.
+				var controlGroup = d3.select(element.parentElement).select(".plotTitle").select(".ctrlGrp")
+				
+				var toggleGroup = controlGroup
+				  .append("label")
+					.attr("class", "switch float-right")
+				var toggle = toggleGroup
+				  .append("input")
+					.attr("type", "checkbox")
+				toggleGroup
+				  .append("span")
+					.attr("class", "slider round")
+					
+				// Add it's functionality.
+				toggle.on("change", function(){ 
+					
+					var currentVal = this.checked
+					
+					// All such switches need to be activated.
+					var allToggleSwitches = d3.selectAll(".plotWrapper[plottype='cfD3Scatter']").selectAll("input[type='checkbox']")
+					
+					allToggleSwitches.each(function(){
+						
+						this.checked = currentVal
+						// console.log("checking")
+					})
+					
+					// Update filters
+					cfUpdateFilters( dbsliceData.data )
+					
+					render(dbsliceData.elementId, dbsliceData.session)
+				})
+				
+			}, // addToggle
+			  
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				// Remove any controls in the plot title.
+				plotHelpers.removePlotTitleControls(element)
+				
+				// Add the toggle to switch manual selection filter on/off
+				cfD3Scatter.addInteractivity.addToggle(element)
+				
+				
+			} // updatePlotTitleControls
+			
         }, // addInteractivity
       
         helpers: {
@@ -1221,9 +1357,32 @@ var dbslice = (function (exports) {
                 var domMin = Number( svg.attr( dimName + "DomMin") );
                 var domMax = Number( svg.attr( dimName + "DomMax") );
               return [domMin, domMax]
-            } // getRange
+            }, // getRange
           
-          
+            updateManualSelections: function updateManualSelections(){
+				
+				// Loop through all scatter plots.
+				var allScatterPlots = d3.selectAll(".plotWrapper[plottype='cfD3Scatter']")
+				
+				allScatterPlots.each(function(){
+					var svg = d3.select(this).select("svg")
+					
+					// Default color
+					svg.selectAll("circle").style("fill", "rgb(31, 119, 180)")
+					
+					// Color in selected circles.
+					dbsliceData.data.scatterManualSelectedTasks.forEach(function(d){
+						svg.selectAll("circle[task-id='" + d + "']").style("fill", "rgb(255, 127, 14)")
+					}) //forEach
+					
+					
+				})
+				
+				
+					
+				
+			} // updateManualSelections
+			
         } // helpers
       
     }; // cfD3Scatter
@@ -1236,9 +1395,8 @@ var dbslice = (function (exports) {
         
         make: function make(element, data, layout) {
         
-            var container = d3.select(element);
-        
-            cfD3BarChart.setupSvg(container, data, layout);
+            // Remove any controls in the plot title.
+			cfD3BarChart.addInteractivity.updatePlotTitleControls(element)
         
             cfD3BarChart.update(element, data, layout);
         }, // make
@@ -1539,7 +1697,14 @@ var dbslice = (function (exports) {
 					
 				}; // crossHighlightOff
 				
-			} // addOnMouseOver
+			}, // addOnMouseOver
+			
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				// Remove any controls in the plot title.
+				plotHelpers.removePlotTitleControls(element)
+				
+			} // updatePlotTitleControls
 			
 		}, // addInteractivity
 	
@@ -1596,6 +1761,9 @@ var dbslice = (function (exports) {
         colour: [],
 
         make : function ( element, data, layout ) {
+			
+			// Remove any controls in the plot title.
+			d3LineSeries.addInteractivity.updatePlotTitleControls(element)
             
             d3LineSeries.update( element, data, layout );
 
@@ -1930,8 +2098,19 @@ var dbslice = (function (exports) {
               
 
               
-            } // addZooming
+            }, // addZooming
             
+			
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				// Remove any controls in the plot title.
+				plotHelpers.removePlotTitleControls(element)
+				
+				
+			} // updatePlotTitleControls
+			
+			
+			
         }, // addInteractivity
         
         helpers: {
@@ -1968,6 +2147,9 @@ var dbslice = (function (exports) {
         colour: [],
 
         make : function ( element, data, layout ){
+			
+			// Remove any controls in the plot title.
+			d3Contour2d.addInteractivity.updatePlotTitleControls(element)
 
             d3Contour2d.update ( element, data, layout )
 
@@ -2093,7 +2275,7 @@ var dbslice = (function (exports) {
                     curateSvg();
                     
                     // ADD FUNCTIONALITY.
-                    // cfD3Histogram.setupInteractivity(container, data);
+                    // cfD3Histogram.addInteractivity(container, data);
                     
                 } else {
                     // Axes might need to be updated, thus the svg element needs to be refreshed.
@@ -2199,8 +2381,15 @@ var dbslice = (function (exports) {
 					
 				}; // crossHighlightOff
 				
-			} // addOnMouseOver
+			}, // addOnMouseOver
             
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				// Remove any controls in the plot title.
+				plotHelpers.removePlotTitleControls(element)
+				
+			} // updatePlotTitleControls
+			
         }, // addInteractivity
         
         helpers: {
@@ -2379,8 +2568,16 @@ var dbslice = (function (exports) {
                 }; // if
             }
             return resArr;
-        } // findCommonElements
+        }, // findCommonElements
         	
+		removePlotTitleControls: function removePlotTitleControls(element){
+			
+			var controlGroup = d3.select(element.parentElement).select(".plotTitle").select(".ctrlGrp")
+			
+			// Remove everything.
+			controlGroup.selectAll("*").remove()
+			
+		} // removePlotTitleControls
 	} // plotHelpers
 
 
@@ -2930,11 +3127,15 @@ var dbslice = (function (exports) {
                     var addPlotButton = d3.select(this).select(".btn-danger")
                     
                     if (addPlotButton.empty()){
-                        // If it dosn't exist, add it.
-                        d3.select(this).append("button")
+                        // If it dosn't exist, add it. It should be the last element!
+						var ctrlGroup = d3.select(this).select(".ctrlGrp")
+						var otherControls = $(ctrlGroup.node()).children().detach();
+						
+                        ctrlGroup.append("button")
                             .attr("class", "btn btn-danger float-right")
                             .html("x")
                             .on("click", function(){
+								
                                 // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
                                 var plotIndex = i;
 
@@ -2948,7 +3149,18 @@ var dbslice = (function (exports) {
                                 
 
                                 render(dbsliceData.elementId, dbsliceData.session)
+								
+								// Manually realign elements that are moveable - histogram brush.
+								var svgs = d3.selectAll(".plotWrapper[plottype='cfD3Histogram']").selectAll("svg").each(function(d){
+									var svg = d3.select(this)
+									cfD3Histogram.addInteractivity.addBrush(svg)
+								}) // each
+								
+								// Go back into the selection and de-select the object?
+							
                             }); // on
+							
+						otherControls.appendTo($(ctrlGroup.node()))
                         
                     } else {
                         // If it doesn't, do nothing.
@@ -2961,6 +3173,9 @@ var dbslice = (function (exports) {
                 
               
             } ) // each
+			
+			
+
             
         }, // removePlotControls
 
@@ -3741,6 +3956,9 @@ var dbslice = (function (exports) {
 						d3.select(element).selectAll("circle[task-id='" + d.taskId + "']")
 						  .style("opacity", 1.0)
 						  .attr("r", 7);
+						  
+						// Also highlight any manually selected points.
+						cfD3Scatter.helpers.updateManualSelections()
 						
 					  break;
 					  
@@ -4114,17 +4332,10 @@ var dbslice = (function (exports) {
         d3.select("#addData")
           .on("click", function(){dataInput.click()})
 		  
-		  
-		  
-		  
 		// REMOVE SOME CURRENT DATA OPTION:
 		// This requires a popup. The popup needs to be opened on clicking the option. Upon submitting a form the underlying functionality is then called.
 		addMenu.removeDataControls.make("removeData")
-      
-
-	  
-	  
-	  
+     
         // LOAD SESSION Button
 	    var sessionInput = createFileInputElement( importExportFunctionality.loadSession.handler )
         d3.select("#getSession")
@@ -4559,6 +4770,24 @@ var dbslice = (function (exports) {
 
 
 
+		// Manual selections - but this should happen only if the manual switch is on!! 
+		var isManualFilterApplied = checkIfManualFilterIsApplied()
+		if( isManualFilterApplied ){
+			var filters = crossfilter.scatterManualSelectedTasks
+			if (filters.length === 0) {
+				// if the filters array is empty: ie. all values are selected, then reset the dimension
+				crossfilter.taskDim.filterAll();
+			} else {
+				crossfilter.taskDim.filter(function (d) {
+					return filters.indexOf(d) > -1;
+				}); // filter
+			}; // if
+        } else {
+			crossfilter.taskDim.filterAll();
+		} // if
+		
+
+
         // HERE THE SELECTED TASKIDS ARE UPDATED
         var currentMetaData = crossfilter.metaDims[0].top(Infinity);
         dbsliceData.filteredTaskIds = currentMetaData.map(function (d){return d.taskId;});
@@ -4573,6 +4802,22 @@ var dbslice = (function (exports) {
 		} else {	
 			dbsliceData.filteredTaskLabels = [];
         } // if
+		
+		
+		function checkIfManualFilterIsApplied(){
+			var isManualFilterApplied = false
+			
+			var scatterPlots = d3.selectAll(".plotWrapper[plottype='cfD3Scatter']")
+			if( !scatterPlots.empty() ){
+				var toggle = scatterPlots.select("input[type='checkbox']")
+				if ( !toggle.empty() ){
+					isManualFilterApplied = toggle.node().checked
+				} // if
+			} // if
+			
+		  return isManualFilterApplied
+			
+		} // checkIfManualFilterIsApplied
     } // cfUpdateFilter
 
     

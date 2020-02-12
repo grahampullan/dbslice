@@ -1,4 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
+import { cfD3Scatter } from '../plot/cfD3Scatter.js';
 
 const crossPlotHighlighting = {
 		
@@ -124,6 +125,9 @@ const crossPlotHighlighting = {
 						d3.select(element).selectAll("circle[task-id='" + d.taskId + "']")
 						  .style("opacity", 1.0)
 						  .attr("r", 7);
+						  
+						// Also highlight any manually selected points.
+						cfD3Scatter.helpers.updateManualSelections()
 						
 					  break;
 					  

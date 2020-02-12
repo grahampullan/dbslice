@@ -43,6 +43,24 @@ function cfUpdateFilters(crossfilter) {
 
 
 
+		// Manual selections - but this should happen only if the manual switch is on!! 
+		var isManualFilterApplied = checkIfManualFilterIsApplied()
+		if( isManualFilterApplied ){
+			var filters = crossfilter.scatterManualSelectedTasks
+			if (filters.length === 0) {
+				// if the filters array is empty: ie. all values are selected, then reset the dimension
+				crossfilter.taskDim.filterAll();
+			} else {
+				crossfilter.taskDim.filter(function (d) {
+					return filters.indexOf(d) > -1;
+				}); // filter
+			}; // if
+        } else {
+			crossfilter.taskDim.filterAll();
+		} // if
+		
+
+
         // HERE THE SELECTED TASKIDS ARE UPDATED
         var currentMetaData = crossfilter.metaDims[0].top(Infinity);
         dbsliceData.filteredTaskIds = currentMetaData.map(function (d){return d.taskId;});
@@ -57,6 +75,22 @@ function cfUpdateFilters(crossfilter) {
 		} else {	
 			dbsliceData.filteredTaskLabels = [];
         } // if
+		
+		
+		function checkIfManualFilterIsApplied(){
+			var isManualFilterApplied = false
+			
+			var scatterPlots = d3.selectAll(".plotWrapper[plottype='cfD3Scatter']")
+			if( !scatterPlots.empty() ){
+				var toggle = scatterPlots.select("input[type='checkbox']")
+				if ( !toggle.empty() ){
+					isManualFilterApplied = toggle.node().checked
+				} // if
+			} // if
+			
+		  return isManualFilterApplied
+			
+		} // checkIfManualFilterIsApplied
     } // cfUpdateFilter
 
 

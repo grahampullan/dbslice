@@ -2,6 +2,7 @@ import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
 import { render } from '../core/render.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
+import { plotHelpers } from '../plot/plotHelpers.js';
 
 const cfD3BarChart = {
 
@@ -11,9 +12,8 @@ const cfD3BarChart = {
         
         make: function make(element, data, layout) {
         
-            var container = d3.select(element);
-        
-            cfD3BarChart.setupSvg(container, data, layout);
+            // Remove any controls in the plot title.
+			cfD3BarChart.addInteractivity.updatePlotTitleControls(element)
         
             cfD3BarChart.update(element, data, layout);
         }, // make
@@ -314,7 +314,14 @@ const cfD3BarChart = {
 					
 				}; // crossHighlightOff
 				
-			} // addOnMouseOver
+			}, // addOnMouseOver
+			
+			updatePlotTitleControls: function updatePlotTitleControls(element){
+				
+				// Remove any controls in the plot title.
+				plotHelpers.removePlotTitleControls(element)
+				
+			} // updatePlotTitleControls
 			
 		}, // addInteractivity
 	

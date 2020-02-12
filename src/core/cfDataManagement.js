@@ -14,9 +14,11 @@ const cfDataManagement = {
 			cfData.metaDims = [];
 			cfData.metaDataUniqueValues = {};
 			cfData.dataDims = [];
+			cfData.taskDim = []
 			cfData.fileDim = [];
 			cfData.filterSelected = [];
-			cfData.histogramSelectedRanges = []; 
+			cfData.histogramSelectedRanges = [];
+			cfData.scatterManualSelectedTasks = [];
 			
 			// Populate the metaDims and metaDataUniqueValues.
 			cfData.metaDataProperties.forEach(function (property, i) {
@@ -37,6 +39,7 @@ const cfDataManagement = {
 			
 
 			cfData.fileDim = cfData.cf.dimension(function (d){return d.file;})
+			cfData.taskDim = cfData.cf.dimension(function (d){return d.taskId;})
 			
 			
 			// Create a standalone array of taskIds

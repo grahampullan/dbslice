@@ -168,17 +168,10 @@ function render(elementId, session) {
         d3.select("#addData")
           .on("click", function(){dataInput.click()})
 		  
-		  
-		  
-		  
 		// REMOVE SOME CURRENT DATA OPTION:
 		// This requires a popup. The popup needs to be opened on clicking the option. Upon submitting a form the underlying functionality is then called.
 		addMenu.removeDataControls.make("removeData")
-      
-
-	  
-	  
-	  
+     
         // LOAD SESSION Button
 	    var sessionInput = createFileInputElement( importExportFunctionality.loadSession.handler )
         d3.select("#getSession")

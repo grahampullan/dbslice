@@ -18,12 +18,14 @@ can now be interactively changed.
 Data can now be tracked across the plots.
 
 Known bugs and missing desired behaviour:
+- Histograms have their y-axis labels hidden
 - On passing a filtered subset to neighbouring plot on delete actions the full data is displayed on the moved plot as opposed to the filtered subset.
 - Color coding has not yet been implemented
 - Scatter plots do not have points remain selected when clicked
-- Flow field plots do not yet adjust to filtering actions on metadata plots
-- Session cannot be saved
-- Data can nly be loaded from folders from the root down
+- Error thrown if plot rows are created before data is loaded
+- Plots do not scale correctly on window resize
+- If the layout is loaded before data an error is thrown as there is no data for any plots.
+
 
 Getting the minimal working example going:
 - Download the repository
