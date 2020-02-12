@@ -7,7 +7,7 @@ It adds the functionality that allows the user to dynamically add or remove:
 - plotting rows
 - data
 
-The functionality to load in predefined session layouts has been introduced.
+The functionality to load in predefined session layouts has been introduced, as well as loading in and removing data.
 
 The title texts of:
 - the session header
@@ -18,13 +18,8 @@ can now be interactively changed.
 Data can now be tracked across the plots.
 
 Known bugs and missing desired behaviour:
-- Histograms have their y-axis labels hidden
-- On passing a filtered subset to neighbouring plot on delete actions the full data is displayed on the moved plot as opposed to the filtered subset.
 - Color coding has not yet been implemented
-- Scatter plots do not have points remain selected when clicked
-- Error thrown if plot rows are created before data is loaded
-- Plots do not scale correctly on window resize
-- If the layout is loaded before data an error is thrown as there is no data for any plots.
+- Saving the session
 
 
 Getting the minimal working example going:
