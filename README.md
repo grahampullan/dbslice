@@ -20,6 +20,7 @@ Data can now be tracked across the plots, and points can be selected manually on
 
 Known bugs and missing desired behaviour:
 - Color coding has not yet been implemented
+- Loading and saving the data used and filters applied to the session file
 
 
 
