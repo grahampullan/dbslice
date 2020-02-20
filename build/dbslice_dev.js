@@ -4853,6 +4853,9 @@ var dbslice = (function (exports) {
 				// Split the name by the '.', then select the last part.
 				var extension = file.name.split(".").pop();
 				
+				// Create a url link to allow files to be loaded fromanywhere on the local machine.
+				var url = window.URL.createObjectURL(file)
+				
 				
 				// Determine if the input adds new data, or if it replaces the data.
 				switch(dataAction){
@@ -4875,7 +4878,7 @@ var dbslice = (function (exports) {
 				switch(extension){
 					
 					case "csv":
-						d3.csv(file.name, ld.helpers.convertNumbers, function(metadata){
+						d3.csv(url, ld.helpers.convertNumbers, function(metadata){
 							// Add the filename to the data.
 							metadata.forEach(function(d){d.file = file.name})
 							ld.csv(metadata, actionOnInternalStorage);
@@ -4884,7 +4887,7 @@ var dbslice = (function (exports) {
 						break;
 						
 					case "json":
-						d3.json(file.name, function(metadata){
+						d3.json(url, function(metadata){
 							metadata.data.forEach(function(d){d.file = file.name})
 							ld.json(metadata, actionOnInternalStorage);
 							
@@ -5076,10 +5079,15 @@ var dbslice = (function (exports) {
 				// Split the name by the '.', then select the last part.
 				var extension = file.name.split(".").pop();
 				
+				// Create a url link to allow files to be loaded fromanywhere on the local machine.
+				var url = window.URL.createObjectURL(file)
+				
+				
+				
 				switch(extension){
 					
 					case "json":
-						d3.json(file.name, function(sessionData){
+						d3.json(url, function(sessionData){
 							ls.json(sessionData);
 						}) // d3.json
 						break;

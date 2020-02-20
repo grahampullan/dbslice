@@ -66,15 +66,24 @@
 
 	dbslice.initialise ("target", session, data, { plotTasksButton : true } );
 
+
+
+	// Pre load some data and layout
 	var ld = dbslice.importExportFunctionality.importData
 	var ls = dbslice.importExportFunctionality.loadSession
 
 	d3.csv("metadata_A.csv", ld.helpers.convertNumbers, function(metadata){
 					
+			// Add the source file to tha data
 			metadata.forEach(function(d){d.file = "metadata_A.csv"})
 			ld.csv(metadata, dbslice.cfDataManagement.cfInit );
 			
-			ls.handler({name : "session.json"})
+			
+			
+			// Load the session file manually
+			d3.json("session.json", function(sessionData){
+				ls.json(sessionData);
+			}) // d3.json
 							
 	})
 

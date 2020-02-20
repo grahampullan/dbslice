@@ -1,13 +1,13 @@
 This is a branch of the original dbslice project (https://github.com/grahampullan/dbslice).
 
-It reduces the plotting functionality to three basic plot types: bar, histogram, and scatter plots. 
+It reduces the plotting functionality to three basic plot types: bar, histogram, and scatter plots. Line plots and 2D scatter plots are also available.
 
 It adds the functionality that allows the user to dynamically add or remove:
 - plots
 - plotting rows
 - data
 
-The functionality to load in predefined session layouts has been introduced, as well as loading in and removing data.
+The functionality to load in predefined session layouts has been introduced.
 
 The title texts of:
 - the session header
@@ -15,11 +15,12 @@ The title texts of:
 - individual plots
 can now be interactively changed.
 
-Data can now be tracked across the plots.
+Data can now be tracked across the plots, and points can be selected manually on scatter plots.
+
 
 Known bugs and missing desired behaviour:
 - Color coding has not yet been implemented
-- Saving the session
+
 
 
 Getting the minimal working example going:
