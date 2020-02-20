@@ -74,6 +74,7 @@ var dbslice = (function (exports) {
 	} // updatePlot
 
 
+
 	var cfDataManagement = {
 		
 		cfInit: function cfInit(metadata){
@@ -247,8 +248,7 @@ var dbslice = (function (exports) {
 	} // cfDataManagement
     
 
-    
-
+  
     function _classCallCheck(instance, Constructor) {
         if (!(instance instanceof Constructor)) {
           throw new TypeError("Cannot call a class as a function");
@@ -262,7 +262,6 @@ var dbslice = (function (exports) {
     } // dbsliceData
 
     var dbsliceData = new DbsliceData();
-
 
 
 
@@ -4165,9 +4164,6 @@ var dbslice = (function (exports) {
 	} // crossPlotHighlighting 
 		
 		
-		
-	
-	
 
     function render(elementId, session) {
         var element = d3.select("#" + elementId);
@@ -4257,69 +4253,31 @@ var dbslice = (function (exports) {
         plotRowPlotWrappers.exit().remove();
       
       
-	  
-	  
-	    
-	  
-	  
-	  
-	  
+
 	  
 	  
         // FUNCTIONALITY
-      
 	  
 	  
         // ADD PLOT ROW BUTTON.
-        var addPlotRowButtonId = "addPlotRowButton";
-        var addPlotRowButton   = d3.select("#" + addPlotRowButtonId);
-        if (addPlotRowButton.empty()){
-            // Add the button.
-            d3.select("#" + dbsliceData.elementId)
-              .append("button")
-                .attr("id", addPlotRowButtonId)
-                .attr("class", "btn btn-info btn-block")
-                .html("+");
-              
-            addMenu.addPlotRowControls.make(addPlotRowButtonId);
-        } else {
-            // Move the button down
-            var b = document.getElementById(addPlotRowButtonId);
-            b.parentNode.appendChild(b);
-        }; // if
-      
-      
+        var addPlotRowButtonId = "addPlotRowButton"
+        createAddPlotRowButton(addPlotRowButtonId)
       
         // REMOVE PLOT ROW
-        newPlotRowsHeader.each(function(data){
-            // Give each of the plot rows a delete button.
-            d3.select(this).append("button")
-              .attr("id", function(d,i){return "removePlotRowButton"+i; })
-              .attr("class", "btn btn-danger float-right")
-              .html("x")
-              .on("click", function(){
-                  // Select the parent plot row, and get its index.
-                  var ownerPlotRowInd = d3.select(this.parentNode.parentNode).attr("plot-row-index")
-                 
-                  dbsliceData.session.plotRows.splice(ownerPlotRowInd,1);
-                 
-                  render(dbsliceData.elementId, dbsliceData.session);
-                 
-              }); // on
-        }); // each
+		createRemovePlotRowButtons(newPlotRowsHeader)
       
-        // ADD PLOT BUTTONS - THESE CONTROLS SHOULD UPDATE. DO THEY?
+        // ADD PLOT BUTTONS
         newPlotRowsHeader.each(function(){
             addMenu.addPlotControls.make( this );
         }); // each
       
-        // REMOVE PLOT BUTTONS - THESE ALLOW PLOTS TO BE REMOVED.
+        // REMOVE PLOT BUTTONS
         addMenu.removePlotControls();
       
       
       
 
-	  
+	    // DROPDOWN MENU FUNCTIONALITY - MOVE TO SEPARATE FUNCTION??
       
       
         // REPLACE CURRENT DATA OPTION:
@@ -4341,7 +4299,11 @@ var dbslice = (function (exports) {
         d3.select("#getSession")
           .on("click", function(){sessionInput.click()})
       
-        
+		// SAVE SESSION Button
+		// The save session functonality should run everytime render is called. The button needs to become the download bu
+		createSessionFileForSaving()
+		
+		
 		
 		
 		
@@ -4373,8 +4335,74 @@ var dbslice = (function (exports) {
 		  return dataInput
 			
 		} // createGetDataFunctionality
+ 
+	    function createAddPlotRowButton(addPlotRowButtonId){
+			
+			var addPlotRowButton   = d3.select("#" + addPlotRowButtonId);
+			if (addPlotRowButton.empty()){
+				// Add the button.
+				d3.select("#" + dbsliceData.elementId)
+				  .append("button")
+					.attr("id", addPlotRowButtonId)
+					.attr("class", "btn btn-info btn-block")
+					.html("+");
+				  
+				addMenu.addPlotRowControls.make(addPlotRowButtonId);
+			} else {
+				// Move the button down
+				var b = document.getElementById(addPlotRowButtonId);
+				b.parentNode.appendChild(b);
+			}; // if
+			
+		} // createAddPlotRowButton
+		
+		function createRemovePlotRowButtons(newPlotRowsHeader){
+			
+			newPlotRowsHeader.each(function(data){
+				// Give each of the plot rows a delete button.
+				d3.select(this).append("button")
+				  .attr("id", function(d,i){return "removePlotRowButton"+i; })
+				  .attr("class", "btn btn-danger float-right")
+				  .html("x")
+				  .on("click", function(){
+					  // Select the parent plot row, and get its index.
+					  var ownerPlotRowInd = d3.select(this.parentNode.parentNode).attr("plot-row-index")
+					 
+					  dbsliceData.session.plotRows.splice(ownerPlotRowInd,1);
+					 
+					  render(dbsliceData.elementId, dbsliceData.session);
+					 
+				  }); // on
+			}); // each
+			
+		} // createRemovePlotRowButtons
+		
+		function createSessionFileForSaving(){
+			
+			var textFile = null;
+			var makeTextFile = function makeTextFile(text) {
+				var data = new Blob([text], {
+					type: 'text/plain'
+				}); 
+				
+				// If we are replacing a previously generated file we need to
+				// manually revoke the object URL to avoid memory leaks.
+				if (textFile !== null) {
+					window.URL.revokeObjectURL(textFile);
+				} // if
 
-      
+				textFile = window.URL.createObjectURL(data);
+				
+			  return textFile;
+			}; // makeTextFile
+
+
+			var lnk = document.getElementById('saveSession');
+			lnk.href = makeTextFile( importExportFunctionality.saveSession.json() );
+			lnk.style.display = 'block';
+			
+		} // createSessionFileForSaving
+		
     } // render
 
     function initialise(elementId, session, data) {
@@ -4471,7 +4499,10 @@ var dbslice = (function (exports) {
 		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
 			.attr("id", "getSession")
 		    .html("Load session")
-		  
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+			.attr("id", "saveSession")
+			.attr("download", "session.json")
+			.html("Save session") 
 		
 			
 			
@@ -4679,8 +4710,6 @@ var dbslice = (function (exports) {
 			
     } // makePromiseSlicePlot
 
-
-
     function refreshTasksInPlotRows() {
         var plotRows = dbsliceData.session.plotRows;
         var plotRowPromises = [];
@@ -4725,7 +4754,6 @@ var dbslice = (function (exports) {
             render(dbsliceData.elementId, dbsliceData.session);
         }); // Promise
     } // refreshTasksInPlotRows
-
 
 
 
@@ -4821,7 +4849,6 @@ var dbslice = (function (exports) {
     } // cfUpdateFilter
 
     
-
     
 	var importExportFunctionality = {
 		// This object controls all the behaviour exhibited when loading in data or session layouts, as well as all behaviour when saving the layout.
@@ -5206,6 +5233,76 @@ var dbslice = (function (exports) {
 			
 		}, // loadSession
 		
+		
+		saveSession : {
+			
+			json: function json() {
+				// This function should write a session file.
+				// It should write which data is used, plotRows, and plots.
+				// Should it also write the filter selections made?
+
+				var sessionJson = '';
+				write('{"isSessionObject": "true", ');
+				write(' "title": "' + dbsliceData.session.title + '", ');
+				write(' "plotRows": [');
+
+				var metadataPlotRows = dbsliceData.session.plotRows.filter(function (plotRow){ return plotRow.type == "metadata"; });
+
+				metadataPlotRows.forEach(function (plotRow, i) {
+					
+					writePlotRow(plotRow);
+
+					if (i < metadataPlotRows.length - 1) {
+						write(', ');
+					} // if
+
+				}); // forEach
+
+				write("]");
+				write('}');
+
+				function write(s) {
+					sessionJson = sessionJson + s;
+				} // write
+
+
+				function writePlotRow(plotRow) {
+					
+					var s = "{";
+					s = s + '"title": "' + plotRow.title + '", ';
+					s = s + '"type": "' + plotRow.type + '", ';
+					s = s + '"plots": [';
+					
+					plotRow.plots.forEach(function (plot, i) {
+					  s = s + '{';
+					  s = s + '"type": "' + plot.plotFunc.name + '", ';
+					  s = s + '"title": "' + plot.layout.title + '", ';
+					  s = s + '"xProperty": "' + plot.data.xProperty + '"';
+
+					  if (plot.data.yProperty !== undefined) {
+						s = s + ', ';
+						s = s + '"yProperty": "' + plot.data.yProperty + '"';
+					  } // if
+
+
+					  s = s + '}';
+
+					  if (i < plotRow.plots.length - 1) {
+						s = s + ', ';
+					  } // if
+
+					}); // forEach
+
+					s = s + ']';
+					s = s + '}';
+					sessionJson = sessionJson + s;
+				} // writePlotRow
+
+
+			  return sessionJson;
+			} // json
+			
+		}, // saveSession
 		
 		helpers : {
 			

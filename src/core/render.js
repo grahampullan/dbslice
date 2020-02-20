@@ -93,69 +93,31 @@ function render(elementId, session) {
         plotRowPlotWrappers.exit().remove();
       
       
-	  
-	  
-	    
-	  
-	  
-	  
-	  
+
 	  
 	  
         // FUNCTIONALITY
-      
 	  
 	  
         // ADD PLOT ROW BUTTON.
-        var addPlotRowButtonId = "addPlotRowButton";
-        var addPlotRowButton   = d3.select("#" + addPlotRowButtonId);
-        if (addPlotRowButton.empty()){
-            // Add the button.
-            d3.select("#" + dbsliceData.elementId)
-              .append("button")
-                .attr("id", addPlotRowButtonId)
-                .attr("class", "btn btn-info btn-block")
-                .html("+");
-              
-            addMenu.addPlotRowControls.make(addPlotRowButtonId);
-        } else {
-            // Move the button down
-            var b = document.getElementById(addPlotRowButtonId);
-            b.parentNode.appendChild(b);
-        }; // if
-      
-      
+        var addPlotRowButtonId = "addPlotRowButton"
+        createAddPlotRowButton(addPlotRowButtonId)
       
         // REMOVE PLOT ROW
-        newPlotRowsHeader.each(function(data){
-            // Give each of the plot rows a delete button.
-            d3.select(this).append("button")
-              .attr("id", function(d,i){return "removePlotRowButton"+i; })
-              .attr("class", "btn btn-danger float-right")
-              .html("x")
-              .on("click", function(){
-                  // Select the parent plot row, and get its index.
-                  var ownerPlotRowInd = d3.select(this.parentNode.parentNode).attr("plot-row-index")
-                 
-                  dbsliceData.session.plotRows.splice(ownerPlotRowInd,1);
-                 
-                  render(dbsliceData.elementId, dbsliceData.session);
-                 
-              }); // on
-        }); // each
+		createRemovePlotRowButtons(newPlotRowsHeader)
       
-        // ADD PLOT BUTTONS - THESE CONTROLS SHOULD UPDATE. DO THEY?
+        // ADD PLOT BUTTONS
         newPlotRowsHeader.each(function(){
             addMenu.addPlotControls.make( this );
         }); // each
       
-        // REMOVE PLOT BUTTONS - THESE ALLOW PLOTS TO BE REMOVED.
+        // REMOVE PLOT BUTTONS
         addMenu.removePlotControls();
       
       
       
 
-	  
+	    // DROPDOWN MENU FUNCTIONALITY - MOVE TO SEPARATE FUNCTION??
       
       
         // REPLACE CURRENT DATA OPTION:
@@ -177,7 +139,11 @@ function render(elementId, session) {
         d3.select("#getSession")
           .on("click", function(){sessionInput.click()})
       
-        
+		// SAVE SESSION Button
+		// The save session functonality should run everytime render is called. The button needs to become the download bu
+		createSessionFileForSaving()
+		
+		
 		
 		
 		
@@ -209,8 +175,74 @@ function render(elementId, session) {
 		  return dataInput
 			
 		} // createGetDataFunctionality
+ 
+	    function createAddPlotRowButton(addPlotRowButtonId){
+			
+			var addPlotRowButton   = d3.select("#" + addPlotRowButtonId);
+			if (addPlotRowButton.empty()){
+				// Add the button.
+				d3.select("#" + dbsliceData.elementId)
+				  .append("button")
+					.attr("id", addPlotRowButtonId)
+					.attr("class", "btn btn-info btn-block")
+					.html("+");
+				  
+				addMenu.addPlotRowControls.make(addPlotRowButtonId);
+			} else {
+				// Move the button down
+				var b = document.getElementById(addPlotRowButtonId);
+				b.parentNode.appendChild(b);
+			}; // if
+			
+		} // createAddPlotRowButton
+		
+		function createRemovePlotRowButtons(newPlotRowsHeader){
+			
+			newPlotRowsHeader.each(function(data){
+				// Give each of the plot rows a delete button.
+				d3.select(this).append("button")
+				  .attr("id", function(d,i){return "removePlotRowButton"+i; })
+				  .attr("class", "btn btn-danger float-right")
+				  .html("x")
+				  .on("click", function(){
+					  // Select the parent plot row, and get its index.
+					  var ownerPlotRowInd = d3.select(this.parentNode.parentNode).attr("plot-row-index")
+					 
+					  dbsliceData.session.plotRows.splice(ownerPlotRowInd,1);
+					 
+					  render(dbsliceData.elementId, dbsliceData.session);
+					 
+				  }); // on
+			}); // each
+			
+		} // createRemovePlotRowButtons
+		
+		function createSessionFileForSaving(){
+			
+			var textFile = null;
+			var makeTextFile = function makeTextFile(text) {
+				var data = new Blob([text], {
+					type: 'text/plain'
+				}); 
+				
+				// If we are replacing a previously generated file we need to
+				// manually revoke the object URL to avoid memory leaks.
+				if (textFile !== null) {
+					window.URL.revokeObjectURL(textFile);
+				} // if
 
-      
+				textFile = window.URL.createObjectURL(data);
+				
+			  return textFile;
+			}; // makeTextFile
+
+
+			var lnk = document.getElementById('saveSession');
+			lnk.href = makeTextFile( importExportFunctionality.saveSession.json() );
+			lnk.style.display = 'block';
+			
+		} // createSessionFileForSaving
+		
     } // render
 
     

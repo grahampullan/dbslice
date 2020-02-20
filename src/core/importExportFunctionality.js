@@ -389,6 +389,76 @@ const importExportFunctionality = {
 		}, // loadSession
 		
 		
+		saveSession : {
+			
+			json: function json() {
+				// This function should write a session file.
+				// It should write which data is used, plotRows, and plots.
+				// Should it also write the filter selections made?
+
+				var sessionJson = '';
+				write('{"isSessionObject": "true", ');
+				write(' "title": "' + dbsliceData.session.title + '", ');
+				write(' "plotRows": [');
+
+				var metadataPlotRows = dbsliceData.session.plotRows.filter(function (plotRow){ return plotRow.type == "metadata"; });
+
+				metadataPlotRows.forEach(function (plotRow, i) {
+					
+					writePlotRow(plotRow);
+
+					if (i < metadataPlotRows.length - 1) {
+						write(', ');
+					} // if
+
+				}); // forEach
+
+				write("]");
+				write('}');
+
+				function write(s) {
+					sessionJson = sessionJson + s;
+				} // write
+
+
+				function writePlotRow(plotRow) {
+					
+					var s = "{";
+					s = s + '"title": "' + plotRow.title + '", ';
+					s = s + '"type": "' + plotRow.type + '", ';
+					s = s + '"plots": [';
+					
+					plotRow.plots.forEach(function (plot, i) {
+					  s = s + '{';
+					  s = s + '"type": "' + plot.plotFunc.name + '", ';
+					  s = s + '"title": "' + plot.layout.title + '", ';
+					  s = s + '"xProperty": "' + plot.data.xProperty + '"';
+
+					  if (plot.data.yProperty !== undefined) {
+						s = s + ', ';
+						s = s + '"yProperty": "' + plot.data.yProperty + '"';
+					  } // if
+
+
+					  s = s + '}';
+
+					  if (i < plotRow.plots.length - 1) {
+						s = s + ', ';
+					  } // if
+
+					}); // forEach
+
+					s = s + ']';
+					s = s + '}';
+					sessionJson = sessionJson + s;
+				} // writePlotRow
+
+
+			  return sessionJson;
+			} // json
+			
+		}, // saveSession
+		
 		helpers : {
 			
 			variableMatching : function variableMatching(){

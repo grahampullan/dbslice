@@ -75,7 +75,10 @@ function makeSessionHeader(element, title, subtitle, config) {
 		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
 			.attr("id", "getSession")
 		    .html("Load session")
-		  
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+			.attr("id", "saveSession")
+			.attr("download", "session.json")
+			.html("Save session") 
 		
 			
 			
