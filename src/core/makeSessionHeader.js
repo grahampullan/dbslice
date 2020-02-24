@@ -52,6 +52,7 @@ function makeSessionHeader(element, title, subtitle, config) {
 			
 		sessionGroup
 		  .append("button")
+		    .attr("id", "sessionOptions")
 		    .attr("type", "button")
 			.attr("class", "btn btn-info dropdown-toggle")
 			.attr("data-toggle", "dropdown")

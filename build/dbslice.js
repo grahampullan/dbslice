@@ -1676,6 +1676,7 @@ var dbslice = (function (exports) {
       // The ideal solution would be for each individual task to have it's own small metadata file, which could then by parsed by a search engine. This is unpractical for a localised application - this functionality is usable however.
       // If no data is currently loaded then call cfInit instead - this allows the dimensions to be overrun.
       if (dbsliceData.data !== undefined) {
+        // If no data is currently loaded then call cfInit instead - this allows the dimensions to be overrun.
         if (dbsliceData.data.cf.all().length < 1) {
           cfDataManagement.cfInit(metadata);
         } else {
@@ -1694,6 +1695,8 @@ var dbslice = (function (exports) {
 
         } // if
 
+      } else {
+        cfDataManagement.cfInit(metadata);
       } // if
 
     },
@@ -2751,7 +2754,7 @@ var dbslice = (function (exports) {
         // This functionality decides which buttons should be enabled.
         var isDataInFilter = dbsliceData.filteredTaskIds.length !== undefined && dbsliceData.filteredTaskIds.length > 0; // "Add data" is always available!
 
-        $("#getData").prop("disabled", false); // "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
+        $("#sessionOptions").prop("disabled", false); // "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
 
         var isPlotterPlotRowCtrlDefined = addMenu.helpers.checkIfArrayKeyIsDefined(dbsliceData.session.plotRows, 'ctrl');
 
@@ -4091,7 +4094,7 @@ var dbslice = (function (exports) {
     sessionTitle.append("div").attr("class", "filteredTaskCount").append("p").attr("style", "display:inline"); // CREATE THE MENU WITH SESSION OPTIONS
 
     var sessionGroup = sessionTitle.append("div").attr("class", "btn-group float-right").attr("style", "display:inline");
-    sessionGroup.append("button").attr("type", "button").attr("class", "btn btn-info dropdown-toggle").attr("data-toggle", "dropdown").attr("aria-haspopup", true).attr("aria-expanded", false).html("Session options");
+    sessionGroup.append("button").attr("id", "sessionOptions").attr("type", "button").attr("class", "btn btn-info dropdown-toggle").attr("data-toggle", "dropdown").attr("aria-haspopup", true).attr("aria-expanded", false).html("Session options");
     var sessionMenu = sessionGroup.append("div").attr("class", "dropdown-menu");
     sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#").attr("id", "replaceData").html("Replace data");
     sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#").attr("id", "addData").html("Add data");

@@ -137,6 +137,9 @@ var dbslice = (function (exports) {
 			
 			// If no data is currently loaded then call cfInit instead - this allows the dimensions to be overrun.
 			if (dbsliceData.data !== undefined){
+				
+				
+				// If no data is currently loaded then call cfInit instead - this allows the dimensions to be overrun.
 				if (dbsliceData.data.cf.all().length < 1){
 					cfDataManagement.cfInit(metadata)
 			
@@ -155,9 +158,11 @@ var dbslice = (function (exports) {
 						dbsliceData.filteredTaskIds = currentMetaData.map(function (d){return d.taskId;});
 						
 					} // if
-			
-			
 				} // if
+				
+				
+			} else {
+				cfDataManagement.cfInit(metadata)
 			} // if
 			
 			
@@ -3724,8 +3729,9 @@ var dbslice = (function (exports) {
                 var isDataInFilter = dbsliceData.filteredTaskIds.length !== undefined                  && dbsliceData.filteredTaskIds.length > 0;
                 
                 // "Add data" is always available!
-                $("#getData").prop("disabled",false);
+                $("#sessionOptions").prop("disabled",false);
                 
+				
                 // "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
                 var isPlotterPlotRowCtrlDefined = addMenu.helpers.checkIfArrayKeyIsDefined(dbsliceData.session.plotRows, 'ctrl');
                 if(isDataInFilter && isPlotterPlotRowCtrlDefined){
@@ -4476,6 +4482,7 @@ var dbslice = (function (exports) {
 			
 		sessionGroup
 		  .append("button")
+		    .attr("id", "sessionOptions")
 		    .attr("type", "button")
 			.attr("class", "btn btn-info dropdown-toggle")
 			.attr("data-toggle", "dropdown")

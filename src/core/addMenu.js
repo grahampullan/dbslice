@@ -1150,8 +1150,9 @@ const addMenu = {
                 var isDataInFilter = dbsliceData.filteredTaskIds.length !== undefined                  && dbsliceData.filteredTaskIds.length > 0;
                 
                 // "Add data" is always available!
-                $("#getData").prop("disabled",false);
+                $("#sessionOptions").prop("disabled",false);
                 
+				
                 // "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
                 var isPlotterPlotRowCtrlDefined = addMenu.helpers.checkIfArrayKeyIsDefined(dbsliceData.session.plotRows, 'ctrl');
                 if(isDataInFilter && isPlotterPlotRowCtrlDefined){

@@ -63,6 +63,9 @@ const cfDataManagement = {
 			
 			// If no data is currently loaded then call cfInit instead - this allows the dimensions to be overrun.
 			if (dbsliceData.data !== undefined){
+				
+				
+				// If no data is currently loaded then call cfInit instead - this allows the dimensions to be overrun.
 				if (dbsliceData.data.cf.all().length < 1){
 					cfDataManagement.cfInit(metadata)
 			
@@ -81,9 +84,11 @@ const cfDataManagement = {
 						dbsliceData.filteredTaskIds = currentMetaData.map(function (d){return d.taskId;});
 						
 					} // if
-			
-			
 				} // if
+				
+				
+			} else {
+				cfDataManagement.cfInit(metadata)
 			} // if
 			
 			
