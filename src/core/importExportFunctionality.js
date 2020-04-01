@@ -60,10 +60,21 @@ const importExportFunctionality = {
 				switch(extension){
 					
 					case "csv":
-						d3.csv(url, ld.helpers.convertNumbers, function(metadata){
-							// Add the filename to the data.
-							metadata.forEach(function(d){d.file = file.name})
-							ld.csv(metadata, actionOnInternalStorage);
+						d3.csv(url).then(function(metadata){
+							
+							data = []
+							metadata.forEach(function(d){
+								data.push( ld.helpers.convertNumbers(d) )
+							})
+					
+									
+							// Add the source file to tha data
+							data.forEach(function(d){
+								d.file = "metadata.csv"
+							})
+							
+							
+							ld.csv(data, actionOnInternalStorage);
 							
 						}) // d3.csv
 						break;
@@ -122,12 +133,6 @@ const importExportFunctionality = {
 			
 			helpers: {
 				
-				loadDataAndEvaluate: function loadDataAndEvaluate(){
-					
-					
-					
-				}, // loadDataAndEvaluate
-				
 				renameVariables: function renameVariables(data, oldVar, newVar){
 						// This function renames the variable of a dataset.
 						for(var j=0; j<data.length; j++){
@@ -139,6 +144,7 @@ const importExportFunctionality = {
 								
 				convertNumbers: function convertNumbers(row) {
 						// Convert the values from strings to numbers.
+						
 						var r = {};
 						for (var k in row) {
 							r[k] = +row[k];
@@ -234,7 +240,115 @@ const importExportFunctionality = {
 					};
 					
 				  return d
-				} // csv2json
+				}, // csv2json
+				
+				rrdPlcp2json: {
+					
+					
+					uniqueByPartName: function uniqueByPartName(nameArray, partName){
+					
+						var h = importExportFunctionality.importData.helpers.rrdPlcp2json
+					
+						var u = []
+						nameArray.forEach(function(variable){
+							var parts = h.rrdPlcpVariableNameSplit(variable)
+							if( u.indexOf( parts[partName] ) == -1){
+								u.push( parts[partName] )
+							} // if
+						})
+					  return u
+					}, // uniqueByPartName
+					
+					rrdPlcpRestructure: function rrdPlcpRestructure(data){
+						// Cycle through all the variables, and merge them together. Do this by creating a new row element corresponding with the data with the desired structure.
+						var h = importExportFunctionality.importData.helpers.rrdPlcp2json
+						
+						// What I want is an object that will hold all the metadata of the file (height, options, ...). One of the properties will be data. Data will be an object with proprties corresponding to te unique heights. Each of these heights will be an array of objects. Each of these objects will have an x and y property.
+						// The idea is that things are drawn primarily for the same height. The surface is included as a separate property of the point.
+						
+						
+						// Go through all of the variables, and convert them all to individual data points, with the options in the name as properties.
+						var allOriginalVariables = Object.getOwnPropertyNames( data[0] )
+						
+						
+						// Get the parts of all of these.
+						var allVariableNamesSplit = []
+						allOriginalVariables.forEach(function(variable){
+							allVariableNamesSplit.push( h.rrdPlcpVariableNameSplit(variable) )
+						})
+						
+						// Get all available heights
+						var allAvailableHeights = h.uniqueByPartName(allOriginalVariables, 'height')
+						
+						// Instantiate the structure.
+						var structuredData = {taskId: data.taskId,
+						                     heights: allAvailableHeights}
+						
+						
+						// Loop over the heights and collect all variables corresponding to them.
+						allAvailableHeights.forEach(function(height){
+							var allHeightVariables = allOriginalVariables.filter(function(variable){
+								var parts = h.rrdPlcpVariableNameSplit(variable)
+								return parts.height == height
+							})
+							
+							structuredData[height] = {}
+							
+							// Among these find the eunique physical variables.
+							var uniquePhysicalVariables = h.uniqueByPartName(allHeightVariables, 'variable')
+							
+							// Find the subgroup with this particular physical variable.
+							uniquePhysicalVariables.forEach(function(variable){
+								// Combine the quadruple together.
+								var ps = []
+								var ss = []
+								
+								
+								var ps_x = [height, 'Height', 'ps', variable, 'x'].join('_')
+								var ps_y = [height, 'Height', 'ps', variable, 'y'].join('_')
+								var ss_x = [height, 'Height', 'ss', variable, 'x'].join('_')
+								var ss_y = [height, 'Height', 'ss', variable, 'y'].join('_')
+								
+								// Join all of these together.
+								data.forEach(function(d){
+									ps.push( {x: d[ps_x], y: d[ps_y], side: 'ps' } )
+									ss.push( {x: d[ss_x], y: d[ss_y], side: 'ss' } )
+								})
+								
+								// Join the ps and ss together into one series
+								structuredData[height][variable] = ps.concat( ss.reverse() )
+							})
+							
+						})
+						
+					  return structuredData
+						
+					}, // rrdPlcpRestructure
+
+					
+					rrdPlcpVariableNameSplit: function rrdPlcpVariableNameSplit(variable){
+						// Split the variable names by '_'.
+						var parts = variable.split("_")
+						
+						// First two parts are the height identifiers to within one decimal place.
+						// Third part is 'Height', an dcan be skipped.
+						// Fourth part is suction/pressure side id, ss/ps
+						// Fifth part through to the before last part belong to the variable name
+						// Last part is the axis for the value to be plotted on.
+						var excess = parts.splice(2,1)
+						
+						return {
+							height: parts.splice(0,2).join('_'),
+							surface: parts.splice(0,1).join(),
+							axis: parts.pop(),
+							variable: parts.join()
+						}
+					
+					} // rrdPlcpVariableNameSplit
+					
+					
+					
+				} // rrdPlcp2json
 				
 			} // helpers
 			
@@ -269,7 +383,7 @@ const importExportFunctionality = {
 				switch(extension){
 					
 					case "json":
-						d3.json(url, function(sessionData){
+						d3.json(url).then(function(sessionData){
 							ls.json(sessionData);
 						}) // d3.json
 						break;
@@ -357,6 +471,34 @@ const importExportFunctionality = {
 								 yProperty : plotsData[j].yProperty, 
 								 cProperty : plotsData[j].cProperty}
 						};
+						
+						
+						// scatter plots need the additional ctrl in layout.
+						if(plotsData[j].type == 'cfD3Scatter'){
+							
+							plotToPush.layout.ctrl = {
+									data: dbsliceData.data,
+									svg: undefined,
+									view: {xVar: plotsData[j].xProperty,
+										   yVar: plotsData[j].yProperty,
+										   cVar: undefined,
+										   gVar: undefined,
+										   dataAR: undefined,
+										   viewAR: undefined,
+										   t: undefined},
+									tools: {xscale: undefined,
+											yscale: undefined,
+											cscale: undefined},
+									format: {
+										margin: {top: 17, right: 25, bottom: 20, left: 20},
+										axesMargin: {left: 25, bottom: 20},
+										width: undefined,
+										height: 300,
+										transitionTime: 500
+									}
+								}
+						} // if
+						
 						plots.push(plotToPush);
 						
 					}; // for
@@ -387,7 +529,6 @@ const importExportFunctionality = {
 			} // helpers
 			
 		}, // loadSession
-		
 		
 		saveSession : {
 			
@@ -429,6 +570,17 @@ const importExportFunctionality = {
 					s = s + '"plots": [';
 					
 					plotRow.plots.forEach(function (plot, i) {
+						
+						// AK: HACK!!
+						if(plot.plotFunc.name == "cfD3Scatter"){
+							plot.data.xProperty = plot.layout.ctrl.view.xVar
+							plot.data.yProperty = plot.layout.ctrl.view.yVar
+						} // if
+						
+						
+						
+						
+						
 					  s = s + '{';
 					  s = s + '"type": "' + plot.plotFunc.name + '", ';
 					  s = s + '"title": "' + plot.layout.title + '", ';
@@ -455,7 +607,33 @@ const importExportFunctionality = {
 
 
 			  return sessionJson;
-			} // json
+			}, // json
+			
+			createSessionFileForSaving: function createSessionFileForSaving(){
+			
+				var textFile = null;
+				var makeTextFile = function makeTextFile(text) {
+					var data = new Blob([text], {
+						type: 'text/plain'
+					}); 
+					
+					// If we are replacing a previously generated file we need to
+					// manually revoke the object URL to avoid memory leaks.
+					if (textFile !== null) {
+						window.URL.revokeObjectURL(textFile);
+					} // if
+
+					textFile = window.URL.createObjectURL(data);
+					
+				  return textFile;
+				}; // makeTextFile
+
+
+				var lnk = document.getElementById('saveSession');
+				lnk.href = makeTextFile( importExportFunctionality.saveSession.json() );
+				lnk.style.display = 'block';
+				
+			} // createSessionFileForSaving
 			
 		}, // saveSession
 		

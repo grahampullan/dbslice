@@ -4,7 +4,6 @@ import { render } from '../core/render.js';
 import { cfD3Scatter } from '../plot/cfD3Scatter.js';
 
 function makeNewPlot( plotData, index ) {
-
     
         var plotRowIndex = d3.select(this._parent).attr("plot-row-index");
           

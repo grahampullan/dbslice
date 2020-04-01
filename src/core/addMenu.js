@@ -3,7 +3,8 @@ import { dbsliceData } from '../core/dbsliceData.js';
 import { cfD3BarChart } from '../plot/cfD3BarChart.js';
 import { cfD3Histogram } from '../plot/cfD3Histogram.js';
 import { cfD3Scatter } from '../plot/cfD3Scatter.js';
-import { d3LineSeries } from '../plot/d3LineSeries.js';
+import { d3LineSeriesRrd } from '../plot/d3LineSeriesRrd.js';
+import { d3LineRadialRrd } from '../plot/d3LineRadialRrd.js';
 import { d3Contour2d } from '../plot/d3Contour2d.js';
 import { cfDataManagement } from '../core/cfDataManagement.js';
 
@@ -27,8 +28,8 @@ const addMenu = {
                     case "plotter":
                         options = [
                             {val: "undefined"        , text: " "},
-                            {val: "d3LineSeries"     , text: "Line"},
-                            {val: "d3Contour2d", text: "Contour"}
+                            {val: "d3LineSeriesRrd"     , text: "Surface distribution"},
+                            {val: "d3LineRadialRrd", text: "Radial profile"}
                         ]
                         break;
                 }; // switch
@@ -193,6 +194,9 @@ const addMenu = {
                       break;
                       
                     case "cfD3Scatter":
+						
+						
+						/*
                         plotCtrl = {
                             plotFunc : config.newPlot.plotFunc,
                             layout : { title : config.newPlot.layout.title, 
@@ -203,9 +207,47 @@ const addMenu = {
                                    yProperty : config.newPlot.data.yProperty,
                                    cProperty : config.newPlot.data.cProperty}
                         };
+						*/
+						
+						// Custom functionality for the d3interactive2axes imposter function is here. The idea is that the ctrl is hidden in 'layout'.
+						
+						plotCtrl = {
+							plotFunc : config.newPlot.plotFunc,
+							data: {  cfData : dbsliceData.data, 
+                                   xProperty : config.newPlot.data.xProperty,
+                                   yProperty : config.newPlot.data.yProperty,
+                                   cProperty : config.newPlot.data.cProperty},
+							layout: {
+								title : config.newPlot.layout.title, 
+								colWidth : config.newPlot.layout.colWidth, 
+								height : config.newPlot.layout.height, 
+	
+								ctrl: {
+									data: dbsliceData.data,
+									svg: undefined,
+									view: {xVar: config.newPlot.data.xProperty,
+										   yVar: config.newPlot.data.yProperty,
+										   cVar: undefined,
+										   gVar: undefined,
+										   dataAR: undefined,
+										   viewAR: undefined,
+										   t: undefined},
+									tools: {xscale: undefined,
+											yscale: undefined,
+											cscale: undefined},
+									format: {
+										margin: {top: 17, right: 25, bottom: 20, left: 20},
+										axesMargin: {left: 25, bottom: 20},
+										width: undefined,
+										height: config.newPlot.layout.height,
+										transitionTime: 500
+									}
+								}
+							}
+						} // ctrl
                       break;
                       
-                    case "d3LineSeries":
+                    case "d3LineSeriesRrd":
                     
                         // The user selected variable to plot is stored in config.newPlot.data, with all other user selected variables. However, for this type of plot it needs to be one level above, which is achieved here.
                         // Store the currently selected slice, then push everything forward.
@@ -213,8 +255,32 @@ const addMenu = {
                     
                         // Set the other options.
                         plotCtrl = {
-                            plotType : "d3LineSeries",
-                            layout : { colWidth: 4, xAxisLabel : "Axial distance",yAxisLabel : "Mach number" },
+                            plotType : "d3LineSeriesRrd",
+                            layout : { colWidth: 4, xAxisLabel : "Axial distance",yAxisLabel : "" },
+                            data : dbsliceData.data,
+                            plotFunc : config.newPlot.plotFunc,
+                            taskIds : null,
+                            sliceIds : config.newPlot.slices,
+                            tasksByFilter : true,
+                            formatDataFunc : function ( data ) {
+                                var series = [];
+                                data.forEach( function( line ) { series.push( line ) } );
+                                return { series : series };
+                            }
+                        };
+                      break;
+					  
+					  
+					case "d3LineRadialRrd":
+                    
+                        // The user selected variable to plot is stored in config.newPlot.data, with all other user selected variables. However, for this type of plot it needs to be one level above, which is achieved here.
+                        // Store the currently selected slice, then push everything forward.
+                        config.newPlot.slices.push(config.newPlot.data.slice)
+                    
+                        // Set the other options.
+                        plotCtrl = {
+                            plotType : "d3LineRadialRrd",
+                            layout : { colWidth: 4, xAxisLabel : "Axial distance",yAxisLabel : "" },
                             data : dbsliceData.data,
                             plotFunc : config.newPlot.plotFunc,
                             taskIds : null,
@@ -228,18 +294,6 @@ const addMenu = {
                         };
                       break;
                       
-                    case "d3Contour2d":
-                    
-                        plotCtrl = {
-                            plotType : "d3Contour2d",
-                            layout : { colWidth : 2, height : 200 },
-                            data : dbsliceData.data,
-                            limits : {},
-                            plotFunc : config.newPlot.plotFunc,
-                            taskIds : dbsliceData.filteredTaskIds,
-                            sliceIds : [config.newPlot.data.slice],
-                            tasksByFilter : true,
-                        };
 
                     default:
                         break;
@@ -310,13 +364,13 @@ const addMenu = {
                         else             {submitButton.prop("disabled", true)};
                       break;
                       
-                    case "d3LineSeries":
+                    case "d3LineSeriesRrd":
                         // Nothing else is needed, just enable the submit button.
                         submitButton.prop("disabled", false);
                     
                       break;
-                      
-                    case "d3Contour2d":
+					  
+					case "d3LineRadialRrd":
                         // Nothing else is needed, just enable the submit button.
                         submitButton.prop("disabled", false);
                     
@@ -394,22 +448,34 @@ const addMenu = {
                           
                           
                         // 2D/3D PLOTS
-                        case "d3LineSeries":
+                        case "d3LineSeriesRrd":
                           // Menu offering different slices.
-                          config.newPlot.plotFunc = d3LineSeries;
+                          config.newPlot.plotFunc = d3LineSeriesRrd;
+						  
+						  
+						  // HACK: AK
+						  // Only the plcp files should be served as choices, otherwise it will result in error down the line.
+						  var allSlices = config.sliceVariables
+						  var lineSeriesSlices = allSlices.filter(function(d){return d.val.split(" ")[0] == "plcp" | d.val.split(" ")[0] == "undefined"})
                           
                           // slice is required.
-                          h.addUpdateMenuItemObject( config, config.sliceMenuId, config.sliceVariables);
+                          h.addUpdateMenuItemObject( config, config.sliceMenuId, lineSeriesSlices);
+                          break;
+						  
+						// 2D/3D PLOTS
+                        case "d3LineRadialRrd":
+                          // Menu offering different slices.
+                          config.newPlot.plotFunc = d3LineRadialRrd;
+                          
+						  var allSlices = config.sliceVariables
+						  var lineRadialSlices = allSlices.filter(function(d){return d.val.split(" ")[0] == "rad" | d.val.split(" ")[0] == "undefined"})
+						  
+						  
+						  
+                          // slice is required.
+                          h.addUpdateMenuItemObject( config, config.sliceMenuId, lineRadialSlices);
                           break;
                           
-                        case "d3Contour2d":
-                          // Menu offering different variables.
-                          config.newPlot.plotFunc = d3Contour2d;
-                          
-                          // Contour locations need to be predetermined by grouping the appropriate file names in the metadata excel sheet. The group names should be available here.
-                          h.addUpdateMenuItemObject( config, config.sliceMenuId, config.contourVariables);
-                        
-                          break;
                           
                         default :
                           // Update plot type selection.
@@ -474,6 +540,8 @@ const addMenu = {
                         if(oldPlotCtrl !== undefined){
                             if(oldPlotCtrl.plotType !== newPlotCtrl.plotType){
                                 dbsliceData.session.plotRows[config.ownerPlotRowIndex].plots = [];
+								newPlotCtrl.sliceIds = [config.newPlot.data.slice]
+								config.newPlot.slices = [config.newPlot.data.slice]
                             }; // if
                         } // if
                     
@@ -540,18 +608,19 @@ const addMenu = {
         removePlotControls: function removePlotControls(){
             
             var allPlotRows = d3.select("#" + dbsliceData.elementId).selectAll(".plotRowBody");
-            allPlotRows.each( function(d,i){
+            allPlotRows.each( function(d,plotRowIndex){
                 // This function operates on a plot row instance. It selects all the plots, and adds a button and its functionality to it. This is only done if the plot row is a metadata row.
                 var plotRowType = d3.select(this).attr("type"); 
                 
-                var plotRowIndex = i;
                 
                 var allPlotTitles = d3.select(this).selectAll(".plotTitle");
-                allPlotTitles.each( function (d,i){
+                allPlotTitles.each( function (d,plotIndex){
                 // Append the button, and its functionality, but only if it does no talready exist!
-                    var addPlotButton = d3.select(this).select(".btn-danger")
+				
+				
+                    var removePlotButton = d3.select(this).select(".btn-danger")
                     
-                    if (addPlotButton.empty()){
+                    if (removePlotButton.empty()){
                         // If it dosn't exist, add it. It should be the last element!
 						var ctrlGroup = d3.select(this).select(".ctrlGrp")
 						var otherControls = $(ctrlGroup.node()).children().detach();
@@ -559,31 +628,7 @@ const addMenu = {
                         ctrlGroup.append("button")
                             .attr("class", "btn btn-danger float-right")
                             .html("x")
-                            .on("click", function(){
-								
-                                // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
-                                var plotIndex = i;
-
-                                // Remove the plot from viewv
-                                dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex,1);
-
-                                // If necesary also remove the corresponding ctrl from the plotter rows.
-                                if('ctrl' in dbsliceData.session.plotRows[plotRowIndex]){
-                                    dbsliceData.session.plotRows[plotRowIndex].ctrl.sliceIds.splice(plotIndex,1);
-                                }; // if
-                                
-
-                                render(dbsliceData.elementId, dbsliceData.session)
-								
-								// Manually realign elements that are moveable - histogram brush.
-								var svgs = d3.selectAll(".plotWrapper[plottype='cfD3Histogram']").selectAll("svg").each(function(d){
-									var svg = d3.select(this)
-									cfD3Histogram.addInteractivity.addBrush(svg)
-								}) // each
-								
-								// Go back into the selection and de-select the object?
-							
-                            }); // on
+                            
 							
 						otherControls.appendTo($(ctrlGroup.node()))
                         
@@ -591,6 +636,28 @@ const addMenu = {
                         // If it doesn't, do nothing.
                         
                     }; // if
+					
+					// Add/update the functionality.
+					d3.select(this).select(".btn-danger")
+                            .on("click", function(){
+								
+                                // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
+
+                                // Remove the plot from viewv
+                                dbsliceData.session.plotRows[plotRowIndex].plots.splice(plotIndex,1);
+								console.log(dbsliceData.session.plotRows[plotRowIndex].plots.length)
+
+                                // If necesary also remove the corresponding ctrl from the plotter rows.
+                                if('ctrl' in dbsliceData.session.plotRows[plotRowIndex]){
+                                    dbsliceData.session.plotRows[plotRowIndex].ctrl.sliceIds.splice(plotIndex,1);
+                                }; // if
+								
+								// Remove also the htmls element accordingly.
+                                this.parentElement.parentElement.parentElement.parentElement.remove()
+								
+								render(dbsliceData.elementId, dbsliceData.session)
+
+                            }); // on
                     
                     
                 } ); // each 
@@ -1149,49 +1216,94 @@ const addMenu = {
                 // This functionality decides which buttons should be enabled.
                 var isDataInFilter = dbsliceData.filteredTaskIds.length !== undefined                  && dbsliceData.filteredTaskIds.length > 0;
                 
-                // "Add data" is always available!
+                var isPlotterPlotRowCtrlDefined = addMenu.helpers.checkIfArrayKeyIsDefined(dbsliceData.session.plotRows, 'ctrl');
+				
+				// For the data to be loaded some records should have been assigned to the crossfilter.
+				var isDataLoaded = false
+				if(dbsliceData.data !== undefined){
+					isDataLoaded = dbsliceData.data.cf.size() > 0
+				} // if
+				
+				
+				
+				
+				// GROUP 1: SESSION OPTIONS
+				// Button controlling the session options is always available!
                 $("#sessionOptions").prop("disabled",false);
+				
+				// "Load session" only available after some data has been loaded.
+				// Data: Replace, add, remove, Session: save, load
+				// These have to have their class changed, and the on/click event suspended!!
+				listItemEnableDisable( "replaceData" , true )
+				listItemEnableDisable( "addData"     , true )
+				listItemEnableDisable( "removeData"  , isDataLoaded )
+				listItemEnableDisable( "saveSession" , true )
+				listItemEnableDisable( "loadSession" , isDataLoaded )
+				
+				
+				
+				
+				
+				
+				// GROUP 2: ON DEMAND FUNCTIONALITY
+                // "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
+				var refreshTasksButton = d3.select("#refreshTasksButton")
+				var enableRefreshTasksButton = isDataInFilter && isPlotterPlotRowCtrlDefined
+                arrayEnableDisable(refreshTasksButton, enableRefreshTasksButton)
+				
+				
                 
 				
-                // "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
-                var isPlotterPlotRowCtrlDefined = addMenu.helpers.checkIfArrayKeyIsDefined(dbsliceData.session.plotRows, 'ctrl');
-                if(isDataInFilter && isPlotterPlotRowCtrlDefined){
-                    // Enable the button
-                    $("#refreshTasksButton").prop("disabled",false)
-                } else {
-                    // Disable the button
-                    $("#refreshTasksButton").prop("disabled",true)          
-                }; // if
-                
-                // "Load session" only available after some data has been loaded.
-                if(isDataInFilter){
-                    // Enable the button
-                    $("#getSessionButton").prop("disabled",false)
-                } else {
-                    // Disable the button
-                    $("#getSessionButton").prop("disabled",true)          
-                }; // if
-                
-                // "Add plot row" should be available.
-                $("#addPlotRowButton").prop("disabled",false);
+                // GROUP 3: ADDING/REMOVING PLOTS/ROWS
+                // "Add plot row" should be available when the data is loaded. Otherwise errors will occur while creating the apropriate menus.
+                $("#addPlotRowButton").prop("disabled", !isDataLoaded);
                 
                 // "Remove plot row" should always be available.
                 var removePlotRowButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-danger")
-                removePlotRowButtons.each(function(){$(this).prop("disabled", false)});
+                arrayEnableDisable(removePlotRowButtons, true)
                 
+				
                 // "Add plot" should only be available if the data is loaded.
                 var addPlotButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-success");
-                if(isDataInFilter){
-                    addPlotButtons.each(function(){$(this).prop("disabled", false)})
-                } else {
-                    addPlotButtons.each(function(){$(this).prop("disabled", true)})
-                }; // if
-                
+				arrayEnableDisable(addPlotButtons, isDataInFilter)
+				                
                 // "Remove plot" should always be available.
                 var removePlotButtons = d3.selectAll(".plotTitle").selectAll(".btn-danger");
-                removePlotButtons.each(function(){$(this).prop("disabled", false)})
+				arrayEnableDisable(removePlotButtons, true)
 				
 				
+				// GROUP 4: Plot interactive controls.
+				var plotInteractionButtons = d3.selectAll(".plot").selectAll(".btn")
+				arrayEnableDisable(plotInteractionButtons, true)
+				
+				
+				
+				function arrayEnableDisable(d3ButtonSelection, conditionToEnable){
+					
+					if(conditionToEnable){
+						// Enable the button
+						d3ButtonSelection.each(function(){$(this).prop("disabled", false)})
+					} else {
+						// Disable the button
+						d3ButtonSelection.each(function(){$(this).prop("disabled", true)})         
+					}; // if					
+					
+				} // arrayEnableDisable
+				
+				
+				function listItemEnableDisable(elementId, conditionToEnable){
+					
+					if(conditionToEnable){
+						// Enable the button
+						d3.select("#" + elementId).attr("class", "dropdown-item")
+						document.getElementById(elementId).style.pointerEvents = 'auto'
+					} else {
+						// Disable the button
+						d3.select("#" + elementId).attr("class", "dropdown-item disabled")
+						document.getElementById(elementId).style.pointerEvents = 'none'
+					}; // if
+					
+				} // listItemEnableDisable
 				
                 
             }, // enableDisableAllButtons

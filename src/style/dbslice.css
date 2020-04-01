@@ -22,7 +22,7 @@
 
 /* Style northward tooltips differently */
 .d3-tip.n:after {
-  margin: -1px 0 0 0;
+  margin: -3px 0 0 0;
   top: 100%;
   left: 0;
 }
@@ -89,3 +89,55 @@ input:checked + .slider:before {
 .slider.round:before {
   border-radius: 50%;
 }
+
+
+
+
+/* Required for interactive y-axis */
+.txt-vertical{
+	writing-mode:vertical-rl;
+	transform:rotate(-180deg);
+	position:relative;
+	top:10px;
+	left:6px;
+}
+
+
+.select-vertical{
+	transform:rotate(-90deg);
+	position: relative;
+	top:10px;
+	display:block;
+	outline-style: none;
+}
+
+.custom-select{
+	/* Transparent border!! */
+	outline: 0;
+	border: 0;
+}
+
+
+.select-items div,.select-selected {
+  color: #ffffff;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-color: transparent transparent rgba(0, 0, 0, 0.1) transparent;
+  cursor: pointer;
+}
+
+
+/* Style the dropup accordion options list */
+.list-group-item{
+	border: 0;
+	padding: 0px 10px;
+}
+
+
+
+
+
+
+
+
+

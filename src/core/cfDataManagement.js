@@ -45,6 +45,15 @@ const cfDataManagement = {
 			// Create a standalone array of taskIds
 			dbsliceData.filteredTaskIds = cfDataManagement.helpers.getTaskIds(metadata);
 			
+			
+			// Check if any histogram selected ranges have already been set up. This is important when the data is being replaced.
+			if(dbsliceData.data !== undefined){
+				if(dbsliceData.data.histogramSelectedRanges !== undefined){
+					cfData.histogramSelectedRanges = dbsliceData.data.histogramSelectedRanges
+				} // if
+			} // if
+			
+			
 			// Store data internally
 		    dbsliceData.data = cfData;
 			

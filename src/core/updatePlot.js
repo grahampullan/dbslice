@@ -6,4 +6,5 @@ function updatePlot( plotData, index ) {
 
 	} // updatePlot
 
+
 export { updatePlot };

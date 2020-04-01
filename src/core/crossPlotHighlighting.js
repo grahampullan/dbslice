@@ -97,16 +97,20 @@ const crossPlotHighlighting = {
 						
 					  break;
 					  
-					case "d3LineSeries":
-						// Find all the circles, and set them to appropriate values.
+					case "d3LineSeriesRrd":
+						// Find all the lines, and set them to appropriate values.
 						d3.select(element).selectAll(".line")
 						  .style("opacity", 0.2);
 						
 					  break;
 					  
-					case "d3Contour2d":
-						// Do nothing for this one.
+					case "d3LineRadialRrd":
+						// Find all the lines, and set them to appropriate values.
+						d3.select(element).selectAll(".line")
+						  .style("opacity", 0.2);
+						
 					  break;
+					  
 					  
 					default:
 					  break;
@@ -214,7 +218,7 @@ const crossPlotHighlighting = {
 						
 					  break;
 					  
-					case "d3LineSeries":
+					case "d3LineSeriesRrd":
 						// Find the line corresponding to the data point. Look for it by taskId.
 						d3.select(element).selectAll('.plotSeries[task-id="' + d.taskId + '"]').selectAll(".line")
 						  .style("opacity", 1.0)
@@ -222,17 +226,14 @@ const crossPlotHighlighting = {
 						
 					  break;
 					  
-					case "d3Contour2d":
-					    // Find the appropriate contour plot card, and draw a border around it.
-					    if(d3.select(element).attr("task-id") == d.taskId){
-							d3.select(element.parentElement.parentElement.parentElement)
-							  .attr("class", "card border border-dark")
-							  
-							d3.select(element.parentElement.parentElement.parentElement).select(".plotTitle")
-							  .style("font-weight", "bold")
-						} // if
+					case "d3LineRadialRrd":
+						// Find the line corresponding to the data point. Look for it by taskId.
+						d3.select(element).selectAll('.plotSeries[task-id="' + d.taskId + '"]').selectAll(".line")
+						  .style("opacity", 1.0)
+						  .style( "stroke-width", "4px" );
 						
 					  break;
+					  
 					  
 					default:
 					  break;
@@ -267,23 +268,22 @@ const crossPlotHighlighting = {
 						
 					  break;
 					  
-					case "d3LineSeries":
+					case "d3LineSeriesRrd":
 						// Revert the opacity and width.
 						d3.select(element).selectAll(".line")
 						  .style("opacity", 1.0)
                           .style( "stroke-width", "2.5px" );
 						  
 					  break;
-						
-					case "d3Contour2d":
-						// Remove any border
-						d3.select(element.parentElement.parentElement.parentElement)
-						  .attr("class", "card");
-						  
-						d3.select(element.parentElement.parentElement.parentElement).select(".plotTitle")
-							  .style("font-weight", "")
-					  break;
 					  
+					case "d3LineRadialRrd":
+						// Revert the opacity and width.
+						d3.select(element).selectAll(".line")
+						  .style("opacity", 1.0)
+                          .style( "stroke-width", "2.5px" );
+						  
+					  break;
+											  
 					default:
 					  break;
 				} // switch
@@ -306,19 +306,20 @@ const crossPlotHighlighting = {
 						allDataPoints = cfDataPoints.filter(function(p){return p[d.keyProperty] == d.key})
 					  break;
 					  
-					case "d3LineSeries":
+					case "d3LineSeriesRrd":
 						// Collect all the relevant data points by tskId.
 						var cfDataPoints = dbsliceData.data.metaDims[0].top(Infinity)
 						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.taskId});
 						// console.log(allDataPoints);
 					  break;
 					  
-					case "d3Contour2d":
-						// Find the datapoint by taskId.
+					case "d3LineRadialRrd":
+						// Collect all the relevant data points by tskId.
 						var cfDataPoints = dbsliceData.data.metaDims[0].top(Infinity)
-						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.data.taskId});
+						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.taskId});
+						// console.log(allDataPoints);
 					  break;
-					  
+					  					  
 					default:
 					  break;
 				} // switch

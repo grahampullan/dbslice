@@ -17,9 +17,8 @@ function render(elementId, session) {
         }; // if
       
         // Remove all d3-tip elements because they end up cluttering the DOM.
-		d3.selectAll(".d3-tip").remove();
-      
-	  
+		// d3.selectAll(".d3-tip").remove();
+     
 	  
 	    // THIS CAN CURRENTLY RESOLVE PROBLEMS F THE DATA IS INCOMPATIBLE.
 		// This should work both when new data is loaded and when a new session is loaded.
@@ -67,14 +66,20 @@ function render(elementId, session) {
       
         // UPDATE EXISTING PLOT ROWS!!
         // Based on the existing plotRowBodies, select all the plots in them, retrieve all the plotting data associated with this particular plot row, and assign it to the plots in the row. Then make any entering ones.
-        plotRows.selectAll(".plotRowBody").selectAll(".plot")
+        var plots = plotRows.selectAll(".plotRowBody").selectAll(".plot")
           .data(function (d){return d.plots;})
+		  
+		plots
           .enter()
           .each(makeNewPlot);
+		  
+		// Handle exiting plots before updating the existing ones.
+		plots.exit().remove()
+		
+        
       
         // Update the previously existing plots.
         var plotRowPlots = plotRows.selectAll(".plot")
-          .data(function (d){return d.plots;})
           .each(updatePlot);
       
       
@@ -87,10 +92,11 @@ function render(elementId, session) {
                 .html(plotData.layout.title)
           }); // each
       
-      
-        // HANDLE EXITING PLOT ROWS!!
+	  
+	    // HANDLE EXITING PLOT ROWS!!
         plotRows.exit().remove();
         plotRowPlotWrappers.exit().remove();
+        
       
       
 
@@ -136,12 +142,12 @@ function render(elementId, session) {
      
         // LOAD SESSION Button
 	    var sessionInput = createFileInputElement( importExportFunctionality.loadSession.handler )
-        d3.select("#getSession")
+        d3.select("#loadSession")
           .on("click", function(){sessionInput.click()})
       
 		// SAVE SESSION Button
 		// The save session functonality should run everytime render is called. The button needs to become the download bu
-		createSessionFileForSaving()
+		importExportFunctionality.saveSession.createSessionFileForSaving()
 		
 		
 		

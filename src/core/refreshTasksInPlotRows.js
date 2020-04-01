@@ -1,7 +1,7 @@
 import { dbsliceData } from './dbsliceData.js';
 import { render } from './render.js';
 import { makePlotsFromPlotRowCtrl } from './makePlotsFromPlotRowCtrl.js';
-
+import { onDemandDataLoading } from './onDemandDataLoading.js';
 
 
 function refreshTasksInPlotRows() {
@@ -15,6 +15,11 @@ function refreshTasksInPlotRows() {
                 var ctrl = plotRow.ctrl;
 
                 if (ctrl.plotFunc !== undefined) {
+					
+					// AK: HACK
+					// Remove all the plots in all plotrows first. This should be ok as all plots are redrawn anyway.
+					// It's required as the plots store an internal reference to the data loaded, which causes bugs if the plots are redrawn
+					d3.selectAll(".plotRowBody[type='plotter']").selectAll(".plotWrapper").remove()
                     
                     // Get 
                     if (ctrl.tasksByFilter) {
@@ -22,20 +27,13 @@ function refreshTasksInPlotRows() {
                         ctrl.taskLabels = dbsliceData.filteredTaskLabels;
                     } // if
 
-                    // THIS DOES NOTHING FOR NOW!!
-                    if (ctrl.tasksByList) {
-                        ctrl.taskIds = dbsliceData.manualListTaskIds;
-                    } // if
+
 
                     // Create all the promises, and when they're met push the plots.
-                    var plotRowPromise = makePlotsFromPlotRowCtrl(ctrl)
+                    var plotRowPromise = onDemandDataLoading.makePlotsFromPlotRowCtrl(ctrl)
 					    .then( function (plots) {
+							
                             plotRow.plots = plots;
-                            
-                            // The plot limits have to be assigned to the plots as they are passed into the plotting functions alone, without the rest of the plotRow object. This allows all the colorbars to be the same.
-                            plotRow.plots.forEach(function(plot){
-                                plot.data.limits = plotRow.ctrl.limits;
-                            }); // forEach
 					
                         }); // then
                     plotRowPromises.push(plotRowPromise);
@@ -45,6 +43,7 @@ function refreshTasksInPlotRows() {
         
         Promise.all(plotRowPromises).then(function () {
             // Render when all the data for all the plots in all plot rows has been loaded.
+			// console.log(dbsliceData)
             render(dbsliceData.elementId, dbsliceData.session);
         }); // Promise
     } // refreshTasksInPlotRows
