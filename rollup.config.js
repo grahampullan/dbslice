@@ -29,16 +29,12 @@ export default {
         }),
 
         babel({
-            babelrc: false,
-            presets: [
-                ['env', { "useBuiltIns": true, "modules":false } ]
-            ]
+			babelrc: false,
+            "presets": ["@babel/preset-env"]
         }),
     ]
 
 };
-
-
 
 
 

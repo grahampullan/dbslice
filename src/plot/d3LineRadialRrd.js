@@ -3,11 +3,11 @@ import { render } from '../core/render.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
 import { plotHelpers } from '../plot/plotHelpers.js';
 
-const d3LineSeries = {
+const d3LineRadialRrd = {
         
-        name: "d3LineSeries",
+        name: "d3LineRadialRrd",
       
-        margin: {top: 20, right: 20, bottom: 30, left: 50},
+        margin: {top: 20, right: 10, bottom: 20, left: 50},
         
         layout: { colWidth : 4, height : 400},
       
@@ -16,84 +16,132 @@ const d3LineSeries = {
         make : function ( element, data, layout ) {
 			
 			// Remove any controls in the plot title.
-			d3LineSeries.addInteractivity.updatePlotTitleControls(element)
+			d3LineRadialRrd.addInteractivity.updatePlotTitleControls(element)
             
-            d3LineSeries.update( element, data, layout );
+			
+			// Setup the svg.
+            d3LineRadialRrd.setupSvg(element, data, layout);
+			var svg = d3.select(element).select("svg");
+			
+			// ADD SOME INTERACTIVITY
+            
+            
+            d3LineRadialRrd.addInteractivity.addZooming(svg, data);
+			
+			
+            d3LineRadialRrd.update( element, data, layout );
+			
+			
+			
 
         }, // make
 
         update : function ( element, data, layout ) {
 			
+			// The transition don't work as there are 2 transformations applied on every update. The main data transformation, and the zooming transformation. These need to be separated out for smooth effects.
 			
-
             // Setup the svg.
-            d3LineSeries.setupSvg(element, data, layout);
+            d3LineRadialRrd.setupSvg(element, data, layout);
                 
             // Some convenient handles.
             var svg = d3.select(element).select("svg");
+			
+			
+			// Specify the options selected. Figure out a way to change these by the user later on. Don't move them into object properties though!
+			var xVarName = svg.attr("selectedVariableX")
+			var yVarName = svg.attr("selectedVariableY")
+			
+			function labelCreator(d){
+				var label = d.taskId
+				return label
+			} // labelCreator
+			
             
             // Create the required scales.
             var xscale = d3.scaleLinear()
-                .range( [0, svg.attr("plotWidth")] )
-                .domain( d3LineSeries.helpers.getDomain(data, 'x') );
+                .range( [0, Number( svg.attr("plotWidth") )] )
+                .domain( d3LineRadialRrd.helpers.getDomain(data, xVarName ) );
 
             var yscale = d3.scaleLinear()
-                .range( [svg.attr("plotHeight"), 0] )
-                .domain( d3LineSeries.helpers.getDomain(data, 'y') );
+                .range( [ Number( svg.attr("plotHeight") ), 0] )
+                .domain( d3LineRadialRrd.helpers.getDomain(data, yVarName ) );
 
 
             // Create a plotting function
             var line = d3.line()
-                .x( function( d ) { return xscale( d.x ); } )
-                .y( function( d ) { return yscale( d.y ); } );
+                .x( function( d ) { return xscale( d[ xVarName ] ); } )
+                .y( function( d ) { return yscale( d[ yVarName ] ); } );
 
+			
+			
+			
+			
+			
+			// Create the axes first, as the plot depends on the controls chosen.
+            createAxes();
+			
+			
+			
 			
             // Assign the data
             var allSeries = svg.select(".plotArea").selectAll( ".plotSeries" ).data( data.series );
 
-            // Enter/update/exit 
+            // Enter/update/exit
             allSeries.enter()
               .each( function() {
                   var series = d3.select( this );
                   var seriesLine = series.append( "g" )
                       .attr( "class", "plotSeries")
-                      .attr( "series-name", function(d){ return d.label; })
+                      .attr( "series-name", labelCreator )
 					  .attr( "task-id", function(d){ return d.taskId; })
                       .attr( "clip-path", "url(#" + svg.select("clipPath").attr("id") + ")")
                     .append( "path" )
                       .attr( "class", "line" )
-                      .attr( "d", function(d){ return line( d.data ); } )
-                      .style( "stroke", function(d){ return d3LineSeries.colour( d.cKey ); } )    
+                      .attr( "d", function(d){ return line( d ); } )
+                      .style( "stroke", function(d){ return d3LineRadialRrd.colour( d.cKey ); } ) 
                       .style( "fill", "none" )
                       .style( "stroke-width", "2.5px" );
+				
             });
 
+			// update
             allSeries.each( function() {
                 var series = d3.select( this )
-				    .attr( "series-name", function(d){ return d.label; })
+				    .attr( "series-name", labelCreator )
 					.attr( "task-id",     function(d){ return d.taskId; });
-					
-                var seriesLine = series.select( "path.line" );
-                seriesLine.transition()
-                  .attr( "d",       function(d){return line( d.data );})
-                  .style( "stroke", function(d){ return d3LineSeries.colour( d.cKey ); })  ;
-            });
+			})	
+				
+				
+            allSeries.selectAll( "path.line" )
+				  .transition()
+				  .duration(1000)
+                  .attr( "d",    function(d){ return line( d );})
+                  
+         
 
             allSeries.exit().remove();
 
-
-            // Create some axes
-            createAxes();
+			// It seems like it woks fine coming out to here. But why does it thn revert to other option?
+            
         
+            d3LineRadialRrd.addInteractivity.addTooltip(svg);
             
-            // ADD SOME INTERACTIVITY
-            d3LineSeries.addInteractivity.addTooltip(svg);
-            
-            d3LineSeries.addInteractivity.addZooming(svg, data);
             
             // Update marker.
             data.newData = false;
             
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
             // HELPER FUNCTIONS
             function createAxes(){
                 
@@ -107,12 +155,10 @@ const d3LineSeries = {
                       .attr( "transform", "translate(0," + svg.attr("plotHeight") + ")" )
                       .attr( "class", "axis--x")
                       .call( xAxis );
-                    gX.append("text")
-                      .attr("fill", "#000")
-                      .attr("x", svg.attr("plotWidth"))
-                      .attr("y", d3LineSeries.margin.bottom)
-                      .attr("text-anchor", "end")
-                      .text(layout.xAxisLabel);
+					  
+					  
+					d3LineRadialRrd.addInteractivity.addInteractiveXAxisControls(element, data, layout)
+
                 } else {
                     gX.transition().call( xAxis );
                 } // if
@@ -122,29 +168,69 @@ const d3LineSeries = {
                     gY = svg.select(".plotArea").append("g")
                       .attr( "class", "axis--y")
                       .call( yAxis );
-                    gY.append("text")
+					  
+					  
+					gY.append("text")
                       .attr("fill", "#000")
                       .attr("transform", "rotate(-90)")
                       .attr("x", 0)
-                      .attr("y", -d3LineSeries.margin.left + 15)
+                      .attr("y", -20 - 15)
                       .attr("text-anchor", "end")
-                      .text(layout.yAxisLabel)
-                      .attr("spellcheck", "false");
+                      .text( yVarName );
+                    
+					
                 } else {
                     gY.transition().call( yAxis );
                 } // if
                 
             } // createAxes
             
+			
         }, // update
         
         setupSvg : function setupSvg(element, data, layout){
             
             
-            d3LineSeries.margin = layout.margin === undefined ? d3LineSeries.margin : layout.margin;
-            d3LineSeries.colour = layout.colourMap === undefined ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+            d3LineRadialRrd.margin = layout.margin === undefined ? d3LineRadialRrd.margin : layout.margin;
+            d3LineRadialRrd.colour = layout.colourMap === undefined ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
 
-            var container = d3.select(element);
+            var container_ = d3.select(element).select(".separatorContainer");
+			
+			
+			// An additional div structure must be present here, to accomodate the functionality of the y-axis.
+			if( container_.empty() ){
+				
+				container_ = d3.select(element)
+				  .append("div")
+				    .attr("class", "separatorContainer")
+					.attr("style", "width: 100%")
+					
+				var container = container_
+				  .append("div")
+				  .attr("class", "plotDiv")
+				  .attr("style", "margin-left: 0px")
+				
+				
+				container_
+				  .append("div")
+				    .attr("class", "xAxisControlDiv")
+					.attr("style", "width: 100%; float: right")
+					
+				
+				  
+				
+				
+			} else {
+				
+				var container = container_.select(".plotDiv")
+				
+			} // if
+			
+			
+			
+			
+			
+			
 
             // Check if there is a svg first.
             var svg = container.select("svg");
@@ -155,6 +241,8 @@ const d3LineSeries = {
                 
                 // Update its dimensions.
                 curateSvg();
+				
+				assignDefaultInteractiveValues()
                  
             } else {
                 
@@ -165,12 +253,14 @@ const d3LineSeries = {
 
                 var expectedPlotType = plotWrapper.attr("plottype");
                 
-                if (expectedPlotType !== "d3LineSeries" ){
+                if (expectedPlotType !== "d3LineRadialRrd" ){
                     // If the plot type has changed, then the svg contents need to be removed completely.
-                    plotWrapper.attr("plottype", "d3LineSeries")
+                    plotWrapper.attr("plottype", "d3LineRadialRrd")
                     
                     svg.selectAll("*").remove();
                     curateSvg();
+					
+					assignDefaultInteractiveValues()
                     
                 } else {
                     // Axes might need to be updated, thus the svg element needs to be refreshed.
@@ -185,34 +275,36 @@ const d3LineSeries = {
             function curateSvg(){
                 
                 // Also try to resize the plot to fit the data nicer.
-                // d3.select(element.parentNode.parentNode).attr("class", "col-md-" + d3LineSeries.layout.colWidth);
+                // d3.select(element.parentNode.parentNode).attr("class", "col-md-" + d3LineRadialRrd.layout.colWidth);
                 // For some reason this causes a bug which leaves redundant plots in the plot rows.
                 
                 var svgWidth = container.node().offsetWidth;
-                var svgHeight = d3LineSeries.layout.height;
+                var svgHeight = d3LineRadialRrd.layout.height;
 
-                var width = svgWidth - d3LineSeries.margin.left - d3LineSeries.margin.right;
-                var height = svgHeight - d3LineSeries.margin.top - d3LineSeries.margin.bottom;
+                var width = svgWidth - d3LineRadialRrd.margin.left - d3LineRadialRrd.margin.right;
+                var height = svgHeight - d3LineRadialRrd.margin.top - d3LineRadialRrd.margin.bottom;
                 
+				
                 // Curating the svg.                
                 container.select("svg")
                     .attr("width", svgWidth)
                     .attr("height", svgHeight)
                     .attr("plotWidth", width)
-                    .attr("plotHeight", height);
+                    .attr("plotHeight", height)
                     
                 var plotArea = container.select("svg").select(".plotArea");
                 if(plotArea.empty()){
                     // If there's none, add it.
                     container.select("svg")
                         .append("g")
-                          .attr("transform", "translate(" + d3LineSeries.margin.left + "," + d3LineSeries.margin.top + ")")
+                          .attr("transform", "translate(" + d3LineRadialRrd.margin.left + "," + d3LineRadialRrd.margin.top + ")")
                           .attr("class", "plotArea");
                     
                 }; // if
                 
                 // The same with the clip path for zooming.
-                var clipId = "clip-"+container.attr("plot-row-index")+"-"+container.attr("plot-index");
+                var p = d3.select(container.node().parentElement.parentElement)
+                var clipId = "clip-"+p.attr("plot-row-index")+"-"+p.attr("plot-index");
                 var clip = container.select("svg").select("clipPath")
                 if (clip.empty()){
                     container.select("svg")
@@ -234,6 +326,14 @@ const d3LineSeries = {
                 
             }; // curateSvg
             
+			function assignDefaultInteractiveValues(){
+				// Select some default height and option to initialise the plot.
+				var defaultSeries = data.series[0]
+				svg.attr('selectedVariableX', Object.getOwnPropertyNames( defaultSeries[0] )[0] )
+				svg.attr('selectedVariableY', 'Radius_(m)')
+			} // assignDefaultInteractiveValues
+			
+			
         }, // setupSvg
         
         addInteractivity : {
@@ -253,7 +353,7 @@ const d3LineSeries = {
                     .attr('class', 'd3-tip')
                     .offset([-12, 0])
                     .html(function (d) {
-                        return "<span>" + d.label + "</span>";
+                        return "<span>" + [d.taskId, svg.attr("selectedOption"), svg.attr("selectedVariable")].join(' ') + "</span>";
                     });
                     
                 // Add an anchorPoint for the tooltip.
@@ -279,7 +379,7 @@ const d3LineSeries = {
                     
                     tip.show(d, anchorPoint.node());
 					
-					crossPlotHighlighting.on(d, "d3LineSeries")
+					crossPlotHighlighting.on(d, "d3LineRadialRrd")
 					
                 }; // tipOn
 
@@ -290,7 +390,7 @@ const d3LineSeries = {
                     
                     tip.hide();
 					
-					crossPlotHighlighting.off(d, "d3LineSeries")
+					crossPlotHighlighting.off(d, "d3LineRadialRrd")
 					
                 }; // tipOff
               
@@ -309,10 +409,13 @@ const d3LineSeries = {
 
                 function zoomed() {
                     var t = d3.event.transform;
-                  
+					
+					var xVarName = svg.attr("selectedVariableX")
+					var yVarName = svg.attr("selectedVariableY")
+				  
                     // Get the domains:
-                    var xRange = d3LineSeries.helpers.getDomain(data, "x");
-                    var yRange = d3LineSeries.helpers.getDomain(data, "y");
+                    var xRange = d3LineRadialRrd.helpers.getDomain(data, xVarName);
+                    var yRange = d3LineRadialRrd.helpers.getDomain(data, yVarName);
                   
                     // Recreate original scales.
                     var xscale = d3.scaleLinear()
@@ -339,12 +442,13 @@ const d3LineSeries = {
                   
                     // Reposition all lines
                     var line = d3.line()
-                        .x( function( d ) { return xscale( d.x ); } )
-                        .y( function( d ) { return yscale( d.y ); } );
+						.x( function( d ) { return xscale( d[xVarName] ); } )
+						.y( function( d ) { return yscale( d[yVarName] ); } );
                   
                     
                     svg.select(".plotArea").selectAll(".line")
-                        .attr( "d", function(d){return line( d.data );} );
+                        .attr( "d", function(d){return line( d );} );
+
                         
                     
                 }; // zoomed
@@ -353,6 +457,48 @@ const d3LineSeries = {
               
             }, // addZooming
             
+			addInteractiveXAxisControls: function addInteractiveXAxisControls(element, data, layout){
+				
+				
+				
+				var options = Object.getOwnPropertyNames( data.series[0][0] )
+				
+				
+				var ctrlContainer = d3.select(element).select(".xAxisControlDiv")
+				var s = ctrlContainer.select(".custom-select")
+				if( s.empty() ){
+					
+					s = ctrlContainer
+					  .append("select")
+						.attr("class", "custom-select")
+						.attr("dir","rtl")
+						.style("float", "right")
+						
+					
+					s.selectAll("option")
+					  .data( options )
+					  .enter()
+					  .append("option")
+					    .attr("value", function(d){return d})
+						.html(function(d){return d})
+						.attr("dir","ltr")
+					
+					s.on("change", function(){
+						d3.select(this.parentElement).select(".txt-horizontal").text( this.value )
+						
+						d3.select(element).select("svg").attr("selectedVariableX", this.value)
+						
+						
+						d3LineRadialRrd.update(element, data, layout)
+					})
+				
+				} // if
+				
+				
+				
+				
+				
+			}, // addInteractiveXAxisControls
 			
 			updatePlotTitleControls: function updatePlotTitleControls(element){
 				
@@ -370,18 +516,35 @@ const d3LineSeries = {
             
             getDomain: function getDomain(data, variable){
                 
-                // Finding the axis limits.
-                var minVal = d3.min( data.series[0].data, function(d) { return d[variable]; } );
-                var maxVal = d3.max( data.series[0].data, function(d) { return d[variable]; } );
-                
-                for (var n = 1; n < data.series.length; ++n) {
-                    var minVal_ =  d3.min( data.series[n].data, function(d){ return d[variable];} );
-                    minVal = ( minVal_ < minVal ) ? minVal_ : minVal;
-                    var maxVal_ =  d3.max( data.series[n].data, function(d){ return d[variable];} );
-                    maxVal = ( maxVal_ > maxVal ) ? maxVal_ : maxVal;
+                // d3.min and .max operate on arrays, not on objects. The 'line' is an array of objects, and therefor an accessor function is required.
+				var line = data.series[0]
+                var minVal = d3.min(line, accessor)
+				var maxVal = d3.max(line, accessor)
+				
+				
+				for (var n = 1; n < data.series.length; ++n) {
+					
+						
+					
+						var line = data.series[n]
+						
+						var minVal_ =  d3.min( line, accessor );
+							minVal = ( minVal_ < minVal ) ? minVal_ : minVal;
+						
+						var maxVal_ =  d3.max( line, accessor );
+							maxVal = ( maxVal_ > maxVal ) ? maxVal_ : maxVal;
+					
                 }; // for
+				
+				// Add some padding.
+				var valDiff = maxVal - minVal
+				minVal = Number(minVal) - 0.1*valDiff
+				maxVal = Number(maxVal) + 0.1*valDiff
                 
                 return [minVal, maxVal]
+				
+				function accessor(d){return Number( d[variable] )}
+				
                 
             } // getDomain
             
@@ -389,7 +552,7 @@ const d3LineSeries = {
             
         } // helpers
         
-    } // d3LineSeries
+    } // d3LineRadialRrd
 
 
-export { d3LineSeries };
+export { d3LineRadialRrd };

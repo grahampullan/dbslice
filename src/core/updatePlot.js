@@ -1,14 +1,10 @@
 function updatePlot( plotData, index ) {
 
-    var plot = d3.select( this ) // this is the plotBody selection
+		var plot = d3.select( this ) // this is the plotBody selection
 
-    //var plotHeader = plot.append( "div" ).attr( "class", "card-header plotTitle")
-    //	 .html( `${plotData.layout.title}` );
+		plotData.plotFunc.update(plot.node(),plotData.data,plotData.layout);
 
-    //var plotBody = plot.append( "div" ).attr( "class", "plot");
+	} // updatePlot
 
-    plotData.plotFunc.update(plot.node(),plotData.data,plotData.layout);
-
-}
 
 export { updatePlot };

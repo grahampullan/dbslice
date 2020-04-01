@@ -1,0 +1,101 @@
+
+<!DOCTYPE html>
+
+<html>
+
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> 
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css">
+<!--link rel="stylesheet" href="http://dbslice.org/dbslice.css"-->
+<link rel="stylesheet" href="/src/style/dbslice.css">
+
+<link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js"></script>
+  
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.rawgit.com/crossfilter/crossfilter/master/crossfilter.js"></script>
+<script src="https://threejs.org/build/three.js"></script>
+
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+
+<script src="https://d3js.org/d3-contour.v1.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+<!-- Tooltip code -->
+<script src="http://dbslice.org/d3-tip.js"></script>
+
+
+<!-- dbslice source data -->
+<script type='text/javascript' src="/build/dbslice.js"></script>
+
+
+</head>
+
+<body>
+
+
+
+
+
+<div class="container-fluid" id="target"> </div>
+
+
+
+<script>
+
+
+	var session = { 
+			title : "Axial compressor stator design",
+			plotRows : []
+		};
+
+	var data = { header : { metaDataProperties : [],
+								dataProperties : [],
+								sliceProperties: []
+						  },
+				 data	: []		
+			   };
+
+	dbslice.initialise ("target", session, data, { plotTasksButton : true } );
+	
+	
+	/*
+	// Pre load some data and layout
+	var ld = dbslice.importExportFunctionality.importData
+	var ls = dbslice.importExportFunctionality.loadSession
+
+	d3.csv("/examples/comp3row/post_processing/metadata.csv").then(function(metadata){
+	
+			
+			metadata.forEach(function(d){
+				d = ld.helpers.convertNumbers(d)
+			})
+	
+					
+			// Add the source file to tha data
+			metadata.forEach(function(d){d.file = "metadata.csv"})
+			ld.csv(metadata, dbslice.cfDataManagement.cfInit );
+			
+			
+			
+			// Load the session file manually
+			d3.json("session_.json").then(function(sessionData){
+				ls.json(sessionData);
+			}) // d3.json
+					
+	})
+	
+	*/
+
+</script>
+
+</body>
+</html>

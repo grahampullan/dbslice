@@ -1,41 +1,99 @@
 import { refreshTasksInPlotRows } from './refreshTasksInPlotRows.js';
 
-function makeSessionHeader( element, title, subtitle, config ) {
+function makeSessionHeader(element, title, subtitle, config) {
+        var sessionTitle = element
+          .append("div")
+            .attr("class", "row sessionHeader")
+          .append("div")
+            .attr("class", "col-md-12 sessionTitle");
+     
+        sessionTitle
+          .append("br");
+        
+        sessionTitle
+          .append("h1")
+            .attr("style", "display:inline")
+            .attr("spellcheck", "false")
+            .html(title)
+            .attr("contenteditable", true);
+      
+        if (config.plotTasksButton) {
+            sessionTitle
+              .append("button")
+                .attr("class", "btn btn-success float-right")
+                .attr("id", "refreshTasksButton")
+                .html("Plot Selected Tasks");
+        } // if
 
-	element.append( "div" )
-		.attr( "class" , "row sessionHeader" )
-		.append( "div" )
-			.attr( "class" , "col-md-12 sessionTitle" );
+        if (subtitle !== undefined) {
+            sessionTitle
+              .append("p")
+              .html(subtitle);
+        } // if
+      
+        sessionTitle
+          .append("br")
+        sessionTitle
+          .append("br");
 
-	var titleHtml = "<br/><h1 style='display:inline'>" + title + "</h1>";
+        sessionTitle
+          .append("div")
+            .attr("class", "filteredTaskCount")
+          .append("p")
+            .attr("style", "display:inline");
+        
+		
 
-	if ( config.plotTasksButton ) {
-
-		titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
-
-	} else {
-		titleHtml += "<br/>";
-	} 
-
-	if ( subtitle === undefined ) {
-
-		titleHtml += "<br/>";
-
-	} else {
-
-		titleHtml += "<p>" + subtitle + "</p>";
-
-	}
-
-	element.select( ".sessionTitle" )
-		.html( titleHtml )
-		.append( "div" )
-			.attr( "class" , "filteredTaskCount" );	
-
-
-	$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows() } );
-
-}
-   
+		// CREATE THE MENU WITH SESSION OPTIONS
+		var sessionGroup = sessionTitle
+		  .append("div")
+		    .attr("class", "btn-group float-right")
+			.attr("style", "display:inline")
+			
+		sessionGroup
+		  .append("button")
+		    .attr("id", "sessionOptions")
+		    .attr("type", "button")
+			.attr("class", "btn btn-info dropdown-toggle")
+			.attr("data-toggle", "dropdown")
+			.attr("aria-haspopup", true)
+			.attr("aria-expanded", false)
+			.html("Session options")
+			
+		var sessionMenu = sessionGroup
+		  .append("div")
+		    .attr("class", "dropdown-menu")
+		  
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+		    .attr("id", "replaceData")
+		    .html("Replace data")
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+		    .attr("id", "addData")
+		    .html("Add data")
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+		    .attr("id", "removeData")
+		    .html("Remove data")
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+			.attr("id", "loadSession")
+		    .html("Load session")
+		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
+			.attr("id", "saveSession")
+			.attr("download", "session.json")
+			.html("Save session") 
+		
+			
+			
+			
+          
+        sessionTitle
+          .append("br")
+        sessionTitle
+          .append("br")
+          
+        $("#refreshTasksButton").on("click", function () {
+            refreshTasksInPlotRows();
+        });
+       
+    } // makeSessionHeader
 
 export { makeSessionHeader };
