@@ -1,12 +1,10 @@
-import { makeNewPlot } from './makeNewPlot.js';
-import { updatePlot } from './updatePlot.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import { addMenu } from '../core/addMenu.js';
 import { importExportFunctionality } from '../core/importExportFunctionality.js';
+import { plotHelpers } from '../plot/plotHelpers.js';
 
-
-function render(elementId, session) {
-        var element = d3.select("#" + elementId);
+function render() {
+        var element = d3.select( "#" + dbsliceData.elementId );
 
         if (dbsliceData.filteredTaskIds !== undefined) {
             element.select(".filteredTaskCount").select("p")
@@ -17,25 +15,27 @@ function render(elementId, session) {
         }; // if
       
         // Remove all d3-tip elements because they end up cluttering the DOM.
-		d3.selectAll(".d3-tip").remove();
-      
-	  
+		// d3.selectAll(".d3-tip").remove();
+        console.log(dbsliceData)
 	  
 	    // THIS CAN CURRENTLY RESOLVE PROBLEMS F THE DATA IS INCOMPATIBLE.
 		// This should work both when new data is loaded and when a new session is loaded.
-	    importExportFunctionality.helpers.onDataAndSessionChangeResolve()
+	    // importExportFunctionality.helpers.onDataAndSessionChangeResolve()
 		
 	  
 	  
 	  
-        var plotRows = element.selectAll(".plotRow").data(session.plotRows);
+        var plotRows = element.selectAll(".plotRow").data(dbsliceData.session.plotRows);
       
         // HANDLE ENTERING PLOT ROWS!
         var newPlotRows = plotRows.enter()
           .append("div")
             .attr("class", "card bg-light plotRow")
             .attr("style", "margin-bottom:20px")
-            .attr("plot-row-index", function (d, i) {return i;});
+            .attr("plot-row-index", function (d, i) {return i;})
+			.each(function(d){
+				d.element = this
+			})
       
         // Add in the container for the title of the plotting section.
         // Make this an input box so that it can be change on te go!
@@ -48,7 +48,16 @@ function render(elementId, session) {
             .attr("style","display:inline")
             .html( function(data){return data.title} )
             .attr("spellcheck", "false")
-            .attr("contenteditable", true);
+            .attr("contenteditable", true)
+			
+		newPlotRowsHeader.selectAll("h3")
+		  .each(function(){
+			  this.addEventListener("input", function() {
+				  var newTitle = this.innerText
+				  d3.select(this).each(function(plotRow){ plotRow.title = newTitle })
+			  }, false);
+		  }) // each
+			
       
         // Give all entering plot rows a body to hold the plots.
         var newPlotRowsBody = newPlotRows
@@ -61,36 +70,45 @@ function render(elementId, session) {
         var newPlots = newPlotRowsBody.selectAll(".plot")
           .data(function (d){return d.plots;})
           .enter()
-          .each(makeNewPlot);
+          .each(plotHelpers.setupPlot.general.makeNewPlot);
       
       
       
         // UPDATE EXISTING PLOT ROWS!!
         // Based on the existing plotRowBodies, select all the plots in them, retrieve all the plotting data associated with this particular plot row, and assign it to the plots in the row. Then make any entering ones.
-        plotRows.selectAll(".plotRowBody").selectAll(".plot")
+        var plots = plotRows.selectAll(".plotRowBody").selectAll(".plot")
           .data(function (d){return d.plots;})
+		  
+		plots
           .enter()
-          .each(makeNewPlot);
+          .each(plotHelpers.setupPlot.general.makeNewPlot);
+		  
+		// Update the previously existing plots.
+        plots
+          .each(function(plotCtrl){plotCtrl.plotFunc.update(plotCtrl)});
+		  
+		// Handle exiting plots before updating the existing ones.
+		plots.exit().remove()
+		
+        
       
-        // Update the previously existing plots.
-        var plotRowPlots = plotRows.selectAll(".plot")
-          .data(function (d){return d.plots;})
-          .each(updatePlot);
+        
       
       
         // This updates the headers of the plots because the titles might have changed.
         var plotRowPlotWrappers = plotRows.selectAll(".plotWrapper")
           .data(function (d) { return d.plots; })
-          .each(function (plotData, index) {
+          .each(function (plotCtrl, index) {
               var plotWrapper = d3.select(this);
               var plotTitle = plotWrapper.select(".plotTitle").select("div")
-                .html(plotData.layout.title)
+                .html(plotCtrl.format.title)
           }); // each
       
-      
-        // HANDLE EXITING PLOT ROWS!!
+	  
+	    // HANDLE EXITING PLOT ROWS!!
         plotRows.exit().remove();
         plotRowPlotWrappers.exit().remove();
+        
       
       
 
@@ -121,12 +139,12 @@ function render(elementId, session) {
       
       
         // REPLACE CURRENT DATA OPTION:
-		var dataReplace = createFileInputElement( importExportFunctionality.importData.load, "replace")
+		var dataReplace = createFileInputElement( importExportFunctionality.importing.metadata, "replace")
         d3.select("#replaceData")
           .on("click", function(){dataReplace.click()})
 		  
 		// ADD TO CURRENT DATA OPTION:
-		var dataInput = createFileInputElement( importExportFunctionality.importData.load, "add")
+		var dataInput = createFileInputElement( importExportFunctionality.importing.metadata, "add")
         d3.select("#addData")
           .on("click", function(){dataInput.click()})
 		  
@@ -135,13 +153,11 @@ function render(elementId, session) {
 		addMenu.removeDataControls.make("removeData")
      
         // LOAD SESSION Button
-	    var sessionInput = createFileInputElement( importExportFunctionality.loadSession.handler )
-        d3.select("#getSession")
+	    var sessionInput = createFileInputElement( importExportFunctionality.importing.session )
+        d3.select("#loadSession")
           .on("click", function(){sessionInput.click()})
       
-		// SAVE SESSION Button
-		// The save session functonality should run everytime render is called. The button needs to become the download bu
-		createSessionFileForSaving()
+		
 		
 		
 		
@@ -151,7 +167,9 @@ function render(elementId, session) {
         addMenu.helpers.enableDisableAllButtons();
 		
 		
-		
+		// AK: HACK
+		// New session file needs to be written in case the variables changed..
+		importExportFunctionality.exporting.session.createSessionFileForSaving()
 		
 		
 		// HELPER FUNCTIONS:
@@ -168,7 +186,7 @@ function render(elementId, session) {
 			dataInput.onchange = function(e){
 				// BE CAREFULT HERE: file.name IS JUST THE local name without any path!
 				var file = e.target.files[0]; 
-				// importExportFunctionality.importData.handler(file);
+				// importExportFunctionality.importing.handler(file);
 				loadFunction(file, dataAction)
 			}; // onchange
 			
@@ -201,47 +219,30 @@ function render(elementId, session) {
 			newPlotRowsHeader.each(function(data){
 				// Give each of the plot rows a delete button.
 				d3.select(this).append("button")
-				  .attr("id", function(d,i){return "removePlotRowButton"+i; })
-				  .attr("class", "btn btn-danger float-right")
+				  .attr("class", "btn btn-danger float-right removePlotButton")
 				  .html("x")
 				  .on("click", function(){
-					  // Select the parent plot row, and get its index.
-					  var ownerPlotRowInd = d3.select(this.parentNode.parentNode).attr("plot-row-index")
+					  
+					  // Remove the plot row from the state
+					  var ownerPlotRow = d3.select(this.parentNode.parentNode)
+					  .each(function(clickedPlotRowCtrl){
+						  
+						  dbsliceData.session.plotRows = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
+							  return plotRowCtrl != clickedPlotRowCtrl
+						  }) // filter  
+					  }) // each
+					  
 					 
-					  dbsliceData.session.plotRows.splice(ownerPlotRowInd,1);
+					  // Remove from DOM
+					  ownerPlotRow.remove()
 					 
-					  render(dbsliceData.elementId, dbsliceData.session);
+					  // render();
 					 
 				  }); // on
 			}); // each
 			
 		} // createRemovePlotRowButtons
 		
-		function createSessionFileForSaving(){
-			
-			var textFile = null;
-			var makeTextFile = function makeTextFile(text) {
-				var data = new Blob([text], {
-					type: 'text/plain'
-				}); 
-				
-				// If we are replacing a previously generated file we need to
-				// manually revoke the object URL to avoid memory leaks.
-				if (textFile !== null) {
-					window.URL.revokeObjectURL(textFile);
-				} // if
-
-				textFile = window.URL.createObjectURL(data);
-				
-			  return textFile;
-			}; // makeTextFile
-
-
-			var lnk = document.getElementById('saveSession');
-			lnk.href = makeTextFile( importExportFunctionality.saveSession.json() );
-			lnk.style.display = 'block';
-			
-		} // createSessionFileForSaving
 		
     } // render
 

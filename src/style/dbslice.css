@@ -1,6 +1,6 @@
 .d3-tip {
   line-height: 1;
-  /*font-weight: bold; */
+  font-weight: bold;
   font-size: 12px;
   padding: 6px;
   background: rgba(100,149,237,0.5);
@@ -22,9 +22,16 @@
 
 /* Style northward tooltips differently */
 .d3-tip.n:after {
-  margin: -1px 0 0 0;
+  margin: -3px 0 0 0;
   top: 100%;
   left: 0;
+}
+
+.d3-tip.s:after {
+  content: "\25B2";
+  margin: -17px 0 0 0;
+  left: 0;
+  text-align: center;
 }
 
 
@@ -89,3 +96,104 @@ input:checked + .slider:before {
 .slider.round:before {
   border-radius: 50%;
 }
+
+
+
+
+.txt-horizontal-axis{
+	font-size: 12px;
+	font-weight: bold;
+	fill: "#000";
+}
+
+/* Required for interactive y-axis */
+.txt-vertical-axis{
+	writing-mode: vertical-rl;
+	transform:rotate(-180deg);
+	position:relative;
+	top:10px;
+	left:6px;
+	font-size: 12px;
+	font-weight: bold;
+}
+
+.select-vertical{
+	/*The width is set to 28px, the width of the caret, as the width of the parent element supersedes the width of the child element (select), and therefore the text cannot be properly displayed*/
+	transform:rotate(-90deg);
+	position: relative;
+	top:10px;
+	width:28px;
+	display:block;
+	outline-style: none;
+}
+
+.custom-select{
+	/* Transparent border!! */
+	outline: 0;
+	border: 0;
+	padding: 0px 28px 4px 0px;
+	font-size: 12px;
+	font-weight: bold;
+	float: right;
+	height: 30px;
+}
+
+
+.select-items div,.select-selected {
+  color: #ffffff;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-color: transparent transparent rgba(0, 0, 0, 0.1) transparent;
+  cursor: pointer;
+}
+
+
+/* Style the dropup accordion options list */
+.list-group-item{
+	border: 0;
+	padding: 0px 10px;
+}
+
+
+/* Styling the button accordion */
+.dropup {
+  position: relative;
+  display: inline-block;
+}
+
+.dropup-content {
+  display: none;
+  position: absolute;
+  background-color: #f1f1f1;
+  border-radius: 4px;
+  min-width: 80px;
+  max-width:200px;
+  bottom: 38px;
+  z-index: 1;
+}
+
+.dropup-content a {
+  color: black;
+  padding: 4px 20px;
+  text-decoration: none;
+  display: block;
+}
+
+.submenu-toggle {
+  padding: 9px 6px;
+  margin: 0px 0px 0px 0px;
+}
+
+.submenu-content {
+  max-height:250px;/* you can change as you need it */
+  overflow:auto;/* to get scroll */
+}
+
+.dropup-content a:hover {background-color: #ccc}
+
+.dropup-content a.selected {
+	background-color: #80b3ff
+}
+
+
+

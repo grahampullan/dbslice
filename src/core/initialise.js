@@ -19,8 +19,9 @@ function initialise(elementId, session, data) {
             makeSessionHeader(element, session.title, session.subtitle, config);
         } // if
       
-        render(elementId, session);
+        render();
     } // initialise
+
 
 
 

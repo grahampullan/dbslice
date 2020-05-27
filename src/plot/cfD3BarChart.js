@@ -8,198 +8,201 @@ const cfD3BarChart = {
 
         name: "cfD3BarChart",
         
-        margin: {top: 20, right: 20, bottom: 30, left: 20},
-        
-        make: function make(element, data, layout) {
+        make: function make(ctrl) {
         
             // Remove any controls in the plot title.
-			cfD3BarChart.addInteractivity.updatePlotTitleControls(element)
+			// cfD3BarChart.addInteractivity.updatePlotTitleControls(element)
+			
+			
+			plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
+			plotHelpers.setupPlot.general.setupPlotContainerBackbone(ctrl)
+			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
+			
+			// Handle the select.
+			var i= cfD3BarChart.addInteractivity.onSelectChange
+			plotHelpers.setupPlot.general.appendVerticalSelection(ctrl.figure.select(".leftAxisControlGroup"), i.vertical(ctrl))
+			plotHelpers.setupPlot.general.updateVerticalSelection(ctrl)
+			
+			
+			cfD3BarChart.setupPlot.setupPlotTools(ctrl)
         
-            cfD3BarChart.update(element, data, layout);
+            cfD3BarChart.update(ctrl);
         }, // make
       
-        update: function update(element, data, layout) {
+        update: function update(ctrl) {
         
-			var container = d3.select(element);
-			
-			// Setup the svg
-			cfD3BarChart.setupSvg(container, data, layout);
 			
 			// Create some common handles.
-			var svg = container.select("svg");
+			var svg = ctrl.figure.select("svg.plotArea");
 			
 			// Get the items to plot.
-			var items = cfD3BarChart.helpers.getItems(data.xProperty);
+			var items = cfD3BarChart.helpers.getItems(ctrl.view.yVarOption.val);
 			
-			// Create the x and y plotting scales.
-			var x = cfD3BarChart.helpers.getScaleX(svg, items);
-			var y = cfD3BarChart.helpers.getScaleY(svg, items);
 			
-			// Color scale
-			var colour = d3.scaleOrdinal().range(["cornflowerblue"]);
-			colour.domain( dbsliceData.data.metaDataUniqueValues[data.xProperty] );
+			
+			
+			function getHeight(d){ return ctrl.tools.yscale.bandwidth() }
+			function getWidth(d){ return ctrl.tools.xscale(d.value) }
+			function getPosition(d){ return ctrl.tools.yscale(d.key) }
+			function getColor(d){ return ctrl.tools.cscale(d.key) }
+			
+			function getLabelPosition(d){return getPosition(d) + 0.5*getHeight(d)}
+			function getLabel(d){return d.key}
 			
 			// Handle the entering/updating/exiting of bars.
-			var bars = svg.select(".plotArea").selectAll("rect")
-			  .data(items, function (v) {return v.key;});
+			var bars = svg.select("g.data").selectAll("rect").data(items);
 			
 			bars.enter()
 			  .append("rect")
-				.attr("keyVal", function(v){return v.key})
-				.attr("height", y.bandwidth())
-				.attr("y",     function (v) {return      y(v.key);})
-				.style("fill", function (v) {return colour(v.key);})
+				.attr("height", getHeight)
+				.attr("width", 0)
+				.attr("x", 0)
+				.attr("y", getPosition)
+				.style("fill", getColor)
+				.attr("opacity", 1)
 			  .transition()
-				.attr("width", function (v) {return    x(v.value);})
-				.attr("opacity", 1); // updating the bar chart bars
+				.attr("width", getWidth)	
+				 
+			bars.transition()
+			  .attr("height", getHeight)
+			  .attr("width", getWidth)
+			  .attr("y",     getPosition)
 
-			bars.exit().remove();
+			bars.exit().remove()
+			
+			
+			// Handle the entering/updating/exiting of bar labels.
+			var keyLabels = svg.select("g.markup").selectAll(".keyLabel")
+				.data(items);
+				
+			keyLabels.enter()
+			  .append("text")
+				.attr("class", "keyLabel")
+				.attr("x", 0)
+				.attr("y", getLabelPosition )
+				.attr("dx", 5)
+				.attr("dy", ".35em")
+				.attr("text-anchor", "start")
+				.text(getLabel)
+
+			keyLabels
+			  .transition()
+			  .attr("y", getLabelPosition )
+			  .text( getLabel );
+			
+			keyLabels.exit().remove();
 			
 			
 			// Handle the axes.
-			createAxes();
+			cfD3BarChart.helpers.createAxes(ctrl);
 			
 			
 			// Add interactivity:
 			cfD3BarChart.addInteractivity.addOnMouseOver(svg);
-			cfD3BarChart.addInteractivity.addOnMouseClick(svg, data.xProperty);
+			cfD3BarChart.addInteractivity.addOnMouseClick(ctrl);
         
 		
-			// Helper functions
-			function createAxes(){
-				
-				var plotArea = svg.select(".plotArea");
-				
-				var xAxis = plotArea.select(".xAxis");
-				var yAxis = plotArea.select(".yAxis");
-
-				if (xAxis.empty()){
-				  
-					plotArea
-					  .append("g")
-						.attr("transform", "translate(0," + svg.attr("plotHeight") + ")")
-						.attr("class", "xAxis")
-						.call(d3.axisBottom(x))
-					  .append("text")
-						.attr("fill", "#000")
-						.attr("x", svg.attr("plotWidth"))
-						.attr("y", cfD3BarChart.margin.bottom)
-						.attr("text-anchor", "end")
-						.text("Number of Tasks");
-				} else {
-					xAxis
-					  .attr("transform", "translate(0," + svg.attr("plotHeight") + ")")
-					  .transition()
-					  .call(d3.axisBottom(x));
-				}; // if
-
-				if (yAxis.empty()){
-					plotArea
-					  .append("g")
-						.attr("class", "yAxis")
-						.call(d3.axisLeft(y).tickValues([]));
-				} else {
-					yAxis
-					  .transition()
-					  .call(d3.axisLeft(y).tickValues([]));
-				}; // if
-
-				// Add the labels to the bars
-				var keyLabels = plotArea.selectAll(".keyLabel")
-					.data(items, function (v) {return v.key;});
-					
-				keyLabels.enter()
-				  .append("text")
-					.attr("class", "keyLabel")
-					.attr("x", 0)
-					.attr("y", function (v){return y(v.key) + 0.5 * y.bandwidth();})
-					.attr("dx", 5)
-					.attr("dy", ".35em")
-					.attr("text-anchor", "start")
-					.text(function (v) {return v.key;}); // updating meta Labels
-
-				keyLabels
-				  .transition()
-				  .attr("y", function (v){return y(v.key) + 0.5 * y.bandwidth();})
-				  .text(function (v){return v.key;});
-				
-				keyLabels.exit().remove();
-				
-			} // createAxes
+			
 			
 			
         }, // update
       
-        setupSvg: function setupSvg(container, data, layout){
-            // Create o clear existing svg to fix the bug of entering different plot types onto exting graphics.
-          
-          
-            // If layout has a margin specified store it as the internal property.
-            var margin = layout.margin === undefined ? cfD3BarChart.margin : layout.margin;
-          
-            var svg = container.select("svg");          
-            if (svg.empty()){
-              
-              
-                // Append new svg.
-                svg = container.append("svg");
-          
-                curateSvg();
-              
-              
-            } else {
-                
-                // Differentiate between changing plot types, or just changing the data!!
-                // If just the data is changing nothing needs to be done here, whereas if the plot type is changing this function needs to remove anything it does not need!
-                  
-                var plotWrapper = container.select(function() {return this.parentElement.parentElement;});
-
-                var expectedPlotType = plotWrapper.attr("plottype");
-                
-                if (expectedPlotType !== "cfD3BarChart" ){
-                    // If the plot type has changed, then the svg contents need to be removed completely.
-                    plotWrapper.attr("plottype", "cfD3BarChart")
-                    svg.selectAll("*").remove();
-                    
-                    curateSvg();
-                } else {
-                    curateSvg();
-                }; // if                  
-            }; // if
-          
-            function curateSvg(){
-            
-                var svgWidth = container.node().offsetWidth;
-                var svgHeight = layout.height;
-                var width = svgWidth - margin.left - margin.right;
-                var height = svgHeight - margin.top - margin.bottom;
-              
-                container.select("svg")
-                    .attr("width", svgWidth)
-                    .attr("height", svgHeight)
-                    .attr("plotWidth", width)
-					.attr("plotHeight", height)
-										
-				var plotArea = container.select("svg").select(".plotArea");
-                if(plotArea.empty()){
-                    // If there's nonoe, add it.
-                    container.select("svg")
-                      .append("g")
-                        .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                        .attr("class", "plotArea");
-                    
-                }; // if
-            
-            }; // curateSvg
-        
-
-        }, // setupSvg
-    
+		rescale: function rescale(ctrl){
+			// What should happen if the window is resized?
+			// 1.) The svg should be resized appropriately
+			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
+			
+			// 2.) The plot tools need to be updated 
+			cfD3BarChart.setupPlot.setupPlotTools(ctrl)
+			
+			// 3.) The plot needs to be redrawn
+			cfD3BarChart.update(ctrl)
+			
+			
+		}, // rescale
+	  
+	    setupPlot : {
+			
+			setupPlotTools: function setupPlotTools(ctrl){
+				/* The x and y axis tools need to be set up here, as well as the potential color scale. 
+				
+				
+				*/
+				
+				// Get the items to plot. This is done on all the data here, and the scales are created here as well. This will make the axes fixed, and the bars move accordingly. This can be changed if needed by adjusting the xscale domain appropriately
+				
+				var property = ctrl.view.yVarOption.val
+				var g = ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.data")
+				var width = g.attr("width")
+				var height = g.attr("height")
+				
+				// TEMPORARY
+				var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
+				var group = dbsliceData.data.metaDims[dimId].group();
+				var items = group.all();
+				
+				// Remove any bars with no entries.
+				items = items.filter(function (item){return item.value > 0;});
+				
+				// Add the property to it for convenience.
+				items.forEach(function(d){d.keyProperty = property})
+				var items = cfD3BarChart.helpers.getItems(ctrl.view.yVarOption.val);
+				
+				// The scale that will control the property used to visually convey numeric information.
+				ctrl.tools.xscale = d3.scaleLinear()
+					.range([0, width])
+					.domain([0, d3.max(items, function (v){return v.value;}) ]);
+				
+				// 'd2.scaleBand' does the division of the plotting area into separate bands based on input categorical values, and returns the number corresponding to the position of the band, and to the width of the band by calling '<scale>()', and '<scale>.bandwidth()' respectively.
+				// 'padding' sets the amount of space between the bands (innerPadding), and before and after the bands (outerPadding), to the same value.
+				// 'align' controls how the outer padding is distributed between both ends of the band range.
+				ctrl.tools.yscale = d3.scaleBand()
+				    .range([0, height])
+				    .domain(  items.map(function (d) {return d.key;})  )
+				    .padding([0.2])
+				    .align([0.5]);
+					
+					
+				// The internal color scale might change due to the user changing hte data, but this should not reset the color scale.
+				if(ctrl.tools.cscale == undefined){
+					ctrl.tools.cscale = function(){return "cornflowerblue"}
+				} // if
+				
+				
+				
+			
+			} // setupPlotTools
+		
+		}, // setupPlot
+	  
 		addInteractivity: {
 			
-			addOnMouseClick: function addOnMouseClick(svg, property){
+			onSelectChange: {
+				
+				vertical: function vertical(ctrl){
+					// Returns a function, as otherwise the function would have to find access to the appropriate ctrl object.
+					return function(){
+					
+						var selectedVar = this.value
+					
+						// Perform the regular task for y-select.
+						plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar)
+						
+						// Perform tasks required by both the vertical and horizontal select on change events.
+						plotHelpers.setupInteractivity.general.onSelectChange.common(ctrl)
+						
+					} // return
+				}, // vertical
+			}, // onSelectChange
+			
+			addOnMouseClick: function addOnMouseClick(ctrl){
 				
 				// Add the mouse click event
+				var property = ctrl.view.yVarOption.val
+				var svg = ctrl.figure.select("svg.plotArea")
+				
 				svg.selectAll("rect").on("click", onClick);
 				
 				// Add the associated transition effects.
@@ -211,14 +214,15 @@ const cfD3BarChart = {
 				
 				function onClick(d){
 					
-					var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
+					var dimId = dbsliceData.data.metaDataProperties.indexOf( property );
 					
-					// check if current filter is already active
+					// Initialise filter if necessary
 				    if (dbsliceData.data.filterSelected[dimId] === undefined){
 					    dbsliceData.data.filterSelected[dimId] = [];
 				    } // if
 
 
+					// check if current filter is already active
 				    if (dbsliceData.data.filterSelected[dimId].indexOf(d.key) !== -1){
 					    // Already active filter, let it remove this item from view.
 					    var ind = dbsliceData.data.filterSelected[dimId].indexOf(d.key);
@@ -232,11 +236,11 @@ const cfD3BarChart = {
 				  
 				    
 				    // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
-				    render(dbsliceData.elementId, dbsliceData.session);
+				    render();
 					
 					// Adjust the styling: first revert back to default, then apply the mouseover.
-					crossPlotHighlighting.off(d, "cfD3BarChart");
-					crossPlotHighlighting.on(d, "cfD3BarChart");
+					//crossPlotHighlighting.off(d, "cfD3BarChart");
+					//crossPlotHighlighting.on(d, "cfD3BarChart");
 					
 				} // onClick
 				
@@ -255,40 +259,17 @@ const cfD3BarChart = {
 				} // transitionEffects
 				
 				function transitionWidthEffects(v){
-					
-					// Get the items.
-					var items = cfD3BarChart.helpers.getItems(property);
-					
-					// Get th eappropriate scale.
-					var xscale = cfD3BarChart.helpers.getScaleX(svg, items);
-					
 					// Get the new width;
-				  return xscale(v.value);
-					
+				  return ctrl.tools.xscale(v.value);
 				} // transitionWidthEffects
 				
 				function transitionHeightEffects(){
-					
-					// Get the items.
-					var items = cfD3BarChart.helpers.getItems(property);
-					
-					// Get th eappropriate scale.
-					var yscale = cfD3BarChart.helpers.getScaleY(svg, items);
-					
-				  return yscale.bandwidth();
-					
+				  return ctrl.tools.yscale.bandwidth();
 				} // transitionHeightEffects
 				
 				function transitionYEffects(v){
-					
-					// Get the items.
-					var items = cfD3BarChart.helpers.getItems(property);
-					
-					// Get th eappropriate scale.
-					var yscale = cfD3BarChart.helpers.getScaleY(svg, items);
-					
-					// Get the new width;
-				  return yscale(v.key);
+				  // Get the new width;
+				  return ctrl.tools.yscale(v.key);
 					
 				} // transitionYEffects
 				
@@ -316,17 +297,126 @@ const cfD3BarChart = {
 				
 			}, // addOnMouseOver
 			
-			updatePlotTitleControls: function updatePlotTitleControls(element){
-				
-				// Remove any controls in the plot title.
-				plotHelpers.removePlotTitleControls(element)
-				
-			} // updatePlotTitleControls
 			
 		}, // addInteractivity
 	
 		helpers: {
+		
+			// Initialisation/saving
+			createDefaultControl: function createDefaultControl(){
 			
+				var ctrl = {
+				        plotFunc: cfD3BarChart,
+						figure: undefined,
+						svg: undefined,
+						view: {yVarOption: undefined,
+							   nBins: undefined,
+							   transitions: {
+									duration: 500,
+									updateDelay: 0,
+									enterDelay: 0								
+								   }
+							   },
+						tools: {xscale: undefined,
+								yscale: undefined,
+								histogram: undefined},
+						format: {
+							title: "Edit title",
+							colWidth: 4,
+							width: undefined,
+							height: 400,
+							margin: {top: 10, right: 0, bottom: 30, left: 30},
+							axesMargin: {top: 10, right: 30, bottom: 30, left: 10}
+						}
+				} // ctrl
+				
+				var options = dbsliceData.data.metaDataProperties
+				ctrl.view.yVarOption = {name: "varName",
+					                     val: options[0],
+								     options: options}
+				
+				return ctrl
+			
+			}, // createDefaultControl
+			
+			createLoadedControl: function createLoadedControl(plotData){
+			
+				var ctrl = cfD3BarChart.helpers.createDefaultControl()
+				
+				// If the x and y properties were stored, and if they agree with the currently loaded metadata, then initialise them.
+				if(plotData.xProperty != undefined){
+					if( dbsliceData.data.dataProperties.includes(plotData.xProperty) ){
+						ctrl.view.yVarOption.val = plotData.xProperty
+					} // if						
+				} // if				
+											
+				return ctrl
+				
+				
+			}, // createLoadedControl
+			
+			writeControl: function writeControl(ctrl){
+				
+				var s = ""
+				s = s + '{';
+				s = s + '"type": "' + ctrl.plotFunc.name + '", ';
+				s = s + '"title": "' + ctrl.format.title + '"';
+				  
+				  
+				// For metadata plots at least the x variable will be available from the first draw of the plot. For scatter plots both will be available.
+				// Slice plots have the user select the data SOURCE, as opposed to variables, and therefore these will be undefined when the plot is first made. For slice plots a sliceId is stored.
+				  
+				var xProperty = accessProperty( ctrl.view.yVarOption, "val" )
+				
+				  
+				s = s + writeOptionalVal("xProperty", xProperty)
+				
+				s = s + '}';
+				
+				return s
+				
+				function writeOptionalVal(name, val){
+					var s_ = ""
+					if (val !== undefined) {
+					  s_ = s_ + ', ';
+					  s_ = s_ + '"' + name + '": "' + val + '"';
+					} // if
+					return s_
+					
+				} // writeOptionalVal
+				
+				function accessProperty(o,p){
+					// When accessing a property of the child of an object it is possible that the child itself is undefined. In this case an error will be thrown as a property of undefined cannot be accessed.
+					// This was warranted as the line plot has it's x and y options left undefined until data is laoded in.
+					return o==undefined? undefined : o[p]
+				} // accessProperty
+				
+			}, // writeControl
+			
+			
+			// Functions supporting interactivity
+			transitions: {
+				instantaneous: function instantaneous(){
+				
+					return {
+						duration: 0,
+						updateDelay: 0,
+						enterDelay: 0
+					}
+				
+				}, // instantaneous
+				
+				animated: function animated(){
+				
+					return {
+						duration: 500,
+						updateDelay: 0,
+						enterDelay: 0
+					}
+				
+				} // animated
+			}, // transitions
+		
 			getItems: function getItems(property){
 				
 				// Get the data through crossfilters dimension functionality.
@@ -343,25 +433,86 @@ const cfD3BarChart = {
 			  return items;
 			}, // getItems
 			
-			getScaleX: function getScaleX(svg, items){
+			createAxes: function createAxes(ctrl){
 				
-				var scale = d3.scaleLinear()
-					.range([0, svg.attr("plotWidth")])
-					.domain([0, d3.max(items, function (v){return v.value;}) ]);
+				var svg = ctrl.figure.select("svg.plotArea")
 				
-			  return scale;
-			}, // getScaleX
+				var xAxis = svg.select("g.axis--x");
+				var yAxis = svg.select("g.axis--y");
+
+				if (xAxis.select("text").empty()){
+					xAxis
+					  .append("text")
+					    .attr("class", "txt-horizontal-axis")
+						.attr("fill", "#000")
+						.attr("x", svg.select("g.data").attr("width"))
+						.attr("y", ctrl.format.axesMargin.bottom)
+						.attr("text-anchor", "end")
+						.text("Number of Tasks");
+				}; // if
+				
+				// Control the tick values, and make sure they only display integeers.
+				var xAxisTicks = ctrl.tools.xscale.ticks()
+					.filter(function(d){ return Number.isInteger(d) });
+				
+				xAxis
+				  .transition()
+				  .call( d3.axisBottom(ctrl.tools.xscale)
+					.tickValues(xAxisTicks)
+					.tickFormat(d3.format("d")) );
+				
+
+				yAxis
+				  .transition()
+				  .call(d3.axisLeft(ctrl.tools.yscale).tickValues([]));
+				
+			}, // createAxes
+		
+		
+			// Functions supporting cross plot highlighting
+			unhighlight: function unhighlight(ctrl){
+				
+				ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("rect")
+					.attr("stroke", "none")
+					.attr("stroke-width", 3);
+				
+			}, // unhighlight
 			
-			getScaleY: function getScaleY(svg, items){
+			highlight: function highlight(ctrl, d){
+					
+				// Turn the text bold
+				var labels = ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.markup")
+				  .selectAll('.keyLabel')
+				  ._groups[0];
+				  
+				labels.forEach(function(labelDOM){
+					if(labelDOM.innerHTML == d[ctrl.view.yVarOption.val]){
+						// Turn the text bold.
+						labelDOM.style.fontWeight = 'bold'
+					} // if
+				}); // forEach
 				
-				var scale = d3.scaleBand()
-				    .range([0, svg.attr("plotHeight")])
-				    .domain(  items.map(function (d) {return d.key;})  )
-				    .padding([0.2])
-				    .align([0.5]);
+				
+			}, // highlight
 			
-              return scale;			
-			} // getScaleY
+			defaultStyle: function defaultStyle(ctrl){
+				// Remove the text bolding.
+				ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.markup")
+				  .selectAll('.keyLabel')
+				    .style("font-weight", "")
+					
+				// Rehighlight any manually selected tasks.
+				crossPlotHighlighting.manuallySelectedTasks()
+				
+			}, // defaultStyle
+			
 			
 		} // helpers
 	
