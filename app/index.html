@@ -15,19 +15,12 @@
 
 <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
 
-
-
-
-</head>
-
-<body>
-
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js"></script>
   
-<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3.v5.min.js"></script>
 <script src="https://cdn.rawgit.com/crossfilter/crossfilter/master/crossfilter.js"></script>
 <script src="https://threejs.org/build/three.js"></script>
 
@@ -42,6 +35,13 @@
 
 <!-- dbslice source data -->
 <script type='text/javascript' src="/build/dbslice.js"></script>
+
+
+</head>
+
+<body>
+
+
 
 
 
@@ -65,28 +65,35 @@
 			   };
 
 	dbslice.initialise ("target", session, data, { plotTasksButton : true } );
-
-
-/*
+	
+	
+	/*
 	// Pre load some data and layout
 	var ld = dbslice.importExportFunctionality.importData
 	var ls = dbslice.importExportFunctionality.loadSession
 
-	d3.csv("metadata_A.csv", ld.helpers.convertNumbers, function(metadata){
+	d3.csv("/examples/comp3row/post_processing/metadata.csv").then(function(metadata){
+	
+			
+			metadata.forEach(function(d){
+				d = ld.helpers.convertNumbers(d)
+			})
+	
 					
 			// Add the source file to tha data
-			metadata.forEach(function(d){d.file = "metadata_A.csv"})
+			metadata.forEach(function(d){d.file = "metadata.csv"})
 			ld.csv(metadata, dbslice.cfDataManagement.cfInit );
 			
 			
 			
 			// Load the session file manually
-			d3.json("session.json", function(sessionData){
+			d3.json("session_.json").then(function(sessionData){
 				ls.json(sessionData);
 			}) // d3.json
-							
+					
 	})
-*/
+	
+	*/
 
 </script>
 
