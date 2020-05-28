@@ -1,4 +1,6 @@
 import { refreshTasksInPlotRows } from './refreshTasksInPlotRows.js';
+import { importExportFunctionality } from '../core/importExportFunctionality.js';
+
 
 function makeSessionHeader(element, title, subtitle, config) {
         var sessionTitle = element
@@ -78,7 +80,6 @@ function makeSessionHeader(element, title, subtitle, config) {
 		    .html("Load session")
 		sessionMenu.append("a").attr("class", "dropdown-item").attr("href", "#")
 			.attr("id", "saveSession")
-			.attr("download", "session.json")
 			.html("Save session") 
 		
 			
@@ -93,6 +94,26 @@ function makeSessionHeader(element, title, subtitle, config) {
         $("#refreshTasksButton").on("click", function () {
             refreshTasksInPlotRows();
         });
+		
+		// Solves the previous hack of updating the session file ready for download.
+		d3.select("#saveSession").on("click", function(){
+			
+			// Get the string to save
+			var s = importExportFunctionality.exporting.session.json()
+			
+			// Make the blob
+			var b = importExportFunctionality.exporting.session.makeTextFile(s)
+			
+			
+			// Download the file.
+			var lnk = document.createElement("a")
+			lnk.setAttribute("download", "test_session.json")
+			lnk.setAttribute("href", b)
+			
+			var m = d3.select( document.getElementById("sessionOptions").parentElement ).select(".dropdown-menu").node()
+			m.appendChild(lnk)
+			lnk.click()	
+		})
        
     } // makeSessionHeader
 

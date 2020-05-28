@@ -14,38 +14,38 @@ const cfD3Line = {
 			// This function only makes the plot, but it does not update it with the data. That is left to the update which is launced when the user prompts it, and the relevant data is loaded.
 			
 			
-			var g = plotHelpers.setupPlot.general
-			var s = plotHelpers.setupPlot.twoInteractiveAxes
-			var si= plotHelpers.setupInteractivity.twoInteractiveAxes
+			
+			var hs = plotHelpers.setupPlot
+			var hi= plotHelpers.setupInteractivity.twoInteractiveAxes
 			var i = cfD3Line.addInteractivity
 			
 			// Add the manual selection toggle to its title.
-			i.updatePlotTitleControls(ctrl.figure)
+			hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
 			
 			// Create the backbone required for the plot. This is the division of the card into the divs that hold the controls and the plot.
-			s.setupPlotBackbone(ctrl)
+			hs.twoInteractiveAxes.setupPlotBackbone(ctrl)
 			
 			// Create the svg with all required children container groups and append it to the appropriate backbone div.
-			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
+			hs.general.rescaleSvg(ctrl)
 			
 			
 			
 			
 			// Add in the controls for the y axis.
-			g.appendVerticalSelection( ctrl.figure.select(".leftAxisControlGroup"),
-                                       si.onSelectChange.vertical(ctrl) )
+			hs.general.appendVerticalSelection( ctrl.figure.select(".leftAxisControlGroup"),
+                                       hi.onSelectChange.vertical(ctrl) )
 			
 			// Add in the controls for the x axis.
-			g.appendHorizontalSelection( ctrl.figure.select(".bottomAxisControlGroup"),
-										 si.onSelectChange.horizontal(ctrl) )
+			hs.general.appendHorizontalSelection( ctrl.figure.select(".bottomAxisControlGroup"),
+										 hi.onSelectChange.horizontal(ctrl) )
 			
 			
 			// General interactivity
-			si.addZooming(ctrl)
+			hi.addZooming(ctrl)
 			i.createLineTooltip(ctrl)
 			
 			// Scaling of the axes
-			si.addAxisScaling(ctrl)
+			hi.addAxisScaling(ctrl)
 			
 			
 			// Button menu custom functionality. On first make it should host the slice id options.
@@ -56,8 +56,8 @@ const cfD3Line = {
 				event: function(ctrl, d){ctrl.view.sliceId = d}
 			} // sliceOption
 			
-			s.buttonMenu.make(ctrl)
-			s.buttonMenu.update(ctrl, [sliceOption])
+			hs.twoInteractiveAxes.buttonMenu.make(ctrl)
+			hs.twoInteractiveAxes.buttonMenu.update(ctrl, [sliceOption])
 			
 			// But it will try to draw when this is updated...
 
@@ -196,18 +196,6 @@ const cfD3Line = {
 				   
             allSeries.exit().remove();
 		
-			
-			
-			
-			
-			/*
-
-			// AK: HACK
-			// New session file needs to be written in case the variables changed..
-			importExportFunctionality.saveSession.createSessionFileForSaving()
-			
-			*/
-		
 		}, // refresh_
 	
 		rescale: function rescale(ctrl){
@@ -329,7 +317,7 @@ const cfD3Line = {
 				
 			}, // updateUiOptions
 		
-	
+			// Functionality required to setup the tools.
 			findPlotDimensions: function findPlotDimensions(svg){
 			
 				return {x: [0, Number( svg.select("g.data").attr("width") )],     y: [Number( svg.select("g.data").attr("height") ), 0]}
@@ -371,7 +359,8 @@ const cfD3Line = {
 		}, // setupPlot
 	
 		addInteractivity: {
-					
+				
+			// Tooltips
 			createLineTooltip: function createLineTooltip(ctrl){
 				// The tooltips are shared among the plots, therefore check if the tooltip is already available first.
 				
@@ -452,7 +441,6 @@ const cfD3Line = {
 			
 
 			// Legacy
-			
 			addSelection: function addSelection(lineDOM){
 				// This function adds the functionality to select elements on click. A switch must then be built into the header of the plot t allow this filter to be added on.
 				
@@ -483,57 +471,7 @@ const cfD3Line = {
 				
 			}, // addSelecton
 			
-			addToggle: function addToggle(element){
-			
-				// THIS IS THE TOGGLE.
-				// Additional styling was added to dbslice.css to control the appearance of the toggle.
-				var controlGroup = d3.select(element.parentElement).select(".plotTitle").select(".ctrlGrp")
-				
-				var toggleGroup = controlGroup
-				  .append("label")
-					.attr("class", "switch float-right")
-				var toggle = toggleGroup
-				  .append("input")
-					.attr("type", "checkbox")
-				toggleGroup
-				  .append("span")
-					.attr("class", "slider round")
-					
-				// Add it's functionality.
-				toggle.on("change", function(){ 
-					
-					var currentVal = this.checked
-					
-					// All such switches need to be activated.
-					var allToggleSwitches = d3.selectAll(".plotWrapper[plottype='cfD3Line']").selectAll("input[type='checkbox']")
-					
-					allToggleSwitches.each(function(){
-						
-						this.checked = currentVal
-						// console.log("checking")
-					})
-					
-					// Update filters
-					cfUpdateFilters( dbsliceData.data )
-					
-					render()
-				})
-				
-			}, // addToggle
-			
-			updatePlotTitleControls: function updatePlotTitleControls(element){
-			
-				// Remove any controls in the plot title.
-				// plotHelpers.removePlotTitleControls(element)
-				
-				// Add the toggle to switch manual selection filter on/off
-				cfD3Line.addInteractivity.addToggle(element)
-				
-				
-			} // updatePlotTitleControls
-			
-			
-			
+
 		}, // addInteractivity
 		
 		helpers: {

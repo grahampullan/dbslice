@@ -167,11 +167,6 @@ function render() {
         addMenu.helpers.enableDisableAllButtons();
 		
 		
-		// AK: HACK
-		// New session file needs to be written in case the variables changed..
-		importExportFunctionality.exporting.session.createSessionFileForSaving()
-		
-		
 		// HELPER FUNCTIONS:
 		function createFileInputElement(loadFunction, dataAction){
 			

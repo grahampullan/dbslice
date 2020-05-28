@@ -1,3 +1,6 @@
+import { render } from '../core/render.js';
+import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { dbsliceData } from '../core/dbsliceData.js';
 
 const plotHelpers = {
         
@@ -342,8 +345,26 @@ const plotHelpers = {
 				
 				}, // updateHorizontalSelection
 			
-			
+				// Toggle in the header
 				
+				appendToggle: function appendToggle(container, onClickEvent){
+				
+					// Additional styling was added to dbslice.css to control the appearance of the toggle.
+
+					var toggleGroup = container
+					  .append("label")
+						.attr("class", "switch float-right")
+					var toggle = toggleGroup
+					  .append("input")
+						.attr("type", "checkbox")
+					toggleGroup
+					  .append("span")
+						.attr("class", "slider round")
+						
+					// Add it's functionality.
+					toggle.on("change", onClickEvent)
+					
+				}, // appendToggle
 				
 			}, // general
 			
@@ -543,235 +564,7 @@ const plotHelpers = {
 					
 					options: {
 					
-						// MOVE GROUP LINE BACK TO CFD3SCATTER!!!
-						// This would ensure consistency of class inheritance logic of plotHelpers.
-						groupLine: {  
 						
-						
-							update: function update(ctrl){
-								// 'update' executes what 'make' lined up.
-								
-								// Shorthand handle
-								var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.options.groupLine
-								
-								switch(ctrl.view.gVarOption.action){
-									
-									case "zoom":
-									  // Just update the lines
-									  h.updateLines( ctrl, ctrl.view.transitions.duration )
-									  break;
-									  
-									case "draw":
-									  h.drawLines(ctrl, ctrl.view.gVarOption.val)
-									  break;
-									
-									case "remove":
-									  h.removeLines(ctrl)
-									  break;
-									  
-									case "replace":
-									  h.replaceLines(ctrl, ctrl.view.gVarOption.val)
-									  break;
-									  
-									default:
-										// Do nothing.
-									  break;
-								} // switch
-								
-								// After the action is performed the action needs to be changed to the default - "zoom".
-								ctrl.view.gVarOption.action = "zoom"
-								
-							}, // update
-						
-							make: function make(ctrl, varName){
-								
-								
-								
-								// Options to cover
-								var noLines = ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path").empty()
-								var linesVarSame = ctrl.view.gVarOption.val == varName
-								
-								
-
-								if( noLines ){
-									// 1: no existing lines - draw new lines
-									// h.drawLines(ctrl, varName)
-									ctrl.view.gVarOption.action = "draw"
-								
-								} else if ( linesVarSame ){ 
-									// 2: existing lines - same var -> remove lines
-									// h.removeLines(ctrl)
-									ctrl.view.gVarOption.action = "remove"
-									
-									
-								} else {
-									// 2: existing lines - diff var -> remove and add
-									// h.replaceLines(ctrl, varName)
-									ctrl.view.gVarOption.action = "replace"
-								
-								} // if
-								
-								
-								
-							
-							}, // make
-							
-							
-								
-								
-								
-							drawLines: function drawLines(ctrl, varName){
-							console.log("drawLines")
-								// Shorthand handles.
-								var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu
-								var i = ctrl.plotFunc.addInteractivity
-								
-								// Get the data to draw.
-								var pointData = ctrl.plotFunc.helpers.getPointData(ctrl)
-								
-								// Retrieve all the series that are needed.
-								var s = getUniqueArraySeries(pointData, varName)
-								
-									
-								// Now draw a line for each of them.
-								var paths = ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path")
-								  .data(s)
-								  .enter()
-								  .append("path")
-								  .attr("stroke", "black")
-								  .attr("stroke-width", "2")
-								  .attr("fill", "none")
-								  .attr("clip-path", "url(#" + ctrl.figure.select("svg.plotArea").select("clipPath").attr("id") + ")")
-								  .each(function(d){ i.addLineTooltip(ctrl, this)} )
-								
-								// Update transitions:
-								ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
-								
-								
-								// Do the actual drawing of it in the update part.
-								h.options.groupLine.updateLines(ctrl, ctrl.view.transitions.duration)
-								
-								
-								// Update the tooltips. These can be missing if new data is added.
-								ctrl.plotFunc.addInteractivity.addLineTooltip(ctrl)
-								
-								
-								// HELPER
-								function getUniqueArraySeries(array, varName){
-						
-									// First get the unique values of the variable used for grouping.
-									var u = getUniqueArrayValues(array, varName)
-								
-								
-									var s = []
-									u.forEach(function(groupName){
-										var groupData = array.filter(function(d){return d[varName] == groupName})
-										s.push(groupData)
-									})
-								  return s
-								
-								} // getUniqueArraySeries
-								
-								function getUniqueArrayValues(array, varName){
-									// This function returns all the unique values of property 'varName' from an array of objects 'array'.
-									var u = []
-									array.forEach(function(d){
-										if( u.indexOf( d[varName] ) == -1){
-											u.push( d[varName] )
-										} // if
-									})
-								  return u
-								
-								} // getUniqueArrayValues
-							  
-							}, // drawLines
-							
-							removeLines: function removeLines(ctrl){
-								console.log("removeLines")
-								// Update transitions:
-								ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
-								
-								// Schedule removal transitions.
-								ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path").each(function(){
-								
-									var totalLength = this.getTotalLength();
-									
-									d3.select(this)
-										.transition()
-										.duration( ctrl.view.transitions.duration )
-										.ease(d3.easeLinear)
-										.attr("stroke-dashoffset", totalLength)
-										.on("end", function(){d3.select(this).remove()})
-								})   
-							}, // removeLines
-													
-							replaceLines: function replaceLines(ctrl, varName){
-							console.log("replaceLines")
-								var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.options.groupLine
-								
-								// Update transitions:
-								ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
-								
-								// n is a coutner to allow tracking of when all the transitions have finished. This is required as the drawLines should only execute once at teh end.
-								var n = 0
-								ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path").each(function(){
-									n++
-									var totalLength = this.getTotalLength();
-									
-									d3.select(this)
-										.transition()
-										.duration(ctrl.view.transitions.duration)
-										.ease(d3.easeLinear)
-										.attr("stroke-dashoffset", totalLength)
-										.on("end", function(){
-											n--
-											d3.select(this).remove()
-											
-											if(n == 0){ 
-												h.drawLines(ctrl, varName)
-												
-												// The lines were removed, therefore new tooltips are needed.
-												ctrl.plotFunc.addInteractivity.addLineTooltip(ctrl)
-											} // if
-										}) // on
-										
-								}) // each
-							}, // replaceLines
-							
-							updateLines: function updateLines(ctrl, t){
-							console.log("updateLines")
-								// Accessor functions
-								var accessor = ctrl.plotFunc.helpers.getAccessors(ctrl)
-							
-								var line = d3.line()
-									.curve(d3.curveCatmullRom)
-									.x( accessor.x )
-									.y( accessor.y )
-								
-								var paths = ctrl.figure.select("svg.plotArea")
-								  .select(".markup")
-								  .selectAll("path")
-									
-								// The whole animation uses the framework of dashed lines. The total length of the desired line is set for the length of the dash and the blank space. Then the transition starts offsetting the start point of the dash to make the 'movement'.	
-								paths.each(function(){
-													
-									var path = d3.select(this)
-										.attr("d", line)
-									
-									var totalLength = path.node().getTotalLength();
-									
-									path.attr("stroke-dasharray", totalLength+" "+totalLength)
-										.attr("stroke-dashoffset", totalLength)
-										.transition()
-										  .duration( ctrl.view.transitions.duration )
-										  .ease(d3.easeLinear)
-										  .attr("stroke-dashoffset", 0);
-								})
-							
-							} // updateLines
-						
-						}, // groupLine
-					
 					
 						groupColor: function groupColor(ctrl, varName){
 							
@@ -934,8 +727,27 @@ const plotHelpers = {
 				
 				}, // buttonMenu
 				
-				
-				
+				// Title toggle
+				updatePlotTitleControls: function updatePlotTitleControls(ctrl){
+			
+					// Add the toggle to switch manual selection filter on/off
+					var container = d3.select( ctrl.figure.node().parentElement )
+					  .select(".plotTitle")
+					  .select("div.ctrlGrp")
+					var onClickEvent = function(){ 
+						
+						// Update teh DOM accordingly.
+						plotHelpers.setupInteractivity.general.toggleToggle(this)
+						
+						// Update filters
+						cfUpdateFilters( dbsliceData.data )
+						
+						render()
+					} // onClickEvent
+					  
+					plotHelpers.setupPlot.general.appendToggle( container, onClickEvent )
+					
+				}, // updatePlotTitleControls
 			
 			}, // twoInteractiveAxes
 			
@@ -978,6 +790,23 @@ const plotHelpers = {
 					} // common
 					
 				}, // onSelectChange
+				
+				toggleToggle: function toggleToggle(clickedToggleDOM){
+					
+					var currentVal = clickedToggleDOM.checked
+					
+					// All such switches need to be activated.
+					var allToggleSwitches = d3
+					  .selectAll(".plotWrapper")
+					  .selectAll(".plotTitle")
+					  .selectAll(".ctrlGrp")
+					  .selectAll(".switch")
+					  .selectAll("input[type='checkbox']")
+					
+					allToggleSwitches.each(function(){
+						this.checked = currentVal
+					}) // each
+				}, // toggleToggle
 				
 			}, // general
 			
@@ -1194,7 +1023,6 @@ const plotHelpers = {
 					  
 				}, // addZooming
 			
-				
 			}, // twoInteractiveAxes
 			
 		}, // setupInteractivity

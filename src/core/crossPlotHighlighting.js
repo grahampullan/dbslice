@@ -65,7 +65,7 @@ const crossPlotHighlighting = {
 			
 			findAllData: function findAllData(d, sourcePlotName){
 				
-				// This functionality should also be pushed to the plots themselves later on.
+				
 				var allDataPoints;
 			    switch(sourcePlotName){
 					

@@ -17,36 +17,35 @@ const cfD3Scatter = {
 			
 				
 				
-				
-				var b = cfD3Scatter
-				var g = plotHelpers.setupPlot.general
-				var s = plotHelpers.setupPlot.twoInteractiveAxes
-				var si= plotHelpers.setupInteractivity.twoInteractiveAxes
+				var s = cfD3Scatter.setupPlot
+				var hs= plotHelpers.setupPlot
 				var i = cfD3Scatter.addInteractivity
+				var hi= plotHelpers.setupInteractivity.twoInteractiveAxes
+				
 				
 				// Add the manual selection toggle to its title.
-				// i.updatePlotTitleControls(element)
+				hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
 				
 				// Create the backbone required for the plot. This is the division of the card into the divs that hold the controls and the plot.
-				s.setupPlotBackbone(ctrl)
+				hs.twoInteractiveAxes.setupPlotBackbone(ctrl)
 				
 				// Create the svg with all required children container groups and append it to the appropriate backbone div.
-				plotHelpers.setupPlot.general.rescaleSvg(ctrl)
+				hs.general.rescaleSvg(ctrl)
 
 
 				// Add in the controls for the y axis.
-				g.appendVerticalSelection( ctrl.figure.select(".leftAxisControlGroup"),
-										   si.onSelectChange.vertical(ctrl) )
+				hs.general.appendVerticalSelection( ctrl.figure.select(".leftAxisControlGroup"),
+										   hi.onSelectChange.vertical(ctrl) )
 				
 				// Add in the controls for the x axis.
-				g.appendHorizontalSelection( ctrl.figure.select(".bottomAxisControlGroup"),
-											 si.onSelectChange.horizontal(ctrl) )
+				hs.general.appendHorizontalSelection( ctrl.figure.select(".bottomAxisControlGroup"),
+											 hi.onSelectChange.horizontal(ctrl) )
 				
 				// Add teh button menu - in front of the update for it!
-				s.buttonMenu.make(ctrl)
+				hs.twoInteractiveAxes.buttonMenu.make(ctrl)
 				
 				// Get the variable options
-				cfD3Scatter.setupPlot.updateUiOptions(ctrl)
+				s.updateUiOptions(ctrl)
 				
 				
 				// Setup the scales for plotting
@@ -54,16 +53,16 @@ const cfD3Scatter = {
 				
 				
 				// Scatter plot specific interactivity.
-				si.addAxisScaling(ctrl)
+				hi.addAxisScaling(ctrl)
 				
 				
 				// General interactivity
-				si.addZooming(ctrl)
+				hi.addZooming(ctrl)
 				i.createLineTooltip(ctrl)
 				i.createPointTooltip(ctrl)
 				
 				// Draw the actual plot. The first two inputs are dummies.
-				b.update(ctrl)
+				cfD3Scatter.update(ctrl)
 			
 			
 			}, // make
@@ -80,7 +79,6 @@ const cfD3Scatter = {
 		
 				
 				var h = cfD3Scatter.helpers
-				var h_= plotHelpers.setupPlot.twoInteractiveAxes
 				var i = cfD3Scatter.addInteractivity
 				
 				// Check to adjust the width of the plot in case of a redraw.
@@ -126,8 +124,7 @@ const cfD3Scatter = {
 					
 			
 				// Update the markup lines to follow on zoom
-				// MOVE THE EXECUTION OF THE LINE DRAWING HERE! MAKE WILL ONLY DECIDE WHAT NEEDS TO BE DONE!
-				h_.buttonMenu.options.groupLine.update(ctrl)
+				i.groupLine.update(ctrl)
 				
 				// Update the axes
 				h.axes.update(ctrl)
@@ -159,57 +156,6 @@ const cfD3Scatter = {
 		
 			setupPlot: {
 				// This object adjusts the default plot to include all the relevant controls, and creates the internal structure for them.
-				
-				setupPlotBackbone: function setupPlotBackbone(ctrl, plot){
-					/* This function makes the skeleton required for a plot that will have interactive inputs on both axes.
-					_________________________________________________
-					|| div | | div                                   |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||-----| |---------------------------------------|
-					||-----| |---------------------------------------|
-					|| div | | div                                   |
-					||_____| |_______________________________________|
-					
-					*/
-					
-					var margin = {top: 20, right: 20, bottom: 30, left: 20}
-				
-					
-					// Left Control
-					var leftControls = plot
-					  .append("div")
-						.attr("class", "leftAxisControlGroup")
-						.attr("style", "width: "+ ctrl.format.margin.left +"px; height: 100%; float: left")
-						
-					// Main plot with its svg.
-					plot
-					  .append("div")
-						.attr("class", "plotContainer")
-						.attr("style", "margin-left: " + ctrl.format.margin.left + "px")
-					  
-				
-					// Bottom left corner div
-					plot
-					  .append("div")
-						.attr("class", "bottomLeftControlGroup")
-						.attr("style", "width: "+ ctrl.format.margin.left +"px; height: " + ctrl.format.margin.right + "px; float:left")
-					
-					
-					// Bottom controls
-					plot
-					  .append("div")
-						.attr("class", "bottomAxisControlGroup")
-						.attr("style", "margin-left: " + ctrl.format.margin.left + "px; height: " + ctrl.format.margin.right + "px;")
-						
-						
-				}, // setupPlotBackbone
 				
 				updateUiOptions: function updateUiOptions(ctrl){
 					// Improve this so that in case the metadata gets changed this changes appropriately - e.g. if the new metadata has the same values, then these options should keep them.
@@ -250,8 +196,37 @@ const cfD3Scatter = {
 					
 				}, // updateUiOptions
 				
+				updatePlotTitleControls: function updatePlotTitleControls(ctrl){
+			
+				// Add the toggle to switch manual selection filter on/off
+				var container = d3.select( ctrl.figure.node().parentElement )
+				  .select(".plotTitle")
+				  .select("div.ctrlGrp")
+				var onClickEvent = function(){ 
+					
+					var currentVal = this.checked
+					
+					// All such switches need to be activated.
+					var allToggleSwitches = d3.selectAll(".plotWrapper[plottype='cfD3Line']").selectAll("input[type='checkbox']")
+					
+					allToggleSwitches.each(function(){
+						
+						this.checked = currentVal
+						// console.log("checking")
+					})
+					
+					// Update filters
+					cfUpdateFilters( dbsliceData.data )
+					
+					render()
+				} // onClickEvent
+				  
+				plotHelpers.setupPlot.general.appendToggle( container, onClickEvent )
+				
+			}, // updatePlotTitleControls
 
 		
+				// Helpers for setting up plot tools.
 				findPlotDimensions: function findPlotDimensions(svg){
 				
 					return {x: [0, Number( svg.select("g.data").attr("width") )],     y: [Number( svg.select("g.data").attr("height") ), 0]}
@@ -285,6 +260,7 @@ const cfD3Scatter = {
 		
 			addInteractivity: {
 				
+				// Tooltips
 				createLineTooltip: function createLineTooltip(ctrl){
 					// The tooltips are shared among the plots, therefore check if the tooltip is already available first.
 					
@@ -411,8 +387,7 @@ const cfD3Scatter = {
 				}, // addPointTooltip
 				
 				
-				// Legacy
-				
+				// Manual selection
 				addSelection: function addSelection(ctrl){
 					// This function adds the functionality to select elements on click. A switch must then be built into the header of the plot t allow this filter to be added on.
 					
@@ -446,57 +421,234 @@ const cfD3Scatter = {
 					
 				}, // addSelecton
 				
-				addToggle: function addToggle(element){
+				// Custom options for dropup menu
+				groupLine: {  
 				
-					// THIS IS THE TOGGLE.
-					// Additional styling was added to dbslice.css to control the appearance of the toggle.
-					var controlGroup = d3.select(element.parentElement).select(".plotTitle").select(".ctrlGrp")
-					
-					var toggleGroup = controlGroup
-					  .append("label")
-						.attr("class", "switch float-right")
-					var toggle = toggleGroup
-					  .append("input")
-						.attr("type", "checkbox")
-					toggleGroup
-					  .append("span")
-						.attr("class", "slider round")
+					update: function update(ctrl){
+						// 'update' executes what 'make' lined up.
 						
-					// Add it's functionality.
-					toggle.on("change", function(){ 
+						// Shorthand handle
+						var h = cfD3Scatter.addInteractivity.groupLine
 						
-						var currentVal = this.checked
-						
-						// All such switches need to be activated.
-						var allToggleSwitches = d3.selectAll(".plotWrapper[plottype='cfD3Scatter']").selectAll("input[type='checkbox']")
-						
-						allToggleSwitches.each(function(){
+						switch(ctrl.view.gVarOption.action){
 							
-							this.checked = currentVal
-							// console.log("checking")
+							case "zoom":
+							  // Just update the lines
+							  h.updateLines( ctrl, ctrl.view.transitions.duration )
+							  break;
+							  
+							case "draw":
+							  h.drawLines(ctrl, ctrl.view.gVarOption.val)
+							  break;
+							
+							case "remove":
+							  h.removeLines(ctrl)
+							  break;
+							  
+							case "replace":
+							  h.replaceLines(ctrl, ctrl.view.gVarOption.val)
+							  break;
+							  
+							default:
+								// Do nothing.
+							  break;
+						} // switch
+						
+						// After the action is performed the action needs to be changed to the default - "zoom".
+						ctrl.view.gVarOption.action = "zoom"
+						
+					}, // update
+				
+					make: function make(ctrl, varName){
+						
+						
+						
+						// Options to cover
+						var noLines = ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path").empty()
+						var linesVarSame = ctrl.view.gVarOption.val == varName
+						
+						
+
+						if( noLines ){
+							// 1: no existing lines - draw new lines
+							// h.drawLines(ctrl, varName)
+							ctrl.view.gVarOption.action = "draw"
+						
+						} else if ( linesVarSame ){ 
+							// 2: existing lines - same var -> remove lines
+							// h.removeLines(ctrl)
+							ctrl.view.gVarOption.action = "remove"
+							
+							
+						} else {
+							// 2: existing lines - diff var -> remove and add
+							// h.replaceLines(ctrl, varName)
+							ctrl.view.gVarOption.action = "replace"
+						
+						} // if
+						
+						
+						
+					
+					}, // make
+					
+					drawLines: function drawLines(ctrl, varName){
+					
+						// Shorthand handles.
+						var h = cfD3Scatter.addInteractivity.groupLine
+						var i = cfD3Scatter.addInteractivity
+						
+						// Get the data to draw.
+						var pointData = ctrl.plotFunc.helpers.getPointData(ctrl)
+						
+						// Retrieve all the series that are needed.
+						var s = getUniqueArraySeries(pointData, varName)
+						
+							
+						// Now draw a line for each of them.
+						var paths = ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path")
+						  .data(s)
+						  .enter()
+						  .append("path")
+						  .attr("stroke", "black")
+						  .attr("stroke-width", "2")
+						  .attr("fill", "none")
+						  .attr("clip-path", "url(#" + ctrl.figure.select("svg.plotArea").select("clipPath").attr("id") + ")")
+						  .each(function(d){ i.addLineTooltip(ctrl, this)} )
+						
+						// Update transitions:
+						ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
+						
+						
+						// Do the actual drawing of it in the update part.
+						h.updateLines(ctrl, ctrl.view.transitions.duration)
+						
+						
+						// Update the tooltips. These can be missing if new data is added.
+						ctrl.plotFunc.addInteractivity.addLineTooltip(ctrl)
+						
+						
+						// HELPER
+						function getUniqueArraySeries(array, varName){
+				
+							// First get the unique values of the variable used for grouping.
+							var u = getUniqueArrayValues(array, varName)
+						
+						
+							var s = []
+							u.forEach(function(groupName){
+								var groupData = array.filter(function(d){return d[varName] == groupName})
+								s.push(groupData)
+							})
+						  return s
+						
+						} // getUniqueArraySeries
+						
+						function getUniqueArrayValues(array, varName){
+							// This function returns all the unique values of property 'varName' from an array of objects 'array'.
+							var u = []
+							array.forEach(function(d){
+								if( u.indexOf( d[varName] ) == -1){
+									u.push( d[varName] )
+								} // if
+							})
+						  return u
+						
+						} // getUniqueArrayValues
+					  
+					}, // drawLines
+					
+					removeLines: function removeLines(ctrl){
+						
+						// Update transitions:
+						ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
+						
+						// Schedule removal transitions.
+						ctrl.figure
+						  .select("svg.plotArea")
+						  .select(".markup")
+						  .selectAll("path")
+						  .each(function(){
+						
+							var totalLength = this.getTotalLength();
+							
+							d3.select(this)
+								.transition()
+								.duration( ctrl.view.transitions.duration )
+								.ease(d3.easeLinear)
+								.attr("stroke-dashoffset", totalLength)
+								.on("end", function(){d3.select(this).remove()})
+						})   
+					}, // removeLines
+											
+					replaceLines: function replaceLines(ctrl, varName){
+					console.log("replaceLines")
+						var h = cfD3Scatter.addInteractivity.groupLine
+						
+						// Update transitions:
+						ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
+						
+						// n is a coutner to allow tracking of when all the transitions have finished. This is required as the drawLines should only execute once at teh end.
+						var n = 0
+						ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path").each(function(){
+							n++
+							var totalLength = this.getTotalLength();
+							
+							d3.select(this)
+								.transition()
+								.duration(ctrl.view.transitions.duration)
+								.ease(d3.easeLinear)
+								.attr("stroke-dashoffset", totalLength)
+								.on("end", function(){
+									n--
+									d3.select(this).remove()
+									
+									if(n == 0){ 
+										h.drawLines(ctrl, varName)
+										
+										// The lines were removed, therefore new tooltips are needed.
+										ctrl.plotFunc.addInteractivity.addLineTooltip(ctrl)
+									} // if
+								}) // on
+								
+						}) // each
+					}, // replaceLines
+					
+					updateLines: function updateLines(ctrl, t){
+					
+						// Accessor functions
+						var accessor = ctrl.plotFunc.helpers.getAccessors(ctrl)
+					
+						var line = d3.line()
+							.curve(d3.curveCatmullRom)
+							.x( accessor.x )
+							.y( accessor.y )
+						
+						var paths = ctrl.figure.select("svg.plotArea")
+						  .select(".markup")
+						  .selectAll("path")
+							
+						// The whole animation uses the framework of dashed lines. The total length of the desired line is set for the length of the dash and the blank space. Then the transition starts offsetting the start point of the dash to make the 'movement'.	
+						paths.each(function(){
+											
+							var path = d3.select(this)
+								.attr("d", line)
+							
+							var totalLength = path.node().getTotalLength();
+							
+							path.attr("stroke-dasharray", totalLength+" "+totalLength)
+								.attr("stroke-dashoffset", totalLength)
+								.transition()
+								  .duration( ctrl.view.transitions.duration )
+								  .ease(d3.easeLinear)
+								  .attr("stroke-dashoffset", 0);
 						})
-						
-						// Update filters
-						cfUpdateFilters( dbsliceData.data )
-						
-						render()
-					})
 					
-				}, // addToggle
+					} // updateLines
 				
-				updatePlotTitleControls: function updatePlotTitleControls(element){
-				
-					// Remove any controls in the plot title.
-					plotHelpers.removePlotTitleControls(element)
-					
-					// Add the toggle to switch manual selection filter on/off
-					cfD3Scatter.addInteractivity.addToggle(element)
-					
-					
-				} // updatePlotTitleControls
-				
-				
-				
+				}, // groupLine
+			
+		
 			}, // addInteractivity
 			
 			helpers: {
@@ -538,7 +690,8 @@ const cfD3Scatter = {
 					} // ctrl
 					
 					// Initialise the options straight away.
-					var h = plotHelpers.setupPlot.twoInteractiveAxes
+					var i = cfD3Scatter.addInteractivity
+					var hs = plotHelpers.setupPlot.twoInteractiveAxes
 					var options = dbsliceData.data.dataProperties 
 					
 					ctrl.view.xVarOption = {name: "varName",
@@ -552,12 +705,13 @@ const cfD3Scatter = {
 					ctrl.view.cVarOption = {name: "Colour",
 					                         val: undefined,
 										 options: dbsliceData.data.metaDataProperties,
-										   event: h.buttonMenu.options.groupColor}
+										   event: hs.buttonMenu.options.groupColor}
 
+					// Custom option.
 					ctrl.view.gVarOption = {name: "Line",
 					                         val: undefined,
 										 options: dbsliceData.data.metaDataProperties,
-										   event: h.buttonMenu.options.groupLine.make,
+										   event: i.groupLine.make,
 										  action: undefined}
 					
 					return ctrl
