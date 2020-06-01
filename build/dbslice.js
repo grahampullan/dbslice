@@ -582,7 +582,7 @@ var dbslice = (function (exports) {
           vertical: function vertical(ctrl, selectedVar) {
             // Update the vertical text and the state.
             // Change the text.
-            d3.select(this.parentElement).select(".txt-vertical-axis").text(selectedVar); // Update the y-variable for the plot.
+            ctrl.figure.select(".leftAxisControlGroup").select(".txt-vertical-axis").text(selectedVar); // Update the y-variable for the plot.
 
             ctrl.view.yVarOption.val = selectedVar;
           },
@@ -1336,11 +1336,7 @@ var dbslice = (function (exports) {
 
         } // updateMarkers
 
-      },
-      // addBinNumberControls
-      updatePlotTitleControls: function updatePlotTitleControls(element) {
-        plotHelpers.removePlotTitleControls(element);
-      } // updatePlotTitleControls
+      } // addBinNumberControls
 
     },
     // setupInteractivity
@@ -3158,6 +3154,7 @@ var dbslice = (function (exports) {
     // update
     update_: function update_(ctrl) {
       // This function re-intialises the plots based on the data change that was initiated by the user.
+      // Update re-selects the data to be drawn, and then refreshes the view.
       // Remove all the previously stored promises, so that only the promises required on hte last redraw are retained.
       ctrl.data.promises = []; // GETDATAINFO should be launched when new data is loaded for it via the 'refresh' button, and when a different height is selected for it. Otherwise it is just hte data that gets loaded again.
 

@@ -74,6 +74,8 @@ const cfD3Line = {
 		update_: function update_(ctrl){
 			// This function re-intialises the plots based on the data change that was initiated by the user.
 			
+			// Update re-selects the data to be drawn, and then refreshes the view.
+			
 			
 			// Remove all the previously stored promises, so that only the promises required on hte last redraw are retained.
 			ctrl.data.promises = []

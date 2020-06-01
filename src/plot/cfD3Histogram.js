@@ -765,12 +765,6 @@ const cfD3Histogram = {
 				
 			}, // addBinNumberControls
 			
-			updatePlotTitleControls: function updatePlotTitleControls(element){
-				
-				plotHelpers.removePlotTitleControls(element)
-				
-			} // updatePlotTitleControls
-			
 		}, // setupInteractivity
 		
 		helpers: {

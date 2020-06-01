@@ -763,7 +763,8 @@ const plotHelpers = {
 						// Update the vertical text and the state.
 						
 						// Change the text.
-						d3.select(this.parentElement)
+						ctrl.figure
+						  .select(".leftAxisControlGroup")
 						  .select(".txt-vertical-axis")
 						  .text( selectedVar )
 						  
