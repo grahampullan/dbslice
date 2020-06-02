@@ -125,8 +125,8 @@ function render() {
 		createRemovePlotRowButtons(newPlotRowsHeader)
       
         // ADD PLOT BUTTONS
-        newPlotRowsHeader.each(function(){
-            addMenu.addPlotControls.make( this );
+        newPlotRowsHeader.each(function(plotRowCtrl){
+            addMenu.addPlotControls.make( this, plotRowCtrl );
         }); // each
       
         // REMOVE PLOT BUTTONS
@@ -191,21 +191,7 @@ function render() {
  
 	    function createAddPlotRowButton(addPlotRowButtonId){
 			
-			var addPlotRowButton   = d3.select("#" + addPlotRowButtonId);
-			if (addPlotRowButton.empty()){
-				// Add the button.
-				d3.select("#" + dbsliceData.elementId)
-				  .append("button")
-					.attr("id", addPlotRowButtonId)
-					.attr("class", "btn btn-info btn-block")
-					.html("+");
-				  
-				addMenu.addPlotRowControls.make(addPlotRowButtonId);
-			} else {
-				// Move the button down
-				var b = document.getElementById(addPlotRowButtonId);
-				b.parentNode.appendChild(b);
-			}; // if
+			addMenu.addPlotRowControls.make(dbsliceData.elementId, addPlotRowButtonId)
 			
 		} // createAddPlotRowButton
 		
@@ -240,8 +226,5 @@ function render() {
 		
 		
     } // render
-
-    
-
 
 export { render };
