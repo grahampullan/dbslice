@@ -1,7 +1,8 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
-import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { filter } from '../core/filter.js';
+import { color } from '../core/color.js';
 import { plotHelpers } from '../plot/plotHelpers.js';
 
 const cfD3Scatter = {
@@ -216,7 +217,7 @@ const cfD3Scatter = {
 					})
 					
 					// Update filters
-					cfUpdateFilters( dbsliceData.data )
+					filter.update()
 					
 					render()
 				} // onClickEvent
@@ -662,8 +663,8 @@ const cfD3Scatter = {
 						plotFunc: cfD3Scatter,
 						figure: undefined,
 						view: {
-							   viewAR: undefined,
-							   dataAR: undefined,
+							   viewAR: NaN,
+							   dataAR: NaN,
 							   xVarOption: undefined,
 							   yVarOption: undefined,
 							   cVarOption: undefined,
@@ -677,8 +678,7 @@ const cfD3Scatter = {
 							   },
 							   t: undefined},
 						tools: {xscale: undefined,
-								yscale: undefined,
-								cscale: undefined},
+								yscale: undefined},
 						format: {
 							title: "Edit title",
 							colWidth: 4,
@@ -850,7 +850,7 @@ const cfD3Scatter = {
 						return ctrl.tools.yscale( d[ctrl.view.yVarOption.val] ) 
 						},
 					c: function cAccessor(d){ 
-						return ctrl.tools.cscale( d[ctrl.view.cVarOption.val] ) 
+						return color.get( d[ctrl.view.cVarOption.val] ) 
 						},
 					id: function idAccessor(d){ 
 						return d.taskId 

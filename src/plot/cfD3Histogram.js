@@ -1,4 +1,5 @@
-import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { filter } from '../core/filter.js';
+import { color } from '../core/color.js';
 import { render } from '../core/render.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
@@ -42,9 +43,6 @@ const cfD3Histogram = {
         
         update: function update(ctrl) {
 		
-			
-			
-			
 			// An idea was to introduce numbers onto the bars for increased readability. However, how should these numbers behave in case teh bins get very narrow? In that case the y axis will be required again.
 			// For now the y-axis has been left on.
             
@@ -245,16 +243,27 @@ const cfD3Histogram = {
 						ctrl.view.xVarOption.val = selectedVar
 						ctrl.view.nBins = undefined
 						
+						// Update the filters. As the variable has changed perhaps the limits of the brush have as well.
+						filter.update()
+						
 						// Redo the plot tools
 						cfD3Histogram.setupPlot.setupPlotTools(ctrl)
+						
+						// Update the brush limits.
+						ctrl.figure
+						  .select("svg.plotArea")
+					      .select(".selection")
+						  .attr("xMin", d3.min( ctrl.tools.xscale.domain() ))
+						  .attr("xMax", d3.max( ctrl.tools.xscale.domain() ))
+						cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl)
 						
 						// Update any bin controls.
 						cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl)
 
 						ctrl.view.transitions = cfD3Histogram.helpers.transitions.animated()
 
-						// Update the graphics
-						cfD3Histogram.update(ctrl)
+						// Update the graphics. As the variable changed and the fitler is getting removed the other plots should be notified.
+						render()
 						
 						
 						
@@ -307,6 +316,7 @@ const cfD3Histogram = {
 				make: function make(ctrl){
 				
 					var h = cfD3Histogram.addInteractivity.addBrush
+					var property = ctrl.view.xVarOption.val
 				
 					// The hardcoded values need to be declared upfront, and abstracted.
 					var svg = ctrl.figure.select("svg.plotArea")
@@ -331,20 +341,22 @@ const cfD3Histogram = {
 						var xMax = x.domain()[1]
 						
 						// Initialise the filter if it isn't already.
-						var dimId = dbsliceData.data.dataProperties.indexOf(ctrl.view.xVarOption.val)
-						var filter = dbsliceData.data.histogramSelectedRanges[dimId]
-						if(filter !== undefined){
-							xMin = filter[0]
-							xMax = filter[1]
+						
+						
+						var limits = dbsliceData.data.histogramSelectedRanges[property]
+						if(limits !== undefined){
+							xMin = limits[0]
+							xMax = limits[1]
 						} else {
-							dbsliceData.data.histogramSelectedRanges[dimId] = [xMin, xMax]
+							filter.addUpdateDataFilter(property, [xMin, xMax])
+							
 						} // if
 						
 					} else {
-						// Setup th efilter bounds in the cfInit??
-						var filter = dbsliceData.data.histogramSelectedRanges[dimId]
-						var xMin = filter[0]
-						var xMax = filter[1]
+						// Setup the filter bounds in the cfInit??
+						var limits = dbsliceData.data.histogramSelectedRanges[property]
+						var xMin = limits[0]
+						var xMax = limits[1]
 						
 						
 						brush.selectAll("*").remove();
@@ -555,11 +567,11 @@ const cfD3Histogram = {
 					
 					var selectedRange = [x.invert(lowerBound), x.invert(upperBound)]
 					
-					var dimId = dbsliceData.data.dataProperties.indexOf(ctrl.view.xVarOption.val)
-					dbsliceData.data.histogramSelectedRanges[ dimId ] = selectedRange;
+					// Update the filter range
+					filter.addUpdateDataFilter(ctrl.view.xVarOption.val, selectedRange)
 					
-					// Update the filter
-					cfUpdateFilters( dbsliceData.data );
+					// Apply the appropriate filters to the crossfilter
+					filter.update();
 					
 				}, // updateSelection
 				

@@ -1,4 +1,5 @@
-import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { filter } from '../core/filter.js';
+import { color } from '../core/color.js';
 import { render } from '../core/render.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
@@ -41,17 +42,12 @@ const cfD3BarChart = {
 			
 			
 			
-			function getHeight(d){ return ctrl.tools.yscale.bandwidth() }
-			function getWidth(d){ return ctrl.tools.xscale(d.value) }
-			function getPosition(d){ return ctrl.tools.yscale(d.key) }
-			function getColor(d){ return ctrl.tools.cscale(d.key) }
 			
-			function getLabelPosition(d){return getPosition(d) + 0.5*getHeight(d)}
-			function getLabel(d){return d.key}
 			
 			// Handle the entering/updating/exiting of bars.
 			var bars = svg.select("g.data").selectAll("rect").data(items);
 			
+			// New bars
 			bars.enter()
 			  .append("rect")
 				.attr("height", getHeight)
@@ -59,14 +55,17 @@ const cfD3BarChart = {
 				.attr("x", 0)
 				.attr("y", getPosition)
 				.style("fill", getColor)
-				.attr("opacity", 1)
+				.attr("opacity", getOpacity)
 			  .transition()
 				.attr("width", getWidth)	
-				 
+			
+			// Existing bars
 			bars.transition()
 			  .attr("height", getHeight)
 			  .attr("width", getWidth)
 			  .attr("y",     getPosition)
+			  .style("fill", getColor)
+			  .attr("opacity", getOpacity)
 
 			bars.exit().remove()
 			
@@ -102,8 +101,38 @@ const cfD3BarChart = {
 			cfD3BarChart.addInteractivity.addOnMouseClick(ctrl);
         
 		
+			// TEST
+			
+			function getHeight(d){ return ctrl.tools.yscale.bandwidth() }
+			function getWidth(d){ return ctrl.tools.xscale(d.value) }
+			function getPosition(d){ return ctrl.tools.yscale(d.key) }
+			function getColor(d){ return color.get(d.key) }
+			function getOpacity(d){
+					
+				// Change color if the filter has been selected.
+				// if no filters then all are selected
+				var property = ctrl.view.yVarOption.val
+				
+				var filterItems = dbsliceData.data.filterSelected[property]
+				if ( filterItems === undefined || filterItems.length === 0) {
+					// The filter on this dimension either does not exist, or it contains no fitlered items, therefore this item is selected.
+					return 1;
+				} else {
+					return filterItems.indexOf(d.key) === -1 ? 0.2 : 1;
+				} // if
+				
+			} // transitionOpacityEffects
+			
+			function getLabelPosition(d){return getPosition(d) + 0.5*getHeight(d)}
+			function getLabel(d){return d.key}
 			
 			
+			
+			
+			
+
+
+				
 			
         }, // update
       
@@ -164,14 +193,6 @@ const cfD3BarChart = {
 				    .padding([0.2])
 				    .align([0.5]);
 					
-					
-				// The internal color scale might change due to the user changing hte data, but this should not reset the color scale.
-				if(ctrl.tools.cscale == undefined){
-					ctrl.tools.cscale = function(){return "cornflowerblue"}
-				} // if
-				
-				
-				
 			
 			} // setupPlotTools
 		
@@ -187,11 +208,18 @@ const cfD3BarChart = {
 					
 						var selectedVar = this.value
 					
-						// Perform the regular task for y-select.
+						// Perform the regular task for y-select: update teh DOM elements, and the plot state object.
 						plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar)
 						
-						// Perform tasks required by both the vertical and horizontal select on change events.
+						// Update the filter. If a variable is removed from view then it's filter must be removed as well. It is completely REMOVED, and not stored in the background.
+						filter.update()
+						
+						// Perform tasks required by both the vertical and horizontal select on change events. This includes updating this plot, and it's plotting tools.
 						plotHelpers.setupInteractivity.general.onSelectChange.common(ctrl)
+						
+						
+						// Now render the view again. If a filter has been removed by changing the variable other plots will need to be updated too.
+						render()
 						
 					} // return
 				}, // vertical
@@ -205,73 +233,20 @@ const cfD3BarChart = {
 				
 				svg.selectAll("rect").on("click", onClick);
 				
-				// Add the associated transition effects.
-				svg.selectAll("rect").transition()
-				  .attr("width", transitionWidthEffects)
-				  .attr("y",     transitionYEffects)
-				  .attr("height", transitionHeightEffects) 
-				  .attr("opacity", transitionOpacityEffects);
-				
 				function onClick(d){
 					
-					var dimId = dbsliceData.data.metaDataProperties.indexOf( property );
 					
-					// Initialise filter if necessary
-				    if (dbsliceData.data.filterSelected[dimId] === undefined){
-					    dbsliceData.data.filterSelected[dimId] = [];
-				    } // if
+					// Update the filter selection.
+					filter.addUpdateMetadataFilter(property, d.key)
 
-
-					// check if current filter is already active
-				    if (dbsliceData.data.filterSelected[dimId].indexOf(d.key) !== -1){
-					    // Already active filter, let it remove this item from view.
-					    var ind = dbsliceData.data.filterSelected[dimId].indexOf(d.key);
-					    dbsliceData.data.filterSelected[dimId].splice(ind, 1);
-				    } else {
-					    // Filter not active, add the item to view.
-					    dbsliceData.data.filterSelected[dimId].push(d.key);
-				    } // if
-
-				    cfUpdateFilters(dbsliceData.data);
+					// Apply the selected filters to the crossfilter object.
+				    filter.update();
 				  
 				    
 				    // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
 				    render();
 					
-					// Adjust the styling: first revert back to default, then apply the mouseover.
-					//crossPlotHighlighting.off(d, "cfD3BarChart");
-					//crossPlotHighlighting.on(d, "cfD3BarChart");
-					
 				} // onClick
-				
-				function transitionOpacityEffects(v){
-					
-					// Change color if the filter has been selected.
-					// if no filters then all are selected
-					var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
-					  
-					if (dbsliceData.data.filterSelected[dimId] === undefined || dbsliceData.data.filterSelected[dimId].length === 0) {
-						return 1;
-					} else {
-						return dbsliceData.data.filterSelected[dimId].indexOf(v.key) === -1 ? 0.2 : 1;
-					} // if
-					
-				} // transitionEffects
-				
-				function transitionWidthEffects(v){
-					// Get the new width;
-				  return ctrl.tools.xscale(v.value);
-				} // transitionWidthEffects
-				
-				function transitionHeightEffects(){
-				  return ctrl.tools.yscale.bandwidth();
-				} // transitionHeightEffects
-				
-				function transitionYEffects(v){
-				  // Get the new width;
-				  return ctrl.tools.yscale(v.key);
-					
-				} // transitionYEffects
 				
 			}, // addOnMouseClick
 			

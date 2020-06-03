@@ -142,7 +142,7 @@ function refreshTasksInPlotRows() {
 				
 				// DUMMY FUNCTIONALITY!
 				// In the real version this should call either render, or simply the function update, depending on what happens upon plot configure. If plot configure already creates an empty plot this could just call the update. Otherwise this would call render directly.
-				plotCtrl.plotFunc.update_(plotCtrl)
+				plotCtrl.plotFunc.update(plotCtrl)
 				
 				
 				

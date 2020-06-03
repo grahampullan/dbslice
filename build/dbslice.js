@@ -18,6 +18,37 @@ var dbslice = (function (exports) {
 
   var dbsliceData = new DbsliceData();
 
+  var color = {
+    // The color controls should probably be moved to a single location, i.e. a single button on a toolbar somewhere. Maybe create a floating top toolbat to control all general behaviour.
+    // To perform the task it seems it is the simplest if this variable holds the color palette for all other plots to share. The color change effects need then only change the color palette here. Specifically: this palette will replace ctrl.tools.cscale.
+    defaultPalette: function defaultPalette() {
+      return "cornflowerblue";
+    },
+    // defaultPalette
+    colorPalette: d3.scaleOrdinal(d3.schemeCategory10),
+    // colorPalette
+    // settings holds the flag for the scheme to use, and the variable it is supposed to be used with. 
+    settings: {
+      scheme: undefined,
+      variable: undefined
+    },
+    get: function get(key) {
+      // Coloring is expected to be done on the categorical variable key basis.
+      // Perform any input check on the input key, and return the appropriate color code. So that the colors don't baloon out of control?
+      var palette = color.defaultPalette;
+      var colorIsChosen = color.settings.scheme != undefined;
+      var keyIsValid = color.settings.variable == undefined ? false : dbsliceData.data.metaDataUniqueValues[color.settings.variable].includes(key);
+
+      if (colorIsChosen && keyIsValid) {
+        palette = color.colorPalette;
+      } // if			
+
+
+      return palette(key);
+    } // get
+
+  }; // crossPlotColoring
+
   var crossPlotHighlighting = {
     on: function on(d, sourcePlotName) {
       // Functionality:
@@ -390,6 +421,7 @@ var dbslice = (function (exports) {
 
 
                 option.val = d; // The data defined options, if they exist, must not be deselected however. Highlight the selected ones.
+                // if for ctrl.view.options is here to account for the cases where the only options are those that feature only functionality.
 
                 if (ctrl.view.options != undefined) {
                   var userOptionNames = ctrl.view.options.map(function (o) {
@@ -415,20 +447,25 @@ var dbslice = (function (exports) {
             groupColor: function groupColor(ctrl, varName) {
               // This functionality relies on the update to perform the actual change, and only configures the tools for the update to have the desired effect.
               // Setup the color function.
-              if (ctrl.tools.cscale() == "cornflowerblue") {
+              if (color.settings.scheme == undefined) {
                 // Color scale is set to the default. Initialise a color scale.
                 // The default behaviour of d3 color scales is that they extend the domain as new items are passed to it. Even if the domain is fixed upfront, the scale will extend its domain when new elements are presented to it.
-                ctrl.tools.cscale = d3.scaleOrdinal(d3.schemeCategory10);
-              } else if (ctrl.view.cVarOption.val != varName) {
-                // The color metadata option has changed. Create a new scale to be used with this parameter.
-                ctrl.tools.cscale = d3.scaleOrdinal(d3.schemeCategory10);
+                color.settings.scheme = "color";
+                color.settings.variable = varName;
+              } else if (color.settings.variable != varName) {
+                // The color metadata option has changed. Clear the scale domain so that the scale will be used with the new parameter.
+                color.colorPalette.domain([]);
+                color.settings.variable = varName;
               } else {
                 // The same color option has been selected - return to the default color options.
-                ctrl.tools.cscale = function () {
-                  return "cornflowerblue";
-                };
+                color.settings.scheme = undefined;
+                color.settings.variable = undefined;
+                color.colorPalette.domain([]);
               } // if
+              // do the render so that all plots are updated with the color.
 
+
+              render();
             },
             // groupColor
             toggleAR: function toggleAR(ctrl) {
@@ -544,7 +581,7 @@ var dbslice = (function (exports) {
             // Update teh DOM accordingly.
             plotHelpers.setupInteractivity.general.toggleToggle(this); // Update filters
 
-            cfUpdateFilters(dbsliceData.data);
+            filter.update();
             render();
           }; // onClickEvent
 
@@ -747,14 +784,7 @@ var dbslice = (function (exports) {
         var bounds = plotHelpers.setupTools.getPlotBounds(ctrl); // Create the required scales.
 
         ctrl.tools.xscale = d3.scaleLinear().range(bounds.range.x).domain(bounds.domain.x);
-        ctrl.tools.yscale = d3.scaleLinear().range(bounds.range.y).domain(bounds.domain.y); // The internal color scale might change due to the user changing hte data, but this should not reset the color scale.
-
-        if (ctrl.tools.cscale == undefined) {
-          ctrl.tools.cscale = function () {
-            return "cornflowerblue";
-          };
-        } // if
-
+        ctrl.tools.yscale = d3.scaleLinear().range(bounds.range.y).domain(bounds.domain.y);
       },
       // go
       getPlotBounds: function getPlotBounds(ctrl) {
@@ -765,7 +795,7 @@ var dbslice = (function (exports) {
         var domain = h.findDomainDimensions(ctrl);
         var range = h.findPlotDimensions(ctrl.figure.select("svg.plotArea"));
 
-        if (ctrl.view.viewAR !== undefined) {
+        if (!isNaN(ctrl.view.viewAR)) {
           // Adjust the plot domain to preserve an aspect ratio of 1, but try to use up as much of the drawing area as possible.
           h_.adjustAR(range, domain, ctrl.view.viewAR);
         } else {
@@ -978,14 +1008,19 @@ var dbslice = (function (exports) {
             var selectedVar = this.value; // Update the y-variable for the plot, and re-intialise the number of bins.
 
             ctrl.view.xVarOption.val = selectedVar;
-            ctrl.view.nBins = undefined; // Redo the plot tools
+            ctrl.view.nBins = undefined; // Update the filters. As the variable has changed perhaps the limits of the brush have as well.
 
-            cfD3Histogram.setupPlot.setupPlotTools(ctrl); // Update any bin controls.
+            filter.update(); // Redo the plot tools
+
+            cfD3Histogram.setupPlot.setupPlotTools(ctrl); // Update the brush limits.
+
+            ctrl.figure.select("svg.plotArea").select(".selection").attr("xMin", d3.min(ctrl.tools.xscale.domain())).attr("xMax", d3.max(ctrl.tools.xscale.domain()));
+            cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl); // Update any bin controls.
 
             cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl);
-            ctrl.view.transitions = cfD3Histogram.helpers.transitions.animated(); // Update the graphics
+            ctrl.view.transitions = cfD3Histogram.helpers.transitions.animated(); // Update the graphics. As the variable changed and the fitler is getting removed the other plots should be notified.
 
-            cfD3Histogram.update(ctrl);
+            render();
           }; // return
         } // vertical
 
@@ -1015,7 +1050,8 @@ var dbslice = (function (exports) {
       // addMarkerTooltip
       addBrush: {
         make: function make(ctrl) {
-          var h = cfD3Histogram.addInteractivity.addBrush; // The hardcoded values need to be declared upfront, and abstracted.
+          var h = cfD3Histogram.addInteractivity.addBrush;
+          var property = ctrl.view.xVarOption.val; // The hardcoded values need to be declared upfront, and abstracted.
 
           var svg = ctrl.figure.select("svg.plotArea"); // Get the scale. All properties requried are in the svg.
 
@@ -1029,21 +1065,20 @@ var dbslice = (function (exports) {
             var xMin = x.domain()[0];
             var xMax = x.domain()[1]; // Initialise the filter if it isn't already.
 
-            var dimId = dbsliceData.data.dataProperties.indexOf(ctrl.view.xVarOption.val);
-            var filter = dbsliceData.data.histogramSelectedRanges[dimId];
+            var limits = dbsliceData.data.histogramSelectedRanges[property];
 
-            if (filter !== undefined) {
-              xMin = filter[0];
-              xMax = filter[1];
+            if (limits !== undefined) {
+              xMin = limits[0];
+              xMax = limits[1];
             } else {
-              dbsliceData.data.histogramSelectedRanges[dimId] = [xMin, xMax];
+              filter.addUpdateDataFilter(property, [xMin, xMax]);
             } // if
 
           } else {
-            // Setup th efilter bounds in the cfInit??
-            var filter = dbsliceData.data.histogramSelectedRanges[dimId];
-            var xMin = filter[0];
-            var xMax = filter[1];
+            // Setup the filter bounds in the cfInit??
+            var limits = dbsliceData.data.histogramSelectedRanges[property];
+            var xMin = limits[0];
+            var xMax = limits[1];
             brush.selectAll("*").remove();
           } // if
 
@@ -1181,11 +1216,11 @@ var dbslice = (function (exports) {
           var rect = ctrl.figure.select("svg.plotArea").select(".selection");
           var lowerBound = Number(rect.attr("x"));
           var upperBound = Number(rect.attr("x")) + Number(rect.attr("width"));
-          var selectedRange = [x.invert(lowerBound), x.invert(upperBound)];
-          var dimId = dbsliceData.data.dataProperties.indexOf(ctrl.view.xVarOption.val);
-          dbsliceData.data.histogramSelectedRanges[dimId] = selectedRange; // Update the filter
+          var selectedRange = [x.invert(lowerBound), x.invert(upperBound)]; // Update the filter range
 
-          cfUpdateFilters(dbsliceData.data);
+          filter.addUpdateDataFilter(ctrl.view.xVarOption.val, selectedRange); // Apply the appropriate filters to the crossfilter
+
+          filter.update();
         },
         // updateSelection
         updateBrush: function updateBrush(ctrl) {
@@ -1648,7 +1683,7 @@ var dbslice = (function (exports) {
             this.checked = currentVal; // console.log("checking")
           }); // Update filters
 
-          cfUpdateFilters(dbsliceData.data);
+          filter.update();
           render();
         }; // onClickEvent
 
@@ -1950,8 +1985,8 @@ var dbslice = (function (exports) {
           plotFunc: cfD3Scatter,
           figure: undefined,
           view: {
-            viewAR: undefined,
-            dataAR: undefined,
+            viewAR: NaN,
+            dataAR: NaN,
             xVarOption: undefined,
             yVarOption: undefined,
             cVarOption: undefined,
@@ -1967,8 +2002,7 @@ var dbslice = (function (exports) {
           },
           tools: {
             xscale: undefined,
-            yscale: undefined,
-            cscale: undefined
+            yscale: undefined
           },
           format: {
             title: "Edit title",
@@ -2129,7 +2163,7 @@ var dbslice = (function (exports) {
             return ctrl.tools.yscale(d[ctrl.view.yVarOption.val]);
           },
           c: function cAccessor(d) {
-            return ctrl.tools.cscale(d[ctrl.view.cVarOption.val]);
+            return color.get(d[ctrl.view.cVarOption.val]);
           },
           id: function idAccessor(d) {
             return d.taskId;
@@ -2283,7 +2317,7 @@ var dbslice = (function (exports) {
 
       dbsliceData.data.fileDim.filterAll(); // Reinstate other data filters.
 
-      cfUpdateFilters(dbsliceData.data);
+      filter.update();
     },
     // cfRemove
     helpers: {
@@ -3094,6 +3128,7 @@ var dbslice = (function (exports) {
   }; // importExportFunctionality
 
   var cfD3Line = {
+    // • report to the user info about the data (missing, duplicated, intersect clashes, maybe even the things that will yield the largest addition of data to the screen)
     name: "cfD3Line",
     make: function make(ctrl) {
       // This function only makes the plot, but it does not update it with the data. That is left to the update which is launced when the user prompts it, and the relevant data is loaded.
@@ -3129,10 +3164,7 @@ var dbslice = (function (exports) {
       hs.twoInteractiveAxes.buttonMenu.update(ctrl, [sliceOption]); // But it will try to draw when this is updated...
     },
     // make
-    update: function update() {// Only launch refresh if necessary? How to make that one work smoothly?
-    },
-    // update
-    update_: function update_(ctrl) {
+    update: function update(ctrl) {
       // This function re-intialises the plots based on the data change that was initiated by the user.
       // Update re-selects the data to be drawn, and then refreshes the view.
       // Remove all the previously stored promises, so that only the promises required on hte last redraw are retained.
@@ -3140,76 +3172,62 @@ var dbslice = (function (exports) {
 
       cfD3Line.helpers.getLineDataInfo(ctrl); // The data must be retrieved here. First initialise the options.
 
-      cfD3Line.setupPlot.updateUiOptions(ctrl); // Ah, no, the data will have to be retrieved first so that the plot tools can be established!!
-      // I also need an array with 23 elements - but that could also simply be the compatible array.... If I make the array of property arrays I also need to figure out how to store the taskId again. Just use the file for the assignment, and use appropriate accessors etc.
-      // The ranges are accessed directly from the properties.
-      // Then rescale teh svg.
-      // Check to adjust the width of the plot in case of a redraw.
+      if (ctrl.data.intersect != undefined) {
+        cfD3Line.setupPlot.updateUiOptions(ctrl);
+      } // if
+      // Rescale the svg in event of a redraw.
 
-      plotHelpers.setupPlot.general.rescaleSvg(ctrl); // Setup the scales for plotting. THIS SHOULD NOW WORK - ONLY FINDDOMAINDIMENSIONS WAS CHANGED!!
-      // PLOT TOOLS REQURIES A LINE FUNCTION AS WELL!!
-      // THIS RESETS THE AXIS LIMITS EVERY TIME!! IT SHOULD BE CALLE ONLY ON DATA REFRESH!! OR AN EXTERNAL FUNCTION SHOULD HANDLE THE DRAW AND UPDATE
 
-      plotHelpers.setupTools.go(ctrl); // Call the refresh function which readjust the plot elements.
+      plotHelpers.setupPlot.general.rescaleSvg(ctrl); // Setup the plot tools
+
+      cfD3Line.setupPlot.setupPlotTools(ctrl); // Call the refresh function which readjust the plot elements.
 
       cfD3Line.refresh(ctrl);
     },
     // update
     refresh: function refresh(ctrl) {
-      // Trigger the redraw if the conditions for it are met.
       if (ctrl.data.compatible.length > 0) {
-        cfD3Line.refresh_(ctrl);
+        // If this is a split variable case then the accessors need to return the appropriate array. If not they can just return the values.
+        // It was assumed that the d3 data join process only stores the reference to the data, and therefore to minimise memory usage the original underlying data is used to join to the elements, meaning that the accessor needs to do the final transform before the plotting.
+        var draw = function draw(d) {
+          return ctrl.tools.line(cfD3Line.helpers.getLineDataVals(d, ctrl));
+        }; // draw
+
+
+        var getTaskId = function getTaskId(d) {
+          return d.task.taskId;
+        }; // getTaskId
+
+
+        var getColor = function getColor(d) {
+          return color.get(d.task[color.settings.variable]);
+        }; // getColor
+
+
+        // Update the axes
+        cfD3Line.helpers.axes.update(ctrl);
+        var clipPath = "url(#" + ctrl.figure.select("svg.plotArea").select("clipPath").attr("id") + ")"; // Assign the data
+
+        var allSeries = ctrl.figure.select("svg.plotArea").select("g.data").selectAll(".plotSeries").data(ctrl.data.compatible); // Enter/update/exit
+
+        allSeries.enter().each(function () {
+          var series = d3.select(this);
+          var seriesLine = series.append("g").attr("class", "plotSeries").attr("task-id", getTaskId).attr("clip-path", clipPath).append("path").attr("class", "line").attr("d", draw).style("stroke", getColor).style("fill", "none").style("stroke-width", "2.5px"); // Add a tooltip to this line
+
+          cfD3Line.addInteractivity.addLineTooltip(ctrl, seriesLine.node()); // Add the option to select this line manually.
+
+          cfD3Line.addInteractivity.addSelection(seriesLine.node());
+        }); // update: A bit convoluted as the paths have a wrapper containing some information for ease of user inspection in dev tools.
+
+        allSeries.each(function () {
+          var series = d3.select(this).attr("task-id", getTaskId);
+        });
+        allSeries.selectAll("path.line").transition().duration(ctrl.view.transitions.duration).attr("d", draw).style("stroke", getColor);
+        allSeries.exit().remove();
       } // if
 
     },
     // refresh
-    refresh_: function refresh_(ctrl) {
-      // Update the axes
-      cfD3Line.helpers.axes.update(ctrl); // If this is a split variable case then the accessors need to return the appropriate array. If not they can just return the values.
-      // It was assumed that the d3 data join process only stores the reference to the data, and therefore to minimise memory usage the original underlying data is used to join to the elements, meaning that the accessor needs to do the final transform before the plotting.
-
-      function draw(d) {
-        return ctrl.tools.line(cfD3Line.helpers.getLineDataVals(d, ctrl));
-      } // draw
-
-
-      function getTaskId(d) {
-        return d.task.taskId;
-      } // getTaskId
-
-
-      function color(d) {
-        return ctrl.tools.cscale(d.task[ctrl.view.cVarOption.val]);
-      } // color
-
-
-      var clipPath = "url(#" + ctrl.figure.select("svg.plotArea").select("clipPath").attr("id") + ")"; // Make the required line tool too!
-      // The d3.line expects an array of points, and will then connect it. Therefore the data must be in some form of: [{x: 0, y:0}, ...]
-
-      ctrl.tools.line = d3.line().x(function (d) {
-        return ctrl.tools.xscale(d.x);
-      }).y(function (d) {
-        return ctrl.tools.yscale(d.y);
-      }); // Assign the data
-
-      var allSeries = ctrl.figure.select("svg.plotArea").select("g.data").selectAll(".plotSeries").data(ctrl.data.compatible); // Enter/update/exit
-
-      allSeries.enter().each(function () {
-        var series = d3.select(this);
-        var seriesLine = series.append("g").attr("class", "plotSeries").attr("task-id", getTaskId).attr("clip-path", clipPath).append("path").attr("class", "line").attr("d", draw).style("stroke", color).style("fill", "none").style("stroke-width", "2.5px"); // Add a tooltip to this line
-
-        cfD3Line.addInteractivity.addLineTooltip(ctrl, seriesLine.node()); // Add the option to select this line manually.
-
-        cfD3Line.addInteractivity.addSelection(seriesLine.node());
-      }); // update: A bit convoluted as the paths have a wrapper containing some information for ease of user inspection in dev tools.
-
-      allSeries.each(function () {
-        var series = d3.select(this).attr("task-id", getTaskId);
-      });
-      allSeries.selectAll("path.line").transition().duration(ctrl.view.transitions.duration).attr("d", draw).style("stroke", color);
-      allSeries.exit().remove();
-    },
-    // refresh_
     rescale: function rescale(ctrl) {
       // What should happen if the window is resized?
       // 1.) The svg should be resized appropriately
@@ -3217,7 +3235,7 @@ var dbslice = (function (exports) {
 
       plotHelpers.setupTools.go(ctrl); // 3.) The plot needs to be redrawn
 
-      cfD3Line.refresh_(ctrl);
+      cfD3Line.refresh(ctrl);
     },
     // rescale
     setupPlot: {
@@ -3305,6 +3323,18 @@ var dbslice = (function (exports) {
       },
       // updateUiOptions
       // Functionality required to setup the tools.
+      setupPlotTools: function setupPlotTools(ctrl) {
+        // Setup the scales for plotting.
+        plotHelpers.setupTools.go(ctrl); // Make the required line tool too!
+        // The d3.line expects an array of points, and will then connect it. Therefore the data must be in some form of: [{x: 0, y:0}, ...]
+
+        ctrl.tools.line = d3.line().x(function (d) {
+          return ctrl.tools.xscale(d.x);
+        }).y(function (d) {
+          return ctrl.tools.yscale(d.y);
+        });
+      },
+      // setupPlotTools
       findPlotDimensions: function findPlotDimensions(svg) {
         return {
           x: [0, Number(svg.select("g.data").attr("width"))],
@@ -3413,15 +3443,12 @@ var dbslice = (function (exports) {
       // Initialisation
       createDefaultControl: function createDefaultControl() {
         // data:
-
-        /* 
-        	.promises are the promises which were completed before drawing the graphics.
-        	.requested is an array of urls whose data are requested by the plotting tool. These need not be the same as the data in promises as those are loaded on user prompt!
-        	.available is an array of urls which were found in the central booking,
-        	.missing is an array of urls which were NOT found in the central booking.
-        	.dataProperties is a string array containing the properties found in the data.
-        	.data is an array of n-data arrays corresponding to the n-task slice files.
-        */
+        // • .promises are promises completed before drawing the graphics.
+        // • .requested is an array of urls whose data are requested by the plotting tool. These need not be the same as the data in promises as those are loaded on user prompt!
+        // • .available is an array of urls which were found in the central booking,
+        // • .missing                              NOT found
+        // • .dataProperties is a string array of properties found in the data.
+        // • .data is an array of n-data arrays of the n-task slice files.
         var ctrl = {
           plotFunc: cfD3Line,
           figure: undefined,
@@ -3441,8 +3468,8 @@ var dbslice = (function (exports) {
           view: {
             sliceId: undefined,
             options: [],
-            viewAR: undefined,
-            dataAR: undefined,
+            viewAR: NaN,
+            dataAR: NaN,
             xVarOption: undefined,
             yVarOption: undefined,
             cVarOption: undefined,
@@ -3456,8 +3483,7 @@ var dbslice = (function (exports) {
           },
           tools: {
             xscale: undefined,
-            yscale: undefined,
-            cscale: undefined
+            yscale: undefined
           },
           format: {
             title: "Edit title",
@@ -3911,9 +3937,7 @@ var dbslice = (function (exports) {
       // getLineDataInfo
       // Manual functionality
       updateManualSelections: function updateManualSelections(ctrl) {
-        var g = ctrl.figure.select("svg.plotArea").select("g.data"); // Set back to default style.
-
-        g.selectAll("path.line").style("stroke", "cornflowerblue"); // Color in selected circles.
+        var g = ctrl.figure.select("svg.plotArea").select("g.data"); // Color in selected circles.
 
         dbsliceData.data.manuallySelectedTasks.forEach(function (d) {
           g.selectAll("g.plotSeries[task-id='" + d + "']").select("path.line").style("stroke", "rgb(255, 127, 14)").style("stroke-width", 4);
@@ -4324,9 +4348,9 @@ var dbslice = (function (exports) {
                 }); // filter
               }); // each
             }); // each
-            // Remove also the htmls element accordingly.
+            // Remove also the htmls element accordingly. It should be removed with it's wrapper alltogether.
 
-            plotCardDOM.remove();
+            plotCardDOM.parentElement.remove();
             render();
           }); // on
         }); // each 
@@ -4953,102 +4977,240 @@ var dbslice = (function (exports) {
 
   } // render
 
-  function cfUpdateFilters(crossfilter) {
-    // Crossfilter works by applying the filtering operations, and then selecting the data.
-    // E.g.:
-    //
-    // var dim = dataArrayCfObject.dimension(function(d) { return d.[variable]; });
-    // dim.filter(“Design A”)
-    //
-    // This created a 'crossfilter' dimension obeject on the first line, which operates on the poperty named by the string 'variable'. his objecathen be used to perform filtering operations onthe data.
-    // On the second line a filter is added. In this case the filter selects only 'facts' (individual items of data), for which the 'variable' is equal to "Design A". The selection is applied directly on the dataArrayCfObject, so trying to retrive the top 10 data points using dataArrayCfObject.top(10) will return the first 10 points of "Design A".
-    //
-    // Thus the filters can be applied here, and will be observed in the rest of the code.
-    // UPDATE THE CROSSFILTER DATA SELECTION:
-    // Bar charts
-    crossfilter.filterSelected.forEach(function (filters, i) {
-      // if the filters array is empty: ie. all values are selected, then reset the dimension
-      if (filters.length === 0) {
-        //Reset all filters
-        crossfilter.metaDims[i].filterAll();
-      } else {
-        crossfilter.metaDims[i].filter(function (d) {
-          return filters.indexOf(d) > -1;
-        }); // filter
-      }
-    }); // forEach
-    // Histograms
+  var filter = {
+    update: function update() {
+      // Crossfilter works by applying the filtering operations, and then selecting the data.
+      // E.g.:
+      //
+      // var dim = dataArrayCfObject.dimension(function(d) { return d.[variable]; });
+      // dim.filter(“Design A”)
+      //
+      // This created a 'crossfilter' dimension obeject on the first line, which operates on the poperty named by the string 'variable'. his objecathen be used to perform filtering operations onthe data.
+      // On the second line a filter is added. In this case the filter selects only 'facts' (individual items of data), for which the 'variable' is equal to "Design A". The selection is applied directly on the dataArrayCfObject, so trying to retrive the top 10 data points using dataArrayCfObject.top(10) will return the first 10 points of "Design A".
+      //
+      // Thus the filters can be applied here, and will be observed in the rest of the code.
+      // UPDATE THE CROSSFILTER DATA SELECTION:
+      var cf = dbsliceData.data; // Bar charts. Maybe this should be split between two separate functions? This would also make it clearer for the user, as well as making hte object clearer. First make it work though.
 
-    crossfilter.histogramSelectedRanges.forEach(function (selectedRange, i) {
-      // Reset all filters
-      crossfilter.dataDims[i].filterAll();
+      updateBarChartFilters();
+      applyBarChartFilters(); // Histograms
 
-      if (selectedRange.length !== 0) {
-        crossfilter.dataDims[i].filter(function (d) {
-          return d >= selectedRange[0] && d <= selectedRange[1] ? true : false;
-        }); // filter
-      }
-    }); // forEach
-    // Manual selections - but this should happen only if the manual switch is on!! 
+      updateHistogramChartFilters();
+      applyHistogramChartFilters(); // Manual selections - but this should happen only if the manual switch is on!! 
 
-    var isManualFilterApplied = checkIfManualFilterIsApplied();
+      applyManualSelections(); // Update the log of selected tasks and their labels. These are used when checking whether data has been loaded, etc.
 
-    if (isManualFilterApplied) {
-      var filters = crossfilter.manuallySelectedTasks;
+      updateActiveTaskLog(); // Checking for bar charts.
 
-      if (filters.length === 0) {
-        // if the filters array is empty: ie. all values are selected, then reset the dimension
-        crossfilter.taskDim.filterAll();
-      } else {
-        crossfilter.taskDim.filter(function (d) {
-          return filters.indexOf(d) > -1;
-        }); // filter
-      }
-    } else {
-      crossfilter.taskDim.filterAll();
-    } // if
-    // HERE THE SELECTED TASKIDS ARE UPDATED
+      function updateBarChartFilters() {
+        // 'updateBarChartFilters' checks if the filters still correspond to a variable visualised by a bar chart. This is required as the user could select a bar, and then change variables. In this case the filter would be retained, and the variable not seen anymore, which would potentially mislead the user. Therefore it has been decided that filters should be visible at all times, and if the user desires to hide some information from the screen then they should be given the option to minimise the plot rows.
+        // 'keys' vs 'getOwnPropertyNames' returns only the enumerable properties, in this case the property 'length' of array is not returned by 'keys'.
+        var filteredVariables = Object.keys(cf.filterSelected); // Check which of the filters stored still correspond to the on screen bar charts.
+
+        filteredVariables.forEach(function (variable) {
+          // Loop through the bar charts to see if this variable is still on screen.
+          var isVariableActive = false;
+          dbsliceData.session.plotRows.forEach(function (plotRow) {
+            plotRow.plots.forEach(function (plot) {
+              if (plot.plotFunc.name == "cfD3BarChart") {
+                // The flag is cumulative over all the bar charts, and if it is present in any of them the variable is active. Therefore an or statement is used.
+                isVariableActive = isVariableActive || plot.view.yVarOption.val == variable;
+              } // if
+
+            }); // forEach
+          }); // forEach
+          // If the variable is no longer active, then remove the filter by deleting the appropriate object property.
+
+          if (!isVariableActive) {
+            delete cf.filterSelected[variable];
+          } // if
+
+        }); // forEach
+      } // updateBarChartFilters
 
 
-    var currentMetaData = crossfilter.metaDims[0].top(Infinity);
-    dbsliceData.filteredTaskIds = currentMetaData.map(function (d) {
-      return d.taskId;
-    });
+      function applyBarChartFilters() {
+        // 'applyBarChartFilters' applies the filters selected based on metadata variables to the crossfilter object.
+        // First deselect all filters, and then subsequently apply only those that are required.
+        // Deselect all metadata filters.
+        cf.metaDims.forEach(function (dim) {
+          dim.filterAll();
+        }); // forEach
+        // Apply required filters. Reselect the filtered variables, as some might have been removed.
 
-    if (currentMetaData.length > 0) {
-      if (currentMetaData[0].label !== undefined) {
-        dbsliceData.filteredTaskLabels = currentMetaData.map(function (d) {
-          return d.label;
-        });
-      } else {
-        dbsliceData.filteredTaskLabels = currentMetaData.map(function (d) {
-          return d.taskId;
-        });
-      } // if
+        var filteredVariables = Object.keys(cf.filterSelected);
+        filteredVariables.forEach(function (variable) {
+          // Find the index to this dimension.
+          var i = cf.metaDataProperties.indexOf(variable);
+          var filterItems = cf.filterSelected[variable]; // if the filters array is empty: ie. all values are selected, then reset the dimension
 
-    } else {
-      dbsliceData.filteredTaskLabels = [];
-    } // if
+          if (filterItems.length === 0) {
+            // Reset the filter
+            cf.metaDims[i].filterAll();
+          } else {
+            // Apply the filter
+            cf.metaDims[i].filter(function (d) {
+              return filterItems.indexOf(d) > -1;
+            }); // filter
+          }
+        }); // forEach
+      } // applyBarChartFilters
+      // Checking for histograms
 
 
-    function checkIfManualFilterIsApplied() {
-      var isManualFilterApplied = false;
-      var scatterPlots = d3.selectAll(".plotWrapper[plottype='cfD3Scatter']");
+      function updateHistogramChartFilters() {
+        // 'updateBarChartFilters' checks if the filters still correspond to a variable visualised by a bar chart. This is required as the user could select a bar, and then change variables. In this case the filter would be retained, and the variable not seen anymore, which would potentially mislead the user. Therefore it has been decided that filters should be visible at all times, and if the user desires to hide some information from the screen then they should be given the option to minimise the plot rows.
+        // 'keys' vs 'getOwnPropertyNames' returns only the enumerable properties, in this case the property 'length' of array is not returned by 'keys'.
+        var filteredVariables = Object.keys(cf.histogramSelectedRanges); // Check which of the filters stored still correspond to the on screen bar charts.
 
-      if (!scatterPlots.empty()) {
-        var toggle = scatterPlots.select("input[type='checkbox']");
+        filteredVariables.forEach(function (variable) {
+          // Loop through the bar charts to see if this variable is still on screen.
+          var isVariableActive = false;
+          dbsliceData.session.plotRows.forEach(function (plotRow) {
+            plotRow.plots.forEach(function (plot) {
+              if (plot.plotFunc.name == "cfD3Histogram") {
+                // The flag is cumulative over all the bar charts, and if it is present in any of them the variable is active. Therefore an or statement is used.
+                isVariableActive = isVariableActive || plot.view.xVarOption.val == variable;
+              } // if
 
-        if (!toggle.empty()) {
-          isManualFilterApplied = toggle.node().checked;
+            }); // forEach
+          }); // forEach
+          // If the variable is no longer active, then remove the filter by deleting the appropriate object property.
+
+          if (!isVariableActive) {
+            delete cf.histogramSelectedRanges[variable];
+          } // if
+
+        }); // forEach
+      } // updateHistogramChartFilters
+
+
+      function applyHistogramChartFilters() {
+        // 'updateApplyBarChartFilters' checks if the filters still correspond to a variable visualised by a bar chart. Same logic as for the bar chart.
+        // Deselect all metadata filters.
+        cf.dataDims.forEach(function (dim) {
+          dim.filterAll();
+        }); // forEach
+        // Apply required filters. Reselect the filtered variables, as some might have been removed.
+
+        var filteredVariables = Object.keys(cf.histogramSelectedRanges);
+        filteredVariables.forEach(function (variable) {
+          var i = cf.dataProperties.indexOf(variable);
+          var selectedRange = cf.histogramSelectedRanges[variable];
+
+          if (selectedRange.length !== 0) {
+            // If the selected range has some bounds prescribed attempt to apply them. Note that the filter here is NOT the array.filter, but crossfitler.dimension.fitler.
+            cf.dataDims[i].filter(function (d) {
+              return d >= selectedRange[0] && d <= selectedRange[1] ? true : false;
+            }); // filter
+          }
+        }); // forEach
+      } // applyHistogramChartFilters
+      // Individual selection plots
+
+
+      function applyManualSelections() {
+        var isManualFilterApplied = checkIfManualFilterIsApplied();
+
+        if (isManualFilterApplied) {
+          var filters = cf.manuallySelectedTasks;
+
+          if (filters.length === 0) {
+            // if the filters array is empty: ie. all values are selected, then reset the dimension
+            cf.taskDim.filterAll();
+          } else {
+            cf.taskDim.filter(function (d) {
+              return filters.indexOf(d) > -1;
+            }); // filter
+          }
+        } else {
+          cf.taskDim.filterAll();
         } // if
 
+      } // applyManualSelections
+      // Updating the log
+
+
+      function updateActiveTaskLog() {
+        var currentMetaData = cf.metaDims[0].top(Infinity);
+        dbsliceData.filteredTaskIds = currentMetaData.map(function (d) {
+          return d.taskId;
+        });
+
+        if (currentMetaData.length > 0) {
+          if (currentMetaData[0].label !== undefined) {
+            dbsliceData.filteredTaskLabels = currentMetaData.map(function (d) {
+              return d.label;
+            });
+          } else {
+            dbsliceData.filteredTaskLabels = currentMetaData.map(function (d) {
+              return d.taskId;
+            });
+          } // if
+
+        } else {
+          dbsliceData.filteredTaskLabels = [];
+        } // if
+
+      } // updateActiveTaskLog
+      // Helpers
+
+
+      function checkIfManualFilterIsApplied() {
+        var isManualFilterApplied = false;
+        var scatterPlots = d3.selectAll(".plotWrapper[plottype='cfD3Scatter']");
+
+        if (!scatterPlots.empty()) {
+          var toggle = scatterPlots.select("input[type='checkbox']");
+
+          if (!toggle.empty()) {
+            isManualFilterApplied = toggle.node().checked;
+          } // if
+
+        } // if
+
+
+        return isManualFilterApplied;
+      } // checkIfManualFilterIsApplied
+
+    },
+    // update
+    addUpdateMetadataFilter: function addUpdateMetadataFilter(property, value) {
+      // Initialise filter if necessary
+      if (dbsliceData.data.filterSelected[property] === undefined) {
+        dbsliceData.data.filterSelected[property] = [];
+      } // if
+      // check if current filter is already active
+
+
+      var currentFilter = dbsliceData.data.filterSelected[property];
+
+      if (currentFilter.indexOf(value) !== -1) {
+        // This value is already in the filter, therefore the user decided to remove it from the filter on it's repeated selection.
+        var ind = currentFilter.indexOf(value);
+        currentFilter.splice(ind, 1);
+      } else {
+        // Filter not active, add the item to the filter.
+        currentFilter.push(value);
       } // if
 
+    },
+    // addUpdateMetadataFilter
+    addUpdateDataFilter: function addUpdateDataFilter(property, limits) {
+      /*
+      var dimId = dbsliceData.data.dataProperties.indexOf(ctrl.view.xVarOption.val)
+      var filter = dbsliceData.data.histogramSelectedRanges[dimId]
+      if(filter !== undefined){
+      	xMin = filter[0]
+      	xMax = filter[1]
+      } else {
+      	dbsliceData.data.histogramSelectedRanges[dimId] = [xMin, xMax]
+      } // if
+      */
+      dbsliceData.data.histogramSelectedRanges[property] = limits;
+    } // addUpdateDataFilter
 
-      return isManualFilterApplied;
-    } // checkIfManualFilterIsApplied
-
-  } // cfUpdateFilter
+  }; // filter
 
   var cfD3BarChart = {
     name: "cfD3BarChart",
@@ -5070,7 +5232,24 @@ var dbslice = (function (exports) {
       // Create some common handles.
       var svg = ctrl.figure.select("svg.plotArea"); // Get the items to plot.
 
-      var items = cfD3BarChart.helpers.getItems(ctrl.view.yVarOption.val);
+      var items = cfD3BarChart.helpers.getItems(ctrl.view.yVarOption.val); // Handle the entering/updating/exiting of bars.
+
+      var bars = svg.select("g.data").selectAll("rect").data(items); // New bars
+
+      bars.enter().append("rect").attr("height", getHeight).attr("width", 0).attr("x", 0).attr("y", getPosition).style("fill", getColor).attr("opacity", getOpacity).transition().attr("width", getWidth); // Existing bars
+
+      bars.transition().attr("height", getHeight).attr("width", getWidth).attr("y", getPosition).style("fill", getColor).attr("opacity", getOpacity);
+      bars.exit().remove(); // Handle the entering/updating/exiting of bar labels.
+
+      var keyLabels = svg.select("g.markup").selectAll(".keyLabel").data(items);
+      keyLabels.enter().append("text").attr("class", "keyLabel").attr("x", 0).attr("y", getLabelPosition).attr("dx", 5).attr("dy", ".35em").attr("text-anchor", "start").text(getLabel);
+      keyLabels.transition().attr("y", getLabelPosition).text(getLabel);
+      keyLabels.exit().remove(); // Handle the axes.
+
+      cfD3BarChart.helpers.createAxes(ctrl); // Add interactivity:
+
+      cfD3BarChart.addInteractivity.addOnMouseOver(svg);
+      cfD3BarChart.addInteractivity.addOnMouseClick(ctrl); // TEST
 
       function getHeight(d) {
         return ctrl.tools.yscale.bandwidth();
@@ -5085,8 +5264,24 @@ var dbslice = (function (exports) {
       }
 
       function getColor(d) {
-        return ctrl.tools.cscale(d.key);
+        return color.get(d.key);
       }
+
+      function getOpacity(d) {
+        // Change color if the filter has been selected.
+        // if no filters then all are selected
+        var property = ctrl.view.yVarOption.val;
+        var filterItems = dbsliceData.data.filterSelected[property];
+
+        if (filterItems === undefined || filterItems.length === 0) {
+          // The filter on this dimension either does not exist, or it contains no fitlered items, therefore this item is selected.
+          return 1;
+        } else {
+          return filterItems.indexOf(d.key) === -1 ? 0.2 : 1;
+        } // if
+
+      } // transitionOpacityEffects
+
 
       function getLabelPosition(d) {
         return getPosition(d) + 0.5 * getHeight();
@@ -5094,23 +5289,7 @@ var dbslice = (function (exports) {
 
       function getLabel(d) {
         return d.key;
-      } // Handle the entering/updating/exiting of bars.
-
-
-      var bars = svg.select("g.data").selectAll("rect").data(items);
-      bars.enter().append("rect").attr("height", getHeight).attr("width", 0).attr("x", 0).attr("y", getPosition).style("fill", getColor).attr("opacity", 1).transition().attr("width", getWidth);
-      bars.transition().attr("height", getHeight).attr("width", getWidth).attr("y", getPosition);
-      bars.exit().remove(); // Handle the entering/updating/exiting of bar labels.
-
-      var keyLabels = svg.select("g.markup").selectAll(".keyLabel").data(items);
-      keyLabels.enter().append("text").attr("class", "keyLabel").attr("x", 0).attr("y", getLabelPosition).attr("dx", 5).attr("dy", ".35em").attr("text-anchor", "start").text(getLabel);
-      keyLabels.transition().attr("y", getLabelPosition).text(getLabel);
-      keyLabels.exit().remove(); // Handle the axes.
-
-      cfD3BarChart.helpers.createAxes(ctrl); // Add interactivity:
-
-      cfD3BarChart.addInteractivity.addOnMouseOver(svg);
-      cfD3BarChart.addInteractivity.addOnMouseClick(ctrl);
+      }
     },
     // update
     rescale: function rescale(ctrl) {
@@ -5156,14 +5335,7 @@ var dbslice = (function (exports) {
 
         ctrl.tools.yscale = d3.scaleBand().range([0, height]).domain(items.map(function (d) {
           return d.key;
-        })).padding([0.2]).align([0.5]); // The internal color scale might change due to the user changing hte data, but this should not reset the color scale.
-
-        if (ctrl.tools.cscale == undefined) {
-          ctrl.tools.cscale = function () {
-            return "cornflowerblue";
-          };
-        } // if
-
+        })).padding([0.2]).align([0.5]);
       } // setupPlotTools
 
     },
@@ -5173,11 +5345,15 @@ var dbslice = (function (exports) {
         vertical: function vertical(ctrl) {
           // Returns a function, as otherwise the function would have to find access to the appropriate ctrl object.
           return function () {
-            var selectedVar = this.value; // Perform the regular task for y-select.
+            var selectedVar = this.value; // Perform the regular task for y-select: update teh DOM elements, and the plot state object.
 
-            plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar); // Perform tasks required by both the vertical and horizontal select on change events.
+            plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar); // Update the filter. If a variable is removed from view then it's filter must be removed as well. It is completely REMOVED, and not stored in the background.
 
-            plotHelpers.setupInteractivity.general.onSelectChange.common(ctrl);
+            filter.update(); // Perform tasks required by both the vertical and horizontal select on change events. This includes updating this plot, and it's plotting tools.
+
+            plotHelpers.setupInteractivity.general.onSelectChange.common(ctrl); // Now render the view again. If a filter has been removed by changing the variable other plots will need to be updated too.
+
+            render();
           }; // return
         } // vertical
 
@@ -5187,66 +5363,16 @@ var dbslice = (function (exports) {
         // Add the mouse click event
         var property = ctrl.view.yVarOption.val;
         var svg = ctrl.figure.select("svg.plotArea");
-        svg.selectAll("rect").on("click", onClick); // Add the associated transition effects.
-
-        svg.selectAll("rect").transition().attr("width", transitionWidthEffects).attr("y", transitionYEffects).attr("height", transitionHeightEffects).attr("opacity", transitionOpacityEffects);
+        svg.selectAll("rect").on("click", onClick);
 
         function onClick(d) {
-          var dimId = dbsliceData.data.metaDataProperties.indexOf(property); // Initialise filter if necessary
+          // Update the filter selection.
+          filter.addUpdateMetadataFilter(property, d.key); // Apply the selected filters to the crossfilter object.
 
-          if (dbsliceData.data.filterSelected[dimId] === undefined) {
-            dbsliceData.data.filterSelected[dimId] = [];
-          } // if
-          // check if current filter is already active
+          filter.update(); // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
 
-
-          if (dbsliceData.data.filterSelected[dimId].indexOf(d.key) !== -1) {
-            // Already active filter, let it remove this item from view.
-            var ind = dbsliceData.data.filterSelected[dimId].indexOf(d.key);
-            dbsliceData.data.filterSelected[dimId].splice(ind, 1);
-          } else {
-            // Filter not active, add the item to view.
-            dbsliceData.data.filterSelected[dimId].push(d.key);
-          } // if
-
-
-          cfUpdateFilters(dbsliceData.data); // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
-
-          render(); // Adjust the styling: first revert back to default, then apply the mouseover.
-          //crossPlotHighlighting.off(d, "cfD3BarChart");
-          //crossPlotHighlighting.on(d, "cfD3BarChart");
+          render();
         } // onClick
-
-
-        function transitionOpacityEffects(v) {
-          // Change color if the filter has been selected.
-          // if no filters then all are selected
-          var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
-
-          if (dbsliceData.data.filterSelected[dimId] === undefined || dbsliceData.data.filterSelected[dimId].length === 0) {
-            return 1;
-          } else {
-            return dbsliceData.data.filterSelected[dimId].indexOf(v.key) === -1 ? 0.2 : 1;
-          } // if
-
-        } // transitionEffects
-
-
-        function transitionWidthEffects(v) {
-          // Get the new width;
-          return ctrl.tools.xscale(v.value);
-        } // transitionWidthEffects
-
-
-        function transitionHeightEffects() {
-          return ctrl.tools.yscale.bandwidth();
-        } // transitionHeightEffects
-
-
-        function transitionYEffects(v) {
-          // Get the new width;
-          return ctrl.tools.yscale(v.key);
-        } // transitionYEffects
 
       },
       // addOnMouseClick
@@ -5797,7 +5923,7 @@ var dbslice = (function (exports) {
         // DUMMY FUNCTIONALITY!
         // In the real version this should call either render, or simply the function update, depending on what happens upon plot configure. If plot configure already creates an empty plot this could just call the update. Otherwise this would call render directly.
 
-        plotCtrl.plotFunc.update_(plotCtrl);
+        plotCtrl.plotFunc.update(plotCtrl);
       });
     } // addUpdateOnPromiseCompletion
 
@@ -5905,9 +6031,10 @@ var dbslice = (function (exports) {
   exports.cfD3Line = cfD3Line;
   exports.cfD3Scatter = cfD3Scatter;
   exports.cfDataManagement = cfDataManagement;
-  exports.cfUpdateFilters = cfUpdateFilters;
+  exports.color = color;
   exports.crossPlotHighlighting = crossPlotHighlighting;
   exports.d3Contour2d = d3Contour2d;
+  exports.filter = filter;
   exports.importExportFunctionality = importExportFunctionality;
   exports.initialise = initialise;
   exports.makeSessionHeader = makeSessionHeader;

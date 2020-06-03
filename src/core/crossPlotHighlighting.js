@@ -1,9 +1,7 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 
 const crossPlotHighlighting = {
-		
-		
-		
+			
 		on: function on(d, sourcePlotName){
 		
 			// Functionality:
@@ -102,8 +100,6 @@ const crossPlotHighlighting = {
 			
 			dbsliceData.session.plotRows.forEach(function(plotRow){
 				
-				
-				
 				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
 				plotRow.plots.forEach(function(plotCtrl){
 					
@@ -112,15 +108,8 @@ const crossPlotHighlighting = {
 						plotCtrl.plotFunc.helpers.updateManualSelections(plotCtrl)
 					} // if
 					
-					
-					
-					
 				}) // each
-				
-				
 			}); // forEach
-			
-			
 		}, // manuallySelectedTasks
 		
 	} // crossPlotHighlighting 

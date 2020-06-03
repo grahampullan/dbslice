@@ -37,6 +37,10 @@
 
 
 /* Style the swithch */
+label.switch{
+	margin-bottom: 0px;
+}
+
 .switch {
   position: relative;
   display: inline-block;

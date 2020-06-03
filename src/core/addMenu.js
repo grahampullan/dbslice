@@ -495,8 +495,8 @@ const addMenu = {
 								
 								
 								
-								// Remove also the htmls element accordingly.
-                                plotCardDOM.remove()
+								// Remove also the htmls element accordingly. It should be removed with it's wrapper alltogether.
+                                plotCardDOM.parentElement.remove()
 								
 								render()
 

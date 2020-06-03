@@ -1,5 +1,6 @@
 import { render } from '../core/render.js';
-import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { filter } from '../core/filter.js';
+import { color } from '../core/color.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 
 const plotHelpers = {
@@ -538,6 +539,7 @@ const plotHelpers = {
 									option.val = d;
 									
 									// The data defined options, if they exist, must not be deselected however. Highlight the selected ones.
+									// if for ctrl.view.options is here to account for the cases where the only options are those that feature only functionality.
 									if(ctrl.view.options != undefined){
 									
 										var userOptionNames = ctrl.view.options.map(function(o){return o.name})
@@ -546,9 +548,6 @@ const plotHelpers = {
 											this.classList.replace("deselected", "selected")
 										} // if
 									} // if
-									
-								
-									
 
 									ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
 								
@@ -564,27 +563,33 @@ const plotHelpers = {
 					
 					options: {
 					
-						
-					
 						groupColor: function groupColor(ctrl, varName){
 							
 							// This functionality relies on the update to perform the actual change, and only configures the tools for the update to have the desired effect.
 							
+							
+							
 							// Setup the color function.
-							if(ctrl.tools.cscale() == "cornflowerblue"){
+							if( color.settings.scheme == undefined){
 								// Color scale is set to the default. Initialise a color scale.
 							
 								// The default behaviour of d3 color scales is that they extend the domain as new items are passed to it. Even if the domain is fixed upfront, the scale will extend its domain when new elements are presented to it.
-								ctrl.tools.cscale = d3.scaleOrdinal(d3.schemeCategory10)
-							} else if (ctrl.view.cVarOption.val != varName){
-								// The color metadata option has changed. Create a new scale to be used with this parameter.
+								color.settings.scheme   = "color"
+								color.settings.variable = varName
+							} else if (color.settings.variable != varName){
+								// The color metadata option has changed. Clear the scale domain so that the scale will be used with the new parameter.
 							
-								ctrl.tools.cscale = d3.scaleOrdinal(d3.schemeCategory10)
+								color.colorPalette.domain([])
+								color.settings.variable = varName
 							} else {
 								// The same color option has been selected - return to the default color options.
-							
-								ctrl.tools.cscale = function(){return "cornflowerblue"}
+								color.settings.scheme = undefined
+								color.settings.variable = undefined
+								color.colorPalette.domain([])
 							} // if
+							
+							// do the render so that all plots are updated with the color.
+							render()
 							
 
 						}, // groupColor
@@ -740,7 +745,7 @@ const plotHelpers = {
 						plotHelpers.setupInteractivity.general.toggleToggle(this)
 						
 						// Update filters
-						cfUpdateFilters( dbsliceData.data )
+						filter.update()
 						
 						render()
 					} // onClickEvent
@@ -1045,11 +1050,6 @@ const plotHelpers = {
 					.range( bounds.range.y )
 					.domain( bounds.domain.y );
 				
-				// The internal color scale might change due to the user changing hte data, but this should not reset the color scale.
-				if(ctrl.tools.cscale == undefined){
-					ctrl.tools.cscale = function(){return "cornflowerblue"}
-				} // if
-				
 			}, // go
 			
 			getPlotBounds: function getPlotBounds(ctrl){
@@ -1065,7 +1065,7 @@ const plotHelpers = {
 				
 				
 				
-				if(ctrl.view.viewAR !== undefined){
+				if( !isNaN(ctrl.view.viewAR) ){
 					
 					// Adjust the plot domain to preserve an aspect ratio of 1, but try to use up as much of the drawing area as possible.
 					h_.adjustAR(range, domain, ctrl.view.viewAR)

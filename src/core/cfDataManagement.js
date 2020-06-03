@@ -1,5 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { filter } from '../core/filter.js';
 
 const cfDataManagement = {
 		
@@ -130,7 +130,7 @@ const cfDataManagement = {
 			dbsliceData.data.fileDim.filterAll()
 			
 			// Reinstate other data filters.
-			cfUpdateFilters( dbsliceData.data )
+			filter.update()
 			
 			
 			

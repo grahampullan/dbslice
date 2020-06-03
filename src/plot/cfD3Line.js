@@ -1,11 +1,13 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
-import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
+import { filter } from '../core/filter.js';
+import { color } from '../core/color.js';
 import { plotHelpers } from '../plot/plotHelpers.js';
 import { importExportFunctionality } from '../core/importExportFunctionality.js';
 
 const cfD3Line = {
+		// • report to the user info about the data (missing, duplicated, intersect clashes, maybe even the things that will yield the largest addition of data to the screen)
 	
 		name: "cfD3Line",
 	
@@ -65,13 +67,8 @@ const cfD3Line = {
 		
 		}, // make
 		
-		update: function(){
-			
-			// Only launch refresh if necessary? How to make that one work smoothly?
-			
-		}, // update
 				
-		update_: function update_(ctrl){
+		update: function update(ctrl){
 			// This function re-intialises the plots based on the data change that was initiated by the user.
 			
 			// Update re-selects the data to be drawn, and then refreshes the view.
@@ -87,43 +84,27 @@ const cfD3Line = {
 			
 			
 			// The data must be retrieved here. First initialise the options.
-			cfD3Line.setupPlot.updateUiOptions(ctrl)
+			if(ctrl.data.intersect != undefined){
+				cfD3Line.setupPlot.updateUiOptions(ctrl)
+			} // if
 			
 			
-			
-			
-			
-			// Ah, no, the data will have to be retrieved first so that the plot tools can be established!!
-			// I also need an array with 23 elements - but that could also simply be the compatible array.... If I make the array of property arrays I also need to figure out how to store the taskId again. Just use the file for the assignment, and use appropriate accessors etc.
-			// The ranges are accessed directly from the properties.
-			
-			
-			// Then rescale teh svg.
-			// Check to adjust the width of the plot in case of a redraw.
+			// Rescale the svg in event of a redraw.
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
 			
-			// Setup the scales for plotting. THIS SHOULD NOW WORK - ONLY FINDDOMAINDIMENSIONS WAS CHANGED!!
-			// PLOT TOOLS REQURIES A LINE FUNCTION AS WELL!!
-			// THIS RESETS THE AXIS LIMITS EVERY TIME!! IT SHOULD BE CALLE ONLY ON DATA REFRESH!! OR AN EXTERNAL FUNCTION SHOULD HANDLE THE DRAW AND UPDATE
-			plotHelpers.setupTools.go(ctrl)
 			
-			
-			
+			// Setup the plot tools
+			cfD3Line.setupPlot.setupPlotTools(ctrl)
 			
 			// Call the refresh function which readjust the plot elements.
 			cfD3Line.refresh(ctrl)
 		
 		}, // update
 	
+
 		refresh: function refresh(ctrl){
-			// Trigger the redraw if the conditions for it are met.
-			if(ctrl.data.compatible.length > 0){
-				cfD3Line.refresh_(ctrl)
-			} // if
 			
-		}, // refresh
-	
-		refresh_: function refresh_(ctrl){
+			if(ctrl.data.compatible.length > 0){
 			
 			// Update the axes
 			cfD3Line.helpers.axes.update(ctrl)
@@ -142,17 +123,13 @@ const cfD3Line = {
 				return d.task.taskId
 			} // getTaskId
 			
-			function color(d){
-				return ctrl.tools.cscale(d.task[ctrl.view.cVarOption.val])
-			} // color
+			function getColor(d){
+				return color.get(d.task[color.settings.variable])
+			} // getColor
 			
 			var clipPath = "url(#" + ctrl.figure.select("svg.plotArea").select("clipPath").attr("id") + ")"
 			
-			// Make the required line tool too!
-			// The d3.line expects an array of points, and will then connect it. Therefore the data must be in some form of: [{x: 0, y:0}, ...]
-			ctrl.tools.line = d3.line()
-				.x( function(d){ return ctrl.tools.xscale( d.x ) } )
-				.y( function(d){ return ctrl.tools.yscale( d.y ) } );
+			
 			
 
 			
@@ -173,7 +150,7 @@ const cfD3Line = {
                     .append( "path" )
                       .attr( "class", "line" )
                       .attr( "d", draw )
-                      .style( "stroke", color ) 
+                      .style( "stroke", getColor ) 
                       .style( "fill", "none" )
                       .style( "stroke-width", "2.5px" );
 				
@@ -194,11 +171,13 @@ const cfD3Line = {
 				  .transition()
 				  .duration(ctrl.view.transitions.duration)
                   .attr( "d", draw )
-				  .style( "stroke", color )
+				  .style( "stroke", getColor )
 				   
             allSeries.exit().remove();
+			
+			} // if
 		
-		}, // refresh_
+		}, // refresh
 	
 		rescale: function rescale(ctrl){
 			// What should happen if the window is resized?
@@ -209,7 +188,7 @@ const cfD3Line = {
 			plotHelpers.setupTools.go(ctrl)
 			
 			// 3.) The plot needs to be redrawn
-			cfD3Line.refresh_(ctrl)
+			cfD3Line.refresh(ctrl)
 			
 		}, // rescale
 	
@@ -320,6 +299,19 @@ const cfD3Line = {
 			}, // updateUiOptions
 		
 			// Functionality required to setup the tools.
+			setupPlotTools: function setupPlotTools(ctrl){
+				
+				// Setup the scales for plotting.
+				plotHelpers.setupTools.go(ctrl)
+				
+				// Make the required line tool too!
+				// The d3.line expects an array of points, and will then connect it. Therefore the data must be in some form of: [{x: 0, y:0}, ...]
+				ctrl.tools.line = d3.line()
+					.x( function(d){ return ctrl.tools.xscale( d.x ) } )
+					.y( function(d){ return ctrl.tools.yscale( d.y ) } );
+				
+			}, // setupPlotTools
+			
 			findPlotDimensions: function findPlotDimensions(svg){
 			
 				return {x: [0, Number( svg.select("g.data").attr("width") )],     y: [Number( svg.select("g.data").attr("height") ), 0]}
@@ -482,14 +474,14 @@ const cfD3Line = {
 			createDefaultControl: function createDefaultControl(){
 			
 				// data:
-				/* 
-					.promises are the promises which were completed before drawing the graphics.
-					.requested is an array of urls whose data are requested by the plotting tool. These need not be the same as the data in promises as those are loaded on user prompt!
-					.available is an array of urls which were found in the central booking,
-					.missing is an array of urls which were NOT found in the central booking.
-					.dataProperties is a string array containing the properties found in the data.
-					.data is an array of n-data arrays corresponding to the n-task slice files.
-				*/
+				 
+				// • .promises are promises completed before drawing the graphics.
+				// • .requested is an array of urls whose data are requested by the plotting tool. These need not be the same as the data in promises as those are loaded on user prompt!
+				// • .available is an array of urls which were found in the central booking,
+				// • .missing                              NOT found
+				// • .dataProperties is a string array of properties found in the data.
+				// • .data is an array of n-data arrays of the n-task slice files.
+				
 				
 				var ctrl = {
 				    plotFunc: cfD3Line,
@@ -508,8 +500,8 @@ const cfD3Line = {
 					       },
 					view: {sliceId: undefined,
 					       options: [],
-						   viewAR: undefined,
-						   dataAR: undefined,
+						   viewAR: NaN,
+						   dataAR: NaN,
 						   xVarOption: undefined,
 						   yVarOption : undefined,
 						   cVarOption : undefined,
@@ -522,8 +514,7 @@ const cfD3Line = {
 						   t: undefined
 						   },
 					tools: {xscale: undefined,
-							yscale: undefined,
-							cscale: undefined},
+							yscale: undefined},
 					format: {
 						title: "Edit title",
 						colWidth: 4,
@@ -1083,9 +1074,6 @@ const cfD3Line = {
 				var g = ctrl.figure
 				  .select("svg.plotArea")
 				  .select("g.data")
-				
-				// Set back to default style.
-				g.selectAll("path.line").style("stroke", "cornflowerblue")
 				
 				// Color in selected circles.
 				dbsliceData.data.manuallySelectedTasks.forEach(function(d){
