@@ -51,7 +51,7 @@ const cfD3Histogram = {
 			var y = ctrl.tools.yscale
             var g = ctrl.figure.select("svg.plotArea").select("g.data")
 			
-			var items = dbsliceData.data.dataDims[0].top(Infinity);
+			var items = dbsliceData.data.taskDim.top(Infinity);
 			var bins = ctrl.tools.histogram(items)
 			
 
@@ -244,7 +244,7 @@ const cfD3Histogram = {
 						ctrl.view.nBins = undefined
 						
 						// Update the filters. As the variable has changed perhaps the limits of the brush have as well.
-						filter.update()
+						filter.apply()
 						
 						// Redo the plot tools
 						cfD3Histogram.setupPlot.setupPlotTools(ctrl)
@@ -440,12 +440,17 @@ const cfD3Histogram = {
 					
 				dragmove: function dragmove(rectDOM, ctrl){
 					
+					// Setup the appropriate transition
+					ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
+
+					
 					var h = cfD3Histogram.addInteractivity.addBrush
 					var x = ctrl.tools.xscale
 					
 					var rect = d3.select(rectDOM)
 					var brush = d3.select(rectDOM.parentNode)
-
+					
+					
 					
 					// Update teh position of the left edge by the difference of the pointers movement.
 					var oldWest = Number(rect.attr("x"))
@@ -472,16 +477,17 @@ const cfD3Histogram = {
 					// Update the data selection
 					h.updateSelection(ctrl)
 					
-					// Setup the appropriate transition
-					ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
 					
-					// Rerender to allow other elements to respond.
-					render()
-					
+
 					
 				}, // dragmove
 				
 				dragsize: function dragsize(handleDOM, ctrl){
+					
+					// Setup the appropriate transition
+					ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
+					
+					
 					// Update teh position of the left edge by the difference of the pointers movement.
 					var h = cfD3Histogram.addInteractivity.addBrush
 					var x = ctrl.tools.xscale
@@ -550,16 +556,14 @@ const cfD3Histogram = {
 					// Update the data selection
 					h.updateSelection(ctrl)
 					
-					// Setup the appropriate transition
-					ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
 					
-					// Rerender to allow other elements to respond.
-					render()
+					
 					
 				}, // dragsize
 				
 				updateSelection: function updateSelection(ctrl){
 					
+					var nTasks_ = dbsliceData.data.taskDim.top(Infinity).length
 					var x = ctrl.tools.xscale
 					var rect = ctrl.figure.select("svg.plotArea").select(".selection")
 					var lowerBound = Number(rect.attr("x"))
@@ -571,7 +575,13 @@ const cfD3Histogram = {
 					filter.addUpdateDataFilter(ctrl.view.xVarOption.val, selectedRange)
 					
 					// Apply the appropriate filters to the crossfilter
-					filter.update();
+					filter.apply();
+					
+					// Only update other plots if the number of elements in the filter has changed.
+					var nTasks = dbsliceData.data.taskDim.top(Infinity).length
+					if(nTasks_ != nTasks){
+						render()
+					} // if
 					
 				}, // updateSelection
 				

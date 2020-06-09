@@ -22,7 +22,11 @@ const cfDataManagement = {
 			
 			// Populate the metaDims and metaDataUniqueValues.
 			cfData.metaDataProperties.forEach(function (property, i) {
-				cfData.metaDims.push(cfData.cf.dimension(function (d){return d[property];}));
+				// Dimension object
+				cfData.metaDims[property] = 
+					cfData.cf.dimension(function (d){return d[property];})
+				
+				// It's unique values
 				cfData.metaDataUniqueValues[property] = Array.from(new Set( metadata.data.map(
 					function (d){return d[property];}
 				)));
@@ -31,9 +35,8 @@ const cfDataManagement = {
 			
 			// Populate the dataDims. cf.dimension(function(d){return d.<property>}) sets up a dimension, which is an object that can perform some specific tasks based on the data it is give. Two of these are "top(n)", and "bottom(n)", whih return topmost and bottommost n elements respectively.
 			cfData.dataProperties.forEach(function (property, i) {
-			  cfData.dataDims.push(cfData.cf.dimension(function (d) {
-				return d[property];
-			  }));
+			  cfData.dataDims[property] = 
+				cfData.cf.dimension(function (d){return d[property];});
 			}); // forEach
 			
 			
@@ -41,11 +44,7 @@ const cfDataManagement = {
 			cfData.fileDim = cfData.cf.dimension(function (d){return d.file;})
 			cfData.taskDim = cfData.cf.dimension(function (d){return d.taskId;})
 			
-			
-			// Create a standalone array of taskIds
-			dbsliceData.filteredTaskIds = cfDataManagement.helpers.getTaskIds(metadata);
-			
-			
+
 			// Check if any histogram selected ranges have already been set up. This is important when the data is being replaced.
 			if(dbsliceData.data !== undefined){
 				if(dbsliceData.data.histogramSelectedRanges !== undefined){
@@ -56,12 +55,6 @@ const cfDataManagement = {
 			
 			// Store data internally
 		    dbsliceData.data = cfData;
-			
-			
-			
-			
-			
-			
 			
 		}, // cfInit
 		
@@ -87,11 +80,7 @@ const cfDataManagement = {
 						
 						// Add these records into the dataset.
 						dbsliceData.data.cf.add(metadata.data)
-						
-						// Update the filtered taskIds - note that these could fall into some filters, and therefore not be active straight away...
-						var currentMetaData = dbsliceData.data.metaDims[0].top(Infinity);
-						dbsliceData.filteredTaskIds = currentMetaData.map(function (d){return d.taskId;});
-						
+
 					} // if
 				} // if
 				
@@ -106,17 +95,11 @@ const cfDataManagement = {
 		
 		cfRemove: function cfRemove(dataFilesToRemove){
 			// This function will remove the data from the crossfilter.
-						
-			// Loop though all the dimensions and remove the filters.
-			dbsliceData.data.metaDims.forEach(function(metaDim){
-				metaDim.filterAll()
-			}) // forEach
 			
-			dbsliceData.data.dataDims.forEach(function(dataDim){
-				dataDim.filterAll()
-			}) // forEach
+			// Remove the current user selected filter.
+			filter.remove()
 			
-			// Apply the new filter. - I think this isn't working.
+			// Apply a temporary filter: which files are to be removed..
 			dbsliceData.data.fileDim.filter(function(d){
 				return dataFilesToRemove.indexOf(d) > -1
 			})
@@ -126,11 +109,11 @@ const cfDataManagement = {
 			dbsliceData.data.cf.remove()
 			
 			
-			// Remove the filter.
+			// Remove the temporary filter.
 			dbsliceData.data.fileDim.filterAll()
 			
-			// Reinstate other data filters.
-			filter.update()
+			// Reinstate user specified data filters.
+			filter.apply()
 			
 			
 			
@@ -139,10 +122,10 @@ const cfDataManagement = {
 		
 		helpers : {
 			
-			getTaskIds: function getTaskIds(metadata){
-				var taskIds = [];
-				metadata.data.forEach(function (task, i) {
-				  taskIds.push(task.taskId);
+			getTaskIds: function getTaskIds(){
+				var metadata = dbsliceData.data.taskDim.top(Infinity)
+				var taskIds = metadata.data.map(function (task){
+				  return task.taskId
 				});
 			  return taskIds
 			}, // getTaskIds

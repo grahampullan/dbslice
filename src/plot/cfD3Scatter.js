@@ -217,7 +217,7 @@ const cfD3Scatter = {
 					})
 					
 					// Update filters
-					filter.update()
+					filter.apply()
 					
 					render()
 				} // onClickEvent
@@ -860,11 +860,7 @@ const cfD3Scatter = {
 				
 				getPointData: function getPointData(ctrl){
 							
-					var dimId = dbsliceData.data.dataProperties.indexOf(ctrl.view.xVarOption.val);
-					var dim = dbsliceData.data.dataDims[dimId];
-					var pointData = dim.top(Infinity);
-	  
-				  return pointData;
+				  return dbsliceData.data.taskDim.top(Infinity);
 					
 				}, // getPointData
 			

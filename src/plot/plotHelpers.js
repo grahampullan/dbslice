@@ -568,25 +568,8 @@ const plotHelpers = {
 							// This functionality relies on the update to perform the actual change, and only configures the tools for the update to have the desired effect.
 							
 							
+							color.togglePalette(varName)
 							
-							// Setup the color function.
-							if( color.settings.scheme == undefined){
-								// Color scale is set to the default. Initialise a color scale.
-							
-								// The default behaviour of d3 color scales is that they extend the domain as new items are passed to it. Even if the domain is fixed upfront, the scale will extend its domain when new elements are presented to it.
-								color.settings.scheme   = "color"
-								color.settings.variable = varName
-							} else if (color.settings.variable != varName){
-								// The color metadata option has changed. Clear the scale domain so that the scale will be used with the new parameter.
-							
-								color.colorPalette.domain([])
-								color.settings.variable = varName
-							} else {
-								// The same color option has been selected - return to the default color options.
-								color.settings.scheme = undefined
-								color.settings.variable = undefined
-								color.colorPalette.domain([])
-							} // if
 							
 							// do the render so that all plots are updated with the color.
 							render()
@@ -745,7 +728,7 @@ const plotHelpers = {
 						plotHelpers.setupInteractivity.general.toggleToggle(this)
 						
 						// Update filters
-						filter.update()
+						filter.apply()
 						
 						render()
 					} // onClickEvent
@@ -783,17 +766,6 @@ const plotHelpers = {
 						// Horizontal select change requires so little to update itself that this function here is not necessary as of now.
 						
 					}, // horizontal
-					
-					common: function common(ctrl){
-						
-						ctrl.plotFunc.setupPlot.setupPlotTools(ctrl)
-						
-						ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
-												
-						ctrl.plotFunc.update(ctrl)
-						
-						
-					} // common
 					
 				}, // onSelectChange
 				

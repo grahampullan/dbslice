@@ -4,7 +4,27 @@ import { dbsliceData } from './dbsliceData.js'
 
 var filter = {
 		
-		update: function update(){
+		remove: function remove(){
+			// Remove all filters if grouping information etc is required for the whole dataset.
+			var cf = dbsliceData.data
+			
+			// Bar charts
+			Object.keys(cf.metaDims).forEach(function(property){
+					cf.metaDims[property].filterAll()
+			}) // forEach
+			
+			// Histograms
+			Object.keys(cf.dataDims).forEach(function(property){
+					cf.dataDims[property].filterAll()
+			}) // forEach
+			
+			
+			// Plots with individual tasks shown.
+			cf.taskDim.filterAll()
+			
+		}, // remove
+		
+		apply: function apply(){
 			// Crossfilter works by applying the filtering operations, and then selecting the data.
 			// E.g.:
 			//
@@ -29,10 +49,6 @@ var filter = {
 		
 			// Manual selections - but this should happen only if the manual switch is on!! 
 			applyManualSelections()
-			
-			// Update the log of selected tasks and their labels. These are used when checking whether data has been loaded, etc.
-			updateActiveTaskLog()
-			
 			
 			
 			// Checking for bar charts.
@@ -73,25 +89,24 @@ var filter = {
 				// First deselect all filters, and then subsequently apply only those that are required.
 				
 				// Deselect all metadata filters.
-				cf.metaDims.forEach(function(dim){
-					dim.filterAll()
+				Object.keys(cf.metaDims).forEach(function(variable){
+					cf.metaDims[variable].filterAll()
 				}) // forEach
 				
 				// Apply required filters. Reselect the filtered variables, as some might have been removed.
 				var filteredVariables = Object.keys(cf.filterSelected)
 			
 				filteredVariables.forEach(function (variable) {
-					// Find the index to this dimension.
-					var i = cf.metaDataProperties.indexOf(variable)
+					
 					var filterItems = cf.filterSelected[variable]
 					
 					// if the filters array is empty: ie. all values are selected, then reset the dimension
 					if ( filterItems.length === 0) {
 						// Reset the filter
-						cf.metaDims[i].filterAll();
+						cf.metaDims[variable].filterAll();
 					} else {
 						// Apply the filter
-						cf.metaDims[i].filter(function (d) {
+						cf.metaDims[variable].filter(function (d) {
 							return filterItems.indexOf(d) > -1;
 						}); // filter
 					}; // if
@@ -135,24 +150,25 @@ var filter = {
 			function applyHistogramChartFilters(){
 				// 'updateApplyBarChartFilters' checks if the filters still correspond to a variable visualised by a bar chart. Same logic as for the bar chart.
 				
+				
+				
 				// Deselect all metadata filters.
-				cf.dataDims.forEach(function(dim){
-					dim.filterAll()
+				Object.keys(cf.metaDims).forEach(function(variable){
+					cf.metaDims[variable].filterAll()
 				}) // forEach
 				
-				// Apply required filters. Reselect the filtered variables, as some might have been removed.
+				// Get the fitlered variables. These are selected differently than for filter deselection as an additional safety net - all filters are definitely removed this way.
 				var filteredVariables = Object.keys(cf.histogramSelectedRanges)
 				
-				
+				// Apply required filters. Reselect the filtered variables, as some might have been removed.
 				filteredVariables.forEach(function (variable) {
 					
-					var i = cf.dataProperties.indexOf(variable)
 					var selectedRange = cf.histogramSelectedRanges[variable]
 					
 				
 					if (selectedRange.length !== 0) {
 						// If the selected range has some bounds prescribed attempt to apply them. Note that the filter here is NOT the array.filter, but crossfitler.dimension.fitler.
-						cf.dataDims[i].filter(function (d) {
+						cf.dataDims[variable].filter(function (d) {
 						  return d >= selectedRange[0] && d <= selectedRange[1] ? true : false;
 						}); // filter
 					}; // if
@@ -182,24 +198,6 @@ var filter = {
 			} // applyManualSelections
 			
 			
-			// Updating the log
-			function updateActiveTaskLog(){
-				
-				var currentMetaData = cf.metaDims[0].top(Infinity);
-				dbsliceData.filteredTaskIds = currentMetaData.map(function (d){return d.taskId;});
-
-				
-				if(currentMetaData.length > 0){
-					if (currentMetaData[0].label !== undefined) {
-						dbsliceData.filteredTaskLabels = currentMetaData.map(function (d){return d.label;});
-					} else {
-						dbsliceData.filteredTaskLabels = currentMetaData.map(function (d){return d.taskId;});
-					} // if
-				} else {
-					dbsliceData.filteredTaskLabels = [];
-				} // if
-				
-			} // updateActiveTaskLog
 			
 			// Helpers
 			function checkIfManualFilterIsApplied(){
@@ -217,7 +215,7 @@ var filter = {
 				
 			} // checkIfManualFilterIsApplied
 			
-		}, // update
+		}, // apply
 		
 		addUpdateMetadataFilter: function addUpdateMetadataFilter(property, value){
 			

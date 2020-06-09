@@ -16,7 +16,7 @@ function refreshTasksInPlotRows() {
 		
 		
 		// Collect all the files that need to be loaded. Note that the files are individual properties of the records in the crossfilter.
-		var filteredTasks = dbsliceData.data.dataDims[0].top(Infinity)
+		var filteredTasks = dbsliceData.data.taskDim.top(Infinity)
 		
 		
 		// Collect all the required, and loaded files, and identify which, if any, files in the central booking will be redundant, and clear them out.

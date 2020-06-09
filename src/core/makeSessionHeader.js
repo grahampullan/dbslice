@@ -1,8 +1,19 @@
 import { refreshTasksInPlotRows } from './refreshTasksInPlotRows.js';
 import { importExportFunctionality } from '../core/importExportFunctionality.js';
+import { dbsliceData } from '../core/dbsliceData.js';
 
-
-function makeSessionHeader(element, title, subtitle, config) {
+function makeSessionHeader() {
+		
+		// Check if there was a previous session header already existing. 
+		var element = d3.select("#" + dbsliceData.elementId);
+		var sessionHeader = element.select(".sessionHeader");
+		if (!sessionHeader.empty()) {
+			// Pre-existing session header! Remove any contents. Print a message to the console saying this was done.
+			sessionHeader.selectAll("*")
+			console.log("Session header cleared!")
+		} // if
+		
+		
         var sessionTitle = element
           .append("div")
             .attr("class", "row sessionHeader")
@@ -16,10 +27,10 @@ function makeSessionHeader(element, title, subtitle, config) {
           .append("h1")
             .attr("style", "display:inline")
             .attr("spellcheck", "false")
-            .html(title)
+            .html(dbsliceData.session.title)
             .attr("contenteditable", true);
       
-        if (config.plotTasksButton) {
+        if (dbsliceData.session.plotTasksButton) {
             sessionTitle
               .append("button")
                 .attr("class", "btn btn-success float-right")
@@ -27,10 +38,10 @@ function makeSessionHeader(element, title, subtitle, config) {
                 .html("Plot Selected Tasks");
         } // if
 
-        if (subtitle !== undefined) {
+        if (dbsliceData.session.subtitle !== undefined) {
             sessionTitle
               .append("p")
-              .html(subtitle);
+              .html(dbsliceData.session.subtitle);
         } // if
       
         sessionTitle

@@ -6,9 +6,10 @@ import { plotHelpers } from '../plot/plotHelpers.js';
 function render() {
         var element = d3.select( "#" + dbsliceData.elementId );
 
-        if (dbsliceData.filteredTaskIds !== undefined) {
+		var metadata = dbsliceData.data.taskDim.top(Infinity)
+        if (metadata !== undefined) {
             element.select(".filteredTaskCount").select("p")
-              .html("Number of Tasks in Filter = " + dbsliceData.filteredTaskIds.length);
+              .html("Number of Tasks in Filter = " + metadata.length);
         } else {
             element.select(".filteredTaskCount").select("p")
               .html("<p> Number of Tasks in Filter = All </p>");

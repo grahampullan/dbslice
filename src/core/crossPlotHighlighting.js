@@ -72,14 +72,14 @@ const crossPlotHighlighting = {
 					  break;
 					  
 					case "cfD3BarChart":
-						// Collect all the relevant data points. An additional filter needs to be applied here!! DON'T USE FILTER - IT MESSES UP WITH ORIGINAL FUNCTIONALITY
-						var cfDataPoints = dbsliceData.data.metaDims[0].top(Infinity)
-						allDataPoints = cfDataPoints.filter(function(p){return p[d.keyProperty] == d.key})
+						// Collect all the relevant data points. An additional filter needs to be applied here!! DON'T USE crossfilter.filter - IT MESSES UP WITH ORIGINAL FUNCTIONALITY
+						var cfDataPoints = dbsliceData.data.taskDim.top(Infinity)
+						allDataPoints = cfDataPoints.filter(function(p){return p[d.key] == d.val})
 					  break;
 					  
 					case "cfD3Line":
 						// Collect all the relevant data points by tskId.
-						var cfDataPoints = dbsliceData.data.metaDims[0].top(Infinity)
+						var cfDataPoints = dbsliceData.data.taskDim.top(Infinity)
 						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.task.taskId});
 						// console.log(allDataPoints);
 					  break;

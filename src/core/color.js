@@ -10,7 +10,30 @@ var color = {
 			return "cornflowerblue"
 		}, // defaultPalette
 		
-		colorPalette: d3.scaleOrdinal(d3.schemeCategory10), // colorPalette
+		colorPalette: d3.scaleOrdinal(d3.schemeDark2), // colorPalette
+		
+		togglePalette: function togglePalette(varName){
+			
+			// Setup the color function.
+			if( color.settings.scheme == undefined){
+				// Color scale is set to the default. Initialise a color scale.
+			
+				// The default behaviour of d3 color scales is that they extend the domain as new items are passed to it. Even if the domain is fixed upfront, the scale will extend its domain when new elements are presented to it.
+				color.settings.scheme   = "color"
+				color.settings.variable = varName
+			} else if (color.settings.variable != varName){
+				// The color metadata option has changed. Clear the scale domain so that the scale will be used with the new parameter.
+			
+				color.colorPalette.domain([])
+				color.settings.variable = varName
+			} else {
+				// The same color option has been selected - return to the default color options.
+				color.settings.scheme = undefined
+				color.settings.variable = undefined
+				color.colorPalette.domain([])
+			} // if
+			
+		}, // togglePalette
 		
 		// settings holds the flag for the scheme to use, and the variable it is supposed to be used with. 
 		settings: { scheme: undefined,
@@ -32,6 +55,8 @@ var color = {
 			return palette(key)
 			
 		}, // get
+		
+		
 		
 	} // crossPlotColoring
 

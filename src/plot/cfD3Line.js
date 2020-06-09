@@ -784,7 +784,7 @@ const cfD3Line = {
 				
 				
 				
-				var requiredTasks = dbsliceData.data.dataDims[0].top(Infinity)
+				var requiredTasks = dbsliceData.data.taskDim.top(Infinity)
 				
 				var requiredUrls = requiredTasks.map( getUrl )
 				

@@ -120,6 +120,7 @@ const addMenu = {
 						plotCtrl = cfD3BarChart.helpers.createDefaultControl()
 						
 						plotCtrl.view.yVarOption.val = config.newCtrl.yProperty
+						plotCtrl.view.gVar = config.newCtrl.yProperty
 						
 					
 					  break;
@@ -1014,7 +1015,8 @@ const addMenu = {
                 
             enableDisableAllButtons: function enableDisableAllButtons(){
                 // This functionality decides which buttons should be enabled.
-                var isDataInFilter = dbsliceData.filteredTaskIds.length !== undefined                  && dbsliceData.filteredTaskIds.length > 0;
+				var metadata = dbsliceData.data.taskDim.top(Infinity)
+                var isDataInFilter = metadata.length !== undefined && metadata.length > 0;
 				
 				// For the data to be loaded some records should have been assigned to the crossfilter.
 				var isDataLoaded = false

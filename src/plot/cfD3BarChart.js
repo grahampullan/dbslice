@@ -6,6 +6,15 @@ import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
 import { plotHelpers } from '../plot/plotHelpers.js';
 
 const cfD3BarChart = {
+		
+		// Coloring:
+		// When the user opts to color code the data by a metadata variable all plots are expected to respond. To color the bars of the bar charts the bars corresponding to each individual option of the selected data variable need to be made of several rectangles. This allows the color coding of the composition of the bar. The grouping of the rectangles into the bar tells the user which key they belong to, and the colors tell them how many of a specific color key tehre are in any bar.
+		// Initially the color coding was done by having an individual rectangle for each task. However, consider the situation in which the filter has been adjusted, and a color group that is in the middle of a bar has to increase. When a task basis is used, d3 will assign all data to the rectangles sequentially, which means that the task that should be entering in the middle will not have a rectangle entering in the middle. Instead the task will be assigned to an existing rectangle, which will change it's color, and a new rectangle will be added to the right side, which will then be paired with a task that was previously visualised by the rectangle to the left of the new one. This is misleading for the user.
+		// An alternate solution is to individually track the rectangles and the tasks assigned to them. The tasks would then also need to be sorted appropriately. It is difficult to calculate the exact exit transition points for the rectangles, as they would only have information of themselves available, but they would also require to know how the rectangles next to them are being positioned.
+		// Another alternate solution is to group the tasks into 'series' when retireving them, and calculating their starting points. This then allows the rectangles to enter and exit in concert. Transitions between coloring and no coloring is trickier however. When coloring is turned on the series that displayed the entire bar beforehand must now shring as it becomes a part of the series. This can be hidden by first plotting other series over it. The shrinking would then be hidden from the user. Bars could alternately also be made to disappear, and then appear again coloured. Or the colors could enter from the right - this is potentially even more difficult to implement, as two separate functionalities would be required.
+		
+		// Transitions:
+		// If the char is entering with the default color it enters well. Maybe the coloring should just be added post festum, and the boxes shouldn't be grouped by physical groups. They can still have their coordinates calculated beforehand for better transitions etc. Otherwise there is a confusion regarding the entering rectangles. Will it be enough to keep the bars grouped together?
 
         name: "cfD3BarChart",
         
@@ -31,110 +40,225 @@ const cfD3BarChart = {
         }, // make
       
         update: function update(ctrl) {
-        
+			// Plot some bars to the background, which show the entire extent of the data, and additional bars on top to show current selection.
 			
 			// Create some common handles.
-			var svg = ctrl.figure.select("svg.plotArea");
-			
-			// Get the items to plot.
-			var items = cfD3BarChart.helpers.getItems(ctrl.view.yVarOption.val);
+			var h = cfD3BarChart.draw
 			
 			
-			
-			
-			
-			
-			// Handle the entering/updating/exiting of bars.
-			var bars = svg.select("g.data").selectAll("rect").data(items);
-			
-			// New bars
-			bars.enter()
-			  .append("rect")
-				.attr("height", getHeight)
-				.attr("width", 0)
-				.attr("x", 0)
-				.attr("y", getPosition)
-				.style("fill", getColor)
-				.attr("opacity", getOpacity)
-			  .transition()
-				.attr("width", getWidth)	
-			
-			// Existing bars
-			bars.transition()
-			  .attr("height", getHeight)
-			  .attr("width", getWidth)
-			  .attr("y",     getPosition)
-			  .style("fill", getColor)
-			  .attr("opacity", getOpacity)
-
-			bars.exit().remove()
-			
-			
-			// Handle the entering/updating/exiting of bar labels.
-			var keyLabels = svg.select("g.markup").selectAll(".keyLabel")
-				.data(items);
+			// Check if the data should be regrouped, or if an update to the existing state is required. This check should be performed here, as a need to regroup might come from outside (by changing the color variable).
+			if(h.isRegroupNeeded(ctrl)){
 				
-			keyLabels.enter()
-			  .append("text")
-				.attr("class", "keyLabel")
-				.attr("x", 0)
-				.attr("y", getLabelPosition )
-				.attr("dx", 5)
-				.attr("dy", ".35em")
-				.attr("text-anchor", "start")
-				.text(getLabel)
-
-			keyLabels
-			  .transition()
-			  .attr("y", getLabelPosition )
-			  .text( getLabel );
-			
-			keyLabels.exit().remove();
-			
-			
-			// Handle the axes.
-			cfD3BarChart.helpers.createAxes(ctrl);
-			
-			
-			// Add interactivity:
-			cfD3BarChart.addInteractivity.addOnMouseOver(svg);
-			cfD3BarChart.addInteractivity.addOnMouseClick(ctrl);
-        
-		
-			// TEST
-			
-			function getHeight(d){ return ctrl.tools.yscale.bandwidth() }
-			function getWidth(d){ return ctrl.tools.xscale(d.value) }
-			function getPosition(d){ return ctrl.tools.yscale(d.key) }
-			function getColor(d){ return color.get(d.key) }
-			function getOpacity(d){
-					
-				// Change color if the filter has been selected.
-				// if no filters then all are selected
-				var property = ctrl.view.yVarOption.val
+				// Perform the regroup
+				h.regroup(ctrl)
 				
-				var filterItems = dbsliceData.data.filterSelected[property]
-				if ( filterItems === undefined || filterItems.length === 0) {
-					// The filter on this dimension either does not exist, or it contains no fitlered items, therefore this item is selected.
-					return 1;
-				} else {
-					return filterItems.indexOf(d.key) === -1 ? 0.2 : 1;
-				} // if
+			} else {
+				// Just update the view
+				h.update(ctrl)
 				
-			} // transitionOpacityEffects
-			
-			function getLabelPosition(d){return getPosition(d) + 0.5*getHeight(d)}
-			function getLabel(d){return d.key}
-			
-			
-			
+			} // if
 			
 			
 
-
-				
 			
         }, // update
+		
+		draw: {
+			
+			plotDataExtent: function plotDataExtent(ctrl, items){
+				
+				var t = ctrl.view.transitions
+				var bars = ctrl.figure.select("svg.plotArea").select("g.background").selectAll("rect").data(items);
+			
+				// New bars
+				bars.enter()
+				  .append("rect")
+					.attr("height", getHeight)
+					.attr("width", 0)
+					.attr("x", 0)
+					.attr("y", getPosition)
+					.style("fill", "black")
+					.attr("opacity", 0.2)
+				  .transition()
+				  .delay(t.updateDelay)
+				  .duration(t.duration)
+					.attr("width", getWidth)	
+				
+				// Existing bars
+				bars.transition()
+				  .delay(t.updateDelay)
+				  .duration(0)
+				    .attr("y", getPosition)
+					.attr("height", getHeight)
+				  .transition()
+				  .delay(t.updateDelay)
+				  .duration(t.duration)
+				    .attr("width", getWidth)
+				    .style("fill", "black")
+				    .attr("opacity", 0.2)
+
+				bars.exit().remove()
+				
+				function getHeight(d){ return ctrl.tools.yscale.bandwidth() }
+				function getWidth(d){ return ctrl.tools.xscale(d.value) }
+				function getPosition(d){ return ctrl.tools.yscale(d.key) }
+				function getColor(d){ return color.get(d.key) }
+				
+			}, // plotDataExtent
+			
+			plotCurrentSelection: function plotCurrentSelection(ctrl, items){
+				
+				
+				// Helpers
+				function x(d){return ctrl.tools.xscale(d.x)}
+				function y(d){return ctrl.tools.yscale(d.val)}
+				function width(d){return ctrl.tools.xscale(d.members.length)}
+				var height = ctrl.tools.yscale.bandwidth()
+				function fill(d){return color.get(d.cVal)}
+				
+				// The items should be plotted as rectangles. Everytime the grouping of the data is changed the rectangles retreat, regroup, and reappear.
+				
+				var rect = ctrl.figure.select("svg.plotArea").select("g.data").selectAll("rect").data(items)
+				
+				rect.enter()
+				  .append("rect")
+				    .attr("x", 0)
+					.attr("y", y)
+					.attr("height", height)
+					.attr("width", 0)
+					.style("fill", fill)
+					.attr("opacity", 1)
+					.attr("stroke-width", 0)
+				  .transition()
+				  .duration(1000)
+				    .attr("x", x)
+					.attr("width", width)
+					
+				rect
+				  .transition()
+				  .duration(1000)
+				  .attr("x", x)
+				  .attr("y", y)
+				  .attr("height", height)
+				  .attr("width", width)
+				  .style("fill", fill)
+				  
+				rect.exit()
+				  .transition()
+				  .duration(1000)
+				  .attr("x", x)
+				  .attr("width", width)
+				  .remove()
+				
+				
+				
+			}, // plotCurrentSelection
+			
+			plotMarkup: function plotMarkup(ctrl, items){
+			
+				var keyLabels = ctrl.figure.select("svg.plotArea").select("g.markup")
+				  .selectAll(".keyLabel")
+				  .data(items);
+					
+				keyLabels.enter()
+				  .append("text")
+					.attr("class", "keyLabel")
+					.attr("x", 0)
+					.attr("y", getLabelPosition )
+					.attr("dx", 5)
+					.attr("dy", ".35em")
+					.attr("text-anchor", "start")
+					.text(getLabel)
+
+				keyLabels
+				  .transition()
+				  .attr("y", getLabelPosition )
+				  .text( getLabel );
+				
+				keyLabels.exit().remove();
+				
+				function getHeight(d){ return ctrl.tools.yscale.bandwidth() }
+				function getPosition(d){ return ctrl.tools.yscale(d.key) }
+				function getLabelPosition(d){return getPosition(d) + 0.5*getHeight(d)}
+				function getLabel(d){return d.key}
+				
+			}, // plotMarkup
+			
+			isRegroupNeeded: function isRegroupNeeded(ctrl){
+				
+				var flag = ctrl.view.gVar != ctrl.view.yVarOption.val ||
+			               ctrl.view.gClr != color.settings.variable
+				
+				// Update the 'gVar' and 'gClr' flags for next draw.				
+				ctrl.view.gVar = ctrl.view.yVarOption.val
+			    ctrl.view.gClr = color.settings.variable
+				
+				return flag
+				
+			}, // isRegroupNeeded
+			
+			regroup: function regroup(ctrl){
+				// This function controls the retreat of the data to prepare for the redrawing using the new grouping of the data.
+				
+				var svg = ctrl.figure
+				  .select("svg.plotArea")
+				  
+				// Remove the labels too.
+				svg.select("g.markup")
+				  .selectAll(".keyLabel")
+				  .transition()
+				  .remove()
+				
+				// Remove the rectangles, and when completed order a redraw.
+				svg
+				  .selectAll("rect")
+					.transition()
+					.duration(500)
+					  .attr("x", ctrl.tools.xscale(0))
+					  .attr("width", 0)
+					.remove()
+					.end()
+					.then(function(){
+						
+						// All elements were removed. Update teh chart.
+						cfD3BarChart.draw.update(ctrl)
+						
+					}) // then
+			
+			
+			}, // regroup
+			
+			update: function update(ctrl){
+				
+				var h = cfD3BarChart.helpers
+				var svg = ctrl.figure.select("svg.plotArea")
+				
+				var backgroundItems = h.getUnfilteredItems(ctrl.view.yVarOption.val);
+				var filterItems     = h.getFilteredItems(ctrl.view.yVarOption.val);
+				
+				// Background data extent
+				cfD3BarChart.draw.plotDataExtent(ctrl, backgroundItems)
+				
+				// Handle the entering/updating/exiting of bars.
+				cfD3BarChart.draw.plotCurrentSelection(ctrl, filterItems)
+				
+				
+				// Handle the entering/updating/exiting of bar labels.
+				cfD3BarChart.draw.plotMarkup(ctrl, backgroundItems)
+				
+				
+				// Handle the axes.
+				cfD3BarChart.helpers.createAxes(ctrl);
+				
+				// Add interactivity:
+				cfD3BarChart.addInteractivity.addOnMouseOver(ctrl);
+				cfD3BarChart.addInteractivity.addOnMouseClick(ctrl);
+				
+			}, // update
+			
+		}, // draw
+		
+		
       
 		rescale: function rescale(ctrl){
 			// What should happen if the window is resized?
@@ -153,10 +277,7 @@ const cfD3BarChart = {
 	    setupPlot : {
 			
 			setupPlotTools: function setupPlotTools(ctrl){
-				/* The x and y axis tools need to be set up here, as well as the potential color scale. 
-				
-				
-				*/
+				// The x and y axis tools need to be set up here. 
 				
 				// Get the items to plot. This is done on all the data here, and the scales are created here as well. This will make the axes fixed, and the bars move accordingly. This can be changed if needed by adjusting the xscale domain appropriately
 				
@@ -168,16 +289,7 @@ const cfD3BarChart = {
 				var height = g.attr("height")
 				
 				// TEMPORARY
-				var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
-				var group = dbsliceData.data.metaDims[dimId].group();
-				var items = group.all();
-				
-				// Remove any bars with no entries.
-				items = items.filter(function (item){return item.value > 0;});
-				
-				// Add the property to it for convenience.
-				items.forEach(function(d){d.keyProperty = property})
-				var items = cfD3BarChart.helpers.getItems(ctrl.view.yVarOption.val);
+				var items = cfD3BarChart.helpers.getUnfilteredItems(property);
 				
 				// The scale that will control the property used to visually convey numeric information.
 				ctrl.tools.xscale = d3.scaleLinear()
@@ -212,15 +324,16 @@ const cfD3BarChart = {
 						plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar)
 						
 						// Update the filter. If a variable is removed from view then it's filter must be removed as well. It is completely REMOVED, and not stored in the background.
-						filter.update()
+						filter.apply()
 						
-						// Perform tasks required by both the vertical and horizontal select on change events. This includes updating this plot, and it's plotting tools.
-						plotHelpers.setupInteractivity.general.onSelectChange.common(ctrl)
+						// Setup the tools anew.
+						cfD3BarChart.setupPlot.setupPlotTools(ctrl)
 						
-						
-						// Now render the view again. If a filter has been removed by changing the variable other plots will need to be updated too.
-						render()
-						
+						// Signal that a regroup is required.
+			
+						// Maybe just call a render here, but flag internally if a regroup is needed?
+						render()			
+					
 					} // return
 				}, // vertical
 			}, // onSelectChange
@@ -237,12 +350,11 @@ const cfD3BarChart = {
 					
 					
 					// Update the filter selection.
-					filter.addUpdateMetadataFilter(property, d.key)
+					filter.addUpdateMetadataFilter(property, d[property])
 
 					// Apply the selected filters to the crossfilter object.
-				    filter.update();
+				    filter.apply();
 				  
-				    
 				    // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
 				    render();
 					
@@ -250,18 +362,20 @@ const cfD3BarChart = {
 				
 			}, // addOnMouseClick
 			
-			addOnMouseOver: function addOnMouseOver(svg){
+			addOnMouseOver: function addOnMouseOver(ctrl){
 				
-				var rects = svg.selectAll("rect");
+				var rects = ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("rect");
 				
 				rects.on("mouseover", crossHighlightOn)
                      .on("mouseout",  crossHighlightOff);
 					  
 				function crossHighlightOn(d){
 					
-					// Here 'd' is just an object with properties 'key', and 'value'. The first denotes the value of the plotting property belonging to the bar, and the second how many items with that property value are currently selected.
 					crossPlotHighlighting.on(d, "cfD3BarChart");
-					
+
 				}; // crossHighlightOn
 				
 				function crossHighlightOff(d){
@@ -286,11 +400,9 @@ const cfD3BarChart = {
 						svg: undefined,
 						view: {yVarOption: undefined,
 							   nBins: undefined,
-							   transitions: {
-									duration: 500,
-									updateDelay: 0,
-									enterDelay: 0								
-								   }
+							   transitions: cfD3BarChart.helpers.transitions.instantaneous(),
+							   gVar: undefined,
+							   gClr: undefined
 							   },
 						tools: {xscale: undefined,
 								yscale: undefined,
@@ -309,6 +421,8 @@ const cfD3BarChart = {
 				ctrl.view.yVarOption = {name: "varName",
 					                     val: options[0],
 								     options: options}
+									 
+				ctrl.view.gVar = options[0]
 				
 				return ctrl
 			
@@ -319,9 +433,10 @@ const cfD3BarChart = {
 				var ctrl = cfD3BarChart.helpers.createDefaultControl()
 				
 				// If the x and y properties were stored, and if they agree with the currently loaded metadata, then initialise them.
-				if(plotData.xProperty != undefined){
-					if( dbsliceData.data.dataProperties.includes(plotData.xProperty) ){
-						ctrl.view.yVarOption.val = plotData.xProperty
+				if(plotData.yProperty != undefined){
+					if( dbsliceData.data.metaDataProperties.includes(plotData.yProperty) ){
+						ctrl.view.yVarOption.val = plotData.yProperty
+						ctrl.view.gVar =           plotData.yProperty
 					} // if						
 				} // if				
 											
@@ -372,16 +487,7 @@ const cfD3BarChart = {
 			// Functions supporting interactivity
 			transitions: {
 				instantaneous: function instantaneous(){
-				
-					return {
-						duration: 0,
-						updateDelay: 0,
-						enterDelay: 0
-					}
-				
-				}, // instantaneous
-				
-				animated: function animated(){
+					// For 'cfD3BarChart' animated transitions handles filter changes.
 				
 					return {
 						duration: 500,
@@ -389,24 +495,120 @@ const cfD3BarChart = {
 						enterDelay: 0
 					}
 				
+				}, // instantaneous
+				
+				animated: function animated(){
+					// For 'cfD3BarChart' animated transitions handles variable changes.
+				
+					return {
+						duration: 500,
+						updateDelay: 500,
+						enterDelay: 0
+					}
+				
 				} // animated
 			}, // transitions
 		
-			getItems: function getItems(property){
+		
+			getItems_: function getItems_(tasks, groupKey){
 				
-				// Get the data through crossfilters dimension functionality.
-				var dimId = dbsliceData.data.metaDataProperties.indexOf(property);
-				var group = dbsliceData.data.metaDims[dimId].group();
-				var items = group.all();
+				// Make the subgroup the graphic basis, and plot it directly. Then make sure that the grouping changes are handled properly!!
 				
-				// Remove any bars with no entries.
-				items = items.filter(function (item){return item.value > 0;});
+				var groupVals = dbsliceData.data.metaDataUniqueValues[groupKey]
+				var subgroupKey = color.settings.variable
+				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.metaDataUniqueValues[subgroupKey]
 				
-				// Add the property to it for convenience.
-				items.forEach(function(d){d.keyProperty = property})
+				// Loop over them to create the rectangles.
+				var items = []
+				groupVals.forEach(function(groupVal){
+					
+					var x = 0
+					
+					subgroupVals.forEach(function(subgroupVal){
+						
+						var members = tasks.filter(function(task){
+							return task[groupKey] == groupVal &&
+							       task[subgroupKey] == subgroupVal
+						})
+						
+						var rectData = {
+							key: groupKey,
+							val: groupVal,
+							cKey: subgroupKey,
+							cVal: subgroupVal,
+							x: x,
+							members: members
+						}
+						
+						items.push(rectData)
+						
+						// Update the position for the next subgroup.
+						x = x + members.length
+					}) // subgroup
+				}) // group
+					
+				return items
+			}, // getItems
+		
+			
+			getItems: function getItems(tasks, property){
+				
+				// Make the items.
+				var keys = dbsliceData.data.metaDataUniqueValues[property]
+				var items = keys.map(function(key){
+					// Find all tasks with this key.
+					var members = tasks.filter(function(d){
+						return d[property] == key
+					}) // filter
+					
+					return {
+						keyProperty: property,
+						        key: key,
+					          value: members.length,
+							members: members
+						  }
+				}) // map
+				
+				// Find the starting point of the group also.
+				
+				
+				return items
 				
 			  return items;
 			}, // getItems
+			
+			getFilteredItems: function getFilteredItems(property){
+				
+				var tasks = dbsliceData.data.metaDims[property].top(Infinity)
+				
+				return cfD3BarChart.helpers.getItems_(tasks, property)
+				
+			}, // getFilteredItems
+			
+			getUnfilteredItems: function getUnfilteredItems(property){
+				
+				// 1.) get the unfiltered items for plotting. This means the plot will never zoom in, regardless of selection.
+				// 2.) get the items for plotting as before. This will change with selection, but will still allow subsets to be highlighted later on.
+				
+				// First attempt with 1.). the other will be implemented later when it will be visible.
+				// When using 'filter.remove' and later 'filter.apply' the object 'items' changes after the filters are reapplied.
+				
+				// Get all tasks.
+				var tasks = dbsliceData.data.cf.all()
+				
+				// Make the items.
+				return cfD3BarChart.helpers.getItems(tasks, property)
+				
+				// https://stackoverflow.com/questions/33102032/crossfilter-group-a-filtered-dimension
+				// Crossfilter groups respect all filters except those of the dimension on which they are defined. Define your group on a different dimension and it will be filtered as you expect.
+				
+				// key, value, keyProperty
+				// dbsliceData.data.cf.all()
+				
+				return items
+				
+				
+			}, // getUnfilteredItems
 			
 			createAxes: function createAxes(ctrl){
 				
@@ -431,14 +633,12 @@ const cfD3BarChart = {
 					.filter(function(d){ return Number.isInteger(d) });
 				
 				xAxis
-				  .transition()
 				  .call( d3.axisBottom(ctrl.tools.xscale)
 					.tickValues(xAxisTicks)
 					.tickFormat(d3.format("d")) );
 				
 
 				yAxis
-				  .transition()
 				  .call(d3.axisLeft(ctrl.tools.yscale).tickValues([]));
 				
 			}, // createAxes
@@ -452,11 +652,24 @@ const cfD3BarChart = {
 				  .select("g.data")
 				  .selectAll("rect")
 					.attr("stroke", "none")
-					.attr("stroke-width", 3);
+					.attr("opacity", 0.2)
 				
 			}, // unhighlight
 			
 			highlight: function highlight(ctrl, d){
+				
+				// Find the appropriate bar.
+				ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("rect")
+				  .each(function(d_){
+					  // See if this rect corresponds to the selected one.
+					  if(d_.val == d[d_.key]){
+						  d3.select(this).attr("opacity", 1)
+					  } // if
+				  })
+				
 					
 				// Turn the text bold
 				var labels = ctrl.figure
@@ -476,6 +689,14 @@ const cfD3BarChart = {
 			}, // highlight
 			
 			defaultStyle: function defaultStyle(ctrl){
+				
+				ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("rect")
+					.attr("stroke", "none")
+					.attr("opacity", 1)
+				
 				// Remove the text bolding.
 				ctrl.figure
 				  .select("svg.plotArea")
