@@ -68,7 +68,7 @@ const cfD3BarChart = {
 			plotDataExtent: function plotDataExtent(ctrl, items){
 				
 				var t = ctrl.view.transitions
-				var bars = ctrl.figure.select("svg.plotArea").select("g.background").selectAll("rect").data(items);
+				var bars = ctrl.figure.select("svg.plotArea").select("g.markup").selectAll("rect").data(items);
 			
 				// New bars
 				bars.enter()
@@ -100,9 +100,8 @@ const cfD3BarChart = {
 				bars.exit().remove()
 				
 				function getHeight(d){ return ctrl.tools.yscale.bandwidth() }
-				function getWidth(d){ return ctrl.tools.xscale(d.value) }
-				function getPosition(d){ return ctrl.tools.yscale(d.key) }
-				function getColor(d){ return color.get(d.key) }
+				function getWidth(d){ return ctrl.tools.xscale(d.members.length) }
+				function getPosition(d){ return ctrl.tools.yscale(d.val) }
 				
 			}, // plotDataExtent
 			
@@ -178,9 +177,9 @@ const cfD3BarChart = {
 				keyLabels.exit().remove();
 				
 				function getHeight(d){ return ctrl.tools.yscale.bandwidth() }
-				function getPosition(d){ return ctrl.tools.yscale(d.key) }
+				function getPosition(d){ return ctrl.tools.yscale(d.val) }
 				function getLabelPosition(d){return getPosition(d) + 0.5*getHeight(d)}
-				function getLabel(d){return d.key}
+				function getLabel(d){return d.val}
 				
 			}, // plotMarkup
 			
@@ -210,7 +209,7 @@ const cfD3BarChart = {
 				  .remove()
 				
 				// Remove the rectangles, and when completed order a redraw.
-				svg
+				svg.select("g.data")
 				  .selectAll("rect")
 					.transition()
 					.duration(500)
@@ -294,14 +293,14 @@ const cfD3BarChart = {
 				// The scale that will control the property used to visually convey numeric information.
 				ctrl.tools.xscale = d3.scaleLinear()
 					.range([0, width])
-					.domain([0, d3.max(items, function (v){return v.value;}) ]);
+					.domain([0, d3.max(items, function (v){return v.members.length;}) ]);
 				
 				// 'd2.scaleBand' does the division of the plotting area into separate bands based on input categorical values, and returns the number corresponding to the position of the band, and to the width of the band by calling '<scale>()', and '<scale>.bandwidth()' respectively.
 				// 'padding' sets the amount of space between the bands (innerPadding), and before and after the bands (outerPadding), to the same value.
 				// 'align' controls how the outer padding is distributed between both ends of the band range.
 				ctrl.tools.yscale = d3.scaleBand()
 				    .range([0, height])
-				    .domain(  items.map(function (d) {return d.key;})  )
+				    .domain(  items.map(function (d) {return d.val;})  )
 				    .padding([0.2])
 				    .align([0.5]);
 					
@@ -342,15 +341,16 @@ const cfD3BarChart = {
 				
 				// Add the mouse click event
 				var property = ctrl.view.yVarOption.val
-				var svg = ctrl.figure.select("svg.plotArea")
+				var svg = ctrl.figure.select("svg.plotArea").select("g.markup")
+				
 				
 				svg.selectAll("rect").on("click", onClick);
 				
 				function onClick(d){
-					
+					console.log("on bar click")
 					
 					// Update the filter selection.
-					filter.addUpdateMetadataFilter(property, d[property])
+					filter.addUpdateMetadataFilter(property, d.val)
 
 					// Apply the selected filters to the crossfilter object.
 				    filter.apply();
@@ -364,15 +364,19 @@ const cfD3BarChart = {
 			
 			addOnMouseOver: function addOnMouseOver(ctrl){
 				
+				
+				// Onle the rectangles showing the data outline are interactive.
 				var rects = ctrl.figure
 				  .select("svg.plotArea")
-				  .select("g.data")
+				  .select("g.markup")
 				  .selectAll("rect");
 				
 				rects.on("mouseover", crossHighlightOn)
                      .on("mouseout",  crossHighlightOff);
 					  
 				function crossHighlightOn(d){
+					
+					// When mousing over a deselected item it should show the user the preview. This means it should show extra data. But it also means that it needs to keep track of active/inactive rectangles.
 					
 					crossPlotHighlighting.on(d, "cfD3BarChart");
 
@@ -510,12 +514,12 @@ const cfD3BarChart = {
 			}, // transitions
 		
 		
-			getItems_: function getItems_(tasks, groupKey){
+		
+			getItems: function getItems(tasks, groupKey, subgroupKey){
 				
 				// Make the subgroup the graphic basis, and plot it directly. Then make sure that the grouping changes are handled properly!!
 				
 				var groupVals = dbsliceData.data.metaDataUniqueValues[groupKey]
-				var subgroupKey = color.settings.variable
 				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.metaDataUniqueValues[subgroupKey]
 				
 				// Loop over them to create the rectangles.
@@ -525,8 +529,10 @@ const cfD3BarChart = {
 					var x = 0
 					
 					subgroupVals.forEach(function(subgroupVal){
+						// This will run at least once with the subgroup value of 'undefined'. In that case the item array will hold a single rectangle for each of the expected bars.
 						
 						var members = tasks.filter(function(task){
+							// In case where the subgroupKey passed in is 'undefined' this statement evaluates as 'undefined' == 'undefined'
 							return task[groupKey] == groupVal &&
 							       task[subgroupKey] == subgroupVal
 						})
@@ -549,39 +555,12 @@ const cfD3BarChart = {
 					
 				return items
 			}, // getItems
-		
-			
-			getItems: function getItems(tasks, property){
 				
-				// Make the items.
-				var keys = dbsliceData.data.metaDataUniqueValues[property]
-				var items = keys.map(function(key){
-					// Find all tasks with this key.
-					var members = tasks.filter(function(d){
-						return d[property] == key
-					}) // filter
-					
-					return {
-						keyProperty: property,
-						        key: key,
-					          value: members.length,
-							members: members
-						  }
-				}) // map
-				
-				// Find the starting point of the group also.
-				
-				
-				return items
-				
-			  return items;
-			}, // getItems
-			
 			getFilteredItems: function getFilteredItems(property){
 				
 				var tasks = dbsliceData.data.metaDims[property].top(Infinity)
 				
-				return cfD3BarChart.helpers.getItems_(tasks, property)
+				return cfD3BarChart.helpers.getItems(tasks, property, color.settings.variable)
 				
 			}, // getFilteredItems
 			
@@ -597,15 +576,10 @@ const cfD3BarChart = {
 				var tasks = dbsliceData.data.cf.all()
 				
 				// Make the items.
-				return cfD3BarChart.helpers.getItems(tasks, property)
+				return cfD3BarChart.helpers.getItems(tasks, property, undefined)
 				
 				// https://stackoverflow.com/questions/33102032/crossfilter-group-a-filtered-dimension
 				// Crossfilter groups respect all filters except those of the dimension on which they are defined. Define your group on a different dimension and it will be filtered as you expect.
-				
-				// key, value, keyProperty
-				// dbsliceData.data.cf.all()
-				
-				return items
 				
 				
 			}, // getUnfilteredItems
@@ -647,65 +621,24 @@ const cfD3BarChart = {
 			// Functions supporting cross plot highlighting
 			unhighlight: function unhighlight(ctrl){
 				
-				ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
-				  .selectAll("rect")
-					.attr("stroke", "none")
-					.attr("opacity", 0.2)
+				// Do nothing. On all actions the graphics showing the current selection are being updated, which changes the amount of elements on hte screen accordingly.
 				
 			}, // unhighlight
 			
-			highlight: function highlight(ctrl, d){
+			highlight: function highlight(ctrl, allDataPoints){
 				
-				// Find the appropriate bar.
-				ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
-				  .selectAll("rect")
-				  .each(function(d_){
-					  // See if this rect corresponds to the selected one.
-					  if(d_.val == d[d_.key]){
-						  d3.select(this).attr("opacity", 1)
-					  } // if
-				  })
 				
-					
-				// Turn the text bold
-				var labels = ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.markup")
-				  .selectAll('.keyLabel')
-				  ._groups[0];
-				  
-				labels.forEach(function(labelDOM){
-					if(labelDOM.innerHTML == d[ctrl.view.yVarOption.val]){
-						// Turn the text bold.
-						labelDOM.style.fontWeight = 'bold'
-					} // if
-				}); // forEach
+				// Just redraw the view with allDataPoints. To avoid circularity move the data extent to the foreground?
+				var highlightedData = cfD3BarChart.helpers.getItems(allDataPoints, ctrl.view.yVarOption.val, color.settings.variable)
+				cfD3BarChart.draw.plotCurrentSelection(ctrl, highlightedData)
+				
 				
 				
 			}, // highlight
 			
 			defaultStyle: function defaultStyle(ctrl){
 				
-				ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
-				  .selectAll("rect")
-					.attr("stroke", "none")
-					.attr("opacity", 1)
-				
-				// Remove the text bolding.
-				ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.markup")
-				  .selectAll('.keyLabel')
-				    .style("font-weight", "")
-					
-				// Rehighlight any manually selected tasks.
-				crossPlotHighlighting.manuallySelectedTasks()
+				cfD3BarChart.draw.update(ctrl)
 				
 			}, // defaultStyle
 			

@@ -1140,16 +1140,22 @@ const cfD3Line = {
 				
 			}, // unhighlight
 			
-			highlight: function highlight(ctrl, d){
+			highlight: function highlight(ctrl, allDataPoints){
 				
-				// Find the line corresponding to the data point. Look for it by taskId.
-				ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
-				  .selectAll('.plotSeries[task-id="' + d.taskId + '"]')
-				  .selectAll(".line")
-				    .style("opacity", 1.0)
-				    .style( "stroke-width", "4px" );
+				allDataPoints.forEach(function(d){
+					
+					// Find the line corresponding to the data point. Look for it by taskId.
+					ctrl.figure
+					  .select("svg.plotArea")
+					  .select("g.data")
+					  .selectAll('.plotSeries[task-id="' + d.taskId + '"]')
+					  .selectAll(".line")
+						.style("opacity", 1.0)
+						.style( "stroke-width", "4px" );
+						
+				}) // forEach
+				
+				
 				
 			}, // highlight
 			

@@ -32,9 +32,8 @@ const crossPlotHighlighting = {
 					plotCtrl.plotFunc.helpers.unhighlight( plotCtrl )
 					
 					// Now highlight the needed datapoints.
-					allDataPoints.forEach(function(d){
-						plotCtrl.plotFunc.helpers.highlight(plotCtrl, d);
-					}) // forEach
+					plotCtrl.plotFunc.helpers.highlight(plotCtrl, allDataPoints);
+					
 					
 				}) // each
 				
@@ -73,8 +72,46 @@ const crossPlotHighlighting = {
 					  
 					case "cfD3BarChart":
 						// Collect all the relevant data points. An additional filter needs to be applied here!! DON'T USE crossfilter.filter - IT MESSES UP WITH ORIGINAL FUNCTIONALITY
-						var cfDataPoints = dbsliceData.data.taskDim.top(Infinity)
-						allDataPoints = cfDataPoints.filter(function(p){return p[d.key] == d.val})
+						//var allPoints = dbsliceData.data.cf.all()
+						
+						// This should return the data in the filter, as well as the data corresponding to the outline that has the cursor over it. It relies on the fact that when all items are in the filter the filter is in fact empty.
+						
+						// 
+						
+						var highlight = true
+						
+						var varFilter = dbsliceData.data.filterSelected[d.key]
+						if(varFilter != undefined){
+							
+							// FOR NOW: when mousing over rectangles that are not selected only display the data that is already in hte filter. In the future implement a preview, but to do this functionalities of all plots need to be adjusted to contain points for all tasks at all times.
+							
+							// if:
+							// Rect not chosen, but moused over: do nothing
+							// Rect chosen,     but moused over: show data corresponding to it
+							
+							
+							
+							// mouse over selected item: d.val in filter
+							
+							// If the filter has some values then some rectangles are active! Highlight the data is the moused over rectangle is one of the active ones.
+							var filterHasValues = varFilter.length > 0
+							var filterHasRect   = varFilter.includes(d.val)
+							
+							if( filterHasValues && filterHasRect ){
+								highlight = true
+							} // if	
+						} // if
+						
+						
+						// If highlighting is desired, then find the items in hte current filter that should be highlighted. Otherwise return all the filter contents.
+						var allDataPoints = dbsliceData.data.taskDim.top(Infinity)
+						if(highlight){
+							allDataPoints = allDataPoints.filter(function(p){
+								return p[d.key] == d.val
+							}) // filter
+						} // if
+						
+						
 					  break;
 					  
 					case "cfD3Line":

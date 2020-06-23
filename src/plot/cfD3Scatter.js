@@ -877,16 +877,22 @@ const cfD3Scatter = {
 					
 				}, // unhighlight
 				
-				highlight: function highlight(ctrl, d){
+				highlight: function highlight(ctrl, allDataPoints){
 					
-					// Find the circle corresponding to the data point. Look for it by taskId.
-					ctrl.figure
-					  .select("svg.plotArea")
-					  .select("g.data")
-					    .selectAll("circle")
-						.filter(function(d_){return d_.taskId == d.taskId})
-					      .style("opacity", 1.0)
-					      .attr("r", 7);
+					allDataPoints.forEach(function(d){
+						
+						// Find the circle corresponding to the data point. Look for it by taskId.
+						ctrl.figure
+						  .select("svg.plotArea")
+						  .select("g.data")
+							.selectAll("circle")
+							.filter(function(d_){return d_.taskId == d.taskId})
+							  .style("opacity", 1.0)
+							  .attr("r", 7);
+						
+					}) // forEach
+					
+					
 					
 				}, // highlight
 				

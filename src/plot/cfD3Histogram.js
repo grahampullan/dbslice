@@ -21,7 +21,11 @@ const cfD3Histogram = {
 			plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
 			plotHelpers.setupPlot.general.setupPlotContainerBackbone(ctrl)
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
-			
+			ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.markup")
+				  .append("g")
+				    .attr("class", "extent")
 			
 			// cfD3Histogram.setupPlot.appendHorizonalSelection(ctrl.figure.select(".bottomAxisControlGroup"), ctrl)
 			var i= cfD3Histogram.addInteractivity.onSelectChange
@@ -43,88 +47,238 @@ const cfD3Histogram = {
         
         update: function update(ctrl) {
 		
-			// An idea was to introduce numbers onto the bars for increased readability. However, how should these numbers behave in case teh bins get very narrow? In that case the y axis will be required again.
-			// For now the y-axis has been left on.
-            
-            
-            var x = ctrl.tools.xscale
-			var y = ctrl.tools.yscale
-            var g = ctrl.figure.select("svg.plotArea").select("g.data")
+			// Create some common handles.
+			var h = cfD3Histogram.draw
 			
-			var items = dbsliceData.data.taskDim.top(Infinity);
-			var bins = ctrl.tools.histogram(items)
 			
-
-            // Handle entering/updating/removing the bars.
-            var bars = g.selectAll("rect").data(bins);
-        
-			
+			// Check if the data should be regrouped, or if an update to the existing state is required. This check should be performed here, as a need to regroup might come from outside (by changing the color variable).
+			if(h.isRegroupNeeded(ctrl)){
 				
+				// Perform the regroup
+				h.regroup(ctrl)
 				
-			// Finally append any new bars with 0 height, and then transition them to the appropriate height
-			var newBars = bars.enter()
-			newBars
-              .append("rect")
-                .attr("transform", startState)
-                .attr("x", 1)
-                .attr("width",  calculateWidth )
-                .attr("height", 0)
-                .style("fill", "cornflowerblue")
-                .attr("opacity", 1)
-			  .transition()
-			    .delay( ctrl.view.transitions.enterDelay )
-				.duration( ctrl.view.transitions.duration )
-				.attr("height", calculateHeight)
-                .attr("transform", finishState)
-              
-			// Now move the existing bars.
-            bars
-			  .transition()
-			    .delay( ctrl.view.transitions.updateDelay )
-			    .duration( ctrl.view.transitions.duration )
-                .attr("transform", finishState)
-                .attr("x", 1)
-                .attr("width", calculateWidth )
-                .attr("height", calculateHeight);
-			  
-			// Remove any unnecessary bars by reducing their height to 0 and then removing them.
-            bars.exit()
-			  .transition()
-			    .duration( ctrl.view.transitions.duration )
-				.attr("transform", startState)
-				.attr("height", 0)
-				.remove();
-            
+			} else {
+				// Just update the view
+				h.update(ctrl)
+				
+			} // if
 		
-			// Make some axes
-			cfD3Histogram.helpers.createAxes(ctrl)
-		
-			// Add on the tooltips.
-			cfD3Histogram.addInteractivity.addMarkerTooltip(ctrl)
-		
-			function calculateHeight(d_){
-				return g.attr("height") - y(d_.length)
-			} // calculateHeight
-		
-			function calculateWidth(d_){
-				var width = x(d_.x1) - x(d_.x0) - 1;
-				width = width < 1 ? 1 : width
-				return width	
-			} // calculateWidth
 			
-			function startState(d){
-				return makeTranslate(x(d.x0), g.attr("height"))
-			} // startState
-			
-			function finishState(d){
-				return makeTranslate(x(d.x0), y(d.length))
-			} // finishState
-		
-			function makeTranslate(x,y){
-				return "translate("+[x, y].join()+")"
-			} // makeTranslate	
-        
         }, // update
+		
+		draw: {
+			
+			plotDataExtent: function plotDataExtent(ctrl, items){
+				
+				var a = cfD3Histogram.draw.getAccessors(ctrl)
+				var t = ctrl.view.transitions
+
+				// Handle entering/updating/removing the bars.
+				var bars = ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.markup")
+				  .select("g.extent")
+				  .selectAll("rect").data(items);
+			
+				// Finally append any new bars with 0 height, and then transition them to the appropriate height
+				var newBars = bars.enter()
+				newBars
+				  .append("rect")
+					.attr("transform", a.startState)
+					.attr("x", 1)
+					.attr("width",  a.width )
+					.attr("height", 0)
+					.style("fill", "black")
+					.attr("opacity", 0.1)
+				  .transition()
+					.delay( t.enterDelay )
+					.duration( t.duration )
+					.attr("height", a.height)
+					.attr("transform", a.finishState)
+				  
+				// Now move the existing bars.
+				bars
+				  .transition()
+					.delay( t.updateDelay )
+					.duration( t.duration )
+					.attr("transform", a.finishState)
+					.attr("x", 1)
+					.attr("width", a.width )
+					.attr("height", a.height);
+				  
+				// Remove any unnecessary bars by reducing their height to 0 and then removing them.
+				bars.exit()
+				  .transition()
+					.duration( t.duration )
+					.attr("transform", a.startState)
+					.attr("height", 0)
+					.remove();
+				
+			}, // plotDataExtent
+			
+			plotCurrentSelection: function plotCurrentSelection(ctrl, items){
+				
+				
+				// Plotting
+				var a = cfD3Histogram.draw.getAccessors(ctrl)
+				var t = ctrl.view.transitions
+				
+
+				// Handle entering/updating/removing the bars.
+				var bars = ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("rect").data(items);
+			
+					
+				// Finally append any new bars with 0 height, and then transition them to the appropriate height
+				var newBars = bars.enter()
+				newBars
+				  .append("rect")
+					.attr("transform", a.startState)
+					.attr("x", 1)
+					.attr("width",  a.width )
+					.attr("height", 0)
+					.style("fill", a.fill)
+					.attr("opacity", 1)
+				  .transition()
+					.delay( t.enterDelay )
+					.duration( t.duration )
+					.attr("height", a.height)
+					.attr("transform", a.finishState)
+				  
+				// Now move the existing bars.
+				bars
+				  .transition()
+					.delay( t.updateDelay )
+					.duration( t.duration )
+					.attr("transform", a.finishState)
+					.attr("x", 1)
+					.attr("width", a.width )
+					.attr("height", a.height);
+				  
+				// Remove any unnecessary bars by reducing their height to 0 and then removing them.
+				bars.exit()
+				  .transition()
+					.duration( t.duration )
+					.attr("transform", a.startState)
+					.attr("height", 0)
+					.remove();
+				
+				
+			}, // plotCurrentSelection
+			
+			
+			isRegroupNeeded: function isRegroupNeeded(ctrl){
+				
+				var flag = ctrl.view.gVar != ctrl.view.xVarOption.val ||
+			               ctrl.view.gClr != color.settings.variable
+				
+				// Update the 'gVar' and 'gClr' flags for next draw.				
+				ctrl.view.gVar = ctrl.view.xVarOption.val
+			    ctrl.view.gClr = color.settings.variable
+				
+				return flag
+				
+			}, // isRegroupNeeded
+			
+			regroup: function regroup(ctrl){
+				// This function controls the retreat of the data to prepare for the redrawing using the new grouping of the data.
+				
+				var a = cfD3Histogram.draw.getAccessors(ctrl)
+				var g = ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.data")
+				
+				
+				// Remove the rectangles, and when completed order a redraw.
+				g.selectAll("rect")
+					.transition()
+					.duration(500)
+					  .attr("transform", a.startState)
+					  .attr("height", 0)
+					.remove()
+					.end()
+					.then(function(){
+						
+						
+						// Redo the plot tools
+						cfD3Histogram.setupPlot.setupPlotTools(ctrl)
+						
+						// Update the brush limits.
+						ctrl.figure
+						  .select("svg.plotArea")
+					      .select(".selection")
+						  .attr("xMin", d3.min( ctrl.tools.xscale.domain() ))
+						  .attr("xMax", d3.max( ctrl.tools.xscale.domain() ))
+						cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl)
+						
+						// Update any bin controls.
+						cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl)
+						
+						// All elements were removed. Update teh chart.
+						cfD3Histogram.draw.update(ctrl)
+						
+					}) // then
+			
+			
+			}, // regroup
+			
+			update: function update(ctrl){
+				
+				var h = cfD3Histogram.helpers
+				
+				var backgroundItems = h.getUnfilteredItems(ctrl);
+				var filterItems     = h.getFilteredItems(ctrl);
+				
+				// Background data extent
+				cfD3Histogram.draw.plotDataExtent(ctrl, backgroundItems)
+				
+				// Handle the entering/updating/exiting of bars.
+				cfD3Histogram.draw.plotCurrentSelection(ctrl, filterItems)
+				
+				// Handle the axes.
+				cfD3Histogram.helpers.createAxes(ctrl);
+				
+			}, // update
+			
+			getAccessors: function getAccessors(ctrl){
+				
+				return {
+				
+					height: function height(d){
+						// Height 
+						return ctrl.figure.select("svg.plotArea").select("g.data").attr("height") - ctrl.tools.yscale(d.members.length)
+					}, // height
+				
+					width: function width(d){
+						var width = ctrl.tools.xscale(d.x1) - ctrl.tools.xscale(d.x0) - 1;
+						width = width < 1 ? 1 : width
+						return width	
+					}, // width
+					
+					startState: function startState(d){
+						var x = ctrl.tools.xscale(d.x0)
+						var y = ctrl.figure.select("svg.plotArea").select("g.data").attr("height")
+						return "translate("+[x, y].join()+")"
+					}, // startState
+					
+					finishState: function finishState(d){
+						var x = ctrl.tools.xscale(d.x0)
+						var y = ctrl.tools.yscale(d.members.length + d.x)
+						return "translate("+[x, y].join()+")"
+					}, // finishState
+					
+					fill: function fill(d){
+						return color.get(d.cVal)
+					}, // fill
+			
+				
+				} // a
+				
+				
+			} // getAccessors
+		}, // draw
         
 		rescale: function rescale(ctrl){
 			// What should happen if the window is resized?
@@ -246,19 +400,7 @@ const cfD3Histogram = {
 						// Update the filters. As the variable has changed perhaps the limits of the brush have as well.
 						filter.apply()
 						
-						// Redo the plot tools
-						cfD3Histogram.setupPlot.setupPlotTools(ctrl)
 						
-						// Update the brush limits.
-						ctrl.figure
-						  .select("svg.plotArea")
-					      .select(".selection")
-						  .attr("xMin", d3.min( ctrl.tools.xscale.domain() ))
-						  .attr("xMax", d3.max( ctrl.tools.xscale.domain() ))
-						cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl)
-						
-						// Update any bin controls.
-						cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl)
 
 						ctrl.view.transitions = cfD3Histogram.helpers.transitions.animated()
 
@@ -270,46 +412,6 @@ const cfD3Histogram = {
 					} // return
 				}, // vertical
 			}, // onSelectChange
-		
-			addMarkerTooltip: function addMarkerTooltip(ctrl){
-                  
-                // Firs remove any already existing tooltips.
-				d3.selectAll(".d3-tip[type='bin']").remove()
-                var svg = ctrl.figure
-				  .select("svg.plotArea")
-				  
-                var markers = svg
-				  .select("g.markup")
-				  .select("g.binControls")
-				  .selectAll("polygon")
-                  
-                markers.on("mouseover", tipOn)
-                       .on("mouseout", tipOff);
-                  
-				// Cannot erase these by some property as there will be other tips corresponding to other plots with the same propertry - unless they are given a unique id, which is difficult to keep track of.
-                var tip = d3.tip()
-						  .attr('class', 'd3-tip')
-						  .attr('type', 'bin')
-						  .offset([10, 0])
-						  .direction("s")
-						  .html(function (d) {
-							  return "<span>" + "x: "+ d3.format("r")( d ) + "</span>";
-						}) // tip
-                  
-                
-                svg.call( tip );
-                      
-                      
-                function tipOn(d) {
-                    tip.show(d);
-                }; // tipOn
-
-                function tipOff(d) {
-                    tip.hide();
-                }; // tipOff
-                  
-                  
-            }, // addMarkerTooltip
 			
 			addBrush: { 
 			
@@ -885,6 +987,7 @@ const cfD3Histogram = {
 					svg: undefined,
 					view: {xVarOption: undefined,
 						   nBins: undefined,
+						   gVar: undefined,
 						   transitions: {
 								duration: 500,
 								updateDelay: 0,
@@ -908,6 +1011,8 @@ const cfD3Histogram = {
 				ctrl.view.xVarOption = {name: "varName",
 					                     val: options[0],
 								     options: options}
+									 
+				ctrl.view.gVar = options[0]
 				
 				return ctrl
 				
@@ -922,6 +1027,7 @@ const cfD3Histogram = {
 				if(plotData.xProperty != undefined){
 					if( dbsliceData.data.dataProperties.includes(plotData.xProperty) ){
 						ctrl.view.xVarOption.val = plotData.xProperty
+						ctrl.view.gVar =           plotData.xProperty
 					} // if						
 				} // if				
 											
@@ -967,111 +1073,92 @@ const cfD3Histogram = {
 				} // accessProperty
 				
 			}, // writeControl
+					
+			
+			getItems: function getItems(bins, subgroupKey){
+				
+				// For cfD3Histogram this function transforms the outputs from hte histogram into a format that allows individual color subgroups to be shown. As in the bar chart several rectangles are made for this.
+				
+				
+				// Make the subgroup the graphic basis, and plot it directly. Then make sure that the grouping changes are handled properly!!
+				
+				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.metaDataUniqueValues[subgroupKey]
+				
+				// Loop over them to create the rectangles.
+				var items = []
+				bins.forEach(function(bin){
+					
+					var x = 0
+					
+					subgroupVals.forEach(function(subgroupVal){
+						// This will run at least once with the subgroup value of 'undefined'. In that case the item array will hold a single rectangle for each of the expected bars.
+						
+						var members = bin.filter(function(task){
+							// In case where the subgroupKey passed in is 'undefined' this statement evaluates as 'undefined' == 'undefined'
+							return task[subgroupKey] == subgroupVal
+						})
+						
+						var rectData = {
+							x0: bin.x0,
+							x1: bin.x1,
+							cKey: subgroupKey,
+							cVal: subgroupVal,
+							x: x,
+							members: members
+						}
+						
+						items.push(rectData)
+						
+						// Update the position for the next subgroup.
+						x = x + members.length
+					}) // subgroup
+				}) // group
+					
+				return items
+			}, // getItems
+			
+			getUnfilteredItems: function getUnfilteredItems(ctrl){
+				
+				var items = dbsliceData.data.cf.all();
+				var bins = ctrl.tools.histogram(items)
+				return cfD3Histogram.helpers.getItems(bins, undefined)
+				
+			}, // getUnfilteredItems
+			
+			getFilteredItems: function getFilteredItems(ctrl){
+				
+				var items = dbsliceData.data.taskDim.top(Infinity);
+				var bins = ctrl.tools.histogram(items)
+				return cfD3Histogram.helpers.getItems(bins, color.settings.variable)
+				
+			}, // getFilteredItems
 			
 			// Functions for cross plot highlighting
 			unhighlight: function unhighlight(ctrl){
 				
-				ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
-				  .selectAll("rect")
-					.style("opacity", 0.2)
+				// Do nothing. On all actions the graphics showing the current selection are being updated, which changes the amount of elements on hte screen accordingly.
+				
 				
 			}, // unhighlight
 			
-			highlight: function highlight(ctrl, d){
-				// NOTE THAT THE TRANSITION EFFECTS CAUSE SLIGHT BUGS - THE MARKERS ARE CREATED BEFORE THE TRANSITION COMPLETES!
-					
-				// Find within which bar the point falls.
-				var property = ctrl.view.xVarOption.val;
-				var bars = ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
-				  .selectAll("rect");
-				 
+			highlight: function highlight(ctrl, allDataPoints){
 				
-				bars.each(function(barData, barInd){
-					// d3 connects each of the bars with its data! here 'barData' is an array containing all the data points relating to it, as well as the range of values it represents.
-					
-					// Pick the corresponding marker.
-					var marker = ctrl.figure
-								  .select("svg.plotArea")
-								  .select("g.markup")
-								  .selectAll('.tempMarker[ind="'+barInd+'"]');
-					
-					// If there is any data connected to this bar check if it needs to be highlighted.
-					for(var i=0; i < barData.length; i++){
-						
-						// Check if the datapoint with the taskId is in this array. In this case check with a for loop (as opposed to forEach), as otherwise the x0 and x1 properties are interpreted as array elements too.
-						if(d.taskId == barData[i].taskId){
-							
-							// Find the height corresponding to 1 task.
-							var h = this.height.baseVal.value/barData.length;
-							
-							
-							// Get the marker rectangle, and update its attributes.
-							if(marker.empty()){
-								// There is none, so append one.
-								var n = 1;
-								
-								marker = ctrl.figure
-								  .select("svg.plotArea")
-								  .select("g.markup")
-								    .append("rect")
-									  .attr("class", "tempMarker")
-									  .attr("height", n*h)
-									  .attr("transform", getTranslate(this, n, h))
-									  .attr("n", n)
-									  .attr("ind", barInd)
-									  .attr("width", this.width.baseVal.value)
-									  .attr("opacity", 1)
-									  .style("fill","cornflowerblue")
-								
-							} else {
-								// Add to the height.
-								var n = Number(marker.attr("n")) + 1;
-								
-								marker
-									.attr("height", n*h)
-									.attr("transform", getTranslate(this, n, h))
-									.attr("n", n)
-								
-							} // if
-							
-						}; // if
-						
-					}; //if
-					
-					function getTranslate(barDOM, n, h){
-						
-						var plotHeight = d3.select(barDOM.parentElement.parentElement)
-						.select("g.data").attr("height");
-						
-						var leftEdgeX = barDOM.transform.baseVal[0].matrix.e + 1;
-						var topEdgeY = plotHeight - n*h;
-						var t = "translate(" + leftEdgeX + "," + topEdgeY + ")";
-					  return t;
-					} // getTranslate
-					
-				}); // each
+				// Just redraw the view with allDataPoints. To avoid circularity move the data extent to the foreground?
+				var highlightedBins = ctrl.tools.histogram(allDataPoints)
 				
+				var highlightedData = cfD3Histogram.helpers.getItems(highlightedBins, color.settings.variable)
+				
+				
+				// Draw the highlighted data.
+				cfD3Histogram.draw.plotCurrentSelection(ctrl, highlightedData)
 				
 			}, // highlight
 			
 			defaultStyle: function defaultStyle(ctrl){
-				// Find within which bar the point falls.
-				ctrl.figure.selectAll(".tempMarker").remove()
 				
-				// Set opacity to the histogram bars.
-				ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
-				  .selectAll("rect")
-				    .style("opacity", 1)
-					
-				// Rehighlight any manually selected tasks.
-				crossPlotHighlighting.manuallySelectedTasks()
 				
+				cfD3Histogram.draw.update(ctrl)
+									
 			}, // defaultStyle
 			
 		} // helpers

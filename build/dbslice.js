@@ -87,9 +87,7 @@ var dbslice = (function (exports) {
           // crossPlotHighlighting.helpers.unHighlightAll(plotDOM, plot);
           plotCtrl.plotFunc.helpers.unhighlight(plotCtrl); // Now highlight the needed datapoints.
 
-          allDataPoints.forEach(function (d) {
-            plotCtrl.plotFunc.helpers.highlight(plotCtrl, d);
-          }); // forEach
+          plotCtrl.plotFunc.helpers.highlight(plotCtrl, allDataPoints);
         }); // each
       }); // forEach
     },
@@ -114,10 +112,39 @@ var dbslice = (function (exports) {
 
           case "cfD3BarChart":
             // Collect all the relevant data points. An additional filter needs to be applied here!! DON'T USE crossfilter.filter - IT MESSES UP WITH ORIGINAL FUNCTIONALITY
-            var cfDataPoints = dbsliceData.data.taskDim.top(Infinity);
-            allDataPoints = cfDataPoints.filter(function (p) {
-              return p[d.key] == d.val;
-            });
+            //var allPoints = dbsliceData.data.cf.all()
+            // This should return the data in the filter, as well as the data corresponding to the outline that has the cursor over it. It relies on the fact that when all items are in the filter the filter is in fact empty.
+            // 
+            var highlight = true;
+            var varFilter = dbsliceData.data.filterSelected[d.key];
+
+            if (varFilter != undefined) {
+              // FOR NOW: when mousing over rectangles that are not selected only display the data that is already in hte filter. In the future implement a preview, but to do this functionalities of all plots need to be adjusted to contain points for all tasks at all times.
+              // if:
+              // Rect not chosen, but moused over: do nothing
+              // Rect chosen,     but moused over: show data corresponding to it
+              // mouse over selected item: d.val in filter
+              // If the filter has some values then some rectangles are active! Highlight the data is the moused over rectangle is one of the active ones.
+              var filterHasValues = varFilter.length > 0;
+              var filterHasRect = varFilter.includes(d.val);
+
+              if (filterHasValues && filterHasRect) {
+                highlight = true;
+              } // if	
+
+            } // if
+            // If highlighting is desired, then find the items in hte current filter that should be highlighted. Otherwise return all the filter contents.
+
+
+            var allDataPoints = dbsliceData.data.taskDim.top(Infinity);
+
+            if (highlight) {
+              allDataPoints = allDataPoints.filter(function (p) {
+                return p[d.key] == d.val;
+              }); // filter
+            } // if
+
+
             break;
 
           case "cfD3Line":
@@ -859,7 +886,8 @@ var dbslice = (function (exports) {
       // Setup the object that will internally handle all parts of the chart.
       plotHelpers.setupPlot.general.setupPlotBackbone(ctrl);
       plotHelpers.setupPlot.general.setupPlotContainerBackbone(ctrl);
-      plotHelpers.setupPlot.general.rescaleSvg(ctrl); // cfD3Histogram.setupPlot.appendHorizonalSelection(ctrl.figure.select(".bottomAxisControlGroup"), ctrl)
+      plotHelpers.setupPlot.general.rescaleSvg(ctrl);
+      ctrl.figure.select("svg.plotArea").select("g.markup").append("g").attr("class", "extent"); // cfD3Histogram.setupPlot.appendHorizonalSelection(ctrl.figure.select(".bottomAxisControlGroup"), ctrl)
 
       var i = cfD3Histogram.addInteractivity.onSelectChange;
       plotHelpers.setupPlot.general.appendHorizontalSelection(ctrl.figure.select(".bottomAxisControlGroup"), i.horizontal(ctrl));
@@ -870,55 +898,121 @@ var dbslice = (function (exports) {
       cfD3Histogram.update(ctrl);
     },
     update: function update(ctrl) {
-      // An idea was to introduce numbers onto the bars for increased readability. However, how should these numbers behave in case teh bins get very narrow? In that case the y axis will be required again.
-      // For now the y-axis has been left on.
-      var x = ctrl.tools.xscale;
-      var y = ctrl.tools.yscale;
-      var g = ctrl.figure.select("svg.plotArea").select("g.data");
-      var items = dbsliceData.data.taskDim.top(Infinity);
-      var bins = ctrl.tools.histogram(items); // Handle entering/updating/removing the bars.
+      // Create some common handles.
+      var h = cfD3Histogram.draw; // Check if the data should be regrouped, or if an update to the existing state is required. This check should be performed here, as a need to regroup might come from outside (by changing the color variable).
 
-      var bars = g.selectAll("rect").data(bins); // Finally append any new bars with 0 height, and then transition them to the appropriate height
-
-      var newBars = bars.enter();
-      newBars.append("rect").attr("transform", startState).attr("x", 1).attr("width", calculateWidth).attr("height", 0).style("fill", "cornflowerblue").attr("opacity", 1).transition().delay(ctrl.view.transitions.enterDelay).duration(ctrl.view.transitions.duration).attr("height", calculateHeight).attr("transform", finishState); // Now move the existing bars.
-
-      bars.transition().delay(ctrl.view.transitions.updateDelay).duration(ctrl.view.transitions.duration).attr("transform", finishState).attr("x", 1).attr("width", calculateWidth).attr("height", calculateHeight); // Remove any unnecessary bars by reducing their height to 0 and then removing them.
-
-      bars.exit().transition().duration(ctrl.view.transitions.duration).attr("transform", startState).attr("height", 0).remove(); // Make some axes
-
-      cfD3Histogram.helpers.createAxes(ctrl); // Add on the tooltips.
-
-      cfD3Histogram.addInteractivity.addMarkerTooltip(ctrl);
-
-      function calculateHeight(d_) {
-        return g.attr("height") - y(d_.length);
-      } // calculateHeight
-
-
-      function calculateWidth(d_) {
-        var width = x(d_.x1) - x(d_.x0) - 1;
-        width = width < 1 ? 1 : width;
-        return width;
-      } // calculateWidth
-
-
-      function startState(d) {
-        return makeTranslate(x(d.x0), g.attr("height"));
-      } // startState
-
-
-      function finishState(d) {
-        return makeTranslate(x(d.x0), y(d.length));
-      } // finishState
-
-
-      function makeTranslate(x, y) {
-        return "translate(" + [x, y].join() + ")";
-      } // makeTranslate	
+      if (h.isRegroupNeeded(ctrl)) {
+        // Perform the regroup
+        h.regroup(ctrl);
+      } else {
+        // Just update the view
+        h.update(ctrl);
+      } // if
 
     },
     // update
+    draw: {
+      plotDataExtent: function plotDataExtent(ctrl, items) {
+        var a = cfD3Histogram.draw.getAccessors(ctrl);
+        var t = ctrl.view.transitions; // Handle entering/updating/removing the bars.
+
+        var bars = ctrl.figure.select("svg.plotArea").select("g.markup").select("g.extent").selectAll("rect").data(items); // Finally append any new bars with 0 height, and then transition them to the appropriate height
+
+        var newBars = bars.enter();
+        newBars.append("rect").attr("transform", a.startState).attr("x", 1).attr("width", a.width).attr("height", 0).style("fill", "black").attr("opacity", 0.1).transition().delay(t.enterDelay).duration(t.duration).attr("height", a.height).attr("transform", a.finishState); // Now move the existing bars.
+
+        bars.transition().delay(t.updateDelay).duration(t.duration).attr("transform", a.finishState).attr("x", 1).attr("width", a.width).attr("height", a.height); // Remove any unnecessary bars by reducing their height to 0 and then removing them.
+
+        bars.exit().transition().duration(t.duration).attr("transform", a.startState).attr("height", 0).remove();
+      },
+      // plotDataExtent
+      plotCurrentSelection: function plotCurrentSelection(ctrl, items) {
+        // Plotting
+        var a = cfD3Histogram.draw.getAccessors(ctrl);
+        var t = ctrl.view.transitions; // Handle entering/updating/removing the bars.
+
+        var bars = ctrl.figure.select("svg.plotArea").select("g.data").selectAll("rect").data(items); // Finally append any new bars with 0 height, and then transition them to the appropriate height
+
+        var newBars = bars.enter();
+        newBars.append("rect").attr("transform", a.startState).attr("x", 1).attr("width", a.width).attr("height", 0).style("fill", a.fill).attr("opacity", 1).transition().delay(t.enterDelay).duration(t.duration).attr("height", a.height).attr("transform", a.finishState); // Now move the existing bars.
+
+        bars.transition().delay(t.updateDelay).duration(t.duration).attr("transform", a.finishState).attr("x", 1).attr("width", a.width).attr("height", a.height); // Remove any unnecessary bars by reducing their height to 0 and then removing them.
+
+        bars.exit().transition().duration(t.duration).attr("transform", a.startState).attr("height", 0).remove();
+      },
+      // plotCurrentSelection
+      isRegroupNeeded: function isRegroupNeeded(ctrl) {
+        var flag = ctrl.view.gVar != ctrl.view.xVarOption.val || ctrl.view.gClr != color.settings.variable; // Update the 'gVar' and 'gClr' flags for next draw.				
+
+        ctrl.view.gVar = ctrl.view.xVarOption.val;
+        ctrl.view.gClr = color.settings.variable;
+        return flag;
+      },
+      // isRegroupNeeded
+      regroup: function regroup(ctrl) {
+        // This function controls the retreat of the data to prepare for the redrawing using the new grouping of the data.
+        var a = cfD3Histogram.draw.getAccessors(ctrl);
+        var g = ctrl.figure.select("svg.plotArea").select("g.data"); // Remove the rectangles, and when completed order a redraw.
+
+        g.selectAll("rect").transition().duration(500).attr("transform", a.startState).attr("height", 0).remove().end().then(function () {
+          // Redo the plot tools
+          cfD3Histogram.setupPlot.setupPlotTools(ctrl); // Update the brush limits.
+
+          ctrl.figure.select("svg.plotArea").select(".selection").attr("xMin", d3.min(ctrl.tools.xscale.domain())).attr("xMax", d3.max(ctrl.tools.xscale.domain()));
+          cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl); // Update any bin controls.
+
+          cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl); // All elements were removed. Update teh chart.
+
+          cfD3Histogram.draw.update(ctrl);
+        }); // then
+      },
+      // regroup
+      update: function update(ctrl) {
+        var h = cfD3Histogram.helpers;
+        var backgroundItems = h.getUnfilteredItems(ctrl);
+        var filterItems = h.getFilteredItems(ctrl); // Background data extent
+
+        cfD3Histogram.draw.plotDataExtent(ctrl, backgroundItems); // Handle the entering/updating/exiting of bars.
+
+        cfD3Histogram.draw.plotCurrentSelection(ctrl, filterItems); // Handle the axes.
+
+        cfD3Histogram.helpers.createAxes(ctrl);
+      },
+      // update
+      getAccessors: function getAccessors(ctrl) {
+        return {
+          height: function height(d) {
+            // Height 
+            return ctrl.figure.select("svg.plotArea").select("g.data").attr("height") - ctrl.tools.yscale(d.members.length);
+          },
+          // height
+          width: function width(d) {
+            var width = ctrl.tools.xscale(d.x1) - ctrl.tools.xscale(d.x0) - 1;
+            width = width < 1 ? 1 : width;
+            return width;
+          },
+          // width
+          startState: function startState(d) {
+            var x = ctrl.tools.xscale(d.x0);
+            var y = ctrl.figure.select("svg.plotArea").select("g.data").attr("height");
+            return "translate(" + [x, y].join() + ")";
+          },
+          // startState
+          finishState: function finishState(d) {
+            var x = ctrl.tools.xscale(d.x0);
+            var y = ctrl.tools.yscale(d.members.length + d.x);
+            return "translate(" + [x, y].join() + ")";
+          },
+          // finishState
+          fill: function fill(d) {
+            return color.get(d.cVal);
+          } // fill
+
+        }; // a
+      } // getAccessors
+
+    },
+    // draw
     rescale: function rescale(ctrl) {
       // What should happen if the window is resized?
       // 1.) The svg should be resized appropriately
@@ -1007,14 +1101,7 @@ var dbslice = (function (exports) {
             ctrl.view.xVarOption.val = selectedVar;
             ctrl.view.nBins = undefined; // Update the filters. As the variable has changed perhaps the limits of the brush have as well.
 
-            filter.apply(); // Redo the plot tools
-
-            cfD3Histogram.setupPlot.setupPlotTools(ctrl); // Update the brush limits.
-
-            ctrl.figure.select("svg.plotArea").select(".selection").attr("xMin", d3.min(ctrl.tools.xscale.domain())).attr("xMax", d3.max(ctrl.tools.xscale.domain()));
-            cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl); // Update any bin controls.
-
-            cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl);
+            filter.apply();
             ctrl.view.transitions = cfD3Histogram.helpers.transitions.animated(); // Update the graphics. As the variable changed and the fitler is getting removed the other plots should be notified.
 
             render();
@@ -1023,28 +1110,6 @@ var dbslice = (function (exports) {
 
       },
       // onSelectChange
-      addMarkerTooltip: function addMarkerTooltip(ctrl) {
-        // Firs remove any already existing tooltips.
-        d3.selectAll(".d3-tip[type='bin']").remove();
-        var svg = ctrl.figure.select("svg.plotArea");
-        var markers = svg.select("g.markup").select("g.binControls").selectAll("polygon");
-        markers.on("mouseover", tipOn).on("mouseout", tipOff); // Cannot erase these by some property as there will be other tips corresponding to other plots with the same propertry - unless they are given a unique id, which is difficult to keep track of.
-
-        var tip = d3.tip().attr('class', 'd3-tip').attr('type', 'bin').offset([10, 0]).direction("s").html(function (d) {
-          return "<span>" + "x: " + d3.format("r")(d) + "</span>";
-        }); // tip
-
-        svg.call(tip);
-
-        function tipOn(d) {
-          tip.show(d);
-        }
-
-        function tipOff(d) {
-          tip.hide();
-        }
-      },
-      // addMarkerTooltip
       addBrush: {
         make: function make(ctrl) {
           var h = cfD3Histogram.addInteractivity.addBrush;
@@ -1419,6 +1484,7 @@ var dbslice = (function (exports) {
           view: {
             xVarOption: undefined,
             nBins: undefined,
+            gVar: undefined,
             transitions: {
               duration: 500,
               updateDelay: 0,
@@ -1456,6 +1522,7 @@ var dbslice = (function (exports) {
           val: options[0],
           options: options
         };
+        ctrl.view.gVar = options[0];
         return ctrl;
       },
       // createDefaultControl
@@ -1465,6 +1532,7 @@ var dbslice = (function (exports) {
         if (plotData.xProperty != undefined) {
           if (dbsliceData.data.dataProperties.includes(plotData.xProperty)) {
             ctrl.view.xVarOption.val = plotData.xProperty;
+            ctrl.view.gVar = plotData.xProperty;
           } // if						
 
         } // if				
@@ -1506,58 +1574,63 @@ var dbslice = (function (exports) {
 
       },
       // writeControl
+      getItems: function getItems(bins, subgroupKey) {
+        // For cfD3Histogram this function transforms the outputs from hte histogram into a format that allows individual color subgroups to be shown. As in the bar chart several rectangles are made for this.
+        // Make the subgroup the graphic basis, and plot it directly. Then make sure that the grouping changes are handled properly!!
+        var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.metaDataUniqueValues[subgroupKey]; // Loop over them to create the rectangles.
+
+        var items = [];
+        bins.forEach(function (bin) {
+          var x = 0;
+          subgroupVals.forEach(function (subgroupVal) {
+            // This will run at least once with the subgroup value of 'undefined'. In that case the item array will hold a single rectangle for each of the expected bars.
+            var members = bin.filter(function (task) {
+              // In case where the subgroupKey passed in is 'undefined' this statement evaluates as 'undefined' == 'undefined'
+              return task[subgroupKey] == subgroupVal;
+            });
+            var rectData = {
+              x0: bin.x0,
+              x1: bin.x1,
+              cKey: subgroupKey,
+              cVal: subgroupVal,
+              x: x,
+              members: members
+            };
+            items.push(rectData); // Update the position for the next subgroup.
+
+            x = x + members.length;
+          }); // subgroup
+        }); // group
+
+        return items;
+      },
+      // getItems
+      getUnfilteredItems: function getUnfilteredItems(ctrl) {
+        var items = dbsliceData.data.cf.all();
+        var bins = ctrl.tools.histogram(items);
+        return cfD3Histogram.helpers.getItems(bins, undefined);
+      },
+      // getUnfilteredItems
+      getFilteredItems: function getFilteredItems(ctrl) {
+        var items = dbsliceData.data.taskDim.top(Infinity);
+        var bins = ctrl.tools.histogram(items);
+        return cfD3Histogram.helpers.getItems(bins, color.settings.variable);
+      },
+      // getFilteredItems
       // Functions for cross plot highlighting
-      unhighlight: function unhighlight(ctrl) {
-        ctrl.figure.select("svg.plotArea").select("g.data").selectAll("rect").style("opacity", 0.2);
+      unhighlight: function unhighlight(ctrl) {// Do nothing. On all actions the graphics showing the current selection are being updated, which changes the amount of elements on hte screen accordingly.
       },
       // unhighlight
-      highlight: function highlight(ctrl, d) {
-        // NOTE THAT THE TRANSITION EFFECTS CAUSE SLIGHT BUGS - THE MARKERS ARE CREATED BEFORE THE TRANSITION COMPLETES!
-        // Find within which bar the point falls.
-        var property = ctrl.view.xVarOption.val;
-        var bars = ctrl.figure.select("svg.plotArea").select("g.data").selectAll("rect");
-        bars.each(function (barData, barInd) {
-          // d3 connects each of the bars with its data! here 'barData' is an array containing all the data points relating to it, as well as the range of values it represents.
-          // Pick the corresponding marker.
-          var marker = ctrl.figure.select("svg.plotArea").select("g.markup").selectAll('.tempMarker[ind="' + barInd + '"]'); // If there is any data connected to this bar check if it needs to be highlighted.
+      highlight: function highlight(ctrl, allDataPoints) {
+        // Just redraw the view with allDataPoints. To avoid circularity move the data extent to the foreground?
+        var highlightedBins = ctrl.tools.histogram(allDataPoints);
+        var highlightedData = cfD3Histogram.helpers.getItems(highlightedBins, color.settings.variable); // Draw the highlighted data.
 
-          for (var i = 0; i < barData.length; i++) {
-            // Check if the datapoint with the taskId is in this array. In this case check with a for loop (as opposed to forEach), as otherwise the x0 and x1 properties are interpreted as array elements too.
-            if (d.taskId == barData[i].taskId) {
-              // Find the height corresponding to 1 task.
-              var h = this.height.baseVal.value / barData.length; // Get the marker rectangle, and update its attributes.
-
-              if (marker.empty()) {
-                // There is none, so append one.
-                var n = 1;
-                marker = ctrl.figure.select("svg.plotArea").select("g.markup").append("rect").attr("class", "tempMarker").attr("height", n * h).attr("transform", getTranslate(this, n, h)).attr("n", n).attr("ind", barInd).attr("width", this.width.baseVal.value).attr("opacity", 1).style("fill", "cornflowerblue");
-              } else {
-                // Add to the height.
-                var n = Number(marker.attr("n")) + 1;
-                marker.attr("height", n * h).attr("transform", getTranslate(this, n, h)).attr("n", n);
-              } // if
-
-            }
-          }
-
-          function getTranslate(barDOM, n, h) {
-            var plotHeight = d3.select(barDOM.parentElement.parentElement).select("g.data").attr("height");
-            var leftEdgeX = barDOM.transform.baseVal[0].matrix.e + 1;
-            var topEdgeY = plotHeight - n * h;
-            var t = "translate(" + leftEdgeX + "," + topEdgeY + ")";
-            return t;
-          } // getTranslate
-
-        }); // each
+        cfD3Histogram.draw.plotCurrentSelection(ctrl, highlightedData);
       },
       // highlight
       defaultStyle: function defaultStyle(ctrl) {
-        // Find within which bar the point falls.
-        ctrl.figure.selectAll(".tempMarker").remove(); // Set opacity to the histogram bars.
-
-        ctrl.figure.select("svg.plotArea").select("g.data").selectAll("rect").style("opacity", 1); // Rehighlight any manually selected tasks.
-
-        crossPlotHighlighting.manuallySelectedTasks();
+        cfD3Histogram.draw.update(ctrl);
       } // defaultStyle
 
     } // helpers
@@ -2181,11 +2254,13 @@ var dbslice = (function (exports) {
         ctrl.figure.select("svg.plotArea").select("g.data").selectAll("circle").style("opacity", 0.2);
       },
       // unhighlight
-      highlight: function highlight(ctrl, d) {
-        // Find the circle corresponding to the data point. Look for it by taskId.
-        ctrl.figure.select("svg.plotArea").select("g.data").selectAll("circle").filter(function (d_) {
-          return d_.taskId == d.taskId;
-        }).style("opacity", 1.0).attr("r", 7);
+      highlight: function highlight(ctrl, allDataPoints) {
+        allDataPoints.forEach(function (d) {
+          // Find the circle corresponding to the data point. Look for it by taskId.
+          ctrl.figure.select("svg.plotArea").select("g.data").selectAll("circle").filter(function (d_) {
+            return d_.taskId == d.taskId;
+          }).style("opacity", 1.0).attr("r", 7);
+        }); // forEach
       },
       // highlight
       defaultStyle: function defaultStyle(ctrl) {
@@ -3968,9 +4043,11 @@ var dbslice = (function (exports) {
         ctrl.figure.select("svg.plotArea").select("g.data").selectAll(".line").style("opacity", 0.2);
       },
       // unhighlight
-      highlight: function highlight(ctrl, d) {
-        // Find the line corresponding to the data point. Look for it by taskId.
-        ctrl.figure.select("svg.plotArea").select("g.data").selectAll('.plotSeries[task-id="' + d.taskId + '"]').selectAll(".line").style("opacity", 1.0).style("stroke-width", "4px");
+      highlight: function highlight(ctrl, allDataPoints) {
+        allDataPoints.forEach(function (d) {
+          // Find the line corresponding to the data point. Look for it by taskId.
+          ctrl.figure.select("svg.plotArea").select("g.data").selectAll('.plotSeries[task-id="' + d.taskId + '"]').selectAll(".line").style("opacity", 1.0).style("stroke-width", "4px");
+        }); // forEach
       },
       // highlight
       defaultStyle: function defaultStyle(ctrl) {
@@ -5052,6 +5129,7 @@ var dbslice = (function (exports) {
           } else {
             // Apply the filter
             cf.metaDims[variable].filter(function (d) {
+              // Here d is the value of the individual task property called <variable> already.
               return filterItems.indexOf(d) > -1;
             }); // filter
           }
@@ -5090,8 +5168,8 @@ var dbslice = (function (exports) {
       function applyHistogramChartFilters() {
         // 'updateApplyBarChartFilters' checks if the filters still correspond to a variable visualised by a bar chart. Same logic as for the bar chart.
         // Deselect all metadata filters.
-        Object.keys(cf.metaDims).forEach(function (variable) {
-          cf.metaDims[variable].filterAll();
+        Object.keys(cf.dataDims).forEach(function (variable) {
+          cf.dataDims[variable].filterAll();
         }); // forEach
         // Get the fitlered variables. These are selected differently than for filter deselection as an additional safety net - all filters are definitely removed this way.
 
@@ -5230,7 +5308,7 @@ var dbslice = (function (exports) {
     draw: {
       plotDataExtent: function plotDataExtent(ctrl, items) {
         var t = ctrl.view.transitions;
-        var bars = ctrl.figure.select("svg.plotArea").select("g.background").selectAll("rect").data(items); // New bars
+        var bars = ctrl.figure.select("svg.plotArea").select("g.markup").selectAll("rect").data(items); // New bars
 
         bars.enter().append("rect").attr("height", getHeight).attr("width", 0).attr("x", 0).attr("y", getPosition).style("fill", "black").attr("opacity", 0.2).transition().delay(t.updateDelay).duration(t.duration).attr("width", getWidth); // Existing bars
 
@@ -5242,11 +5320,11 @@ var dbslice = (function (exports) {
         }
 
         function getWidth(d) {
-          return ctrl.tools.xscale(d.value);
+          return ctrl.tools.xscale(d.members.length);
         }
 
         function getPosition(d) {
-          return ctrl.tools.yscale(d.key);
+          return ctrl.tools.yscale(d.val);
         }
       },
       // plotDataExtent
@@ -5288,7 +5366,7 @@ var dbslice = (function (exports) {
         }
 
         function getPosition(d) {
-          return ctrl.tools.yscale(d.key);
+          return ctrl.tools.yscale(d.val);
         }
 
         function getLabelPosition(d) {
@@ -5296,7 +5374,7 @@ var dbslice = (function (exports) {
         }
 
         function getLabel(d) {
-          return d.key;
+          return d.val;
         }
       },
       // plotMarkup
@@ -5314,7 +5392,7 @@ var dbslice = (function (exports) {
 
         svg.select("g.markup").selectAll(".keyLabel").transition().remove(); // Remove the rectangles, and when completed order a redraw.
 
-        svg.selectAll("rect").transition().duration(500).attr("x", ctrl.tools.xscale(0)).attr("width", 0).remove().end().then(function () {
+        svg.select("g.data").selectAll("rect").transition().duration(500).attr("x", ctrl.tools.xscale(0)).attr("width", 0).remove().end().then(function () {
           // All elements were removed. Update teh chart.
           cfD3BarChart.draw.update(ctrl);
         }); // then
@@ -5362,13 +5440,13 @@ var dbslice = (function (exports) {
         var items = cfD3BarChart.helpers.getUnfilteredItems(property); // The scale that will control the property used to visually convey numeric information.
 
         ctrl.tools.xscale = d3.scaleLinear().range([0, width]).domain([0, d3.max(items, function (v) {
-          return v.value;
+          return v.members.length;
         })]); // 'd2.scaleBand' does the division of the plotting area into separate bands based on input categorical values, and returns the number corresponding to the position of the band, and to the width of the band by calling '<scale>()', and '<scale>.bandwidth()' respectively.
         // 'padding' sets the amount of space between the bands (innerPadding), and before and after the bands (outerPadding), to the same value.
         // 'align' controls how the outer padding is distributed between both ends of the band range.
 
         ctrl.tools.yscale = d3.scaleBand().range([0, height]).domain(items.map(function (d) {
-          return d.key;
+          return d.val;
         })).padding([0.2]).align([0.5]);
       } // setupPlotTools
 
@@ -5397,12 +5475,13 @@ var dbslice = (function (exports) {
       addOnMouseClick: function addOnMouseClick(ctrl) {
         // Add the mouse click event
         var property = ctrl.view.yVarOption.val;
-        var svg = ctrl.figure.select("svg.plotArea");
+        var svg = ctrl.figure.select("svg.plotArea").select("g.markup");
         svg.selectAll("rect").on("click", onClick);
 
         function onClick(d) {
-          // Update the filter selection.
-          filter.addUpdateMetadataFilter(property, d[property]); // Apply the selected filters to the crossfilter object.
+          console.log("on bar click"); // Update the filter selection.
+
+          filter.addUpdateMetadataFilter(property, d.val); // Apply the selected filters to the crossfilter object.
 
           filter.apply(); // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
 
@@ -5412,10 +5491,12 @@ var dbslice = (function (exports) {
       },
       // addOnMouseClick
       addOnMouseOver: function addOnMouseOver(ctrl) {
-        var rects = ctrl.figure.select("svg.plotArea").select("g.data").selectAll("rect");
+        // Onle the rectangles showing the data outline are interactive.
+        var rects = ctrl.figure.select("svg.plotArea").select("g.markup").selectAll("rect");
         rects.on("mouseover", crossHighlightOn).on("mouseout", crossHighlightOff);
 
         function crossHighlightOn(d) {
+          // When mousing over a deselected item it should show the user the preview. This means it should show extra data. But it also means that it needs to keep track of active/inactive rectangles.
           crossPlotHighlighting.on(d, "cfD3BarChart");
         }
 
@@ -5545,17 +5626,18 @@ var dbslice = (function (exports) {
 
       },
       // transitions
-      getItems_: function getItems_(tasks, groupKey) {
+      getItems: function getItems(tasks, groupKey, subgroupKey) {
         // Make the subgroup the graphic basis, and plot it directly. Then make sure that the grouping changes are handled properly!!
         var groupVals = dbsliceData.data.metaDataUniqueValues[groupKey];
-        var subgroupKey = color.settings.variable;
         var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.metaDataUniqueValues[subgroupKey]; // Loop over them to create the rectangles.
 
         var items = [];
         groupVals.forEach(function (groupVal) {
           var x = 0;
           subgroupVals.forEach(function (subgroupVal) {
+            // This will run at least once with the subgroup value of 'undefined'. In that case the item array will hold a single rectangle for each of the expected bars.
             var members = tasks.filter(function (task) {
+              // In case where the subgroupKey passed in is 'undefined' this statement evaluates as 'undefined' == 'undefined'
               return task[groupKey] == groupVal && task[subgroupKey] == subgroupVal;
             });
             var rectData = {
@@ -5575,30 +5657,9 @@ var dbslice = (function (exports) {
         return items;
       },
       // getItems
-      getItems: function getItems(tasks, property) {
-        // Make the items.
-        var keys = dbsliceData.data.metaDataUniqueValues[property];
-        var items = keys.map(function (key) {
-          // Find all tasks with this key.
-          var members = tasks.filter(function (d) {
-            return d[property] == key;
-          }); // filter
-
-          return {
-            keyProperty: property,
-            key: key,
-            value: members.length,
-            members: members
-          };
-        }); // map
-        // Find the starting point of the group also.
-
-        return items;
-      },
-      // getItems
       getFilteredItems: function getFilteredItems(property) {
         var tasks = dbsliceData.data.metaDims[property].top(Infinity);
-        return cfD3BarChart.helpers.getItems_(tasks, property);
+        return cfD3BarChart.helpers.getItems(tasks, property, color.settings.variable);
       },
       // getFilteredItems
       getUnfilteredItems: function getUnfilteredItems(property) {
@@ -5609,7 +5670,8 @@ var dbslice = (function (exports) {
         // Get all tasks.
         var tasks = dbsliceData.data.cf.all(); // Make the items.
 
-        return cfD3BarChart.helpers.getItems(tasks, property); // https://stackoverflow.com/questions/33102032/crossfilter-group-a-filtered-dimension
+        return cfD3BarChart.helpers.getItems(tasks, property, undefined); // https://stackoverflow.com/questions/33102032/crossfilter-group-a-filtered-dimension
+        // Crossfilter groups respect all filters except those of the dimension on which they are defined. Define your group on a different dimension and it will be filtered as you expect.
       },
       // getUnfilteredItems
       createAxes: function createAxes(ctrl) {
@@ -5630,37 +5692,17 @@ var dbslice = (function (exports) {
       },
       // createAxes
       // Functions supporting cross plot highlighting
-      unhighlight: function unhighlight(ctrl) {
-        ctrl.figure.select("svg.plotArea").select("g.data").selectAll("rect").attr("stroke", "none").attr("opacity", 0.2);
+      unhighlight: function unhighlight(ctrl) {// Do nothing. On all actions the graphics showing the current selection are being updated, which changes the amount of elements on hte screen accordingly.
       },
       // unhighlight
-      highlight: function highlight(ctrl, d) {
-        // Find the appropriate bar.
-        ctrl.figure.select("svg.plotArea").select("g.data").selectAll("rect").each(function (d_) {
-          // See if this rect corresponds to the selected one.
-          if (d_.val == d[d_.key]) {
-            d3.select(this).attr("opacity", 1);
-          } // if
-
-        }); // Turn the text bold
-
-        var labels = ctrl.figure.select("svg.plotArea").select("g.markup").selectAll('.keyLabel')._groups[0];
-
-        labels.forEach(function (labelDOM) {
-          if (labelDOM.innerHTML == d[ctrl.view.yVarOption.val]) {
-            // Turn the text bold.
-            labelDOM.style.fontWeight = 'bold';
-          } // if
-
-        }); // forEach
+      highlight: function highlight(ctrl, allDataPoints) {
+        // Just redraw the view with allDataPoints. To avoid circularity move the data extent to the foreground?
+        var highlightedData = cfD3BarChart.helpers.getItems(allDataPoints, ctrl.view.yVarOption.val, color.settings.variable);
+        cfD3BarChart.draw.plotCurrentSelection(ctrl, highlightedData);
       },
       // highlight
       defaultStyle: function defaultStyle(ctrl) {
-        ctrl.figure.select("svg.plotArea").select("g.data").selectAll("rect").attr("stroke", "none").attr("opacity", 1); // Remove the text bolding.
-
-        ctrl.figure.select("svg.plotArea").select("g.markup").selectAll('.keyLabel').style("font-weight", ""); // Rehighlight any manually selected tasks.
-
-        crossPlotHighlighting.manuallySelectedTasks();
+        cfD3BarChart.draw.update(ctrl);
       } // defaultStyle
 
     } // helpers

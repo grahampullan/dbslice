@@ -107,6 +107,7 @@ var filter = {
 					} else {
 						// Apply the filter
 						cf.metaDims[variable].filter(function (d) {
+							// Here d is the value of the individual task property called <variable> already.
 							return filterItems.indexOf(d) > -1;
 						}); // filter
 					}; // if
@@ -153,8 +154,8 @@ var filter = {
 				
 				
 				// Deselect all metadata filters.
-				Object.keys(cf.metaDims).forEach(function(variable){
-					cf.metaDims[variable].filterAll()
+				Object.keys(cf.dataDims).forEach(function(variable){
+					cf.dataDims[variable].filterAll()
 				}) // forEach
 				
 				// Get the fitlered variables. These are selected differently than for filter deselection as an additional safety net - all filters are definitely removed this way.
