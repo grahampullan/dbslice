@@ -1,7 +1,7 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { filter } from '../core/filter.js';
 
-const cfDataManagement = {
+var cfDataManagement = {
 		
 		cfInit: function cfInit(metadata){
       
@@ -27,9 +27,9 @@ const cfDataManagement = {
 					cfData.cf.dimension(function (d){return d[property];})
 				
 				// It's unique values
-				cfData.metaDataUniqueValues[property] = Array.from(new Set( metadata.data.map(
-					function (d){return d[property];}
-				)));
+				cfData.metaDataUniqueValues[property] = helpers.unique( metadata.data.map(
+					function (d){return d[property]}
+				));
 			}); // forEach
 			
 			
@@ -55,6 +55,9 @@ const cfDataManagement = {
 			
 			// Store data internally
 		    dbsliceData.data = cfData;
+			
+			// Update the color options.
+			color.settings.options = dbsliceData.data.metaDataProperties
 			
 		}, // cfInit
 		
@@ -169,7 +172,7 @@ const cfDataManagement = {
 		} // helpers
 		
 	} // cfDataManagement
-    
+        
 
 	
 

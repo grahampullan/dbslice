@@ -5,7 +5,7 @@ import { dbsliceData } from '../core/dbsliceData.js';
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
 import { plotHelpers } from '../plot/plotHelpers.js';
 
-const cfD3Histogram = {
+var cfD3Histogram = {
           
         name: "cfD3Histogram",
         
@@ -70,64 +70,43 @@ const cfD3Histogram = {
 			
 			plotDataExtent: function plotDataExtent(ctrl, items){
 				
-				var a = cfD3Histogram.draw.getAccessors(ctrl)
-				var t = ctrl.view.transitions
-
-				// Handle entering/updating/removing the bars.
-				var bars = ctrl.figure
+				var target = ctrl.figure
 				  .select("svg.plotArea")
 				  .select("g.markup")
 				  .select("g.extent")
-				  .selectAll("rect").data(items);
-			
-				// Finally append any new bars with 0 height, and then transition them to the appropriate height
-				var newBars = bars.enter()
-				newBars
-				  .append("rect")
-					.attr("transform", a.startState)
-					.attr("x", 1)
-					.attr("width",  a.width )
-					.attr("height", 0)
-					.style("fill", "black")
-					.attr("opacity", 0.1)
-				  .transition()
-					.delay( t.enterDelay )
-					.duration( t.duration )
-					.attr("height", a.height)
-					.attr("transform", a.finishState)
-				  
-				// Now move the existing bars.
-				bars
-				  .transition()
-					.delay( t.updateDelay )
-					.duration( t.duration )
-					.attr("transform", a.finishState)
-					.attr("x", 1)
-					.attr("width", a.width )
-					.attr("height", a.height);
-				  
-				// Remove any unnecessary bars by reducing their height to 0 and then removing them.
-				bars.exit()
-				  .transition()
-					.duration( t.duration )
-					.attr("transform", a.startState)
-					.attr("height", 0)
-					.remove();
+				
+				cfD3Histogram.draw.bars(ctrl, items, target, "black", 0.1)
 				
 			}, // plotDataExtent
 			
+			plotSelectionBackground: function plotSelectionBackground(ctrl, items){
+				
+				var target = ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.background")
+				
+				cfD3Histogram.draw.bars(ctrl, items, target, "cornflowerblue", 0.5)
+				
+			}, // plotSelectionBackground
+			
 			plotCurrentSelection: function plotCurrentSelection(ctrl, items){
 				
+				var target = ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.data")
+				
+				cfD3Histogram.draw.bars(ctrl, items, target, ctrl.tools.fill, 1)
+				
+			}, // plotCurrentSelection
+			
+			bars: function bars(ctrl, items, target, color, opacity){
 				
 				// Plotting
-				var a = cfD3Histogram.draw.getAccessors(ctrl)
 				var t = ctrl.view.transitions
 				
 
 				// Handle entering/updating/removing the bars.
-				var bars = ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
+				var bars = target
 				  .selectAll("rect").data(items);
 			
 					
@@ -135,48 +114,46 @@ const cfD3Histogram = {
 				var newBars = bars.enter()
 				newBars
 				  .append("rect")
-					.attr("transform", a.startState)
+					.attr("transform", ctrl.tools.startState)
 					.attr("x", 1)
-					.attr("width",  a.width )
+					.attr("width",  ctrl.tools.width )
 					.attr("height", 0)
-					.style("fill", a.fill)
-					.attr("opacity", 1)
+					.style("fill", color)
+					.attr("opacity", opacity)
 				  .transition()
 					.delay( t.enterDelay )
 					.duration( t.duration )
-					.attr("height", a.height)
-					.attr("transform", a.finishState)
+					.attr("height", ctrl.tools.height)
+					.attr("transform", ctrl.tools.finishState)
 				  
 				// Now move the existing bars.
 				bars
 				  .transition()
 					.delay( t.updateDelay )
 					.duration( t.duration )
-					.attr("transform", a.finishState)
+					.attr("transform", ctrl.tools.finishState)
 					.attr("x", 1)
-					.attr("width", a.width )
-					.attr("height", a.height);
+					.attr("width", ctrl.tools.width )
+					.attr("height", ctrl.tools.height);
 				  
 				// Remove any unnecessary bars by reducing their height to 0 and then removing them.
 				bars.exit()
 				  .transition()
 					.duration( t.duration )
-					.attr("transform", a.startState)
+					.attr("transform", ctrl.tools.startState)
 					.attr("height", 0)
 					.remove();
 				
-				
-			}, // plotCurrentSelection
-			
+			}, // bars
 			
 			isRegroupNeeded: function isRegroupNeeded(ctrl){
 				
 				var flag = ctrl.view.gVar != ctrl.view.xVarOption.val ||
-			               ctrl.view.gClr != color.settings.variable
+			               ctrl.view.gClr != color.settings.val
 				
 				// Update the 'gVar' and 'gClr' flags for next draw.				
 				ctrl.view.gVar = ctrl.view.xVarOption.val
-			    ctrl.view.gClr = color.settings.variable
+			    ctrl.view.gClr = color.settings.val
 				
 				return flag
 				
@@ -185,7 +162,7 @@ const cfD3Histogram = {
 			regroup: function regroup(ctrl){
 				// This function controls the retreat of the data to prepare for the redrawing using the new grouping of the data.
 				
-				var a = cfD3Histogram.draw.getAccessors(ctrl)
+				
 				var g = ctrl.figure
 				  .select("svg.plotArea")
 				  .select("g.data")
@@ -195,7 +172,7 @@ const cfD3Histogram = {
 				g.selectAll("rect")
 					.transition()
 					.duration(500)
-					  .attr("transform", a.startState)
+					  .attr("transform", ctrl.tools.startState)
 					  .attr("height", 0)
 					.remove()
 					.end()
@@ -228,56 +205,29 @@ const cfD3Histogram = {
 				
 				var h = cfD3Histogram.helpers
 				
-				var backgroundItems = h.getUnfilteredItems(ctrl);
-				var filterItems     = h.getFilteredItems(ctrl);
+				var unfilteredItems    = h.getUnfilteredItems(ctrl);
+				var filterItems        = h.getFilteredItems(ctrl);
+				var filterItemsGrouped = h.getFilteredItemsGrouped(ctrl);
 				
-				// Background data extent
-				cfD3Histogram.draw.plotDataExtent(ctrl, backgroundItems)
+				
+				// Unfiltered data extent
+				cfD3Histogram.draw.plotDataExtent(ctrl, unfilteredItems)
+				
+				// Current selection background
+				cfD3Histogram.draw.plotSelectionBackground(ctrl, filterItems)
 				
 				// Handle the entering/updating/exiting of bars.
-				cfD3Histogram.draw.plotCurrentSelection(ctrl, filterItems)
+				cfD3Histogram.draw.plotCurrentSelection(ctrl, filterItemsGrouped)
+				
 				
 				// Handle the axes.
 				cfD3Histogram.helpers.createAxes(ctrl);
 				
-			}, // update
+				
+				
+			} // update
 			
-			getAccessors: function getAccessors(ctrl){
-				
-				return {
-				
-					height: function height(d){
-						// Height 
-						return ctrl.figure.select("svg.plotArea").select("g.data").attr("height") - ctrl.tools.yscale(d.members.length)
-					}, // height
-				
-					width: function width(d){
-						var width = ctrl.tools.xscale(d.x1) - ctrl.tools.xscale(d.x0) - 1;
-						width = width < 1 ? 1 : width
-						return width	
-					}, // width
-					
-					startState: function startState(d){
-						var x = ctrl.tools.xscale(d.x0)
-						var y = ctrl.figure.select("svg.plotArea").select("g.data").attr("height")
-						return "translate("+[x, y].join()+")"
-					}, // startState
-					
-					finishState: function finishState(d){
-						var x = ctrl.tools.xscale(d.x0)
-						var y = ctrl.tools.yscale(d.members.length + d.x)
-						return "translate("+[x, y].join()+")"
-					}, // finishState
-					
-					fill: function fill(d){
-						return color.get(d.cVal)
-					}, // fill
 			
-				
-				} // a
-				
-				
-			} // getAccessors
 		}, // draw
         
 		rescale: function rescale(ctrl){
@@ -290,6 +240,10 @@ const cfD3Histogram = {
 			
 			// 3.) The plot needs to be redrawn
 			cfD3Histogram.update(ctrl)
+			
+			
+			// Update the bin number controls.
+			cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl)
 			
 			// UPDATE THE SELECT RECTANGLE TOO!!
 			cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl)
@@ -378,6 +332,37 @@ const cfD3Histogram = {
 				ctrl.view.nBins = nBins
 				ctrl.view.thresholds = t
 				
+				
+				
+				
+				
+				ctrl.tools.height = function height(d){
+					// Height 
+					return ctrl.figure.select("svg.plotArea").select("g.data").attr("height") - ctrl.tools.yscale(d.members.length)
+				} // height
+				
+				ctrl.tools.width =  function width(d){
+					var width = ctrl.tools.xscale(d.x1) - ctrl.tools.xscale(d.x0) - 1;
+					width = width < 1 ? 1 : width
+					return width	
+				} // width
+				
+				ctrl.tools.startState =  function startState(d){
+					var x = ctrl.tools.xscale(d.x0)
+					var y = ctrl.figure.select("svg.plotArea").select("g.data").attr("height")
+					return "translate("+[x, y].join()+")"
+				} // startState
+					
+				ctrl.tools.finishState =  function finishState(d){
+					var x = ctrl.tools.xscale(d.x0)
+					var y = ctrl.tools.yscale(d.members.length + d.x)
+					return "translate("+[x, y].join()+")"
+				} // finishState
+					
+				ctrl.tools.fill =  function fill(d){
+					return color.get(d.cVal)
+				} // fill
+			
 			
 			} // setupPlotTools
 			
@@ -495,6 +480,7 @@ const cfD3Histogram = {
 						.attr("height", Number(rect.attr("height"))/2)
 						.attr("opacity", 0)
 						.call( d3.drag().on("drag", function(){ h.dragsize(this, ctrl) }) )
+					
 					brush
 					  .append("rect")
 						.attr("class", "handle handle--w")
@@ -507,34 +493,50 @@ const cfD3Histogram = {
 						.call( d3.drag().on("drag", function(){ h.dragsize(this, ctrl) }) )
 					
 
-					// Decorative handles.
-					var handleData = h.assembleHandleData(rect)
-					
-					
-					brush.selectAll("path").data(handleData).enter()
-					  .append("path")
-						.attr("d", h.drawHandle )
+					// Decorative handles.	
+
+
+					brush.append("path")
+						.attr("d", h.drawHandle(rect, "e") )
 						.attr("stroke", "#000")
 						.attr("fill", "none")
-						.attr("class", function(d){ return "handle handle--decoration-" + d.side})
+						.attr("class", "handle handle--decoration-e")
+						
+					brush.append("path")
+						.attr("d", h.drawHandle(rect, "w") )
+						.attr("stroke", "#000")
+						.attr("fill", "none")
+						.attr("class", "handle handle--decoration-w")
 					
 				}, // make
 					
-				drawHandle: function drawHandle(d){
+				drawHandle: function drawHandle(rect, side){
+					// Figure out the dimensions.
+					var height = Number(rect.attr("height"))
+					var width = Number(rect.attr("width"))
+				
+					
+					var xWest = Number(rect.attr("x"))
+					var yWest = Number(rect.attr("y")) + height/4
+					
+					var x = side == "w" ? xWest : xWest + width
+					var y = side == "w" ? yWest : yWest
+
+					
 					// Figure out if the west or east handle is needed.
-					var flipConcave = d.side == "e"? 1:0
-					var flipDir = d.side == "e"? 1:-1
+					var flipConcave = side == "e"? 1:0
+					var flipDir = side == "e"? 1:-1
 					
 					var lambda = 30/300
-					var r = lambda*d.height
+					var r = lambda*height/2
 					r = r > 10 ? 10 : r
 					
-					var start = "M" + d.x0[0] + " " + d.x0[1]
+					var start = "M" + x + " " + y
 					var topArc = "a" + [r, r, 0, 0, flipConcave, flipDir*r, r].join(" ")
-					var leftLine = "h0 v" + (d.height - 2*r)
+					var leftLine = "h0 v" + (height/2 - 2*r)
 					var bottomArc = "a" + [r, r, 0, 0, flipConcave, -flipDir*r, r].join(" ")
 					var closure = "Z"
-					var innerLine = "M" + [d.x0[0] + flipDir*r/2, d.x0[1] + r].join(" ") + leftLine
+					var innerLine = "M" + [x + flipDir*r/2, y + r].join(" ") + leftLine
 					
 					return [start, topArc, leftLine, bottomArc, closure, innerLine].join(" ")
 					
@@ -693,6 +695,7 @@ const cfD3Histogram = {
 					
 					// First get the scale
 					var svg = ctrl.figure.select("svg.plotArea")
+					var height = svg.select("g.data").attr("height")
 					var rect = svg.select(".selection")
 					var x = ctrl.tools.xscale
 					
@@ -705,40 +708,28 @@ const cfD3Histogram = {
 					rect
 					  .attr("x", x(xMin))
 					  .attr("width", x(xMax) - x(xMin))
+					  .attr("height", height)
 					
 					// Update the handles				
-					svg.select(".brush").select(".handle--e").attr("x", x(xMax))
-					svg.select(".brush").select(".handle--w").attr("x", x(xMin) - 10)
+					svg.select(".brush").select(".handle--e")
+					  .attr("x", x(xMax))
+					  .attr("y", height/4 )
+					  .attr("height", height/2)
+					svg.select(".brush").select(".handle--w")
+					  .attr("x", x(xMin) - 10)
+					  .attr("y", height/4 )
+					  .attr("height", height/2)
 					
 					
 					// Update the handle decorations
-					var handleData = h.assembleHandleData(rect)
 					svg.select(".brush").select(".handle--decoration-e")
-					  .attr("d", h.drawHandle(handleData[0]))
+					  .attr("d", h.drawHandle(rect, "e"))
 					svg.select(".brush").select(".handle--decoration-w")
-					  .attr("d", h.drawHandle(handleData[1]))
+					  .attr("d", h.drawHandle(rect, "w"))
 					  
-				}, // updateBrush
+				} // updateBrush
 				
-				assembleHandleData: function assembleHandleData(rect){
 				
-					var height = Number(rect.attr("height"))
-					var width = Number(rect.attr("width"))
-				
-					var xWest = Number(rect.attr("x"))
-					var yWest = Number(rect.attr("y")) + height/4
-				
-					var xEast = xWest + width
-					var yEast = yWest
-					
-					return [{x0: [xEast, yEast],
-						     height: height/2, 
-							 side: "e"}, 
-						    {x0: [xWest, yWest],
-						     height: height/2, 
-						     side: "w"}]
-				
-				} // assembleHandleData
 			}, // addBrush
 			
 			addBinNumberControls: {
@@ -856,11 +847,16 @@ const cfD3Histogram = {
 				}, // updateBinNumber
 
 				updateMarkers: function updateMarkers(ctrl){
-					// Update the bin control markers. The white markers do not interfere with the axis ticks as those are added later in the main update method.
-					var markers = ctrl.figure
+					
+					var svg = ctrl.figure
 					  .select("svg.plotArea")
-					  .select("g.markup")
+					var height = svg.select("g.data").attr("height")
+				
+
+					// Update the bin control markers. The white markers do not interfere with the axis ticks as those are added later in the main update method.
+					var markers = svg.select("g.markup")
 					  .select("g.binControls")
+					    .attr("transform", "translate(0," + height + ")")
 					  .selectAll("polygon")
 							
 					markers
@@ -1003,7 +999,14 @@ const cfD3Histogram = {
 						width: undefined,
 						height: 400,
 						margin: {top: 10, right: 0, bottom: 30, left: 0},
-						axesMargin: {top: 20, right: 20, bottom: 16, left: 45}
+						axesMargin: {top: 20, right: 20, bottom: 16, left: 45},
+						parent: undefined,
+						position: {
+							ix: 0,
+							iy: 0,
+							iw: 4,
+							ih: 4
+						}
 					}
 				} // ctrl
 				
@@ -1129,9 +1132,17 @@ const cfD3Histogram = {
 				
 				var items = dbsliceData.data.taskDim.top(Infinity);
 				var bins = ctrl.tools.histogram(items)
-				return cfD3Histogram.helpers.getItems(bins, color.settings.variable)
+				return cfD3Histogram.helpers.getItems(bins, undefined)
 				
 			}, // getFilteredItems
+			
+			getFilteredItemsGrouped: function getFilteredItemsGrouped(ctrl){
+				
+				var items = dbsliceData.data.taskDim.top(Infinity);
+				var bins = ctrl.tools.histogram(items)
+				return cfD3Histogram.helpers.getItems(bins, color.settings.variable)
+				
+			}, // getFilteredItemsGrouped
 			
 			// Functions for cross plot highlighting
 			unhighlight: function unhighlight(ctrl){
@@ -1148,16 +1159,26 @@ const cfD3Histogram = {
 				
 				var highlightedData = cfD3Histogram.helpers.getItems(highlightedBins, color.settings.variable)
 				
+				// Adjust hte transition times.
+				ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
 				
 				// Draw the highlighted data.
 				cfD3Histogram.draw.plotCurrentSelection(ctrl, highlightedData)
+				
+				// Adjust hte transition times.
+				ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
 				
 			}, // highlight
 			
 			defaultStyle: function defaultStyle(ctrl){
 				
+				// Adjust hte transition times.
+				ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
 				
 				cfD3Histogram.draw.update(ctrl)
+				
+				// Adjust hte transition times.
+				ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
 									
 			}, // defaultStyle
 			

@@ -5,7 +5,7 @@ import { filter } from '../core/filter.js';
 import { color } from '../core/color.js';
 import { plotHelpers } from '../plot/plotHelpers.js';
 
-const cfD3Scatter = {
+var cfD3Scatter = {
 		
 			name: "cfD3Scatter",
 		
@@ -71,13 +71,100 @@ const cfD3Scatter = {
 			update: function update(ctrl){
 				// On re-render the 'update' is called in the render, therefore it must exist. To conform with the line plot functionality the update plot here executes the redraw for now. Later on it should handle all preparatory tasks as well.
 				
+				cfD3Scatter.draw.plotDataExtent(ctrl)
+				
+				cfD3Scatter.draw.plotCurrentSelection(ctrl)
+				
 				cfD3Scatter.refresh(ctrl)
 				
 			}, // update
 		
+		
+			draw: {
+				
+				plotDataExtent: function plotDataExtent(ctrl){
+					
+					// Plot everything there is.
+					
+					
+
+					// Accessor functions
+					var accessor = cfD3Scatter.helpers.getAccessors(ctrl)
+					var clipPath = "url(#" + ctrl.figure.select("svg.plotArea").select("clipPath").attr("id") + ")"
+					
+					
+					// Get the data to draw.
+					var pointData = cfD3Scatter.helpers.getUnfilteredPointData(ctrl)
+						
+						// Deal with the points
+					var points = ctrl.figure.select("svg.plotArea")
+					  .select(".data")
+					  .selectAll("circle")
+					  .data(pointData)
+					 
+					points.enter()
+					  .append("circle")
+						.attr("r", 5)
+						.attr("cx", accessor.x )
+						.attr("cy", accessor.y )
+						.style("fill", "Gainsboro")
+						.style("opacity", 1)
+						.attr("clip-path", clipPath)
+						.attr("task-id", accessor.id )
+						.each(function(d){ 
+							cfD3Scatter.addInteractivity.addPointTooltip(ctrl, this) 
+						})
+						
+					points
+					  .attr("r", 5)
+					  .attr("cx", accessor.x )
+					  .attr("cy", accessor.y )
+					  .style("fill", "Gainsboro")
+					  .attr("task-id", accessor.id );
+					 
+					points.exit().remove();
+					
+				}, // plotDataExtent
+				
+				plotCurrentSelection: function plotCurrentSelection(ctrl){
+					
+					// Change the properties of the selected part.
+					
+					// Get the data to draw.
+					var accessor = cfD3Scatter.helpers.getAccessors(ctrl)
+					var pointData = cfD3Scatter.helpers.getPointData(ctrl)
+					
+					// TRANSITION, BUT ONLY IF THERE IS A CHANGE!!
+					
+					var gData = ctrl.figure
+						  .select("svg.plotArea")
+						  .select("g.data")
+						  
+					gData.selectAll("circle")
+						.each(function(d){
+							if(pointData.includes(d)){
+								// Attach and detach the point, then trigger the change.
+								this.remove()
+								gData.node().appendChild(this)
+								
+								d3.select(this)
+								  .transition()
+									.duration(ctrl.view.transitions.duration)
+									.style("fill", accessor.c)
+								
+							} // if
+						})
+					
+					
+					
+				} // plotCurrentSelection
+				
+			}, // draw
+		
 			refresh: function refresh(ctrl){
 				// Update also runs on manual reselct of points, and on brushing in other plots. It therefore must support the addition and removal of points.
 		
+				// Refresh is called on zoom!! On zoom nothing is entering or leaving, it's just readjusted.
 				
 				var h = cfD3Scatter.helpers
 				var i = cfD3Scatter.addInteractivity
@@ -89,39 +176,16 @@ const cfD3Scatter = {
 				// Accessor functions
 				var accessor = h.getAccessors(ctrl)
 				
-				
-				
-				// Get the data to draw.
-				var pointData = h.getPointData(ctrl)
-				
-				// Deal with the points
+
+				// Move the points
 				var points = ctrl.figure.select("svg.plotArea")
 				  .select(".data")
 				  .selectAll("circle")
-				  .data(pointData)
-				 
-				points.enter()
-				  .append("circle")
-					.attr("r", 5)
-					.attr("cx", accessor.x )
-					.attr("cy", accessor.y )
-					.style("fill", accessor.c)
-					.style("opacity", 1)
-					.attr("clip-path", "url(#" + ctrl.figure.select("svg.plotArea").select("clipPath").attr("id") + ")")
-					.attr("task-id", accessor.id )
-					.each(function(d){ i.addPointTooltip(ctrl, this) })
-					
-					
-				points
-				  .transition()
-				  .duration(ctrl.view.transitions.duration)
 				  .attr("r", 5)
 				  .attr("cx", accessor.x )
 				  .attr("cy", accessor.y )
-				  .style("fill", accessor.c)
 				  .attr("task-id", accessor.id );
-				 
-				points.exit().remove();
+				
 					
 			
 				// Update the markup lines to follow on zoom
@@ -188,7 +252,7 @@ const cfD3Scatter = {
 						
 						
 						// Make functionality options for the menu.
-						var codedPlotOptions = [ctrl.view.cVarOption, ctrl.view.gVarOption, arOption]
+						var codedPlotOptions = [color.settings, ctrl.view.gVarOption, arOption]
 						
 						return codedPlotOptions
 					
@@ -392,31 +456,37 @@ const cfD3Scatter = {
 				addSelection: function addSelection(ctrl){
 					// This function adds the functionality to select elements on click. A switch must then be built into the header of the plot t allow this filter to be added on.
 					
+					
+					
 					var points = ctrl.figure.select("svg.plotArea").select("g.data").selectAll("circle");
 					
 					points.on("click", selectPoint)
-					console.log(ctrl)
-					
-					
+								
 					function selectPoint(d){
-						// Toggle the selection
-						var p = dbsliceData.data.manuallySelectedTasks
 						
-						// Is this point in the array of manually selected tasks?
-						var isAlreadySelected = p.indexOf(d.taskId) > -1
-
 						
-						if(isAlreadySelected){
-							// The poinhas currently been selected, but must now be removed
-							p.splice(p.indexOf(d.taskId),1)
-						} else {
-							p.push(d.taskId)
-						}// if
+						var filteredPoints = cfD3Scatter.helpers.getPointData()
 						
-						console.log(d, p, dbsliceData.data.manuallySelectedTasks)
+						if(filteredPoints.includes(d)){
+							
+							// Toggle the selection
+							var p = dbsliceData.data.manuallySelectedTasks
+							
+							// Is this point in the array of manually selected tasks?
+							var isAlreadySelected = p.indexOf(d.taskId) > -1
+							if(isAlreadySelected){
+								// The poinhas currently been selected, but must now be removed
+								p.splice(p.indexOf(d.taskId),1)
+							} else {
+								p.push(d.taskId)
+							}// if
+							
+							// Highlight the manually selected options.
+							crossPlotHighlighting.manuallySelectedTasks()
+							
+						} // if
 						
-						// Highlight the manually selected options.
-						crossPlotHighlighting.manuallySelectedTasks()
+						
 						
 					} // selectPoint
 					
@@ -672,7 +742,7 @@ const cfD3Scatter = {
 							   lineTooltip: undefined,
 							   pointTooltip: undefined,
 							   transitions: {
-								duration: 500,
+								duration: 0,
 								updateDelay: 0,
 								enterDelay: 0								
 							   },
@@ -685,7 +755,14 @@ const cfD3Scatter = {
 							width: undefined,
 							height: 400,
 							margin: {top: 10, right: 10, bottom: 38, left: 30},
-						    axesMargin: {top: 20, right: 20, bottom: 16, left: 30}
+						    axesMargin: {top: 20, right: 20, bottom: 16, left: 30},
+							parent: undefined,
+							position: {
+								ix: 0,
+								iy: 0,
+								iw: 4,
+								ih: 4
+							}
 						}
 					} // ctrl
 					
@@ -702,10 +779,7 @@ const cfD3Scatter = {
 					                         val: options[0],
 										 options: options}
 										 
-					ctrl.view.cVarOption = {name: "Colour",
-					                         val: undefined,
-										 options: dbsliceData.data.metaDataProperties,
-										   event: hs.buttonMenu.options.groupColor}
+					ctrl.view.cVarOption = color.settings
 
 					// Custom option.
 					ctrl.view.gVarOption = {name: "Line",
@@ -831,7 +905,7 @@ const cfD3Scatter = {
 					animated: function animated(){
 					
 						return {
-							duration: 500,
+							duration: 100,
 							updateDelay: 0,
 							enterDelay: 0
 						}
@@ -864,7 +938,17 @@ const cfD3Scatter = {
 					
 				}, // getPointData
 			
-			
+				getUnfilteredPointData: function getUnfilteredPointData(ctrl){
+					
+					filter.remove();
+					
+					var unfilteredData = dbsliceData.data.taskDim.top(Infinity);
+					
+					filter.apply();
+					
+					return unfilteredData
+					
+				}, // getUnfilteredPointData
 			
 				// Functions for cross plot highlighting:
 				unhighlight: function unhighlight(ctrl){
@@ -906,8 +990,7 @@ const cfD3Scatter = {
 					    .style("opacity", 1)
 					    .attr("r", 5);
 						
-					// Rehighlight any manually selected tasks.
-					crossPlotHighlighting.manuallySelectedTasks()
+					
 					
 				}, // defaultStyle
 			
@@ -935,6 +1018,6 @@ const cfD3Scatter = {
 			} // helpers
 		
 		} // cfD3Scatter
-	
+		
 
 export { cfD3Scatter };

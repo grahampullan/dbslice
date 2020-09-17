@@ -1,0 +1,229 @@
+
+<!DOCTYPE html>
+
+<html>
+
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> 
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css">
+<!--link rel="stylesheet" href="http://dbslice.org/dbslice.css"-->
+<link rel="stylesheet" href="/src/style/dbslice.css">
+
+<link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js"></script>
+  
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.rawgit.com/crossfilter/crossfilter/master/crossfilter.js"></script>
+<script src="https://threejs.org/build/three.js"></script>
+
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+
+<script src="https://d3js.org/d3-contour.v1.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+<!-- Tooltip code -->
+<script src="http://dbslice.org/d3-tip.js"></script>
+
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+
+	<div class="card">
+		<div class="card-header plotTitle">
+			<div style="display:inline" spellcheck="false" contenteditable="true">Edit titl</div>
+			<div class="ctrlGrp float-right" style="display:inline-block">
+				<button class="btn btn-danger float-right">x</button>
+				<label class="switch float-right">
+					<input type="checkbox">
+						<span class="slider round"></span>
+				</label>
+			</div>
+		</div>
+		<div class="plot" plot-row-index="1" plot-index="0">
+			<div class="leftAxisControlGroup" style="width: 30px; height: 100%; float: left">
+				<select class="select-vertical custom-select">
+					<option class="dropdown-item">y</option>
+					<option class="dropdown-item">x</option>
+				</select>
+			<text class="txt-vertical-axis">y</text>
+			</div>
+			
+			<div class="plotContainer" style="margin-left: 30px">
+				<svg class="plotArea" width="360" height="352" >
+					<g class="background" transform="translate(30,20)">
+						
+						<clipPath id="zoomClip">
+							<rect width="310" height="316" style="fill: rgb(205, 205, 205);"></rect>
+						</clipPath>
+						
+						<rect class="zoom-area" width="310" height="316" style="fill: rgb(205, 205, 205);"></rect>
+						
+						<g class="tooltipAnchor" style="display: none;">
+							<circle class="anchorPoint" r="1" cx="11.999999046325684" cy="180"></circle>
+						</g>
+					</g>
+					
+					
+					<g class="data" transform="translate(30,20) scale(1)" width="310" height="316" >
+						<g class="plotSeries" task-id="./data/task_99" style="opacity: 1;">
+							
+							<rect width="150" height="200" style="fill: rgb(105, 105, 205);"></rect>
+							
+							<path d="M 10,30
+							   A 20,20 0,0,1 50,30
+							   A 20,20 0,0,1 90,30
+							   Q 90,60 50,90
+							   Q 10,60 10,30 z"/>
+							
+						</g>
+					</g>
+
+					<g class="markup" transform="translate(30,20)">
+					</g>
+					<g class="axis--x" transform="translate(30,336)" fill="none" font-size="10" font-family="sans-serif" text-anchor="middle">
+						<path class="domain" stroke="currentColor" d="M0.5,6V0.5H310.5V6"></path>
+						<g class="tick" opacity="1" transform="translate(15.463365210250164,0)">
+							<line stroke="currentColor" y2="6"></line>
+							<text fill="currentColor" y="9" dy="0.71em" style="cursor: ew-resize;">0.03</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(82.28707663840065,0)">
+							<line stroke="currentColor" y2="6"></line>
+							<text fill="currentColor" y="9" dy="0.71em" style="cursor: ew-resize;">0.04</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(149.11078806655112,0)">
+							<line stroke="currentColor" y2="6"></line>
+							<text fill="currentColor" y="9" dy="0.71em" style="cursor: ew-resize;">0.05</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(215.93449949470153,0)">
+							<line stroke="currentColor" y2="6"></line>
+							<text fill="currentColor" y="9" dy="0.71em" style="cursor: ew-resize; font-weight: normal;">0.06</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(282.7582109228521,0)">
+							<line stroke="currentColor" y2="6"></line>
+							<text fill="currentColor" y="9" dy="0.71em" style="cursor: ew-resize;">0.07</text>
+						</g>
+					</g>
+
+
+					<g class="axis--y" transform="translate(30,20)" fill="none" font-size="10" font-family="sans-serif" text-anchor="end">
+						<path class="domain" stroke="currentColor" d="M-6,316.5H0.5V0.5H-6"></path>
+						<g class="tick" opacity="1" transform="translate(0,303.92167983113)">
+							<line stroke="currentColor" x2="-6"></line>
+							<text fill="currentColor" x="-9" dy="0.32em" style="cursor: ns-resize;">0.2</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(0,259.7212760075721)">
+							<line stroke="currentColor" x2="-6"></line>
+							<text fill="currentColor" x="-9" dy="0.32em" style="cursor: ns-resize;">0.4</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(0,215.52087218401422)">
+							<line stroke="currentColor" x2="-6"></line>
+							<text fill="currentColor" x="-9" dy="0.32em" style="cursor: ns-resize;">0.6</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(0,171.32046836045635)">
+							<line stroke="currentColor" x2="-6"></line>
+							<text fill="currentColor" x="-9" dy="0.32em" style="cursor: ns-resize;">0.8</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(0,127.12006453689845)">
+							<line stroke="currentColor" x2="-6"></line>
+							<text fill="currentColor" x="-9" dy="0.32em" style="cursor: ns-resize;">1.0</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(0,82.91966071334059)">
+							<line stroke="currentColor" x2="-6"></line>
+							<text fill="currentColor" x="-9" dy="0.32em" style="cursor: ns-resize;">1.2</text>
+						</g>
+						<g class="tick" opacity="1" transform="translate(0,38.7192568897827)">
+							<line stroke="currentColor" x2="-6"></line>
+							<text fill="currentColor" x="-9" dy="0.32em" style="cursor: ns-resize;">1.4</text>
+						</g>
+					</g>
+				</svg>
+			</div>
+			
+			<div class="bottomLeftControlGroup" style="width: 30px; height:38px; float:left">
+				<div class="dropup">
+					<button class="btn dropup-toggle">O</button>
+					<div class="dropup-content" style="display: none;">
+						<div>
+							<p class="dropup-toggle submenu-toggle" style="font-weight: bold; font-size: 12px;">Colour</p>
+							<div class="submenu-content" style="display: none;">
+								<a class="submenu-item deselected">Design</a>
+								<a class="submenu-item deselected">Speed</a>
+								<a class="submenu-item deselected">Factor Name</a>
+								<a class="submenu-item deselected">Factor Value</a>
+							</div>
+						</div>
+						<div>
+							<p class="dropup-toggle submenu-toggle" style="font-weight: bold; font-size: 12px;">AR</p>
+							<div class="submenu-content" style="display: none;">
+								<a class="submenu-item deselected">User / Unity</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="bottomAxisControlGroup" style="margin-left: 30px;">
+				<select class="custom-select" dir="rtl" style="float:right;">
+					<option class="dropdown-item">x</option>
+				</select>
+			</div>
+		</div>
+	</div>
+
+	<script>
+	
+		
+		
+		// Add teh zooming.
+		//d3.select("svg.plotArea")
+		//	  .select("g.data")
+		//        .attr("clip-path", "url(#zoomClip)")
+				
+		d3.select("svg.plotArea")
+			  .select("g.data")
+		        .attr("clip-path", "url(#zoomClip)")
+		
+		
+		// Add the zooming to the element in g.data.
+		var zoom = d3.zoom().scaleExtent([0.01, Infinity]).on("zoom", zoomed);
+				
+		
+		d3.select("svg.plotArea")
+		  .select("g.background")
+		  .select("rect.zoom-area")
+		  .call(zoom);
+		  
+		console.log(d3.select("svg.plotArea"))
+		  
+		function zoomed(){
+		
+			// Correct for the original offset.
+		
+			console.log(d3.event.transform)
+			d3.select("svg.plotArea")
+			  .select("g.data")
+			  .selectAll("g.plotSeries")
+			  .attr("transform", d3.event.transform)
+		
+		} // zoomed
+	
+	</script>
+
+</body>
+</html>

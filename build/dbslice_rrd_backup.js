@@ -9,331 +9,7 @@ var dbslice = (function (exports) {
 		session: {}
 	} // dbsliceData
 
-	// Positioning of plots
-	var positioning = {
-        
-		// Basic grid functionality
-		
-        nx: function nx(container){
-            
-            let nx
-            container.each(function(d){
-                nx = d.grid.nx
-            })
-            return nx
-            
-        }, // nx
-        
-        dx: function dx(container){
-            
-            // First access the grid associated with the container.
-            let nx = positioning.nx(container)
-            
-            return container.node().offsetWidth / nx
-        }, // dx
-        
-        dy: function dy(container){
-            // The height of the container can change, and the number of grid points cannot be fixed. Instead the aspect ratio (dx/dy) is defined as 1. This is also taken into account when new plots are created.
-            return positioning.dx(container)
-            
-        }, // dy
 
-		// Dragging plots
-
-        dragStart: function dragStart(d){
-            
-			// Raise the plot.
-			d3.select( this.parentElement.parentElement )
-                .raise();  
-			
-            // The delta to the corner should be saved to synchronise the movement with the cursor.
-            d.format.position.delta = { x: d3.event.x, 
-                                        y: d3.event.y}
-										
-			
-          
-        }, // dragStart
-            
-        dragMove: function dragMove(d,i){
-            
-            var f = d.format
-            var container = d3.select(f.parent)
-			let plotWrapper = d3.select( this.parentElement.parentElement )
-            let nx = positioning.nx(container)
-            let dx = positioning.dx(container)
-            let dy = positioning.dy(container)
-            
-            
-  
-            // Calculate the proposed new position on the grid.
-            // d3.event is relative to the top left card corner
-            // d.format.position.ix*dx corrects for the position within the container
-            // d.format.position.delta.x corrects for the clicked offset to the corner
-            let ix = Math.round( (d3.event.x + f.position.ix*dx - f.position.delta.x) / dx);
-            let iy = Math.round( (d3.event.y + f.position.iy*dy - f.position.delta.y) / dy);
-          
-            
-            
-          
-            // Implement rules on how far the contour can be moved. Prevent the contour to go even partially off-screen.
-              
-            // EAST BOUNDARY
-            if( ix + f.position.iw > nx ){
-                ix = nx - f.position.iw
-            } // if
-
-            // WEST BOUNDARY
-            if( ix < 0 ){
-                ix = 0
-            } // if
-
-            // SOUTH BOUNDARY: If it is breached then the parent size should be increased.
-            // if( iy + d.format.position.ih > grid.ny ){
-            //    iy = grid.ny - d.format.position.ih
-            // } // if
-
-            // NORTH BOUNDARY
-            if( iy < 0 ){
-                iy = 0
-            } // if
-
-
-            // Update the container position.
-            let movement = ix != f.position.ix || iy != f.position.iy
-            if (movement){
-                
-                f.position.ix = ix;
-                f.position.iy = iy;
-                
-                // The exact location must be corrected for the location of the container itself.
-				
-                plotWrapper
-                  .style("left", (f.parent.offsetLeft + f.position.ix*dx) + "px")
-                  .style("top" , (f.parent.offsetTop + f.position.iy*dy) + "px")
-                  .raise();  
-
-				builder.refreshPlotRowHeight( container )
-				  
-            } // if
-              
-            
-          
-            
-            
-            
-            
-            
-          
-        }, // dragMove
-            
-        dragEnd: function dragEnd(d){
-            // On drag end clear out the delta.
-            d.format.position.delta = undefined
-        }, // dragEnd
-        
-		
-		// Resizing plots
-		
-		resizeStart: function resizeStart(d){
-			// Bring hte plot to front.
-			d3.select(this.parentElement.parentElement.parentElement.parentElement.parentElement).raise()
-			
-		}, // resizeStart
-		
-		resizeMove: function resizeMove(d){
-  
-  
-			// Calculate the cursor position on the grid. When resizing the d3.event.x/y are returned as relative to the top left corner of the svg containing the resize circle. The cue to resize is when the cursor drags half way across a grid cell.
-			
-			// this < svg < bottom div < plot body < card < plotWrapper
-			let plotWrapper = d3.select(this.parentElement.parentElement.parentElement.parentElement.parentElement)
-			let parent = d.format.parent
-			let container = d3.select(parent)
-			let p = d.format.position
-			
-			
-			let nx = positioning.nx( container )
-			let dx = positioning.dx( container )
-			let dy = positioning.dy( container )
-			
-			
-			// clientX/Y is on-screen position of the pointer, but the width/height is relative to the position of the plotWrapper, which can be partially off-screen. getBoundingClientRect retrieves teh plotRowBody position relative to the screen.
-			let x = d3.event.sourceEvent.clientX -parent.getBoundingClientRect().left -p.ix*dx
-			let y = d3.event.sourceEvent.clientY -parent.getBoundingClientRect().top -p.iy*dy
-		  
-		    let ix = p.ix
-			let iw = Math.round( x / dx )
-			let ih = Math.round( y / dy )
-		  
-			// Calculate if a resize is needed
-			let increaseWidth = iw > p.iw
-			let decreaseWidth = iw < p.iw
-			let increaseHeight = ih > p.ih
-			let decreaseHeight = ih < p.ih
-			  
-			// Update the container size if needed
-			if([increaseWidth, decreaseWidth, increaseHeight, decreaseHeight].some(d=>d)){
-				
-				// Corrections to force some size. The minimum is an index width/height of 1, and in px. The px requirement is to make sure that the plot does not squash its internal menus etc. In practice 190/290px seems to be a good value.
-				iw = iw*dx < 190 ? Math.ceil(190/dx) : iw
-				ih = ih*dy < 290 ? Math.ceil(290/dy) : ih
-				
-				// Correction to ensure it doesn't exceed limits.
-				iw = (ix + iw) > nx ? nx - ix : iw
-				
-				
-				// Width must simultaneously not be 1, and not exceed the limit of the container.
-					
-				p.ih = ih
-				p.iw = iw
-
-				
-				
-				// this < svg < bottom div < plot body < card < plotWrapper
-				plotWrapper
-				  .style("max-width", iw*dx + "px")
-				  .style("width"    , iw*dx + "px" )
-				  .style("height"   , ih*dy + "px" )
-				  
-				plotWrapper.select("div.card")
-				  .style("max-width", iw*dx + "px")
-				  .style("width"    , iw*dx + "px" )
-				  .style("height"   , ih*dy + "px" )
-				
-				
-				// UPDATE THE PLOT
-				d.plotFunc.rescale(d)
-				
-				// Resize the plotrow accordingly
-				builder.refreshPlotRowHeight( container )
-					
-			} // if
-			  
-		  
-		}, // resizeMove
-		
-		resizeEnd: function resizeEnd(d){
-		    // After teh resize is finished update teh contour.
-		  
-		    let container = d3.select(d.format.parent)
-		    builder.refreshPlotRowHeight( container )
-			builder.refreshPlotRowWidth(  container )
-			
-		    
-
-		}, // resizeEnd
-		
-		// Positioning a new plot
-		
-        newPlot: function newPlot(plotRowCtrl, newPlotCtrl){
-			
-			// Now find the first opening for the new plot. The opening must fit the size of the new plot.
-			
-			
-			
-			// Somehow count through the domain and see if the plot fits. 
-			// First collect all occupied grid nodes.
-			
-			
-			let occupiedNodes = []
-			plotRowCtrl.plots.forEach(function(d){
-				// Collect the occupied points as x-y coordinates.
-				let p = d.format.position
-				
-				pushNodes(occupiedNodes, p.ix, p.iy, p.iw, p.ih)
-				
-			}) // forEach plot
-			
-			
-			// Moving through the nodes and construct all nodes taken up if the plot is positioned there.
-			
-			
-			let nx = plotRowCtrl.grid.nx
-			let pn = newPlotCtrl.format.position
-			let ind = 0
-			let areaFound = false
-			
-			var x0, y0
-			var proposedNodes
-			while(areaFound==false){
-				
-				// CAN BE IMPROVED IF IT TAKES INTO ACCOUNT THE WIDTH OF THE PROPOSED ELEMENT
-				
-				// Calculate the starting point for the suggested position.
-				
-				// The `12th' point doesnt need to be evaluated, as it is on the edge. 
-				y0 = Math.floor( ind / nx )
-			    x0 = ind - y0*nx
-				
-				if(x0 > nx - pn.iw){
-					// In this case skip the node evaluation.
-				} else {
-					proposedNodes = pushNodes([], x0, y0, pn.iw, pn.ih)
-			
-					console.log(x0, y0)
-				
-				
-					// Check if any of the queried points are occupied.
-					areaFound = isAreaFree(occupiedNodes, proposedNodes)
-				} // if
-				
-				
-				
-				// Increase the node index
-				ind += 1
-			} // while
-			
-			// If the are was found, the suggested nodes are free. Assign them to the new plot. The first node is the top left corner by the loop definition in pushNodes.
-			pn.ix = x0
-			pn.iy = y0
-			
-			
-			
-			function pushNodes(array, ix, iy, iw, ih){
-				
-				for(let i=0; i<iw; i++){
-					for(let j=0; j<ih; j++){
-						array.push({
-							ix: ix + i, 
-							iy: iy + j
-						}) // push
-					} // for row
-				} // for column
-				
-				return array
-			} // pushOccupiedNodes
-
-			function isAreaFree(existing, proposed){
-				
-				
-				
-				let intersect = proposed.filter(function(node){
-					let isIntersect = false
-					for(let i=0; i<existing.length; i++){
-						isIntersect = (existing[i].ix == node.ix) 
-						           && (existing[i].iy == node.iy)
-						if(isIntersect){
-							break;
-						}
-					} // for
-					
-					return isIntersect
-				}) // intersect
-				
-				// If there are any intersections return false.
-				return intersect.length > 0 ? false : true
-			}
-			
-			return newPlotCtrl
-			
-		} // newPlot
-        
-		
-    } // positioning
-
-    
-	
-	
 	// Data management. Handles all internal data manipulation.
 	// MERGE WITH IMPORT/EXPORT?
 	var cfDataManagement = {
@@ -553,8 +229,8 @@ var dbslice = (function (exports) {
 		
 	} // helpers
 	
-	// PLOTTING. 
-
+	// PLOTTING. CLEAN UP
+// Helpers not in 'plotHelpers'
 
 	var cfD3BarChart = {
 		
@@ -789,67 +465,33 @@ var dbslice = (function (exports) {
 			update: function update(ctrl){
 				
 				var h = cfD3BarChart.helpers
-				var draw = cfD3BarChart.draw
 				
 				var unfilteredItems    = h.getUnfilteredItems(ctrl.view.yVarOption.val);
 				var filterItems        = h.getFilteredItems(ctrl.view.yVarOption.val);
 				var filterItemsGrouped = h.getFilteredItemsGrouped(ctrl.view.yVarOption.val);
 				
 				// Unfiltered data extent
-				draw.plotDataExtent(ctrl, unfilteredItems)
+				cfD3BarChart.draw.plotDataExtent(ctrl, unfilteredItems)
 				
 				// Current selection background
-				draw.plotSelectionBackground(ctrl, filterItems)
+				cfD3BarChart.draw.plotSelectionBackground(ctrl, filterItems)
 				
 				// Handle the entering/updating/exiting of bars.
-				draw.plotCurrentSelection(ctrl, filterItemsGrouped)
+				cfD3BarChart.draw.plotCurrentSelection(ctrl, filterItemsGrouped)
 				
 				
 				// Handle the entering/updating/exiting of bar labels.
-				draw.plotMarkup(ctrl, unfilteredItems)
+				cfD3BarChart.draw.plotMarkup(ctrl, unfilteredItems)
 				
 				
 				// Handle the axes.
-				draw.axes(ctrl);
+				cfD3BarChart.helpers.createAxes(ctrl);
 				
 				// Add interactivity:
 				cfD3BarChart.addInteractivity.addOnMouseOver(ctrl);
 				cfD3BarChart.addInteractivity.addOnMouseClick(ctrl);
 				
 			}, // update
-			
-			axes: function axes(ctrl){
-				
-				var svg = ctrl.figure.select("svg.plotArea")
-				var divBACG = ctrl.figure.select("div.bottomAxisControlGroup")
-				
-				var xAxis = svg.select("g.axis--x");
-				var yAxis = svg.select("g.axis--y");
-
-				// Add the text into hte bottomAxisControlGroup
-				if (divBACG.select("text").empty()){
-					divBACG
-					  .append("text")
-					    .attr("class", "txt-horizontal-axis")
-						.style("float", "right")
-						.style("margin-right", "15px")
-						.text("Number of Tasks");
-				}; // if
-				
-				// Control the tick values, and make sure they only display integeers.
-				var xAxisTicks = ctrl.tools.xscale.ticks()
-					.filter(function(d){ return Number.isInteger(d) });
-				
-				xAxis
-				  .call( d3.axisBottom(ctrl.tools.xscale)
-					.tickValues(xAxisTicks)
-					.tickFormat(d3.format("d")) );
-				
-
-				yAxis
-				  .call(d3.axisLeft(ctrl.tools.yscale).tickValues([]));
-				
-			} // axes
 			
 		}, // draw
 		
@@ -1024,14 +666,7 @@ var dbslice = (function (exports) {
 							width: undefined,
 							height: 400,
 							margin: {top: 10, right: 0, bottom: 30, left: 30},
-							axesMargin: {top: 10, right: 30, bottom: 30, left: 10},
-							parent: undefined,
-							position: {
-								ix: 0,
-								iy: 0,
-								iw: 4,
-								ih: 4
-							}
+							axesMargin: {top: 10, right: 30, bottom: 30, left: 10}
 						}
 				} // ctrl
 				
@@ -1207,6 +842,41 @@ var dbslice = (function (exports) {
 			}, // getUnfilteredItems
 			
 			
+			
+			createAxes: function createAxes(ctrl){
+				
+				var svg = ctrl.figure.select("svg.plotArea")
+				
+				var xAxis = svg.select("g.axis--x");
+				var yAxis = svg.select("g.axis--y");
+
+				if (xAxis.select("text").empty()){
+					xAxis
+					  .append("text")
+					    .attr("class", "txt-horizontal-axis")
+						.attr("fill", "#000")
+						.attr("x", svg.select("g.data").attr("width"))
+						.attr("y", ctrl.format.axesMargin.bottom)
+						.attr("text-anchor", "end")
+						.text("Number of Tasks");
+				}; // if
+				
+				// Control the tick values, and make sure they only display integeers.
+				var xAxisTicks = ctrl.tools.xscale.ticks()
+					.filter(function(d){ return Number.isInteger(d) });
+				
+				xAxis
+				  .call( d3.axisBottom(ctrl.tools.xscale)
+					.tickValues(xAxisTicks)
+					.tickFormat(d3.format("d")) );
+				
+
+				yAxis
+				  .call(d3.axisLeft(ctrl.tools.yscale).tickValues([]));
+				
+			}, // createAxes
+		
+		
 			// Functions supporting cross plot highlighting
 			unhighlight: function unhighlight(ctrl){
 				
@@ -1472,8 +1142,6 @@ var dbslice = (function (exports) {
 				// Handle the axes.
 				cfD3Histogram.helpers.createAxes(ctrl);
 				
-				
-				
 			} // update
 			
 			
@@ -1489,10 +1157,6 @@ var dbslice = (function (exports) {
 			
 			// 3.) The plot needs to be redrawn
 			cfD3Histogram.update(ctrl)
-			
-			
-			// Update the bin number controls.
-			cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl)
 			
 			// UPDATE THE SELECT RECTANGLE TOO!!
 			cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl)
@@ -1729,7 +1393,6 @@ var dbslice = (function (exports) {
 						.attr("height", Number(rect.attr("height"))/2)
 						.attr("opacity", 0)
 						.call( d3.drag().on("drag", function(){ h.dragsize(this, ctrl) }) )
-					
 					brush
 					  .append("rect")
 						.attr("class", "handle handle--w")
@@ -1742,50 +1405,34 @@ var dbslice = (function (exports) {
 						.call( d3.drag().on("drag", function(){ h.dragsize(this, ctrl) }) )
 					
 
-					// Decorative handles.	
-
-
-					brush.append("path")
-						.attr("d", h.drawHandle(rect, "e") )
+					// Decorative handles.
+					var handleData = h.assembleHandleData(rect)
+					
+					
+					brush.selectAll("path").data(handleData).enter()
+					  .append("path")
+						.attr("d", h.drawHandle )
 						.attr("stroke", "#000")
 						.attr("fill", "none")
-						.attr("class", "handle handle--decoration-e")
-						
-					brush.append("path")
-						.attr("d", h.drawHandle(rect, "w") )
-						.attr("stroke", "#000")
-						.attr("fill", "none")
-						.attr("class", "handle handle--decoration-w")
+						.attr("class", function(d){ return "handle handle--decoration-" + d.side})
 					
 				}, // make
 					
-				drawHandle: function drawHandle(rect, side){
-					// Figure out the dimensions.
-					var height = Number(rect.attr("height"))
-					var width = Number(rect.attr("width"))
-				
-					
-					var xWest = Number(rect.attr("x"))
-					var yWest = Number(rect.attr("y")) + height/4
-					
-					var x = side == "w" ? xWest : xWest + width
-					var y = side == "w" ? yWest : yWest
-
-					
+				drawHandle: function drawHandle(d){
 					// Figure out if the west or east handle is needed.
-					var flipConcave = side == "e"? 1:0
-					var flipDir = side == "e"? 1:-1
+					var flipConcave = d.side == "e"? 1:0
+					var flipDir = d.side == "e"? 1:-1
 					
 					var lambda = 30/300
-					var r = lambda*height/2
+					var r = lambda*d.height
 					r = r > 10 ? 10 : r
 					
-					var start = "M" + x + " " + y
+					var start = "M" + d.x0[0] + " " + d.x0[1]
 					var topArc = "a" + [r, r, 0, 0, flipConcave, flipDir*r, r].join(" ")
-					var leftLine = "h0 v" + (height/2 - 2*r)
+					var leftLine = "h0 v" + (d.height - 2*r)
 					var bottomArc = "a" + [r, r, 0, 0, flipConcave, -flipDir*r, r].join(" ")
 					var closure = "Z"
-					var innerLine = "M" + [x + flipDir*r/2, y + r].join(" ") + leftLine
+					var innerLine = "M" + [d.x0[0] + flipDir*r/2, d.x0[1] + r].join(" ") + leftLine
 					
 					return [start, topArc, leftLine, bottomArc, closure, innerLine].join(" ")
 					
@@ -1944,7 +1591,6 @@ var dbslice = (function (exports) {
 					
 					// First get the scale
 					var svg = ctrl.figure.select("svg.plotArea")
-					var height = svg.select("g.data").attr("height")
 					var rect = svg.select(".selection")
 					var x = ctrl.tools.xscale
 					
@@ -1957,28 +1603,40 @@ var dbslice = (function (exports) {
 					rect
 					  .attr("x", x(xMin))
 					  .attr("width", x(xMax) - x(xMin))
-					  .attr("height", height)
 					
 					// Update the handles				
-					svg.select(".brush").select(".handle--e")
-					  .attr("x", x(xMax))
-					  .attr("y", height/4 )
-					  .attr("height", height/2)
-					svg.select(".brush").select(".handle--w")
-					  .attr("x", x(xMin) - 10)
-					  .attr("y", height/4 )
-					  .attr("height", height/2)
+					svg.select(".brush").select(".handle--e").attr("x", x(xMax))
+					svg.select(".brush").select(".handle--w").attr("x", x(xMin) - 10)
 					
 					
 					// Update the handle decorations
+					var handleData = h.assembleHandleData(rect)
 					svg.select(".brush").select(".handle--decoration-e")
-					  .attr("d", h.drawHandle(rect, "e"))
+					  .attr("d", h.drawHandle(handleData[0]))
 					svg.select(".brush").select(".handle--decoration-w")
-					  .attr("d", h.drawHandle(rect, "w"))
+					  .attr("d", h.drawHandle(handleData[1]))
 					  
-				} // updateBrush
+				}, // updateBrush
 				
+				assembleHandleData: function assembleHandleData(rect){
 				
+					var height = Number(rect.attr("height"))
+					var width = Number(rect.attr("width"))
+				
+					var xWest = Number(rect.attr("x"))
+					var yWest = Number(rect.attr("y")) + height/4
+				
+					var xEast = xWest + width
+					var yEast = yWest
+					
+					return [{x0: [xEast, yEast],
+						     height: height/2, 
+							 side: "e"}, 
+						    {x0: [xWest, yWest],
+						     height: height/2, 
+						     side: "w"}]
+				
+				} // assembleHandleData
 			}, // addBrush
 			
 			addBinNumberControls: {
@@ -2096,16 +1754,11 @@ var dbslice = (function (exports) {
 				}, // updateBinNumber
 
 				updateMarkers: function updateMarkers(ctrl){
-					
-					var svg = ctrl.figure
-					  .select("svg.plotArea")
-					var height = svg.select("g.data").attr("height")
-				
-
 					// Update the bin control markers. The white markers do not interfere with the axis ticks as those are added later in the main update method.
-					var markers = svg.select("g.markup")
+					var markers = ctrl.figure
+					  .select("svg.plotArea")
+					  .select("g.markup")
 					  .select("g.binControls")
-					    .attr("transform", "translate(0," + height + ")")
 					  .selectAll("polygon")
 							
 					markers
@@ -2248,14 +1901,7 @@ var dbslice = (function (exports) {
 						width: undefined,
 						height: 400,
 						margin: {top: 10, right: 0, bottom: 30, left: 0},
-						axesMargin: {top: 20, right: 20, bottom: 16, left: 45},
-						parent: undefined,
-						position: {
-							ix: 0,
-							iy: 0,
-							iw: 4,
-							ih: 4
-						}
+						axesMargin: {top: 20, right: 20, bottom: 16, left: 45}
 					}
 				} // ctrl
 				
@@ -2434,6 +2080,9 @@ var dbslice = (function (exports) {
 		} // helpers
 		
     }; // cfD3Histogram
+
+
+// Helpers already in 'plotHelpers'
 
 	var cfD3Scatter = {
 		
@@ -3185,14 +2834,7 @@ var dbslice = (function (exports) {
 							width: undefined,
 							height: 400,
 							margin: {top: 10, right: 10, bottom: 38, left: 30},
-						    axesMargin: {top: 20, right: 20, bottom: 16, left: 30},
-							parent: undefined,
-							position: {
-								ix: 0,
-								iy: 0,
-								iw: 4,
-								ih: 4
-							}
+						    axesMargin: {top: 20, right: 20, bottom: 16, left: 30}
 						}
 					} // ctrl
 					
@@ -3610,32 +3252,11 @@ var dbslice = (function (exports) {
 	
 		rescale: function rescale(ctrl){
 			// What should happen if the window is resized?
-			
-			// Update the zoom clip.
-			var background = ctrl.figure.select("svg.plotArea")
-				.select("g.background")
-			background.select("clipPath").remove()
-				
-			background
-				.append("clipPath")
-				.attr("id", "zoomClip")
-				.append("rect")
-			
-			ctrl.figure
-			  .select("div.plotContainer")
-			  .select("svg.plotArea")
-			  .select("g.data")
-				.attr("clip-path", "url(#zoomClip)")
-			
-			
 			// 1.) The svg should be resized appropriately
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
 			
 			// 2.) The plot tools need to be updated
 			plotHelpers.setupTools.go(ctrl)
-			
-			
-				
 			
 			// 3.) The plot needs to be redrawn
 			cfD3Line.update(ctrl)
@@ -3976,15 +3597,8 @@ var dbslice = (function (exports) {
 						width: undefined,
 						height: 400,
 						margin: {top: 10, right: 10, bottom: 38, left: 30},
-						axesMargin: {top: 20, right: 20, bottom: 16, left: 30},
-						parent: undefined,
-						position: {
-							ix: 0,
-							iy: 0,
-							iw: 4,
-							ih: 4
+						axesMargin: {top: 20, right: 20, bottom: 16, left: 30}
 						}
-					}
 				} // ctrl
 				
 				
@@ -4472,6 +4086,279 @@ var dbslice = (function (exports) {
 	
 	} // cfD3Line
 	
+	
+	// Coloring and highlighting
+	var color = {
+		// The color controls should probably be moved to a single location, i.e. a single button on a toolbar somewhere. Maybe create a floating top toolbat to control all general behaviour.
+		
+		// To perform the task it seems it is the simplest if this variable holds the color palette for all other plots to share. The color change effects need then only change the color palette here. Specifically: this palette will replace ctrl.tools.cscale.
+		
+		defaultPalette: function defaultPalette(){
+			return "cornflowerblue"
+		}, // defaultPalette
+		
+		colorPalette: d3.scaleOrdinal(d3.schemeDark2), // colorPalette
+		
+		togglePalette: function togglePalette(varName){
+			
+			// Setup the color function.
+			if( color.settings.scheme == undefined){
+				// Color scale is set to the default. Initialise a color scale.
+			
+				// The default behaviour of d3 color scales is that they extend the domain as new items are passed to it. Even if the domain is fixed upfront, the scale will extend its domain when new elements are presented to it.
+				color.settings.scheme   = "color"
+				color.settings.variable = varName
+			} else if (color.settings.variable != varName){
+				// The color metadata option has changed. Clear the scale domain so that the scale will be used with the new parameter.
+			
+				color.colorPalette.domain([])
+				color.settings.variable = varName
+			} else {
+				// The same color option has been selected - return to the default color options.
+				color.settings.scheme = undefined
+				color.settings.variable = undefined
+				color.colorPalette.domain([])
+			} // if
+			
+		}, // togglePalette
+		
+		// settings holds the flag for the scheme to use, and the variable it is supposed to be used with. 
+		settings: { 
+		            name: "Colour",
+					scheme: undefined,
+		          val: undefined,
+				  options: undefined,
+				  event: function(ctrl, varName){
+					  
+					// The on-click functionality takes care of the options that are specific to an individual plot. Coloring is cross plot, and therefore must coordinate the menus of several plots. This is done here.
+							
+					// Update the plot ctrls
+					toggleAllColorSubmenuItems()
+					
+					// If a color option is defined, and this is the option corresponding to it, then make it active.
+				  
+					
+					color.togglePalette(varName)
+					
+					
+					// do the render so that all plots are updated with the color.
+					render()
+					
+					
+					function toggleAllColorSubmenuItems(){
+						
+						
+						dbsliceData.session.plotRows.forEach(function(plotRow){
+						  plotRow.plots.forEach(function(plot){
+							if(plot.view.cVarOption != undefined){
+							  
+							  // Adjust the plot color value
+							  plot.view.cVarOption.val = varName
+							
+							  // Toggle the html options
+							  plot.figure
+								.select("div.bottomLeftControlGroup")
+								.selectAll("p.submenu-toggle")
+								.each(function(){
+								  
+								  if(this.innerHTML == "Colour"){
+									// Color submenu to be adjusted.
+									  
+									d3.select(this.parentElement)
+									  .selectAll("a.submenu-item")
+									  .each(function(){
+											
+										if( this.innerHTML == varName ){
+										  this.classList.replace("deselected", "selected")
+										} else {
+										  this.classList.replace("selected", "deselected")
+										} // if
+											
+									  }) // each
+								  } // if
+							  }) // each
+								  
+							} // if
+						  }) // forEach
+						}) // forEach
+						
+					} // toggleAllColorSubmenuItems
+					  
+				  } // event
+		},
+		
+		get: function get(key){
+			// Coloring is expected to be done on the categorical variable key basis.
+			// Perform any input check on the input key, and return the appropriate color code. So that the colors don't baloon out of control?
+			var palette = color.defaultPalette
+			
+			var colorIsChosen = color.settings.scheme != undefined
+			var keyIsValid    = color.settings.val == undefined? false : dbsliceData.data.metaDataUniqueValues[color.settings.val].includes(key)
+			
+			if( colorIsChosen && keyIsValid ){
+				palette = color.colorPalette
+			} // if			
+			
+			return palette(key)
+			
+		}, // get
+		
+		
+		
+	} // crossPlotColoring
+
+	var crossPlotHighlighting = {
+			
+		on: function on(d, sourcePlotName){
+		
+			// Functionality:
+			//    - highlight points in scatter plots on other plots too on mouseover.
+			//    - same for bar plots and histograms?
+			
+			// The input is a data object. For scatter plots this is the entire line from metadata.csv corresponding to a particular point.
+			
+			
+			// For this datapoint find all other plots that might be interesting, determine what they are plotting, and which variables they are using, collect the elements belonging to the particular datapoint, and highlight it by updating it's style.
+			
+			// First go through all plot rows to see if there are data.
+			
+			// Note that different functionality must be allowed for different source and target plots. For each of the available plot types (bar, histogram, scatter, line, contour) for which the on-mouseover effects are required a different functionality might be needed.
+			
+			// Find all the data that needs to be highlighted.
+			var allDataPoints = crossPlotHighlighting.helpers.findAllData(d, sourcePlotName);
+			
+			dbsliceData.session.plotRows.forEach(function(plotRow){
+				
+				
+				
+				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
+				plotRow.plots.forEach(function(plotCtrl){
+					
+					// First all the elements need to be unhiglighted.
+					// crossPlotHighlighting.helpers.unHighlightAll(plotDOM, plot);
+					plotCtrl.plotFunc.helpers.unhighlight( plotCtrl )
+					
+					// Now highlight the needed datapoints.
+					plotCtrl.plotFunc.helpers.highlight(plotCtrl, allDataPoints);
+					
+					
+				}) // each
+				
+				
+			}); // forEach
+		
+		}, // on
+		
+		off: function off(d, sourcePlotName){
+		
+			
+			dbsliceData.session.plotRows.forEach(function(plotRow){
+				
+				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
+				plotRow.plots.forEach(function(plotCtrl){
+					plotCtrl.plotFunc.helpers.defaultStyle( plotCtrl );
+				}) // forEach
+				
+				
+			}); // forEach
+		
+		}, // off
+		
+		helpers: {
+			
+			
+			findAllData: function findAllData(d, sourcePlotName){
+				
+				
+				var allDataPoints;
+			    switch(sourcePlotName){
+					
+					case "cfD3Scatter":
+					    allDataPoints = [d];
+					  break;
+					  
+					case "cfD3BarChart":
+						// Collect all the relevant data points. An additional filter needs to be applied here!! DON'T USE crossfilter.filter - IT MESSES UP WITH ORIGINAL FUNCTIONALITY
+						//var allPoints = dbsliceData.data.cf.all()
+						
+						// This should return the data in the filter, as well as the data corresponding to the outline that has the cursor over it. It relies on the fact that when all items are in the filter the filter is in fact empty.
+						
+						// 
+						
+						var highlight = true
+						
+						var varFilter = dbsliceData.data.filterSelected[d.key]
+						if(varFilter != undefined){
+							
+							// FOR NOW: when mousing over rectangles that are not selected only display the data that is already in hte filter. In the future implement a preview, but to do this functionalities of all plots need to be adjusted to contain points for all tasks at all times.
+							
+							// if:
+							// Rect not chosen, but moused over: do nothing
+							// Rect chosen,     but moused over: show data corresponding to it
+							
+							
+							
+							// mouse over selected item: d.val in filter
+							
+							// If the filter has some values then some rectangles are active! Highlight the data is the moused over rectangle is one of the active ones.
+							var filterHasValues = varFilter.length > 0
+							var filterHasRect   = varFilter.includes(d.val)
+							
+							if( filterHasValues && filterHasRect ){
+								highlight = true
+							} // if	
+						} // if
+						
+						
+						// If highlighting is desired, then find the items in hte current filter that should be highlighted. Otherwise return all the filter contents.
+						var allDataPoints = dbsliceData.data.taskDim.top(Infinity)
+						if(highlight){
+							allDataPoints = allDataPoints.filter(function(p){
+								return p[d.key] == d.val
+							}) // filter
+						} // if
+						
+						
+					  break;
+					  
+					case "cfD3Line":
+						// Collect all the relevant data points by tskId.
+						var cfDataPoints = dbsliceData.data.taskDim.top(Infinity)
+						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.task.taskId});
+						// console.log(allDataPoints);
+					  break;
+					  
+					  					  
+					default:
+					  break;
+				} // switch
+				
+			  return allDataPoints;
+				
+			} // findAllData
+		}, // helpers
+		
+		manuallySelectedTasks: function manuallySelectedTasks(){
+			
+			// Loop through all the plots, and if they have a function that highlights manually selected tasks, run it.
+			
+			dbsliceData.session.plotRows.forEach(function(plotRow){
+				
+				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
+				plotRow.plots.forEach(function(plotCtrl){
+					
+					// Check if manually selected tasks need to be included.
+					if(plotCtrl.plotFunc.helpers.updateManualSelections != undefined){
+						plotCtrl.plotFunc.helpers.updateManualSelections(plotCtrl)
+					} // if
+					
+				}) // each
+			}); // forEach
+		}, // manuallySelectedTasks
+		
+	} // crossPlotHighlighting 
+		
+
 	// Plot creation abstract object.
     var plotHelpers = {
         
@@ -4482,77 +4369,52 @@ var dbslice = (function (exports) {
 				// Making the plot DOM
 				makeNewPlot: function makeNewPlot( plotCtrl, index ) {
     
-					// Note that here `this' is a d3 object.
-					let f = plotCtrl.format
-					f.parent = this._parent
-					let dx = positioning.dx( d3.select(f.parent) )
-					let dy = positioning.dy( d3.select(f.parent) )
-	
-	
-					
+					var plotRowIndex = d3.select(this._parent).attr("plot-row-index");
 					  
 					var plot = d3.select(this)
 					  .append("div")
-						.attr("class", "plotWrapper")
+						.attr("class", "col-md-" + plotCtrl.format.colWidth + " plotWrapper")
 						.attr("plottype", plotCtrl.plotFunc.name)
-						.style("position", "absolute")
-						.style("left"  , f.parent.offsetLeft + f.position.ix*dx + "px")
-						.style("top"   , f.parent.offsetTop + f.position.iy*dy + "px")
-						.style("width" , f.position.iw*dx + "px")
-						.style("height", f.position.ih*dy + "px")
 					  .append("div")
-					    .attr("class", "card")
-
-
-					// Apply the drag to all new plot headers
-					let drag = d3.drag()
-						.on("start", positioning.dragStart)
-						.on("drag" , positioning.dragMove)
-						.on("end"  , positioning.dragEnd)
+						.attr("class", "card");
+					  
 					  
 					var plotHeader = plot
 					  .append("div")
-						.attr("class", "card-header plotTitle")
-						.style("cursor", "grab")
-						.call(drag)
-				
-
+						.attr("class", "card-header plotTitle");
 					
-					// Add the actual title
+					
 					plotHeader
 					  .append("div")
 						.attr("style","display:inline")
 						.html(plotCtrl.format.title)
 						.attr("spellcheck", "false")
-						.attr("contenteditable", true)
-						.style("cursor", "text")
-						.on("mousedown", function() { d3.event.stopPropagation(); })
+						.attr("contenteditable", true);
 						
 						
 						
 					// Add a div to hold all the control elements.
-					plotHeader
+					var controlGroup = plotHeader
 					  .append("div")
 						.attr("class", "ctrlGrp float-right")
 						.attr("style", "display:inline-block")
+						
+					// Append a remove plot button.
+					controlGroup
 					  .append("button")
                         .attr("class", "btn btn-danger float-right")
                         .html("x")
-						.on("mousedown", function() { d3.event.stopPropagation(); })
 						.on("click", addMenu.removePlotControls )
 					
 					  
 					var plotBody = plot
 					  .append("div")
 						.attr("class", "plot")
-						
-						
-
+						.attr("plot-row-index", plotRowIndex)
+						.attr("plot-index", index);
 						
 					// Bind the DOM element to the control object.
 					plotCtrl.figure = plotBody
-					
-					// Make the plot draggable.
 					
 					
 					// Draw the plot
@@ -4591,14 +4453,13 @@ var dbslice = (function (exports) {
 					plot
 					  .append("div")
 						.attr("class", "leftAxisControlGroup")
-						.style("width", ctrl.format.margin.left +"px")
-						.style("float", "left")
+						.attr("style", "width: "+ ctrl.format.margin.left +"px; height: 100%; float: left")
 						
 					// Main plot with its svg.
 					plot
 					  .append("div")
 						.attr("class", "plotContainer")
-						.style("margin-left", ctrl.format.margin.left + "px")
+						.attr("style", "margin-left: " + ctrl.format.margin.left + "px") 
 				
 					// Bottom left corner div
 					// A height of 38px is prescribed, as that is the height of a bootstrap button.
@@ -4614,28 +4475,7 @@ var dbslice = (function (exports) {
 						.attr("class", "bottomAxisControlGroup")
 						.attr("style", "margin-left: " + ctrl.format.margin.left + "px;")
 						
-					// Add the resize item.
-					let resize = d3.drag()
-						.on("start", positioning.resizeStart)
-						.on("drag", positioning.resizeMove)
-						.on("end", positioning.resizeEnd)
-					
-					plot.select(".bottomAxisControlGroup")
-					  .append("svg")
-						.attr("width",  "10")
-						.attr("height", 10)
-						.style("position", "absolute")
-						.style("bottom", "0px")
-						.style("right", "0px")
-					  .append("circle")
-						.attr("cx", 5)
-						.attr("cy", 5)
-						.attr("r", 5)
-						.attr("fill", "DarkGrey")
-						.attr("cursor", "nwse-resize")
-						.call(resize)
-					
-					
+						
 				}, // setupPlotBackbone
 				
 				setupPlotContainerBackbone: function setupPlotContainerBackbone(ctrl){
@@ -4673,28 +4513,26 @@ var dbslice = (function (exports) {
 				// Svg scaling
 				rescaleSvg: function rescaleSvg(ctrl){
 					
-					// RESIZE ALL THE PLOT CONTAINERS AS NEEDED.
-					
 					var svg = ctrl.figure.select("svg.plotArea")
-					var cardDOM = ctrl.figure.node().parentElement
-					var wrapperDOM = cardDOM.parentElement
-					var headerDOM = d3.select(cardDOM).select(".plotTitle").node()
-					
-					// First enforce the size based on the size of the wrapper.
-					d3.select(cardDOM)
-					  .style("height", wrapperDOM.offsetHeight - headerDOM.offsetHeight)
-					
-					
-					
+
 					// These are margins of the entire drawing area including axes. The left and top margins are applied explicitly, whereas the right and bottom are applied implicitly through the plotWidth/Height parameters.
 					var margin = ctrl.format.margin
 					var axesMargin = ctrl.format.axesMargin
 					
 					
-					// Width of the plotting area is the width of the div intended to hold the plot (.plotContainer). ctrl.format.margin.bottom is the margin for hte button.
-					var width = wrapperDOM.offsetWidth - margin.left - margin.right
-					var height = wrapperDOM.offsetHeight - headerDOM.offsetHeight - margin.bottom - margin.top
-
+					// Width of the plotting area is the width of the div intended to hold the plot (.plotContainer).
+					var width = ctrl.format.width
+					if(width == undefined){
+						width = svg.node().parentElement.parentElement.offsetWidth - margin.left - margin.right
+					}
+					
+					// If undefined the height is the same as width
+					var height = ctrl.format.height
+					if(height == undefined){
+						height = width
+					} else {
+						height = height - margin.bottom - margin.top
+					}
 					
 					
 					
@@ -4921,7 +4759,6 @@ var dbslice = (function (exports) {
 					background
 						.append("clipPath")
 							.attr("id", "zoomClip")
-							.attr("clipPathUnits","objectBoundingBox")
 						.append("rect")
 					background.append("rect")
 						.attr("class", "zoom-area")
@@ -5616,281 +5453,6 @@ var dbslice = (function (exports) {
 		
 	} // plotHelpers
 
-	
-	
-	// Coloring and highlighting
-	var color = {
-		// The color controls should probably be moved to a single location, i.e. a single button on a toolbar somewhere. Maybe create a floating top toolbat to control all general behaviour.
-		
-		// To perform the task it seems it is the simplest if this variable holds the color palette for all other plots to share. The color change effects need then only change the color palette here. Specifically: this palette will replace ctrl.tools.cscale.
-		
-		defaultPalette: function defaultPalette(){
-			return "cornflowerblue"
-		}, // defaultPalette
-		
-		colorPalette: d3.scaleOrdinal(d3.schemeDark2), // colorPalette
-		
-		togglePalette: function togglePalette(varName){
-			
-			// Setup the color function.
-			if( color.settings.scheme == undefined){
-				// Color scale is set to the default. Initialise a color scale.
-			
-				// The default behaviour of d3 color scales is that they extend the domain as new items are passed to it. Even if the domain is fixed upfront, the scale will extend its domain when new elements are presented to it.
-				color.settings.scheme   = "color"
-				color.settings.variable = varName
-			} else if (color.settings.variable != varName){
-				// The color metadata option has changed. Clear the scale domain so that the scale will be used with the new parameter.
-			
-				color.colorPalette.domain([])
-				color.settings.variable = varName
-			} else {
-				// The same color option has been selected - return to the default color options.
-				color.settings.scheme = undefined
-				color.settings.variable = undefined
-				color.colorPalette.domain([])
-			} // if
-			
-		}, // togglePalette
-		
-		// settings holds the flag for the scheme to use, and the variable it is supposed to be used with. 
-		settings: { 
-		            name: "Colour",
-					scheme: undefined,
-		          val: undefined,
-				  options: undefined,
-				  event: function(ctrl, varName){
-					  
-					// The on-click functionality takes care of the options that are specific to an individual plot. Coloring is cross plot, and therefore must coordinate the menus of several plots. This is done here.
-							
-					// Update the plot ctrls
-					toggleAllColorSubmenuItems()
-					
-					// If a color option is defined, and this is the option corresponding to it, then make it active.
-				  
-					
-					color.togglePalette(varName)
-					
-					
-					// do the render so that all plots are updated with the color.
-					render()
-					
-					
-					function toggleAllColorSubmenuItems(){
-						
-						
-						dbsliceData.session.plotRows.forEach(function(plotRow){
-						  plotRow.plots.forEach(function(plot){
-							if(plot.view.cVarOption != undefined){
-							  
-							  // Adjust the plot color value
-							  plot.view.cVarOption.val = varName
-							
-							  // Toggle the html options
-							  plot.figure
-								.select("div.bottomLeftControlGroup")
-								.selectAll("p.submenu-toggle")
-								.each(function(){
-								  
-								  if(this.innerHTML == "Colour"){
-									// Color submenu to be adjusted.
-									  
-									d3.select(this.parentElement)
-									  .selectAll("a.submenu-item")
-									  .each(function(){
-											
-										if( this.innerHTML == varName ){
-										  this.classList.replace("deselected", "selected")
-										} else {
-										  this.classList.replace("selected", "deselected")
-										} // if
-											
-									  }) // each
-								  } // if
-							  }) // each
-								  
-							} // if
-						  }) // forEach
-						}) // forEach
-						
-					} // toggleAllColorSubmenuItems
-					  
-				  } // event
-		},
-		
-		get: function get(key){
-			// Coloring is expected to be done on the categorical variable key basis.
-			// Perform any input check on the input key, and return the appropriate color code. So that the colors don't baloon out of control?
-			var palette = color.defaultPalette
-			
-			var colorIsChosen = color.settings.scheme != undefined
-			var keyIsValid    = color.settings.val == undefined? false : dbsliceData.data.metaDataUniqueValues[color.settings.val].includes(key)
-			
-			if( colorIsChosen && keyIsValid ){
-				palette = color.colorPalette
-			} // if			
-			
-			return palette(key)
-			
-		}, // get
-		
-		
-		
-	} // crossPlotColoring
-
-	var crossPlotHighlighting = {
-			
-		on: function on(d, sourcePlotName){
-		
-			// Functionality:
-			//    - highlight points in scatter plots on other plots too on mouseover.
-			//    - same for bar plots and histograms?
-			
-			// The input is a data object. For scatter plots this is the entire line from metadata.csv corresponding to a particular point.
-			
-			
-			// For this datapoint find all other plots that might be interesting, determine what they are plotting, and which variables they are using, collect the elements belonging to the particular datapoint, and highlight it by updating it's style.
-			
-			// First go through all plot rows to see if there are data.
-			
-			// Note that different functionality must be allowed for different source and target plots. For each of the available plot types (bar, histogram, scatter, line, contour) for which the on-mouseover effects are required a different functionality might be needed.
-			
-			// Find all the data that needs to be highlighted.
-			var allDataPoints = crossPlotHighlighting.helpers.findAllData(d, sourcePlotName);
-			
-			dbsliceData.session.plotRows.forEach(function(plotRow){
-				
-				
-				
-				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
-				plotRow.plots.forEach(function(plotCtrl){
-					
-					// First all the elements need to be unhiglighted.
-					// crossPlotHighlighting.helpers.unHighlightAll(plotDOM, plot);
-					plotCtrl.plotFunc.helpers.unhighlight( plotCtrl )
-					
-					// Now highlight the needed datapoints.
-					plotCtrl.plotFunc.helpers.highlight(plotCtrl, allDataPoints);
-					
-					
-				}) // each
-				
-				
-			}); // forEach
-		
-		}, // on
-		
-		off: function off(d, sourcePlotName){
-		
-			
-			dbsliceData.session.plotRows.forEach(function(plotRow){
-				
-				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
-				plotRow.plots.forEach(function(plotCtrl){
-					plotCtrl.plotFunc.helpers.defaultStyle( plotCtrl );
-				}) // forEach
-				
-				
-			}); // forEach
-		
-		}, // off
-		
-		helpers: {
-			
-			
-			findAllData: function findAllData(d, sourcePlotName){
-				
-				
-				var allDataPoints;
-			    switch(sourcePlotName){
-					
-					case "cfD3Scatter":
-					    allDataPoints = [d];
-					  break;
-					  
-					case "cfD3BarChart":
-						// Collect all the relevant data points. An additional filter needs to be applied here!! DON'T USE crossfilter.filter - IT MESSES UP WITH ORIGINAL FUNCTIONALITY
-						//var allPoints = dbsliceData.data.cf.all()
-						
-						// This should return the data in the filter, as well as the data corresponding to the outline that has the cursor over it. It relies on the fact that when all items are in the filter the filter is in fact empty.
-						
-						// 
-						
-						var highlight = true
-						
-						var varFilter = dbsliceData.data.filterSelected[d.key]
-						if(varFilter != undefined){
-							
-							// FOR NOW: when mousing over rectangles that are not selected only display the data that is already in hte filter. In the future implement a preview, but to do this functionalities of all plots need to be adjusted to contain points for all tasks at all times.
-							
-							// if:
-							// Rect not chosen, but moused over: do nothing
-							// Rect chosen,     but moused over: show data corresponding to it
-							
-							
-							
-							// mouse over selected item: d.val in filter
-							
-							// If the filter has some values then some rectangles are active! Highlight the data is the moused over rectangle is one of the active ones.
-							var filterHasValues = varFilter.length > 0
-							var filterHasRect   = varFilter.includes(d.val)
-							
-							if( filterHasValues && filterHasRect ){
-								highlight = true
-							} // if	
-						} // if
-						
-						
-						// If highlighting is desired, then find the items in hte current filter that should be highlighted. Otherwise return all the filter contents.
-						var allDataPoints = dbsliceData.data.taskDim.top(Infinity)
-						if(highlight){
-							allDataPoints = allDataPoints.filter(function(p){
-								return p[d.key] == d.val
-							}) // filter
-						} // if
-						
-						
-					  break;
-					  
-					case "cfD3Line":
-						// Collect all the relevant data points by tskId.
-						var cfDataPoints = dbsliceData.data.taskDim.top(Infinity)
-						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.task.taskId});
-						// console.log(allDataPoints);
-					  break;
-					  
-					  					  
-					default:
-					  break;
-				} // switch
-				
-			  return allDataPoints;
-				
-			} // findAllData
-		}, // helpers
-		
-		manuallySelectedTasks: function manuallySelectedTasks(){
-			
-			// Loop through all the plots, and if they have a function that highlights manually selected tasks, run it.
-			
-			dbsliceData.session.plotRows.forEach(function(plotRow){
-				
-				// If it has any plots in do the required tasks for them. Plots will always be there, and can be empty, in which case the following loop is skipped.
-				plotRow.plots.forEach(function(plotCtrl){
-					
-					// Check if manually selected tasks need to be included.
-					if(plotCtrl.plotFunc.helpers.updateManualSelections != undefined){
-						plotCtrl.plotFunc.helpers.updateManualSelections(plotCtrl)
-					} // if
-					
-				}) // each
-			}); // forEach
-		}, // manuallySelectedTasks
-		
-	} // crossPlotHighlighting 
-		
-
-	
 
 	// App interactivity
     var addMenu = {
@@ -6252,10 +5814,6 @@ var dbslice = (function (exports) {
 					return plotRowCtrl == config.ownerCtrl
 				})[0]
 				
-				// Position the new plot row in hte plot container.
-				plotToPush = positioning.newPlot(plotRow, plotToPush)
-				
-				
 				plotRow.plots.push(plotToPush)
                 
                 
@@ -6294,6 +5852,7 @@ var dbslice = (function (exports) {
                 
             }, // clearMenu
             
+			// NEW!!!
 			makeButton: function makeButton(config){
 				
 				// Make the button that will prompt the dialogue.
@@ -6404,7 +5963,7 @@ var dbslice = (function (exports) {
                     
                     newCtrl                  : {title: "New row", 
                                                 plots: [],
-												grid: {nx: 12, ny: undefined},
+												grid: {nx: 12, ny: 12},
                                                  type: "undefined",
                               addPlotButton: {label : "Add plot"}},
                     ownerButtonId             : buttonId,
@@ -7180,7 +6739,7 @@ var dbslice = (function (exports) {
 		makePlotRowContainers: function makePlotRowContainers(plotRows){
 			// This creates all the new plot rows.
 			
-			var width = d3.select( "#" + dbsliceData.elementId ).node().offsetWidth - 45
+			var width = d3.select( "#" + dbsliceData.elementId ).node().offsetWidth - 30
 			
 			// HANDLE ENTERING PLOT ROWS!
 			var newPlotRows = plotRows.enter()
@@ -7243,24 +6802,16 @@ var dbslice = (function (exports) {
 			var plots = plotRows
 			  .selectAll(".plotRowBody")
 			  .selectAll(".plot")
-			  .data(function (d){return d.plots;})
-			  
+			
 			// Create any new plots
 			plots
+			    .data(function (d){return d.plots;})
 			    .enter()
 			    .each(plotHelpers.setupPlot.general.makeNewPlot);
 			
 			// Update any new plots
 			plots
 			  .each(function(plotCtrl){plotCtrl.plotFunc.update(plotCtrl)});
-			  
-			  
-			// Adjust the plot row height
-            plotRows
-			  .selectAll(".plotRowBody")
-              .each(function(){
-                  builder.refreshPlotRowHeight( d3.select(this) )
-              })
 			
 		}, // makeUpdatePlotRowPlots
 		
@@ -7268,45 +6819,7 @@ var dbslice = (function (exports) {
 			
 			addMenu.addPlotRowControls.make(dbsliceData.elementId, "addPlotRowButton")
 			
-		}, // makeAddPlotRowButton
-		
-		refreshPlotRowHeight: function refreshPlotRowHeight(plotRowBody){
-            
-            // MAYBE THERE SHOULD BE A MARGIN IMPLEMENTED INSTEAD??
-            
-            let dy = positioning.dy(plotRowBody)
-            
-            // Index of the lowest plot bottom.
-            var ih = 0
-            plotRowBody
-              .selectAll(".plotWrapper")
-              .each(function(d){
-                  let ipb = d.format.position.iy + d.format.position.ih
-                  ih = ipb > ih ? ipb : ih
-            })
-            
-            // Adjust the actual height.
-            if(ih*dy != plotRowBody.node().offsetHeight){
-                plotRowBody.style("height", (ih*dy + 20) + "px")
-            }
-            
-        }, // refreshPlotRowHeight
-        
-		refreshPlotRowWidth: function refreshPlotRowWidth(plotRowBody){
-            
-            // Adjust all plots to the new grid.
-            console.log(plotRowBody)
-			let dy = positioning.dy(plotRowBody)
-			let dx = positioning.dx(plotRowBody)
-			
-            plotRowBody.selectAll(".plotWrapper")
-			  .style("left"  , d=> d.format.parent.offsetLeft+d.format.position.ix*dx+"px")
-			  .style("top"   , d=> d.format.parent.offsetTop +d.format.position.iy*dy + "px")
-              .style("width" , d=> d.format.position.iw*dx + "px")
-              .style("height", d=> d.format.position.ih*dy + "px")
-            
-        } // refreshPlotRowWidth
-		
+		} // makeAddPlotRowButton
 		
 	} // builder
 		
@@ -8269,7 +7782,7 @@ var dbslice = (function (exports) {
 					
 				}, // getPlottingFunction
 				
-				assemblePlots: function assemblePlots(plotsData, plotRow){
+				assemblePlots: function assemblePlots(plotsData){
 					
 					var h = importExportFunctionality.importing.helpers
 					
@@ -8282,11 +7795,8 @@ var dbslice = (function (exports) {
 						if(f != undefined){
 						
 							var plotToPush = f.helpers.createLoadedControl(plotData)
-							
-							// Position the new plot row in hte plot container.
-							plotToPush = positioning.newPlot(plotRow, plotToPush)
 						
-							plotRow.plots.push(plotToPush);
+							plots.push(plotToPush);
 							
 						} else {
 							// The plotData type is not valid
@@ -8298,7 +7808,7 @@ var dbslice = (function (exports) {
 						
 					}); // forEach
 					
-					return plotRow;
+					return plots;
 					
 				}, // assemblePlots
 				
@@ -8310,13 +7820,9 @@ var dbslice = (function (exports) {
 					var plotRows = [];
 					plotRowsData.forEach(function(plotRowData){
 						var plotRowToPush = {title: plotRowData.title, 
-											 plots: [], 
+											 plots: h.assemblePlots(plotRowData.plots), 
 											  type: plotRowData.type,
-											  grid: {nx: 12, ny: undefined},
-									 addPlotButton: true    }
-									
-						// Assemble hte plots 
-						plotRowToPush = h.assemblePlots(plotRowData.plots, plotRowToPush)
+									addPlotButton : true    }
 									
 						plotRows.push(plotRowToPush);
 					})
@@ -8883,6 +8389,345 @@ var dbslice = (function (exports) {
 		
 	} // importExportFunctionality
 
+
+	// Support for dragging
+    var positioning = {
+        
+		// Basic grid functionality
+		
+        nx: function nx(container){
+            
+            let nx
+            container.each(function(d){
+                nx = d.grid.nx
+            })
+            return nx
+            
+        }, // nx
+        
+        dx: function dx(container){
+            
+            // First access the grid associated with the container.
+            let nx = positioning.nx(container)
+            
+            return container.node().offsetWidth / nx
+        }, // dx
+        
+        dy: function dy(container){
+            // The height of the container can change, and the number of grid points cannot be fixed. Instead the aspect ratio (dx/dy) is defined as 1. This is also taken into account when new plots are created.
+            return positioning.dx(container)
+            
+        }, // dy
+
+		// Dragging plots
+
+        dragStart: function dragStart(d){
+            
+            // The delta to the corner should be saved to synchronise the movement with the cursor.
+            d.format.position.delta = { x: d3.event.x, 
+                                        y: d3.event.y}
+          
+        }, // dragStart
+            
+        dragMove: function dragMove(d,i){
+            
+            var f = d.format
+            var container = d3.select(f.parent)
+            let nx = positioning.nx(container)
+            let dx = positioning.dx(container)
+            let dy = positioning.dy(container)
+            
+            // Actual cursor position is the d3.event.x + the start position of the div.
+            
+  
+            // Calculate the proposed new position on the grid.
+            // d3.event is relative to the top left card corner
+            // d.format.position.ix*dx corrects for the position within the container
+            // d.format.position.delta.x corrects for the clicked offset to the corner
+            let ix = Math.round( (d3.event.x + f.position.ix*dx - f.position.delta.x) / dx);
+            let iy = Math.round( (d3.event.y + f.position.iy*dy - f.position.delta.y) / dy);
+          
+            
+            
+          
+            // Implement rules on how far the contour can be moved. Prevent the contour to go even partially off-screen.
+              
+            // EAST BOUNDARY
+            if( ix + f.position.iw > nx ){
+                ix = nx - f.position.iw
+            } // if
+
+            // WEST BOUNDARY
+            if( ix < 0 ){
+                ix = 0
+            } // if
+
+            // SOUTH BOUNDARY: If it is breached then the parent size should be increased.
+            // if( iy + d.format.position.ih > grid.ny ){
+            //    iy = grid.ny - d.format.position.ih
+            // } // if
+
+            // NORTH BOUNDARY
+            if( iy < 0 ){
+                iy = 0
+            } // if
+
+
+            // Update the container position.
+            let movement = ix != f.position.ix || iy != f.position.iy
+            if (movement){
+                
+                f.position.ix = ix;
+                f.position.iy = iy;
+                
+                // The exact location must be corrected for the location of the container itself.
+                d3.select(this.parentElement)
+                  .style("left", (f.parent.offsetLeft + f.position.ix*dx) + "px")
+                  .style("top" , (f.parent.offsetTop  + f.position.iy*dy) + "px")
+                  .raise();            
+            } // if
+              
+            
+          
+            
+            
+            builder.refreshPlotRowHeight( container )
+            
+            
+          
+        }, // dragMove
+            
+        dragEnd: function dragEnd(d){
+            // On drag end clear out the delta.
+            d.format.position.delta = undefined
+        }, // dragEnd
+        
+		
+		// Resizing plots
+		
+		resizeStart: function resizeStart(d){
+			// No action needed.
+			
+			
+		}, // resizeStart
+		
+		resizeMove: function resizeMove(d){
+  
+  
+			// Calculate the cursor position on the grid. When resizing the d3.event.x/y are returned as relative to the top left corner of the svg containing the resize circle. The cue to resize is when the cursor drags half way across a grid cell.
+			let container = d3.select(d.format.parent)
+			let nx = positioning.nx( container )
+			let dx = positioning.dx( container )
+			let dy = positioning.dy( container )
+			
+			let x = d3.event.sourceEvent.clientX - d.format.parent.offsetLeft
+			let y = d3.event.sourceEvent.clientY - d.format.parent.offsetTop
+		  
+		    let ix = d.format.position.ix
+			let iw = Math.round( x / dx )
+			let ih = Math.round( y / dy )
+		  
+			// Calculate if a resize is needed
+			let increaseWidth = iw > d.format.position.iw
+			let decreaseWidth = iw < d.format.position.iw
+			let increaseHeight = ih > d.format.position.ih
+			let decreaseHeight = ih < d.format.position.ih
+			  
+			// Update the container size if needed
+			if([increaseWidth, decreaseWidth, increaseHeight, decreaseHeight].some(d=>d)){
+				
+				// Corrections to force some size.        
+				iw = iw < 1 ? 1 : iw
+				ih = ih < 1 ? 1 : ih
+				
+				// Correction to ensure it doesn't exceed limits.
+				iw = (ix + iw) > nx ? nx - ix : iw
+				
+				
+				// Width must simultaneously not be 1, and not exceed the limit of the container.
+					
+				d.format.position.ih = ih
+				d.format.position.iw = iw
+
+				
+				// this < svg < bottom div < plot body < card
+				d3.select(this.parentElement.parentElement.parentElement.parentElement)
+				  .style("max-width", iw*dx + "px")
+				  .style("width"    , iw*dx + "px" )
+				  .style("height"   , ih*dy + "px" )
+				  .style("left"     , ix*dx + "px" )
+				  
+				
+				
+					
+			} // if
+			  
+		  
+		}, // resizeMove
+		
+		resizeEnd: function resizeEnd(d){
+		    // After teh resize is finished update teh contour.
+		  
+		    let container = d3.select(d.format.parent)
+		    builder.refreshPlotRowHeight( container )
+			builder.refreshPlotRowWidth(  container )
+			
+		    // ALL CONTOUR RELATED!
+			/*
+		    // Figure out how much space the contour can now take, and readjust its size.
+		    let b = d.format.position
+		    let c = d.contour
+		  
+		    let innerHeight = b.h - 2*b.margin.y - b.margin.title
+		    let innerWidth  = b.w - 2*b.margin.x
+		  
+		  
+		    if(innerWidth*c.domain.ar < innerHeight){
+				// The whole width of the card can be used.
+				b.sw = innerWidth
+				b.sh = innerWidth*c.domain.ar
+			
+			} else {
+				b.sh = innerHeight
+				b.sw = innerHeight/c.domain.ar
+		  
+			} // if
+		  
+		  
+			let s = { domain: c.domain,
+					range : {x: [     0, b.sw ],
+							 y: [ b.sh , 0    ]}
+			}
+		  
+			d.container.projection = projection(c.data, s)
+		  
+		  
+			// Now refresh the contours themselves.
+		  
+			// Append the svg
+			let svg = d3.select(this.parentElement.parentElement).select("svg.plotArea")
+			console.log(innerHeight, innerWidth, b.sh, b.sw)
+			svg
+			  .attr("width",  b.sw)
+			  .attr("height", b.sh )
+		  
+			// Append the contour
+			svg.selectAll("path")
+			  .attr("d", d3.geoPath(d.container.projection) );
+		  
+		    */
+
+		}, // resizeEnd
+		
+		// Positioning a new plot
+		
+        newPlot: function newPlot(plotRowCtrl, newPlotCtrl){
+			
+			// Now find the first opening for the new plot. The opening must fit the size of the new plot.
+			
+			
+			
+			// Somehow count through the domain and see if the plot fits. 
+			// First collect all occupied grid nodes.
+			
+			
+			let occupiedNodes = []
+			plotRowCtrl.plots.forEach(function(d){
+				// Collect the occupied points as x-y coordinates.
+				let p = d.format.position
+				
+				pushNodes(occupiedNodes, p.ix, p.iy, p.iw, p.ih)
+				
+			}) // forEach plot
+			
+			
+			// Moving through the nodes and construct all nodes taken up if the plot is positioned there.
+			
+			
+			let nx = plotRowCtrl.grid.nx
+			let pn = newPlotCtrl.format.position
+			let ind = 0
+			let areaFound = false
+			
+			var x0, y0
+			var proposedNodes
+			while(areaFound==false){
+				
+				// CAN BE IMPROVED IF IT TAKES INTO ACCOUNT THE WIDTH OF THE PROPOSED ELEMENT
+				
+				// Calculate the starting point for the suggested position.
+				
+				// The `12th' point doesnt need to be evaluated, as it is on the edge. 
+				y0 = Math.floor( ind / nx )
+			    x0 = ind - y0*nx
+				
+				if(x0 > nx - pn.iw){
+					// In this case skip the node evaluation.
+				} else {
+					proposedNodes = pushNodes([], x0, y0, pn.iw, pn.ih)
+			
+					console.log(x0, y0)
+				
+				
+					// Check if any of the queried points are occupied.
+					areaFound = isAreaFree(occupiedNodes, proposedNodes)
+				} // if
+				
+				
+				
+				// Increase the node index
+				ind += 1
+			} // while
+			
+			// If the are was found, the suggested nodes are free. Assign them to the new plot. The first node is the top left corner by the loop definition in pushNodes.
+			pn.ix = x0
+			pn.iy = y0
+			
+			
+			
+			function pushNodes(array, ix, iy, iw, ih){
+				
+				for(let i=0; i<iw; i++){
+					for(let j=0; j<ih; j++){
+						array.push({
+							ix: ix + i, 
+							iy: iy + j
+						}) // push
+					} // for row
+				} // for column
+				
+				return array
+			} // pushOccupiedNodes
+
+			function isAreaFree(existing, proposed){
+				
+				
+				
+				let intersect = proposed.filter(function(node){
+					let isIntersect = false
+					for(let i=0; i<existing.length; i++){
+						isIntersect = (existing[i].ix == node.ix) 
+						           && (existing[i].iy == node.iy)
+						if(isIntersect){
+							break;
+						}
+					} // for
+					
+					return isIntersect
+				}) // intersect
+				
+				// If there are any intersections return false.
+				return intersect.length > 0 ? false : true
+			}
+			
+			return newPlotCtrl
+			
+		} // newPlot
+        
+		
+    } // positioning
+
+	
 
     exports.initialise = initialise;
 

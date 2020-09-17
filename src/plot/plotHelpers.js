@@ -3,7 +3,7 @@ import { filter } from '../core/filter.js';
 import { color } from '../core/color.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 
-const plotHelpers = {
+var plotHelpers = {
         
         setupPlot: {
 			
@@ -12,45 +12,77 @@ const plotHelpers = {
 				// Making the plot DOM
 				makeNewPlot: function makeNewPlot( plotCtrl, index ) {
     
-					var plotRowIndex = d3.select(this._parent).attr("plot-row-index");
+					// Note that here `this' is a d3 object.
+					let f = plotCtrl.format
+					f.parent = this._parent
+					let dx = positioning.dx( d3.select(f.parent) )
+					let dy = positioning.dy( d3.select(f.parent) )
+	
+	
+					
 					  
 					var plot = d3.select(this)
 					  .append("div")
-						.attr("class", "col-md-" + plotCtrl.format.colWidth + " plotWrapper")
+						.attr("class", "plotWrapper")
 						.attr("plottype", plotCtrl.plotFunc.name)
+						.style("position", "absolute")
+						.style("left"  , f.parent.offsetLeft + f.position.ix*dx + "px")
+						.style("top"   , f.parent.offsetTop + f.position.iy*dy + "px")
+						.style("width" , f.position.iw*dx + "px")
+						.style("height", f.position.ih*dy + "px")
 					  .append("div")
-						.attr("class", "card");
-					  
+					    .attr("class", "card")
+
+
+					// Apply the drag to all new plot headers
+					let drag = d3.drag()
+						.on("start", positioning.dragStart)
+						.on("drag" , positioning.dragMove)
+						.on("end"  , positioning.dragEnd)
 					  
 					var plotHeader = plot
 					  .append("div")
-						.attr("class", "card-header plotTitle");
+						.attr("class", "card-header plotTitle")
+						.style("cursor", "grab")
+						.call(drag)
+				
+
 					
-					
+					// Add the actual title
 					plotHeader
 					  .append("div")
 						.attr("style","display:inline")
 						.html(plotCtrl.format.title)
 						.attr("spellcheck", "false")
-						.attr("contenteditable", true);
+						.attr("contenteditable", true)
+						.style("cursor", "text")
+						.on("mousedown", function() { d3.event.stopPropagation(); })
 						
 						
 						
 					// Add a div to hold all the control elements.
-					var controlGroup = plotHeader
+					plotHeader
 					  .append("div")
 						.attr("class", "ctrlGrp float-right")
 						.attr("style", "display:inline-block")
+					  .append("button")
+                        .attr("class", "btn btn-danger float-right")
+                        .html("x")
+						.on("mousedown", function() { d3.event.stopPropagation(); })
+						.on("click", addMenu.removePlotControls )
 					
 					  
 					var plotBody = plot
 					  .append("div")
 						.attr("class", "plot")
-						.attr("plot-row-index", plotRowIndex)
-						.attr("plot-index", index);
+						
+						
+
 						
 					// Bind the DOM element to the control object.
 					plotCtrl.figure = plotBody
+					
+					// Make the plot draggable.
 					
 					
 					// Draw the plot
@@ -58,22 +90,7 @@ const plotHelpers = {
 					
 					
 					
-					// Redraw the plot on window resize!
-					$(window).resize(  function(){
-						// Check if the element containing the plot to be resized is still in the visible dom (document). If not, then do not resize anything, as that will cause errors.
-						if( document.body.contains(plotBody.node()) ){
-							
-							// Use the data assigned to the node to execute the redraw.
-							d3.select(plotBody.node()).each(function(plotCtrl){
-								
-								plotCtrl.plotFunc.rescale( plotCtrl );
-								
-							}) // each
-							
-							
-						} // if
-						
-					}  );
+
 					
 
 				}, // makeNewPlot
@@ -104,13 +121,14 @@ const plotHelpers = {
 					plot
 					  .append("div")
 						.attr("class", "leftAxisControlGroup")
-						.attr("style", "width: "+ ctrl.format.margin.left +"px; height: 100%; float: left")
+						.style("width", ctrl.format.margin.left +"px")
+						.style("float", "left")
 						
 					// Main plot with its svg.
 					plot
 					  .append("div")
 						.attr("class", "plotContainer")
-						.attr("style", "margin-left: " + ctrl.format.margin.left + "px") 
+						.style("margin-left", ctrl.format.margin.left + "px")
 				
 					// Bottom left corner div
 					// A height of 38px is prescribed, as that is the height of a bootstrap button.
@@ -126,7 +144,28 @@ const plotHelpers = {
 						.attr("class", "bottomAxisControlGroup")
 						.attr("style", "margin-left: " + ctrl.format.margin.left + "px;")
 						
-						
+					// Add the resize item.
+					let resize = d3.drag()
+						.on("start", positioning.resizeStart)
+						.on("drag", positioning.resizeMove)
+						.on("end", positioning.resizeEnd)
+					
+					plot.select(".bottomAxisControlGroup")
+					  .append("svg")
+						.attr("width",  "10")
+						.attr("height", 10)
+						.style("position", "absolute")
+						.style("bottom", "0px")
+						.style("right", "0px")
+					  .append("circle")
+						.attr("cx", 5)
+						.attr("cy", 5)
+						.attr("r", 5)
+						.attr("fill", "DarkGrey")
+						.attr("cursor", "nwse-resize")
+						.call(resize)
+					
+					
 				}, // setupPlotBackbone
 				
 				setupPlotContainerBackbone: function setupPlotContainerBackbone(ctrl){
@@ -164,26 +203,28 @@ const plotHelpers = {
 				// Svg scaling
 				rescaleSvg: function rescaleSvg(ctrl){
 					
+					// RESIZE ALL THE PLOT CONTAINERS AS NEEDED.
+					
 					var svg = ctrl.figure.select("svg.plotArea")
-
+					var cardDOM = ctrl.figure.node().parentElement
+					var wrapperDOM = cardDOM.parentElement
+					var headerDOM = d3.select(cardDOM).select(".plotTitle").node()
+					
+					// First enforce the size based on the size of the wrapper.
+					d3.select(cardDOM)
+					  .style("height", wrapperDOM.offsetHeight - headerDOM.offsetHeight)
+					
+					
+					
 					// These are margins of the entire drawing area including axes. The left and top margins are applied explicitly, whereas the right and bottom are applied implicitly through the plotWidth/Height parameters.
 					var margin = ctrl.format.margin
 					var axesMargin = ctrl.format.axesMargin
 					
 					
-					// Width of the plotting area is the width of the div intended to hold the plot (.plotContainer).
-					var width = ctrl.format.width
-					if(width == undefined){
-						width = svg.node().parentElement.parentElement.offsetWidth - margin.left - margin.right
-					}
-					
-					// If undefined the height is the same as width
-					var height = ctrl.format.height
-					if(height == undefined){
-						height = width
-					} else {
-						height = height - margin.bottom - margin.top
-					}
+					// Width of the plotting area is the width of the div intended to hold the plot (.plotContainer). ctrl.format.margin.bottom is the margin for hte button.
+					var width = wrapperDOM.offsetWidth - margin.left - margin.right
+					var height = wrapperDOM.offsetHeight - headerDOM.offsetHeight - margin.bottom - margin.top
+
 					
 					
 					
@@ -223,22 +264,19 @@ const plotHelpers = {
 							.attr("transform",  axesTranslate)								
 					
 					// Group holding the primary data representations. Needs to be after g.markup, otherwise the white rectangle hides all the elements.
-					svg
-						.select("g.data")
+					svg.select("g.data")
 							.attr("transform", axesTranslate)
 							.attr("width", plotWidth)
 							.attr("height", plotHeight)
 						
 						
 					// Group for the x axis
-					svg
-					  .select("g.axis--x")
+					svg.select("g.axis--x")
 						.attr( "transform", makeTranslate(axesMargin.left, plotHeight + axesMargin.top) )
 						
 						
 					// Group for the y axis
-					svg
-					  .select("g.axis--y")
+					svg.select("g.axis--y")
 						.attr( "transform", axesTranslate )
 				
 						
@@ -413,6 +451,7 @@ const plotHelpers = {
 					background
 						.append("clipPath")
 							.attr("id", "zoomClip")
+							.attr("clipPathUnits","objectBoundingBox")
 						.append("rect")
 					background.append("rect")
 						.attr("class", "zoom-area")
@@ -425,11 +464,12 @@ const plotHelpers = {
 								.attr("class", "anchorPoint")
 								.attr("r",1);
 					
-						
+				
+					svg.select("g.data")
+						.attr("clip-path", "url(#zoomClip)")	
 						
 				}, // setupPlotBackbone
-				
-				
+							
 				// Button Menu
 				buttonMenu: {
 			
@@ -529,14 +569,21 @@ const plotHelpers = {
 									// Perform the usual toggling of the menu items. This also allows an option to be deselected!
 									h.toggleSubmenuItemHighlight(this)
 									
-									// If a special event is specified, execute it here. This event might require to know the previous state, therefore execute it before updating the state.
-									if(option.event != undefined){
-										option.event(ctrl, d)
-									} // if
-									
 									// Update the corresponding ctrl attribute.
 									// 'option' is a reference to either a manually created option in 'update', or a reference to an actual option in 'ctrl.view.options'.
-									option.val = d;
+									option.val = option.val == d ? undefined : d;
+									
+									// If a special event is specified, execute it here. This event might require to know the previous state, therefore execute it before updating the state.
+									if(option.event != undefined){
+										
+										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
+										
+										option.event(ctrl, option.val)
+										
+										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
+									} // if
+									
+									
 									
 									// The data defined options, if they exist, must not be deselected however. Highlight the selected ones.
 									// if for ctrl.view.options is here to account for the cases where the only options are those that feature only functionality.
@@ -549,10 +596,7 @@ const plotHelpers = {
 										} // if
 									} // if
 
-									ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
-								
 									
-									ctrl.plotFunc.refresh(ctrl)
 								})
 							
 						} // appendGroup
@@ -562,20 +606,6 @@ const plotHelpers = {
 					}, // update
 					
 					options: {
-					
-						groupColor: function groupColor(ctrl, varName){
-							
-							// This functionality relies on the update to perform the actual change, and only configures the tools for the update to have the desired effect.
-							
-							
-							color.togglePalette(varName)
-							
-							
-							// do the render so that all plots are updated with the color.
-							render()
-							
-
-						}, // groupColor
 					
 						toggleAR: function toggleAR(ctrl){
 							// This should stick to the ange specified by the user.
@@ -609,6 +639,8 @@ const plotHelpers = {
 							// t is the transformation vector. It's stored so that a delta transformation from event to event can be calculated. -1 is a flag that the aspect ratio of the plot changed.
 							ctrl.view.t = -1
 							
+							
+							ctrl.plotFunc.update(ctrl)
 							
 						} // toggleAR
 					
@@ -690,7 +722,7 @@ const plotHelpers = {
 					
 						toggleSubmenuItemHighlight: function toggleSubmenuItemHighlight(clickedItem){
 						
-							
+							//
 						
 							// Deselect competing options
 							var allOptions = d3.select(clickedItem.parentNode).selectAll(".submenu-item")
@@ -924,7 +956,7 @@ const plotHelpers = {
 							ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
 						  
 							// Create dummies.
-							ctrl.plotFunc.refresh(ctrl)
+							ctrl.plotFunc.update(ctrl)
 					  
 					  } // handleRedraw
 									
@@ -971,7 +1003,9 @@ const plotHelpers = {
 						var dt = d3.zoomIdentity
 						dt.k = t.k / t0.k 
 						dt.x = t.x - t0.x 
-						dt.y = t.y - t0.y 
+						dt.y = t.y - t0.y
+						
+						ctrl.view.t = t
 						
 						var xScaleDefined = ctrl.tools.xscale != undefined
 						var yScaleDefined = ctrl.tools.yscale != undefined
@@ -993,7 +1027,7 @@ const plotHelpers = {
 						
 						
 						
-						ctrl.view.t = t
+						
 						
 					} // zoomed
 					  

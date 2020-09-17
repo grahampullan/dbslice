@@ -1,6 +1,6 @@
 import { render } from './render.js';
 import { dbsliceData } from './dbsliceData.js';
-import { makeSessionHeader } from './makeSessionHeader.js';
+import { builder } from './builder.js';
 import { cfDataManagement } from '../core/cfDataManagement.js';
 
 function initialise(elementId, session, data) {
@@ -32,7 +32,7 @@ function initialise(elementId, session, data) {
 		  .then(function(successInputs){
 			
 			// Draw the header.
-			makeSessionHeader()
+			builder.makeSessionHeader()
 		  
 			// Draw the rest of the app.
 			render()

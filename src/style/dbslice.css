@@ -126,6 +126,7 @@ input:checked + .slider:before {
 	transform:rotate(-90deg);
 	position: relative;
 	top:10px;
+	left: 5px;
 	width:28px;
 	display:block;
 	outline-style: none;
@@ -140,6 +141,8 @@ input:checked + .slider:before {
 	font-weight: bold;
 	float: right;
 	height: 30px;
+	margin-right: 5px;
+	margin-left: 5px;
 }
 
 

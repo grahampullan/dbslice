@@ -34,7 +34,7 @@
 
 
 <!-- dbslice source data -->
-<script type='text/javascript' src="/build/dbslice.js"></script>
+<script type='text/javascript' src="/build/dbslice_rrd.js"></script>
 
 
 </head>
@@ -54,7 +54,8 @@
 
 	var session = { 
 			title : "Axial compressor stator design",
-			plotRows : []
+			plotRows : [],
+			plotTasksButton: true
 		};
 
 	var data = { header : { metaDataProperties : [],
@@ -66,34 +67,8 @@
 
 	dbslice.initialise ("target", session, data, { plotTasksButton : true } );
 	
+	// SUBTRACT COLORS TO GET THE TRUE CORNFLOWRBLUE COLOR FOR BARCHARTS.
 	
-	/*
-	// Pre load some data and layout
-	var ld = dbslice.importExportFunctionality.importData
-	var ls = dbslice.importExportFunctionality.loadSession
-
-	d3.csv("/examples/comp3row/post_processing/metadata.csv").then(function(metadata){
-	
-			
-			metadata.forEach(function(d){
-				d = ld.helpers.convertNumbers(d)
-			})
-	
-					
-			// Add the source file to tha data
-			metadata.forEach(function(d){d.file = "metadata.csv"})
-			ld.csv(metadata, dbslice.cfDataManagement.cfInit );
-			
-			
-			
-			// Load the session file manually
-			d3.json("session_.json").then(function(sessionData){
-				ls.json(sessionData);
-			}) // d3.json
-					
-	})
-	
-	*/
 
 </script>
 

@@ -6,7 +6,7 @@ import { cfD3Scatter } from '../plot/cfD3Scatter.js';
 import { cfD3Line } from '../plot/cfD3Line.js';
 import { cfDataManagement } from '../core/cfDataManagement.js';
 
-const addMenu = {
+var addMenu = {
 
         addPlotControls: {
             
@@ -365,6 +365,10 @@ const addMenu = {
 					return plotRowCtrl == config.ownerCtrl
 				})[0]
 				
+				// Position the new plot row in hte plot container.
+				plotToPush = positioning.newPlot(plotRow, plotToPush)
+				
+				
 				plotRow.plots.push(plotToPush)
                 
                 
@@ -403,7 +407,6 @@ const addMenu = {
                 
             }, // clearMenu
             
-			// NEW!!!
 			makeButton: function makeButton(config){
 				
 				// Make the button that will prompt the dialogue.
@@ -437,83 +440,39 @@ const addMenu = {
 			
         }, // addPlotControls
         
-        removePlotControls: function removePlotControls(){
-            
-            var allPlotRows = d3.select("#" + dbsliceData.elementId).selectAll(".plotRowBody");
-            allPlotRows.each( function(){
-                // Select all the plots, and add a remove plot button and its functionality to it.
-                
-                var allPlotTitles = d3.select(this).selectAll(".plotTitle");
-                allPlotTitles.each( function (){
-                // Append the button, and its functionality, but only if it does no talready exist!
-				
-				
-                    var removePlotButton = d3.select(this).select(".btn-danger")
-                    
-                    if (removePlotButton.empty()){
-                        // If it dosn't exist, add it. It should be the last element!
-						var ctrlGroup = d3.select(this).select(".ctrlGrp")
-						
-						
-                        var btn = ctrlGroup.append("button")
-                            .attr("class", "btn btn-danger float-right")
-                            .html("x")
-                            
-						// Move the button in front of other elements.
-						ctrlGroup.node().insertBefore( btn.node(), ctrlGroup.node().childNodes[0]  )
-						
-                        
-                    } else {
-                        // If it doesn't, do nothing.
-                        
-                    }; // if
-					
-					// Add/update the functionality.
-					d3.select(this).select(".btn-danger")
-                            .on("click", function(){
+        removePlotControls:  function removePlotControls(clickedPlotCtrl){
 								
-                                // This function recalls the position of the data it corresponds to, and subsequently deletes that entry.
-
-                                
-
-								// Find the ctrl of this plot. this = button -> ctrlGrp -> plotTitle -> card.
-								var plotCardDOM = this.parentElement.parentElement.parentElement
-								var thisPlot = d3.select( plotCardDOM ).select(".plot")
-								
-								// plotCardDOM -> plotWrapper -> plotRowBody -> plotRow
-								var thisPlotRow = d3.select( plotCardDOM.parentElement.parentElement.parentElement )
-                                
-								thisPlot.each(function(thisPlotCtrl){
-									
-									thisPlotRow.each(function(plotRowCtrl){
-										plotRowCtrl.plots = plotRowCtrl.plots.filter(function(plotCtrl){
-											// Only return the plots that are not this one.
-											return plotCtrl != thisPlotCtrl
-										}) // filter
-									}) // each
-									
-								}) // each
-								
-								
-								
-								// Remove also the htmls element accordingly. It should be removed with it's wrapper alltogether.
-                                plotCardDOM.parentElement.remove()
-								
-								render()
-
-                            }); // on
-                    
-                    
-                } ); // each 
-                                
-                
-              
-            } ) // each
+			// Find the ctrl of this plot. 
+			// this = button -> ctrlGrp -> plotTitle -> card.
+			var plotWrapperDOM = this.parentElement.parentElement.parentElement.parentElement
 			
 			
+			// plotWrapperDOM -> plotRowBody
+			var thisPlotRowBody = d3.select( plotWrapperDOM.parentElement )
+			
 
-            
-        }, // removePlotControls
+			// Remove the plot from the object.
+			thisPlotRowBody.each(function(plotRowCtrl){
+				plotRowCtrl.plots = plotRowCtrl.plots.filter(function(plotCtrl){
+					// Only return the plots that are not this one.
+					return plotCtrl != clickedPlotCtrl
+				}) // filter
+			}) // each
+				
+
+			// Remove from DOM
+			plotWrapperDOM.remove()
+			
+			// Remove any filters that have been removed.
+			filter.remove()
+			filter.apply()
+			
+			// Re-render the view
+			render()
+
+			
+		}, // removePlotRowControls
+		
 
         addPlotRowControls: { 
         
@@ -557,7 +516,8 @@ const addMenu = {
                         }],
                     
                     newCtrl                  : {title: "New row", 
-                                                plots: [], 
+                                                plots: [],
+												grid: {nx: 12, ny: undefined},
                                                  type: "undefined",
                               addPlotButton: {label : "Add plot"}},
                     ownerButtonId             : buttonId,
@@ -581,8 +541,9 @@ const addMenu = {
                 
                 
                 var plotRowToPush = {title: config.newCtrl.title, 
-                                     plots: config.newCtrl.plots, 
                                       type: config.newCtrl.type,
+									 plots: config.newCtrl.plots, 
+                                      grid: config.newCtrl.grid,
                             addPlotButton : config.newCtrl.addPlotButton
                 };
                 
@@ -670,6 +631,33 @@ const addMenu = {
 			
 			
         }, // addPlotRowControls
+
+		removePlotRowControls: {
+			
+			make: function make(containerDOM, clickedPlotRowCtrl){
+				
+				
+				d3.select(containerDOM).append("button")
+				  .attr("class", "btn btn-danger float-right removePlotButton")
+				  .html("x")
+				  .on("click", function(){
+					  
+					  
+					  // Remove row from object
+					  dbsliceData.session.plotRows = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
+						  return plotRowCtrl != clickedPlotRowCtrl
+					  }) // filter  
+					  
+					  // button -> plotrowTitle -> plotRow
+					  this.parentElement.parentElement.remove()
+
+					 
+				  }); // on
+				
+				
+			}, // make
+			
+		}, // removePlotRowControls
 
 		removeDataControls: {
 			
@@ -1113,6 +1101,6 @@ const addMenu = {
         } // helpers
 
     }; // addMenu
-    
+      
 
 export { addMenu };

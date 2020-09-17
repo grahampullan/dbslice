@@ -36,8 +36,68 @@ var color = {
 		}, // togglePalette
 		
 		// settings holds the flag for the scheme to use, and the variable it is supposed to be used with. 
-		settings: { scheme: undefined,
-		          variable: undefined,
+		settings: { 
+		            name: "Colour",
+					scheme: undefined,
+		          val: undefined,
+				  options: undefined,
+				  event: function(ctrl, varName){
+					  
+					// The on-click functionality takes care of the options that are specific to an individual plot. Coloring is cross plot, and therefore must coordinate the menus of several plots. This is done here.
+							
+					// Update the plot ctrls
+					toggleAllColorSubmenuItems()
+					
+					// If a color option is defined, and this is the option corresponding to it, then make it active.
+				  
+					
+					color.togglePalette(varName)
+					
+					
+					// do the render so that all plots are updated with the color.
+					render()
+					
+					
+					function toggleAllColorSubmenuItems(){
+						
+						
+						dbsliceData.session.plotRows.forEach(function(plotRow){
+						  plotRow.plots.forEach(function(plot){
+							if(plot.view.cVarOption != undefined){
+							  
+							  // Adjust the plot color value
+							  plot.view.cVarOption.val = varName
+							
+							  // Toggle the html options
+							  plot.figure
+								.select("div.bottomLeftControlGroup")
+								.selectAll("p.submenu-toggle")
+								.each(function(){
+								  
+								  if(this.innerHTML == "Colour"){
+									// Color submenu to be adjusted.
+									  
+									d3.select(this.parentElement)
+									  .selectAll("a.submenu-item")
+									  .each(function(){
+											
+										if( this.innerHTML == varName ){
+										  this.classList.replace("deselected", "selected")
+										} else {
+										  this.classList.replace("selected", "deselected")
+										} // if
+											
+									  }) // each
+								  } // if
+							  }) // each
+								  
+							} // if
+						  }) // forEach
+						}) // forEach
+						
+					} // toggleAllColorSubmenuItems
+					  
+				  } // event
 		},
 		
 		get: function get(key){
@@ -46,7 +106,7 @@ var color = {
 			var palette = color.defaultPalette
 			
 			var colorIsChosen = color.settings.scheme != undefined
-			var keyIsValid    = color.settings.variable == undefined? false : dbsliceData.data.metaDataUniqueValues[color.settings.variable].includes(key)
+			var keyIsValid    = color.settings.val == undefined? false : dbsliceData.data.metaDataUniqueValues[color.settings.val].includes(key)
 			
 			if( colorIsChosen && keyIsValid ){
 				palette = color.colorPalette

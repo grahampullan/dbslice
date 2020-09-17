@@ -104,23 +104,8 @@ function refreshTasksInPlotRows() {
 					  promise: undefined,
 					     data: undefined}
 			
-			file.promise = d3.csv(url).then(function(data){
-				// The data contents are kept in the original state by the internal storage, and it is the job of individual plotting functions to adjust the structure if necessary.
-				// It has been decided that the data is transformed after all, as internal transformations would be often, and they would require additional memory to be occupied. The transformation function needs to be supplied by the plotting function.
-				
-				
-				// The extents of the series will be valuable information when trying to create a plot containing data from different files. Alternately a dummy scale can be created, that has it's domain updated on plotting the dta, but then the data needs to be readjusted anyway, which duplicates the process.
-				
-				// Store the data.
-				file.data = processor( data )
-				
-				
-			
-			}).catch(function(){
-				// This catch does nothing for now, but it is here to ensure the rest of the code continues running.
-				// On catch the default file object is not updated with data, and is not pushed into the central storage. It is not stored as the file might become available, and therefore dbslice should try to retrieve it again.
-				console.log("Loading of a file failed.")
-			})
+			// Create teh promise to load and process the data.
+			file = processor.createFilePromise(file)
 			
 			// Store the file into the central booking location.
 			dbsliceData.flowData.push( file )
@@ -142,7 +127,7 @@ function refreshTasksInPlotRows() {
 				
 				// DUMMY FUNCTIONALITY!
 				// In the real version this should call either render, or simply the function update, depending on what happens upon plot configure. If plot configure already creates an empty plot this could just call the update. Otherwise this would call render directly.
-				plotCtrl.plotFunc.update(plotCtrl)
+				plotCtrl.plotFunc.updateData(plotCtrl)
 				
 				
 				

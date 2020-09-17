@@ -1,7 +1,1 @@
-{
-"isSessionObject": "true", 
-"title": "Axial Compressor stator design", 
-"plotRows": [ 
-	{"title": "Compressor database", "type": "metadata", "plots": [{"type": "cfD3BarChart", "title": "Design", "xProperty": "Design"}, {"type": "cfD3Scatter", "title": "Efficiency vs. Mass flow", "xProperty": "Mass flow", "yProperty": "Efficiency"}, {"type": "cfD3Histogram", "title": "Efficiency", "xProperty": "Efficiency"}, {"type": "cfD3Histogram", "title": "Mass flow", "xProperty": "Mass flow"}, {"type": "cfD3Scatter", "title": "Pressure ratio vs. Efficiency", "xProperty": "Pressure ratio", "yProperty": "Efficiency"}]}
-			]
-}
+{"isSessionObject": "true",  "title": "Axial compressor stator design",  "plotRows": [{"title": "New row", "type": "metadata", "plots": [{"type": "cfD3BarChart", "title": "Edit title", "xProperty": "Design"}, {"type": "cfD3Scatter", "title": "Edit title", "xProperty": "Efficiency", "yProperty": "Mass flow"}, {"type": "cfD3Histogram", "title": "Edit title", "xProperty": "Pressure ratio"}]}]}

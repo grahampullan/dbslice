@@ -6,7 +6,7 @@ import { cfD3Histogram } from '../plot/cfD3Histogram.js';
 import { cfD3Scatter } from '../plot/cfD3Scatter.js';
 import { cfD3Line } from '../plot/cfD3Line.js';
 
-const importExportFunctionality = {
+var importExportFunctionality = {
 		// This object controls all the behaviour exhibited when loading in data or session layouts, as well as all behaviour when saving the layout.
 		
 		// The loading of sessions and data must be available separately, and loading the session should include an option to load in a predefined dataset too.
@@ -77,7 +77,7 @@ const importExportFunctionality = {
 							
 							
 							// Process the metadata read in the csv format.
-							var d = importExportFunctionality.importing.processor.csv2json(data)
+							var d = importExportFunctionality.importing.helpers.csv2json(data)
 							
 							// Perform the requested internal storage assignment.
 							actionOnInternalStorage(d);
@@ -155,10 +155,152 @@ const importExportFunctionality = {
 				
 			}, // session
 		
-			// Move to importExportFunctionality
-			processor: {
+		    line: {
+				
+				createFilePromise: function(file){
+					
+					var i = importExportFunctionality.importing.helpers
+					
+					// The extension must be either json or csv
+					var extension = file.url.split(".").pop()
+					
+					switch(extension){
+						case "json":
+						
+						   file.promise = d3.json(file.url).then(function(data){
+								file.data = i.json2line( data )
+							}).catch(function(d){
+								console.log("Loading of a file failed.")
+							}) // d3.csv 
+						
+						  break;
+						  
+						  
+						case "csv":
+						
+							file.promise = d3.csv(file.url).then(function(data){
+								file.data = i.csv2line( data )
+							}).catch(function(d){
+								console.log("Loading of a file failed.")
+							}) // d3.csv 
+						
+						  break;
+						
+					} // switch
+					
+					return file
+					
+				}, // createFilePromise
+				
+				
+				
+				
+				
+				
+				
+				// MOVE TO THE LIBRARY INSTEAD!!
+				// But at the moment there is no special library. There is only the attribute in the dbsliceData object.
+				getLineDataVals: function getLineDataVals(file, ctrl){
+					// Make a distinction between accessing explicit and implicit data files.
+					
+					var f = helpers.findObjectByAttribute
+					
+					// Available properties after applying all the options.
+					// Retrieve the properties
+					var properties = file.data.properties
+				
+					// Apply all user selected options.	
+					ctrl.view.options.forEach(function(option){
+						properties = f( properties, option.name, [option.val], false)
+					})
+					
+					var xProperties = f(properties,"varName",ctrl.view.xVarOption.val,true)
+					var yProperties = f(properties,"varName",ctrl.view.yVarOption.val,true)
+					
+					
+					// Assemble the names of the properties to plot.
+					var plotData
+					switch( file.data.type ){
+						case "explicit":
+							// The options in the ctrl cannot be associated with the actual variable names in the files. The same menu options may correspond to different file variables if the sub-part of the file selected changes.
+
+						
+							plotData = file.data.vals.map(function(d){
+								return {x: d[xProperties.val], y: d[yProperties.val]}
+							})
+							break;
+							
+						case "implicit":
+							// Handle the combination of ps/ss, and x/y.
+							// NOTE THAT SS PS IS OPTIONAL! HANDLE THIS SEPARATELY AS WELL!!
+							var xSS = f(xProperties,"side", ["ss"], true)
+							var xPS = f(xProperties,"side", ["ps"], true)
+							var ySS = f(yProperties,"side", ["ss"], true)
+							var yPS = f(yProperties,"side", ["ps"], true)
+						
+							var ss = file.data.vals.map(function(d){
+								return {x: d[xSS.val], y: d[ySS.val]}
+							})
+							var ps = file.data.vals.map(function(d){
+								return {x: d[xPS.val], y: d[yPS.val]}
+							})
+							
+							plotData = ss.concat(ps)
+							
+							break;
+					
+					} // switch
+					
+					plotData.task = file.task
+					
+					return plotData
+				
+				
+					
+					
+				}, // getLineDataVals
+				
+				
+				
+			}, // line
+		
+			
+			
+			
+			helpers: {
+				
+				// METADATA
+				renameVariables: function renameVariables(data, oldVar, newVar){
+						// This function renames the variable of a dataset.
+						for(var j=0; j<data.length; j++){
+							// Have to change the names individually.
+							data[j][newVar] = data[j][oldVar];
+							delete data[j][oldVar];
+						}; // for
+				}, // renameVariable
+								
+				convertNumbers: function convertNumbers(row) {
+						// Convert the values from strings to numbers.
+						
+						var r = {};
+						for (var k in row) {
+							r[k] = +row[k];
+							if (isNaN(r[k])) {
+								r[k] = row[k];
+							} // if
+						} // for
+					  return r;
+				}, // convertNumbers
+								
+				replaceSlashes: function replaceSlashes(d, variable){
+						// Replace all the slashes in the variable for ease of handling in the rest of the code.
+						var variable_ = d[variable];
+						d[variable] = variable_.replace(/\\/g, "/");
+						
+				}, // replaceSlashes
 				
 				csv2json: function csv2json(metadata){
+					// FOR METADATA!!
 					
 					// Create a short handle to the helpers
 					var h = importExportFunctionality.importing.helpers
@@ -238,100 +380,6 @@ const importExportFunctionality = {
 				  return d
 				}, // csv2json
 				
-				csv2line: function csv2line(data){
-				
-					// DECIDE HERE WHAT THE ACCESSOR FOR THIS FILE IS!
-					// This means that the file will either have to have explicit variable pairs, or implicit variable pairs, and mixed files will produce errors. If mixed options are required an internal separation of mixed and non mixed variables needs to be stored and maintained.
-			
-					// csv2line takes the output response of 'd3.csv', and transforms it to a shape that is more efficient to use when plotting lines. It returns an object which contains an array of objects each representing an individual column in the original csv, the nesting tags available to the user (e.g. Height), and any nesting tags that are used by the code internally (e.g. ps/ss, x/y). It assumes that the incoming data can be processed into line data. 
-					
-					
-					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
-					var info = importExportFunctionality.importing.helpers.handlePropertyNames( data.columns )
-					
-					
-				
-					// Transform the data object from a row oriented to a column oriented. This will also reduce memory usage, as duplication of property names will be avoided. The transformation is done as a transformation of the information about the properties to the actual column property objects by fleshing out the 'info' object by numeric data from 'data'.
-					info =  csvRow2Column(data, info)
-					
-					
-
-					// Implement the accessors, and handle the difference between split properties, and single properties! Note that if the file has any common options (ps/ss. x/y) then this is a split variable file. This should be used as the test!
-					
-					
-					return info
-					
-						 
-						 
-					// csv2line HELPERS
-					
-					function csvRow2Column(data, info){
-						// The transformation changes the default organisation of the data (array of objects representing a single row in the csv file) to the one that will be used in the central file booking. This is an array of objects each corresponding to a particular column of the csv file, with the data stored under 'vals', the flow property under 'varName', and other tags that maintain the nest structure added as well.
-						
-						// This is done by fleshing out the info object with the appropriate data structure.
-					
-						info.properties.forEach(function(p){
-							
-							// Get the data. It is read in as a string, therefore it needs to be converted here!
-							var vals = data.map(function(d){
-								return Number( d[p.val] )
-							}) 
-							
-							// Initiate the property data object for this particular file with the required properties. The variable name has been stored as a token, and will therefore be added dynamically.
-							p.val = vals
-							p.range = [d3.min(vals), d3.max(vals)]
-							
-							
-							// If this property has a tag 'side', then reverse it's values for appropriate plotting if the lines will be joined. Since all of the properties will be reversed exactly once the outcome will be correct.
-							if(p.side == "ss" ){
-								p.val = p.val.reverse()
-							} // if
-							
-						}) // map
-						
-						return info
-					
-					} // csvRow2Column
-				
-				
-				}, // csv2line
-			
-				
-			}, // processor
-			
-			
-			helpers: {
-				
-				// METADATA
-				renameVariables: function renameVariables(data, oldVar, newVar){
-						// This function renames the variable of a dataset.
-						for(var j=0; j<data.length; j++){
-							// Have to change the names individually.
-							data[j][newVar] = data[j][oldVar];
-							delete data[j][oldVar];
-						}; // for
-				}, // renameVariable
-								
-				convertNumbers: function convertNumbers(row) {
-						// Convert the values from strings to numbers.
-						
-						var r = {};
-						for (var k in row) {
-							r[k] = +row[k];
-							if (isNaN(r[k])) {
-								r[k] = row[k];
-							} // if
-						} // for
-					  return r;
-				}, // convertNumbers
-								
-				replaceSlashes: function replaceSlashes(d, variable){
-						// Replace all the slashes in the variable for ease of handling in the rest of the code.
-						var variable_ = d[variable];
-						d[variable] = variable_.replace(/\\/g, "/");
-						
-				}, // replaceSlashes
-				
 				// SESSION
 				
 				getPlottingFunction: function getPlottingFunction(string){
@@ -363,7 +411,7 @@ const importExportFunctionality = {
 					
 				}, // getPlottingFunction
 				
-				assemblePlots: function assemblePlots(plotsData){
+				assemblePlots: function assemblePlots(plotsData, plotRow){
 					
 					var h = importExportFunctionality.importing.helpers
 					
@@ -376,8 +424,11 @@ const importExportFunctionality = {
 						if(f != undefined){
 						
 							var plotToPush = f.helpers.createLoadedControl(plotData)
+							
+							// Position the new plot row in hte plot container.
+							plotToPush = positioning.newPlot(plotRow, plotToPush)
 						
-							plots.push(plotToPush);
+							plotRow.plots.push(plotToPush);
 							
 						} else {
 							// The plotData type is not valid
@@ -389,7 +440,7 @@ const importExportFunctionality = {
 						
 					}); // forEach
 					
-					return plots;
+					return plotRow;
 					
 				}, // assemblePlots
 				
@@ -401,9 +452,13 @@ const importExportFunctionality = {
 					var plotRows = [];
 					plotRowsData.forEach(function(plotRowData){
 						var plotRowToPush = {title: plotRowData.title, 
-											 plots: h.assemblePlots(plotRowData.plots), 
+											 plots: [], 
 											  type: plotRowData.type,
-									addPlotButton : true    }
+											  grid: {nx: 12, ny: undefined},
+									 addPlotButton: true    }
+									
+						// Assemble hte plots 
+						plotRowToPush = h.assemblePlots(plotRowData.plots, plotRowToPush)
 									
 						plotRows.push(plotRowToPush);
 					})
@@ -552,7 +607,7 @@ const importExportFunctionality = {
 						// There may be some tokens in there that are comment tokens. For now this is implemented to hande the decimal part of the height identifiers, which are '0%'.
 						
 						// Should this be more precise to look for percentage signs in the first and last places only?
-						tokens = removeCommentTokens(tokens, ["%"])
+						tokens = removeCommentTokens(tokens, ["%", "deg"])
 						
 						return tokens
 					
@@ -609,7 +664,7 @@ const importExportFunctionality = {
 							}) // map
 							
 							return {name: token,
-								 options: cfD3Line.helpers.unique( allVals ) }
+								 options: helpers.unique( allVals ) }
 							
 						})
 					
@@ -673,9 +728,7 @@ const importExportFunctionality = {
 					
 					function handleFlowPropertyName(p){
 						// Whatever is left of the parts is the variable name.
-					
-						
-						p.varName = p._parts.join("_")
+						p.varName = p._parts.join("_") == "" ? p.axis : p._parts.join("_")
 					
 					} // getFlowPropertyName
 					
@@ -726,6 +779,43 @@ const importExportFunctionality = {
 					} // getFlowVarOptions
 					
 				}, // handlePropertyNames
+				
+				json2line: function json2line(data){
+					// json are assumed to have only one series, with several properties possible per series.
+					
+					
+					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
+					var info = importExportFunctionality.importing.helpers.handlePropertyNames( Object.getOwnPropertyNames(data.data[0]) )
+					
+					
+				
+					// Keep the data in rows - this is a more natural storage considering that d3.line requests points as separate objects.
+					info.vals = data.data
+					
+					return info
+					
+				}, // json2line
+				
+				csv2line: function csv2line(data){
+					
+					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
+					var info = importExportFunctionality.importing.helpers.handlePropertyNames( data.columns )
+					
+					
+				
+					// Keep the data in rows - this is a more natural storage considering that d3.line requests points as separate objects.
+					info.vals = data
+					
+					
+
+					// Implement the accessors, and handle the difference between split properties, and single properties! Note that if the file has any common options (ps/ss. x/y) then this is a split variable file. This should be used as the test!
+					
+					
+					return info
+					
+				
+				} // csv2line
+				
 				
 			} // helpers
 			
@@ -834,10 +924,6 @@ const importExportFunctionality = {
 				
 			}, // session
 			
-			
-			helpers : {}, // helpers
-			
-			
 		}, // exporting
 
 		
@@ -874,45 +960,12 @@ const importExportFunctionality = {
 				
 				
 				// Remove any duplicates: 
-				plotProperties = unique( plotProperties )
+				plotProperties = helpers.unique( plotProperties )
 
 				
 			  return plotProperties
 				
-				function unique(d){
-				
-					
-					// https://stackoverflow.com/questions/1960473/get-all-unique-values-in-a-javascript-array-remove-duplicates
-					function onlyUnique(value, index, self) { 
-						return self.indexOf(value) === index;
-					} // unique
-					
-					return d.filter( onlyUnique )
-				
-				} // unique
 
-
-
-				/*
-				// CURRENTLY THE FLOW FIELD PLOTS DO NOT FEATURE SEPARATE PROPERTIES, THEREFORE IT's NOT REALLY POSSIBLE TO CAPTURE THIS FOR NOW.
-				
-				// Now go through the flow field plots and get the variables. These will either be plots with data from multiple plots on them (slice), or a single case (contour).
-				var plotterPlotRows = dbsliceData.session.plotRows.filter(function(plotRow){
-					return plotRow.type == "plotter"
-				}) // filter
-				
-				var plotProperties = []
-				plotterPlotRows.forEach(function(plotterPlotRow){
-					
-					plotterPlotRow.plots.forEach(function(plotterPlot){
-						plotProperties.push( plotterPlot.d )
-					}) // forEach
-				}) // forEach
-				*/
-				
-				// console.log(metadataPlotRow)
-				// console.log(d)
-				// console.log(dbsliceData)
 				
 			}, // collectPlotProperties
 			

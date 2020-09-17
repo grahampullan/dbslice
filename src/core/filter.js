@@ -19,7 +19,7 @@ var filter = {
 			}) // forEach
 			
 			
-			// Plots with individual tasks shown.
+			// Plots with individual tasks.
 			cf.taskDim.filterAll()
 			
 		}, // remove
@@ -48,7 +48,8 @@ var filter = {
 			 applyHistogramChartFilters()
 		
 			// Manual selections - but this should happen only if the manual switch is on!! 
-			applyManualSelections()
+			updateManualSelections()
+			 applyManualSelections()
 			
 			
 			// Checking for bar charts.
@@ -179,6 +180,18 @@ var filter = {
 			
 			
 			// Individual selection plots
+			function updateManualSelections(){
+				
+				// Ensure that the manually selected points are coherent with the other filters.
+				var filterTaskIds = cf.taskDim.top(Infinity).map(function(d){return d.taskId});
+				
+				cf.manuallySelectedTasks = cf.manuallySelectedTasks.filter(function(d){
+					return filterTaskIds.includes(d)
+				})
+				
+
+			} // updateManualSelections
+			
 			function applyManualSelections(){
 				
 				var isManualFilterApplied = checkIfManualFilterIsApplied()
@@ -188,6 +201,7 @@ var filter = {
 						// if the filters array is empty: ie. all values are selected, then reset the dimension
 						cf.taskDim.filterAll();
 					} else {
+						// If there are tasks, then apply the filter.
 						cf.taskDim.filter(function (d) {
 							return filters.indexOf(d) > -1;
 						}); // filter

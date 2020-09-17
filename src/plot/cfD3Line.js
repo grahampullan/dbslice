@@ -6,7 +6,7 @@ import { color } from '../core/color.js';
 import { plotHelpers } from '../plot/plotHelpers.js';
 import { importExportFunctionality } from '../core/importExportFunctionality.js';
 
-const cfD3Line = {
+var cfD3Line = {
 		// • report to the user info about the data (missing, duplicated, intersect clashes, maybe even the things that will yield the largest addition of data to the screen)
 	
 		name: "cfD3Line",
@@ -50,7 +50,7 @@ const cfD3Line = {
 			hi.addAxisScaling(ctrl)
 			
 			
-			// Button menu custom functionality. On first make it should host the slice id options.
+			// Button menu custom functionality. On first "make" it should host the slice id options.
 			var sliceOption = {
 				name: "Slice Id",
 				val: undefined,
@@ -67,12 +67,8 @@ const cfD3Line = {
 		
 		}, // make
 		
-				
-		update: function update(ctrl){
-			// This function re-intialises the plots based on the data change that was initiated by the user.
-			
-			// Update re-selects the data to be drawn, and then refreshes the view.
-			
+		
+		updateData: function updateData(ctrl){
 			
 			// Remove all the previously stored promises, so that only the promises required on hte last redraw are retained.
 			ctrl.data.promises = []
@@ -96,99 +92,110 @@ const cfD3Line = {
 			// Setup the plot tools
 			cfD3Line.setupPlot.setupPlotTools(ctrl)
 			
-			// Call the refresh function which readjust the plot elements.
-			cfD3Line.refresh(ctrl)
+			cfD3Line.update(ctrl)
+			
+		}, // updateData
+				
+		update: function update(ctrl){
+			// This function re-intialises the plots based on the data change that was initiated by the user.
+
+			// RELOCATE TO DRAW??
+			if(ctrl.data.compatible.length > 0){
+			
+				// Update the axes
+				cfD3Line.helpers.axes.update(ctrl)
+				
+				
+				 // Assign the data
+				var allSeries = ctrl.figure.select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll( ".plotSeries" )
+				  .data( ctrl.data.series );
+
+				// Enter/update/exit
+				allSeries.enter()
+				  .each( function(){
+					  var seriesLine = d3.select( this ).append( "g" )
+						  .attr( "class", "plotSeries")
+						  .attr( "task-id", ctrl.tools.getTaskId)
+						.append( "path" )
+						  .attr( "class", "line" )
+						  .attr( "d", ctrl.tools.line )
+						  .style( "stroke", ctrl.tools.getColor ) 
+						  .style( "fill", "none" )
+						  .style( "stroke-width", 2.5 )
+					
+					  // Add a tooltip to this line
+					  cfD3Line.addInteractivity.addLineTooltip(ctrl, seriesLine.node() )
+		
+					  // Add the option to select this line manually.
+					  cfD3Line.addInteractivity.addSelection( seriesLine.node() );
+				});
+
+				// update: A bit convoluted as the paths have a wrapper containing some information for ease of user inspection in dev tools.
+				allSeries.each( function() {
+					var series = d3.select( this )
+						.attr( "task-id",  ctrl.tools.getTaskId);
+				})	
+					
+				allSeries.selectAll( "path.line" )
+					  .transition()
+					  .duration(ctrl.view.transitions.duration)
+					  .attr( "d", ctrl.tools.line )
+					  .style( "stroke", ctrl.tools.getColor )
+					   
+				allSeries.exit().remove();
+			
+			} // if
 		
 		}, // update
 	
-
+		
 		refresh: function refresh(ctrl){
-			
-			if(ctrl.data.compatible.length > 0){
 			
 			// Update the axes
 			cfD3Line.helpers.axes.update(ctrl)
 			
-			
-			
-			// If this is a split variable case then the accessors need to return the appropriate array. If not they can just return the values.
-			// It was assumed that the d3 data join process only stores the reference to the data, and therefore to minimise memory usage the original underlying data is used to join to the elements, meaning that the accessor needs to do the final transform before the plotting.
-			
-			
-			function draw(d){ 
-				return ctrl.tools.line( cfD3Line.helpers.getLineDataVals(d, ctrl) ) 
-			} // draw
-			
-			function getTaskId(d){
-				return d.task.taskId
-			} // getTaskId
-			
-			function getColor(d){
-				return color.get(d.task[color.settings.variable])
-			} // getColor
-			
-			var clipPath = "url(#" + ctrl.figure.select("svg.plotArea").select("clipPath").attr("id") + ")"
-			
-			
-			
-
-			
-			 // Assign the data
-            var allSeries = ctrl.figure.select("svg.plotArea")
+			// Using the transform on g to allow the zooming is much faster.
+			ctrl.figure.select("svg.plotArea")
 			  .select("g.data")
-			  .selectAll( ".plotSeries" )
-			  .data( ctrl.data.compatible );
+			  .selectAll("g.plotSeries")
+                  .attr("transform", ctrl.view.t)
 
-            // Enter/update/exit
-            allSeries.enter()
-              .each( function() {
-                  var series = d3.select( this );
-                  var seriesLine = series.append( "g" )
-                      .attr( "class", "plotSeries")
-					  .attr( "task-id", getTaskId)
-                      .attr( "clip-path", clipPath)
-                    .append( "path" )
-                      .attr( "class", "line" )
-                      .attr( "d", draw )
-                      .style( "stroke", getColor ) 
-                      .style( "fill", "none" )
-                      .style( "stroke-width", "2.5px" );
-				
-				  // Add a tooltip to this line
-				  cfD3Line.addInteractivity.addLineTooltip(ctrl, seriesLine.node() )
-	
-				  // Add the option to select this line manually.
-				  cfD3Line.addInteractivity.addSelection( seriesLine.node() );
-            });
-
-			// update: A bit convoluted as the paths have a wrapper containing some information for ease of user inspection in dev tools.
-            allSeries.each( function() {
-                var series = d3.select( this )
-					.attr( "task-id",  getTaskId);
-			})	
-				
-            allSeries.selectAll( "path.line" )
-				  .transition()
-				  .duration(ctrl.view.transitions.duration)
-                  .attr( "d", draw )
-				  .style( "stroke", getColor )
-				   
-            allSeries.exit().remove();
-			
-			} // if
 		
 		}, // refresh
 	
 		rescale: function rescale(ctrl){
 			// What should happen if the window is resized?
+			
+			// Update the zoom clip.
+			var background = ctrl.figure.select("svg.plotArea")
+				.select("g.background")
+			background.select("clipPath").remove()
+				
+			background
+				.append("clipPath")
+				.attr("id", "zoomClip")
+				.append("rect")
+			
+			ctrl.figure
+			  .select("div.plotContainer")
+			  .select("svg.plotArea")
+			  .select("g.data")
+				.attr("clip-path", "url(#zoomClip)")
+			
+			
 			// 1.) The svg should be resized appropriately
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
 			
 			// 2.) The plot tools need to be updated
 			plotHelpers.setupTools.go(ctrl)
 			
+			
+				
+			
 			// 3.) The plot needs to be redrawn
-			cfD3Line.refresh(ctrl)
+			cfD3Line.update(ctrl)
 			
 		}, // rescale
 	
@@ -202,7 +209,7 @@ const cfD3Line = {
 				ctrl.data.intersect.userOptions.forEach(function(dataOption){
 					// For each different option that can be queried in the available compatible data, check if an option in the view is already selected, what it's value is, and update the value if it is not in the new set.
 					
-					var viewOption = cfD3Line.helpers.findObjectByAttribute( ctrl.view.options, "name", [dataOption.name], true )
+					var viewOption = helpers.findObjectByAttribute( ctrl.view.options, "name", [dataOption.name], true )
 					
 					if(viewOption.length == 0){
 						ctrl.view.options.push({
@@ -245,12 +252,7 @@ const cfD3Line = {
 				// Handle the options of the 'button menu'
 				// Manually create the color option.
 				if(ctrl.view.cVarOption == undefined){
-					ctrl.view.cVarOption = {    
-						   name: "Color",
-						    val: "none",
-					    options: dbsliceData.data.metaDataProperties, 
-						  event: h.buttonMenu.options.groupColor
-					} // cVarOption
+					ctrl.view.cVarOption = color.settings
 				} // if
 				
 				
@@ -309,6 +311,17 @@ const cfD3Line = {
 				ctrl.tools.line = d3.line()
 					.x( function(d){ return ctrl.tools.xscale( d.x ) } )
 					.y( function(d){ return ctrl.tools.yscale( d.y ) } );
+					
+					
+				// Retrieve the data once.
+				ctrl.data.series = ctrl.data.compatible.map(function(file){
+					return importExportFunctionality.importing.line.getLineDataVals(file, ctrl)
+				})
+				
+				// Tools for retrieving the color and taskId
+				ctrl.tools.getTaskId = function(d){return d.task.taskId} 
+				ctrl.tools.getColor = function(d){return color.get(d.task[color.settings.variable])
+				} // getColor
 				
 			}, // setupPlotTools
 			
@@ -322,11 +335,10 @@ const cfD3Line = {
 			findDomainDimensions: function findDomainDimensions(ctrl){
 			
 				// The series are now an array of data for each of the lines to be drawn. They possibly consist of more than one array of values. Loop over all to find the extent of the domain.
-				var h = cfD3Line.helpers
 				
 				var seriesExtremes = ctrl.data.compatible.map(function(file){
 				
-					var plotData = h.getLineDataVals(file, ctrl)
+					var plotData = importExportFunctionality.importing.line.getLineDataVals(file, ctrl)
 					
 					return {x: [d3.min(plotData, function(d){return d.x}),
  					            d3.max(plotData, function(d){return d.x})], 
@@ -335,8 +347,8 @@ const cfD3Line = {
 							}
 				}) // map
 				
-				var xExtremesSeries = h.collectObjectArrayProperty( seriesExtremes , "x")
-				var yExtremesSeries = h.collectObjectArrayProperty( seriesExtremes , "y")
+				var xExtremesSeries = helpers.collectObjectArrayProperty(seriesExtremes,"x")
+				var yExtremesSeries = helpers.collectObjectArrayProperty(seriesExtremes,"y")
 				
 			
 				
@@ -496,7 +508,7 @@ const cfD3Line = {
 						   incompatible: [],
 						   intersect: [],
 						   series: [],
-						   processor: importExportFunctionality.importing.processor.csv2line
+						   processor: importExportFunctionality.importing.line
 					       },
 					view: {sliceId: undefined,
 					       options: [],
@@ -521,8 +533,15 @@ const cfD3Line = {
 						width: undefined,
 						height: 400,
 						margin: {top: 10, right: 10, bottom: 38, left: 30},
-						axesMargin: {top: 20, right: 20, bottom: 16, left: 30}
+						axesMargin: {top: 20, right: 20, bottom: 16, left: 30},
+						parent: undefined,
+						position: {
+							ix: 0,
+							iy: 0,
+							iw: 4,
+							ih: 4
 						}
+					}
 				} // ctrl
 				
 				
@@ -652,137 +671,10 @@ const cfD3Line = {
 		
 			
 			// Data retrieval
-			getLineDataProperties: function getLineDataProperties(file, ctrl){
-				// 'getLineDataProperties' applies the filters selected by the user to the array of properties under file.properties, and retrieves the ones relevant to the currently selected view.
-				
-				// Retrieve the properties
-				var properties = file.data.properties
 			
-				// Handle other user properties.	
-				ctrl.view.options.forEach(function(option){
-					properties = cfD3Line.helpers.findObjectByAttribute( properties, option.name, [option.val], false)
-				})
-				
-				// Handle flow variable selection.
-				// properties = cfD3Line.helpers.findObjectByAttribute( properties, "varName", [ctrl.view.yVarOption.val], false)
-			
-			
-				return properties
-			}, // getLineDataProperties
-			
-			getLineData: function getLineData(file, ctrl){
-			
-				// Assemble an array that can be plotted using d3.line. This must be an array with an element in it corresponding to each point.
-				
-				var properties = cfD3Line.helpers.getLineDataProperties(file, ctrl)
-				
-				// Start on suction side, and then add onto it the pressure side. The appropriate rotation should already have been made.
-				var xVals = assembleParameterValues(properties, "x")
-				var yVals = assembleParameterValues(properties, "y")
-				
-				// Now weave these together into an array of objects that contains both x and y properties.
-				var plotData = []
-				for(var i=0; i<xVals.length; i++){
-					plotData.push({x: xVals[i], y: yVals[i]})
-				} // for
-				
-				return plotData
-				
-				
-				function assembleParameterValues(properties, axis){
-					// 'assembleParameterValues' takes the properties belonging to a flo parameter, and assembles them as per the expected hardcoded format.
-					// It expects properties is an array of 4 properties corresponding to the ss_x, ss_y, ps_x, ps_y properties, in that order. It then assembles then ss + ps, assuming the ps values have already been reversed
-					var h = cfD3Line.helpers.findObjectByAttribute
-				
-					var axisProperties = h( properties, "axis", [axis], false)
-					
-					var ssProperty = h( axisProperties, "side", ["ss"], true)
-					var psProperty = h( axisProperties, "side", ["ps"], true) 
-					
-					return ssProperty.val.concat(psProperty.val)
-				
-				} // assembleParameterValues
-				
-			
-			}, // getLineData
-			
-			getLineDataVals: function getLineDataVals(file, ctrl){
-				// Make a distinction between accessing explicit and implicit data files.
-				
-				// Properties after applying all hte options.
-				var properties = cfD3Line.helpers.getLineDataProperties(file, ctrl)
-				
-				// For explicit variables this will return an empty array. For implicit variables it will return a single property in an array.
-				var xProperties = cfD3Line.helpers.findObjectByAttribute( properties, "varName", [ctrl.view.xVarOption.val], false)
-					
-				// For implicit variables it will return a single property in an array.
-				var yProperties = cfD3Line.helpers.findObjectByAttribute( properties, "varName", [ctrl.view.yVarOption.val], false)
-				
-				
-				var xVals
-				var yVals
-				switch( file.data.type ){
-					case "explicit":
-						xVals = assembleParameterValues(yProperties, "x")
-						yVals = assembleParameterValues(yProperties, "y")
-					
-						break;
-						
-					case "implicit":
-						xVals = xProperties[0].val
-						yVals = yProperties[0].val
-					
-						break;
-				
-				} // switch
-				
-
-				
-				
-				// Weave the x and y vals together into a format expected by 'd3.line'
-				var plotData = []
-				for(var i=0; i<xVals.length; i++){
-					plotData.push({x: xVals[i], y: yVals[i]})
-				} // for
-				
-				return plotData
-			
-			
-				function assembleParameterValues(properties, axis){
-				
-					
-				
-					
-				
-					// 'assembleParameterValues' takes the properties belonging to a flo parameter, and assembles them as per the expected hardcoded format.
-					// It expects properties is an array of 4 properties corresponding to the ss_x, ss_y, ps_x, ps_y properties, in that order. It then assembles then ss + ps, assuming the ps values have already been reversed
-					var h = cfD3Line.helpers.findObjectByAttribute
-				
-					var axisProperties = h( properties, "axis", [axis], false)
-					
-					var ssProperty = h( axisProperties, "side", ["ss"], true)
-					var psProperty = h( axisProperties, "side", ["ps"], true) 
-					
-					return ssProperty.val.concat(psProperty.val)
-				
-				} // assembleParameterValues
-				
-			}, // getLineDataVals
-			
+			// MOVE TO LIBRARY
 			getLineDataInfo: function getLineDataInfo(ctrl){
-			
-				// Should duplicate plotting be allowed? If the user asks for it then it should, but a reminder should be given that some tasks have the same entry in this particular slice.
-				
-				// THE DATA PROCESSING SHGOULD BE RETHOUGHT SO THAT THE DATA IN THE MEMORY IS NOT DUPLICATED!!
-				// Pair the available files with the takss that require them. In case two tasks call for the same file the task id's can be applied appropriately. Not sure where exactly this is useful, but it makes the functionality more user proof.
-				// This would mean that either the data needs to be duplicated, the taskIds would overwrite themselves, or that an array of taskIds would be required.
-				// The last option seems most sensible, 
-				// The RRDPLCP2JSON transformation creates a new object -> duplication of data and memory usage. Would d3 nests be more useful? Nests will be more useful, and moreover - the data for the plotting can be removed after the scope finished. On next pass it'll have to be read again anyway.
-				// IT MIGHT BE BEST for the plotting function to interpret the data by series, as in that way only a particular series would enter teh memory, and would subsequently be immediately deleted.
-						
-				// This plot plots the slices through the domains of all currently filtered tasks. It is only refreshed on user prompt to avoid loading too large amounts of data all the time, which would slow down other interactivity. Therefore at certain times it will not be showing data of all the tasks in the filter. Therefore also collect here all the files that the plot wants, but are unavailable.
-				
-				
+				// File data compatibility
 				
 				var requiredTasks = dbsliceData.data.taskDim.top(Infinity)
 				
@@ -843,26 +735,7 @@ const cfD3Line = {
 				
 				
 				
-				// 6.)
-				// FIND JUST THE COMMON DATA INTERSECTION - SAME NESTS, INTERSECT NEST VALUES, INTERSECT PROPERTIES
 				
-				/* /////////////////////////////////////////////
-				
-				YEEES, INSTEAD OF COMPATIBLE AND INCOMPATIBLE FIND THE INTERSECT OF THE DATA, AND PRESENT IT AS THE DATA AVAILABLE FOR PLOTTING!! KEEP A LOG OF CLASHES TO HELP THE USER?
-				
-				Have to look through all the user options there are, all the variables there are, and then output references to those.
-				
-				- Ensure that all the files have the same nests.
-				- Collect all the nest options and find intersect ones
-				- Collect all the variables and ensure they are in all the files. they don't all need to be the split type however, the plotting accessor will take care of that.
-				
-				Make a report showing which changes would yield largest gains?
-				
-				//////////////////////////////////////////// */
-				
-				
-				
-				// First find all the nest options. ASSUME that compatibility has already been established. The files also contain all the unique values already.
 				
 				
 				// Compatibility ensures that all the files have exactly the same user tags available. Now check which of the options are itnersectiong.
@@ -900,7 +773,7 @@ const cfD3Line = {
 				// This here should also package up all the metadata properties that would enable the coloring to fill them in.
 				
 				// dbsliceData.flowData.filter(function(file){return file.url == task[ctrl.view.sliceId]})[0].data
-				var file = cfD3Line.helpers.findObjectByAttribute(dbsliceData.flowData, "url", [task[ctrl.view.sliceId]], true)
+				var file = helpers.findObjectByAttribute(dbsliceData.flowData, "url", [task[ctrl.view.sliceId]], true)
 				
 				return {  task: task, 
 				           url: task[ctrl.view.sliceId],
@@ -1036,7 +909,7 @@ const cfD3Line = {
 								intersectOptions = intersectOptions.filter(function(option){
 								
 									// It is expected that only one option of the same name will be present. Pass in an option that only one element is required - last 'true' input.
-									var fileOptions = cfD3Line.helpers.findObjectByAttribute(optionsAccessor(file), "name", [seedOption.name], true)
+									var fileOptions = helpers.findObjectByAttribute(optionsAccessor(file), "name", [seedOption.name], true)
 									
 									return fileOptions.options.includes( option )
 								}) // filter
@@ -1070,19 +943,34 @@ const cfD3Line = {
 			// Manual functionality
 			updateManualSelections: function updateManualSelections(ctrl){
 			
-				
-				var g = ctrl.figure
+				var gData = ctrl.figure
 				  .select("svg.plotArea")
 				  .select("g.data")
 				
-				// Color in selected circles.
-				dbsliceData.data.manuallySelectedTasks.forEach(function(d){
-					g
-					  .selectAll("g.plotSeries[task-id='" + d + "']")
-					  .select("path.line")
-						.style("stroke", "rgb(255, 127, 14)")
-						.style("stroke-width", 4)
-				}) //forEach
+				gData
+				  .selectAll("g.plotSeries")
+				  .each(function(){
+					  var plotSeries = d3.select(this)
+					  var isSelected = dbsliceData.data.manuallySelectedTasks.includes(plotSeries.attr("task-id"))
+					  
+					  if(isSelected){
+						  // paint it orange, and bring it to the front.
+						  plotSeries.select("path.line")
+						    .style("stroke", "rgb(255, 127, 14)")
+						    .style("stroke-width", 4)
+						  
+						  
+						  this.remove()
+						  gData.node().appendChild(this)
+						  
+					  } else {
+						  plotSeries.select("path.line")
+						    .style("stroke", ctrl.tools.getColor)
+						    .style("stroke-width", 2.5)
+					  } // if
+				  })
+				
+				
 
 				
 			}, // updateManualSelections
@@ -1090,43 +978,6 @@ const cfD3Line = {
 			
 			
 			
-			
-			// General helpers
-			unique: function unique(d){		
-				// https://stackoverflow.com/questions/1960473/get-all-unique-values-in-a-javascript-array-remove-duplicates
-				function onlyUnique(value, index, self) { 
-					return self.indexOf(value) === index;
-				} // unique
-				
-				return d.filter( onlyUnique )
-			
-			}, // unique
-			
-			findObjectByAttribute: function findObjectByAttribute(A, attribute, values, flag){
-				// This function returns the objects in an object array 'A', which have an attribute 'attribute', with the value 'value'. If they do not an empty set is returned. In cases when a single item is selected the item is returned as the object, without the wrapping array.
-					
-				var subset = A.filter(function(a){
-					return values.includes( a[attribute] )
-				})
-				
-				// If only one output is expected, return a single output.
-				if( subset.length > 0 && flag == 1 ){
-					subset = subset[0]
-				} // if
-				
-				return subset
-				
-			}, // findObjectByAttribute
-			
-			collectObjectArrayProperty: function collectObjectArrayProperty(A, attribute){
-				// collectObjectArrayProperty take input object array 'A', collect all of the object members attribute 'attribute', and flattens the array of arrays into a single array of values once.
-			
-				var C = A.map(function(a){
-					return a[attribute]
-				})
-				return [].concat.apply([], C)	
-			
-			}, // collectObjectArrayProperty
 			
 		
 			// Functions supporting cross plot highlighting
@@ -1177,6 +1028,6 @@ const cfD3Line = {
 		} // helpers
 	
 	} // cfD3Line
-	
+		
 
 export { cfD3Line };

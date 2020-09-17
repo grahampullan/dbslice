@@ -1,6 +1,6 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 
-const crossPlotHighlighting = {
+var crossPlotHighlighting = {
 			
 		on: function on(d, sourcePlotName){
 		
@@ -150,6 +150,6 @@ const crossPlotHighlighting = {
 		}, // manuallySelectedTasks
 		
 	} // crossPlotHighlighting 
-		
+				
 
 export { crossPlotHighlighting };
