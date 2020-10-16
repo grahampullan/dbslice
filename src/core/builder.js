@@ -44,7 +44,7 @@ var builder = {
 					.attr("id", "refreshTasksButton")
 					.html("Plot Selected Tasks")
 					.on("click", function () {
-						refreshTasksInPlotRows();
+						cfDataManagement.refreshTasksInPlotRows();
 					});
 			} // if
 
@@ -269,7 +269,10 @@ var builder = {
 			
 			// Update any new plots
 			plots
-			  .each(function(plotCtrl){plotCtrl.plotFunc.update(plotCtrl)});
+			  .each(function(plotCtrl){
+				  plotCtrl.view.transitions = plotCtrl.plotFunc.helpers.transitions.animated()
+				  plotCtrl.plotFunc.update(plotCtrl)
+			  });
 			  
 			  
 			// Adjust the plot row height
@@ -289,22 +292,11 @@ var builder = {
 		
 		refreshPlotRowHeight: function refreshPlotRowHeight(plotRowBody){
             
-            // MAYBE THERE SHOULD BE A MARGIN IMPLEMENTED INSTEAD??
-            
-            let dy = positioning.dy(plotRowBody)
-            
-            // Index of the lowest plot bottom.
-            var ih = 0
-            plotRowBody
-              .selectAll(".plotWrapper")
-              .each(function(d){
-                  let ipb = d.format.position.iy + d.format.position.ih
-                  ih = ipb > ih ? ipb : ih
-            })
+            var plotRowHeight = positioning.helpers.findContainerSize(plotRowBody, ".plotWrapper")
             
             // Adjust the actual height.
-            if(ih*dy != plotRowBody.node().offsetHeight){
-                plotRowBody.style("height", (ih*dy + 20) + "px")
+            if(plotRowHeight != plotRowBody.node().offsetHeight){
+                plotRowBody.style("height", plotRowHeight + "px")
             }
             
         }, // refreshPlotRowHeight
@@ -312,7 +304,7 @@ var builder = {
 		refreshPlotRowWidth: function refreshPlotRowWidth(plotRowBody){
             
             // Adjust all plots to the new grid.
-            console.log(plotRowBody)
+            
 			let dy = positioning.dy(plotRowBody)
 			let dx = positioning.dx(plotRowBody)
 			
@@ -326,6 +318,6 @@ var builder = {
 		
 		
 	} // builder
-			
+				
 
 export { builder };

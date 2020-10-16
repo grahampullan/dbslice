@@ -20,7 +20,7 @@ var cfD3Scatter = {
 				
 				var s = cfD3Scatter.setupPlot
 				var hs= plotHelpers.setupPlot
-				var i = cfD3Scatter.addInteractivity
+				var i = cfD3Scatter.interactivity
 				var hi= plotHelpers.setupInteractivity.twoInteractiveAxes
 				
 				
@@ -96,14 +96,14 @@ var cfD3Scatter = {
 					// Get the data to draw.
 					var pointData = cfD3Scatter.helpers.getUnfilteredPointData(ctrl)
 						
-						// Deal with the points
+					// Deal with the points
 					var points = ctrl.figure.select("svg.plotArea")
 					  .select(".data")
 					  .selectAll("circle")
-					  .data(pointData)
+					  .data(pointData, d => d.taskId)
 					 
-					points.enter()
-					  .append("circle")
+					points.join(
+					  enter => enter.append("circle")
 						.attr("r", 5)
 						.attr("cx", accessor.x )
 						.attr("cy", accessor.y )
@@ -112,29 +112,24 @@ var cfD3Scatter = {
 						.attr("clip-path", clipPath)
 						.attr("task-id", accessor.id )
 						.each(function(d){ 
-							cfD3Scatter.addInteractivity.addPointTooltip(ctrl, this) 
-						})
-						
-					points
-					  .attr("r", 5)
-					  .attr("cx", accessor.x )
-					  .attr("cy", accessor.y )
-					  .style("fill", "Gainsboro")
-					  .attr("task-id", accessor.id );
-					 
-					points.exit().remove();
+							cfD3Scatter.interactivity.addPointTooltip(ctrl, this) 
+						}),
+					  update => update,
+					  exit => exit.remove()
+					)
+
 					
 				}, // plotDataExtent
 				
 				plotCurrentSelection: function plotCurrentSelection(ctrl){
-					
+					// Current selection separates the current selection from the background data extent by coloring them appropriately.
 					// Change the properties of the selected part.
 					
 					// Get the data to draw.
 					var accessor = cfD3Scatter.helpers.getAccessors(ctrl)
 					var pointData = cfD3Scatter.helpers.getPointData(ctrl)
 					
-					// TRANSITION, BUT ONLY IF THERE IS A CHANGE!!
+					
 					
 					var gData = ctrl.figure
 						  .select("svg.plotArea")
@@ -147,15 +142,18 @@ var cfD3Scatter = {
 								this.remove()
 								gData.node().appendChild(this)
 								
+								// For some reason transitions break the change of color.
 								d3.select(this)
-								  .transition()
-									.duration(ctrl.view.transitions.duration)
-									.style("fill", accessor.c)
+									.style("fill", d=> accessor.c(d) )
 								
-							} // if
+							} else {
+								d3.select(this)
+									.style("fill", "Gainsboro" )
+							}// if
 						})
 					
-					
+					// If drawing was needed, then also the lines need to be updated. Drawing should only be updated if the variable is actiually selected.
+					ctrl.view.gVarOption.action = ctrl.view.gVarOption.val ? "draw" : undefined
 					
 				} // plotCurrentSelection
 				
@@ -167,7 +165,7 @@ var cfD3Scatter = {
 				// Refresh is called on zoom!! On zoom nothing is entering or leaving, it's just readjusted.
 				
 				var h = cfD3Scatter.helpers
-				var i = cfD3Scatter.addInteractivity
+				var i = cfD3Scatter.interactivity
 				
 				// Check to adjust the width of the plot in case of a redraw.
 				plotHelpers.setupPlot.general.rescaleSvg(ctrl)
@@ -177,14 +175,16 @@ var cfD3Scatter = {
 				var accessor = h.getAccessors(ctrl)
 				
 
-				// Move the points
+				// Refresh point positions
 				var points = ctrl.figure.select("svg.plotArea")
 				  .select(".data")
 				  .selectAll("circle")
-				  .attr("r", 5)
-				  .attr("cx", accessor.x )
-				  .attr("cy", accessor.y )
-				  .attr("task-id", accessor.id );
+				  .transition()
+				    .duration(ctrl.view.transitions.duration)
+				    .attr("r", 5)
+				    .attr("cx", accessor.x )
+				    .attr("cy", accessor.y )
+				    .attr("task-id", accessor.id );
 				
 					
 			
@@ -220,6 +220,8 @@ var cfD3Scatter = {
 			}, // rescale
 		
 			setupPlot: {
+				
+				
 				// This object adjusts the default plot to include all the relevant controls, and creates the internal structure for them.
 				
 				updateUiOptions: function updateUiOptions(ctrl){
@@ -247,7 +249,7 @@ var cfD3Scatter = {
 							name: "AR",
 							val: undefined,
 							options: ["User / Unity"],
-							event: h.buttonMenu.options.toggleAR
+							event: cfD3Scatter.interactivity.toggleAR
 						} // arOption
 						
 						
@@ -323,7 +325,24 @@ var cfD3Scatter = {
 			
 			}, // setupPlot
 		
-			addInteractivity: {
+			interactivity: {
+				
+				onSelectChange: function onSelectChange(ctrl){
+					
+					// Reset the AR values.
+					ctrl.view.dataAR = undefined
+					ctrl.view.viewAR = undefined
+					
+					// Update the plot tools
+					plotHelpers.setupTools.go(ctrl)
+					
+					// Update transition timings
+					ctrl.view.transitions = cfD3Scatter.helpers.transitions.animated()
+					
+					// Update plot itself
+					cfD3Scatter.update(ctrl)
+					
+				}, // onSelectChange
 				
 				// Tooltips
 				createLineTooltip: function createLineTooltip(ctrl){
@@ -499,13 +518,13 @@ var cfD3Scatter = {
 						// 'update' executes what 'make' lined up.
 						
 						// Shorthand handle
-						var h = cfD3Scatter.addInteractivity.groupLine
+						var h = cfD3Scatter.interactivity.groupLine
 						
 						switch(ctrl.view.gVarOption.action){
 							
 							case "zoom":
 							  // Just update the lines
-							  h.updateLines( ctrl, ctrl.view.transitions.duration )
+							  h.updateLines( ctrl, 0 )
 							  break;
 							  
 							case "draw":
@@ -528,18 +547,18 @@ var cfD3Scatter = {
 						// After the action is performed the action needs to be changed to the default - "zoom".
 						ctrl.view.gVarOption.action = "zoom"
 						
+						
+						
 					}, // update
 				
-					make: function make(ctrl, varName){
+					make: function make(ctrl, varName, linesVarSame){
 						
-						
+						// This is separated so that the lines just move with the zoom. Notice that this function does not handle zoom!!
 						
 						// Options to cover
 						var noLines = ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path").empty()
-						var linesVarSame = ctrl.view.gVarOption.val == varName
 						
 						
-
 						if( noLines ){
 							// 1: no existing lines - draw new lines
 							// h.drawLines(ctrl, varName)
@@ -558,7 +577,7 @@ var cfD3Scatter = {
 						
 						} // if
 						
-						
+						cfD3Scatter.interactivity.groupLine.update(ctrl)
 						
 					
 					}, // make
@@ -566,8 +585,8 @@ var cfD3Scatter = {
 					drawLines: function drawLines(ctrl, varName){
 					
 						// Shorthand handles.
-						var h = cfD3Scatter.addInteractivity.groupLine
-						var i = cfD3Scatter.addInteractivity
+						var h = cfD3Scatter.interactivity.groupLine
+						var i = cfD3Scatter.interactivity
 						
 						// Get the data to draw.
 						var pointData = ctrl.plotFunc.helpers.getPointData(ctrl)
@@ -579,6 +598,8 @@ var cfD3Scatter = {
 						// Now draw a line for each of them.
 						var paths = ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path")
 						  .data(s)
+						  
+						paths
 						  .enter()
 						  .append("path")
 						  .attr("stroke", "black")
@@ -595,8 +616,23 @@ var cfD3Scatter = {
 						h.updateLines(ctrl, ctrl.view.transitions.duration)
 						
 						
+						// Remove any now unnecessary lines.
+						paths.exit()
+						  .each(function(){
+						
+							var totalLength = this.getTotalLength();
+							
+							d3.select(this)
+								.transition()
+								.duration( ctrl.view.transitions.duration )
+								.ease(d3.easeLinear)
+								.attr("stroke-dashoffset", totalLength)
+								.on("end", function(){d3.select(this).remove()})
+						})   
+						
+						
 						// Update the tooltips. These can be missing if new data is added.
-						ctrl.plotFunc.addInteractivity.addLineTooltip(ctrl)
+						ctrl.plotFunc.interactivity.addLineTooltip(ctrl)
 						
 						
 						// HELPER
@@ -653,8 +689,8 @@ var cfD3Scatter = {
 					}, // removeLines
 											
 					replaceLines: function replaceLines(ctrl, varName){
-					console.log("replaceLines")
-						var h = cfD3Scatter.addInteractivity.groupLine
+					
+						var h = cfD3Scatter.interactivity.groupLine
 						
 						// Update transitions:
 						ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
@@ -678,7 +714,7 @@ var cfD3Scatter = {
 										h.drawLines(ctrl, varName)
 										
 										// The lines were removed, therefore new tooltips are needed.
-										ctrl.plotFunc.addInteractivity.addLineTooltip(ctrl)
+										ctrl.plotFunc.interactivity.addLineTooltip(ctrl)
 									} // if
 								}) // on
 								
@@ -710,7 +746,7 @@ var cfD3Scatter = {
 							path.attr("stroke-dasharray", totalLength+" "+totalLength)
 								.attr("stroke-dashoffset", totalLength)
 								.transition()
-								  .duration( ctrl.view.transitions.duration )
+								  .duration( t )
 								  .ease(d3.easeLinear)
 								  .attr("stroke-dashoffset", 0);
 						})
@@ -719,8 +755,72 @@ var cfD3Scatter = {
 				
 				}, // groupLine
 			
+				toggleAR: function toggleAR(ctrl){
+					
+					if(ctrl.view.viewAR == 1){
+						// Change back to the data aspect ratio. Recalculate the plot tools.
+						ctrl.view.viewAR = ctrl.view.dataAR
+						
+						plotHelpers.setupTools.go(ctrl)
+					} else {
+						// Change to the unity aspect ratio. Adjust the y-axis to achieve it.
+						ctrl.view.viewAR = 1
+						
+						// When adjusting the AR the x domain should stay the same, and only the y domain should adjust accordingly. The bottom left corner should not move.
+					
+						// Adjust so that the middle of the plot stays at the same place.
+						
+						// How many pixels per dx=1
+						var xRange = ctrl.tools.xscale.range()
+						var yRange = ctrl.tools.yscale.range()
+						var xDomain = ctrl.tools.xscale.domain()
+						var yDomain = ctrl.tools.yscale.domain()
+						
+						var xAR = (xRange[1] - xRange[0]) / (xDomain[1] - xDomain[0])
+						var yAR = xAR/ctrl.view.viewAR
+						var yDomainRange = [yRange[0] - yRange[1]] / yAR
+						var yDomain_ = [
+							yDomain[0] - yDomainRange/2, 
+							yDomain[0] + yDomainRange/2]
+						
+						
+						ctrl.tools.yscale.domain( yDomain_ )
+					} // if
+					
+					
+					
+					
+					
+					// t is the transformation vector. It's stored so that a delta transformation from event to event can be calculated. -1 is a flag that the aspect ratio of the plot changed.
+					ctrl.view.t = -1
+					
+					ctrl.view.transitions = cfD3Scatter.helpers.transitions.animated()
+					cfD3Scatter.update(ctrl)
+					ctrl.view.transitions = cfD3Scatter.helpers.transitions.instantaneous()
+					
+				}, // toggleAR
+			
+				// When resizing the axes interactively
+				dragAdjustAR: function dragAdjustAR(ctrl){
+					
+					// Transitions
+					ctrl.view.transitions = cfD3Scatter.helpers.transitions.instantaneous()
+				  
+					// Offload to the function itself!! Line cannot update as per new axes, because it uses transform -> translate to move the lines around.
+					cfD3Scatter.update(ctrl)
+					
+				}, // dragAdjustAR
+			
+				// On resize/drag
+				refreshContainerSize: function refreshContainerSize(ctrl){
+				
+					var container = d3.select(ctrl.format.parent)
+					
+					builder.refreshPlotRowHeight( container )
+					
+				} // refreshContainerSize
 		
-			}, // addInteractivity
+			}, // interactivity
 			
 			helpers: {
 				
@@ -751,9 +851,6 @@ var cfD3Scatter = {
 								yscale: undefined},
 						format: {
 							title: "Edit title",
-							colWidth: 4,
-							width: undefined,
-							height: 400,
 							margin: {top: 10, right: 10, bottom: 38, left: 30},
 						    axesMargin: {top: 20, right: 20, bottom: 16, left: 30},
 							parent: undefined,
@@ -761,13 +858,15 @@ var cfD3Scatter = {
 								ix: 0,
 								iy: 0,
 								iw: 4,
-								ih: 4
+								ih: 4,
+								minH: 290,
+								minW: 190
 							}
 						}
 					} // ctrl
 					
 					// Initialise the options straight away.
-					var i = cfD3Scatter.addInteractivity
+					var i = cfD3Scatter.interactivity
 					var hs = plotHelpers.setupPlot.twoInteractiveAxes
 					var options = dbsliceData.data.dataProperties 
 					
@@ -905,7 +1004,7 @@ var cfD3Scatter = {
 					animated: function animated(){
 					
 						return {
-							duration: 100,
+							duration: 500,
 							updateDelay: 0,
 							enterDelay: 0
 						}

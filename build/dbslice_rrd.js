@@ -29,7 +29,7 @@ var dbslice = (function (exports) {
             // First access the grid associated with the container.
             let nx = positioning.nx(container)
             
-            return container.node().offsetWidth / nx
+            return container.node().offsetWidth / nx 
         }, // dx
         
         dy: function dy(container){
@@ -43,12 +43,10 @@ var dbslice = (function (exports) {
         dragStart: function dragStart(d){
             
 			// Raise the plot.
-			d3.select( this.parentElement.parentElement )
-                .raise();  
+			d.format.wrapper.raise();  
 			
-            // The delta to the corner should be saved to synchronise the movement with the cursor.
-            d.format.position.delta = { x: d3.event.x, 
-                                        y: d3.event.y}
+            // Calculate the delta with the reference to the plot wrapper.
+            d.format.position.delta = d3.mouse(d.format.wrapper.node())
 										
 			
           
@@ -58,7 +56,6 @@ var dbslice = (function (exports) {
             
             var f = d.format
             var container = d3.select(f.parent)
-			let plotWrapper = d3.select( this.parentElement.parentElement )
             let nx = positioning.nx(container)
             let dx = positioning.dx(container)
             let dy = positioning.dy(container)
@@ -69,10 +66,12 @@ var dbslice = (function (exports) {
             // d3.event is relative to the top left card corner
             // d.format.position.ix*dx corrects for the position within the container
             // d.format.position.delta.x corrects for the clicked offset to the corner
-            let ix = Math.round( (d3.event.x + f.position.ix*dx - f.position.delta.x) / dx);
-            let iy = Math.round( (d3.event.y + f.position.iy*dy - f.position.delta.y) / dy);
+            //let ix = Math.round( (d3.event.x + f.position.ix*dx - f.position.delta.x) / dx);
+            //let iy = Math.round( (d3.event.y + f.position.iy*dy - f.position.delta.y) / dy);
           
-            
+            let ix = Math.round( (d3.mouse(f.parent)[0] - f.position.delta[0]) / dx);
+            let iy = Math.round( (d3.mouse(f.parent)[1] - f.position.delta[1]) / dy);
+          
             
           
             // Implement rules on how far the contour can be moved. Prevent the contour to go even partially off-screen.
@@ -107,22 +106,16 @@ var dbslice = (function (exports) {
                 
                 // The exact location must be corrected for the location of the container itself.
 				
-                plotWrapper
+                f.wrapper
                   .style("left", (f.parent.offsetLeft + f.position.ix*dx) + "px")
                   .style("top" , (f.parent.offsetTop + f.position.iy*dy) + "px")
                   .raise();  
 
-				builder.refreshPlotRowHeight( container )
+				// Move this to the individual functions. This allows the contour plot to change both the plot and plot row sizes. The contour plot will also have to move the other plots if necessary!!
+				
+				d.plotFunc.interactivity.refreshContainerSize(d)
 				  
             } // if
-              
-            
-          
-            
-            
-            
-            
-            
           
         }, // dragMove
             
@@ -136,7 +129,7 @@ var dbslice = (function (exports) {
 		
 		resizeStart: function resizeStart(d){
 			// Bring hte plot to front.
-			d3.select(this.parentElement.parentElement.parentElement.parentElement.parentElement).raise()
+			d.format.wrapper.raise()
 			
 		}, // resizeStart
 		
@@ -146,7 +139,7 @@ var dbslice = (function (exports) {
 			// Calculate the cursor position on the grid. When resizing the d3.event.x/y are returned as relative to the top left corner of the svg containing the resize circle. The cue to resize is when the cursor drags half way across a grid cell.
 			
 			// this < svg < bottom div < plot body < card < plotWrapper
-			let plotWrapper = d3.select(this.parentElement.parentElement.parentElement.parentElement.parentElement)
+			var f = d.format
 			let parent = d.format.parent
 			let container = d3.select(parent)
 			let p = d.format.position
@@ -174,9 +167,13 @@ var dbslice = (function (exports) {
 			// Update the container size if needed
 			if([increaseWidth, decreaseWidth, increaseHeight, decreaseHeight].some(d=>d)){
 				
-				// Corrections to force some size. The minimum is an index width/height of 1, and in px. The px requirement is to make sure that the plot does not squash its internal menus etc. In practice 190/290px seems to be a good value.
-				iw = iw*dx < 190 ? Math.ceil(190/dx) : iw
-				ih = ih*dy < 290 ? Math.ceil(290/dy) : ih
+				// Corrections to force some size. The minimum is an index width/height of 1, and in px. The px requirement is to make sure that the plot does not squash its internal menus etc. In practice 190/290px seems to be a good value. This finctionality handles the contours as well, therefore the minimum limits are in the format.position attribute.
+				
+				iw = iw*dx < p.minW ? Math.ceil(p.minW/dx) : iw
+				ih = ih*dy < p.minH ? Math.ceil(p.minH/dy) : ih
+				
+								
+				// RETHINK THIS LIMIT!! FOR CONTOUR PLOTS THE PX LIMIT IS NOT NEEDED!!
 				
 				// Correction to ensure it doesn't exceed limits.
 				iw = (ix + iw) > nx ? nx - ix : iw
@@ -190,12 +187,12 @@ var dbslice = (function (exports) {
 				
 				
 				// this < svg < bottom div < plot body < card < plotWrapper
-				plotWrapper
+				f.wrapper
 				  .style("max-width", iw*dx + "px")
 				  .style("width"    , iw*dx + "px" )
 				  .style("height"   , ih*dy + "px" )
 				  
-				plotWrapper.select("div.card")
+				f.wrapper.select("div.card")
 				  .style("max-width", iw*dx + "px")
 				  .style("width"    , iw*dx + "px" )
 				  .style("height"   , ih*dy + "px" )
@@ -204,8 +201,10 @@ var dbslice = (function (exports) {
 				// UPDATE THE PLOT
 				d.plotFunc.rescale(d)
 				
-				// Resize the plotrow accordingly
-				builder.refreshPlotRowHeight( container )
+				// Resize the containers accordingly
+				d.plotFunc.interactivity.refreshContainerSize(d)
+				
+				// Redo the graphics.
 					
 			} // if
 			  
@@ -231,28 +230,92 @@ var dbslice = (function (exports) {
 			
 			
 			
+			// IMPOSE PIXEL LIMITS HERE, IF ANYWHERE.
+			// plotRowCtrl has its DOM stored in hte attribute `element'
+			
+			
+			
 			// Somehow count through the domain and see if the plot fits. 
 			// First collect all occupied grid nodes.
 			
-			
+			let h = positioning.helpers
 			let occupiedNodes = []
 			plotRowCtrl.plots.forEach(function(d){
 				// Collect the occupied points as x-y coordinates.
 				let p = d.format.position
 				
-				pushNodes(occupiedNodes, p.ix, p.iy, p.iw, p.ih)
+				h.pushNodes(occupiedNodes, p.ix, p.iy, p.iw, p.ih)
 				
 			}) // forEach plot
 			
 			
+			// Position the new plot.
+			positioning.onGrid(plotRowCtrl.grid.nx, occupiedNodes, newPlotCtrl.format.position)
+			
+			
+			//return newPlotCtrl
+			
+		}, // newPlot
+        
+		newCard: function newCard(plotCtrl){
+			
+			
+			// The difference between plots and cards is that plots are added manually, and the cards are added automatically.
+			
+			let h = positioning.helpers
+			let occupiedNodes = []
+			
+			// Collect already occupied nodes. Check if there are any existing contours here already. The existing contours will have valid `ix' and `iy' positions. Position all new cards below the existing ones. This means that all nodes that have an existing card below them are `occupied'.
+			
+			// How to eliminatethe empty space at the top though?? Calculate the min iy index, and offset all plots by it?
+			let minOccupiedIY = d3.min(plotCtrl.data.plotted, function(d){
+				return d.format.position.iy})
+			plotCtrl.data.plotted.forEach(function(d){
+				d.format.position.iy -= minOccupiedIY
+			})
+				
+			let maxOccupiedIY = 	d3.max(plotCtrl.data.plotted, function(d){
+				return d.format.position.iy + d.format.position.ih})
+			h.pushNodes(occupiedNodes, 0, 0, plotCtrl.grid.nx, maxOccupiedIY)
+			
+			
+			
+			// With all the occupied nodes known, start positioning the contours that are not positioned.
+			
+			
+			plotCtrl.data.plotted.forEach(function(d){
+				let pn = d.format.position
+			
+				
+				// Position this card, but only if it is unpositioned.
+				if( ( (pn.ix == undefined) || isNaN(pn.ix) ) && 
+				    ( (pn.iy == undefined) || isNaN(pn.iy) ) ){
+					
+					// Position the plot.
+					positioning.onGrid(plotCtrl.grid.nx, occupiedNodes, pn)
+				
+					// Mark the nodes as occupied.
+					h.pushNodes(occupiedNodes, pn.ix, pn.iy, pn.iw, pn.ih)
+					
+				} // if
+				
+			}) // forEach plot
+			
+			
+			
+			
+		}, // newCard
+		
+		onGrid: function onGrid(nx, occupiedNodes, pn){
+			
+			// POSITIONONGRID finds the first free spot on a grid with `nx' horizontal nodes, which already has plots occupying the `occupiedNodes' grid nodes, for a plot whose size and position is defined by the position object `pn'.
+
+			
 			// Moving through the nodes and construct all nodes taken up if the plot is positioned there.
 			
-			
-			let nx = plotRowCtrl.grid.nx
-			let pn = newPlotCtrl.format.position
+			let h = positioning.helpers
 			let ind = 0
 			let areaFound = false
-			
 			var x0, y0
 			var proposedNodes
 			while(areaFound==false){
@@ -268,13 +331,10 @@ var dbslice = (function (exports) {
 				if(x0 > nx - pn.iw){
 					// In this case skip the node evaluation.
 				} else {
-					proposedNodes = pushNodes([], x0, y0, pn.iw, pn.ih)
+					proposedNodes = h.pushNodes([], x0, y0, pn.iw, pn.ih)
 			
-					console.log(x0, y0)
-				
-				
 					// Check if any of the queried points are occupied.
-					areaFound = isAreaFree(occupiedNodes, proposedNodes)
+					areaFound = h.isAreaFree(occupiedNodes, proposedNodes)
 				} // if
 				
 				
@@ -289,7 +349,14 @@ var dbslice = (function (exports) {
 			
 			
 			
-			function pushNodes(array, ix, iy, iw, ih){
+			
+			
+			
+		}, // onGrid
+		
+		helpers: {
+			
+			pushNodes: function pushNodes(array, ix, iy, iw, ih){
 				
 				for(let i=0; i<iw; i++){
 					for(let j=0; j<ih; j++){
@@ -301,11 +368,9 @@ var dbslice = (function (exports) {
 				} // for column
 				
 				return array
-			} // pushOccupiedNodes
+			}, // pushNodes
 
-			function isAreaFree(existing, proposed){
-				
-				
+			isAreaFree: function isAreaFree(existing, proposed){
 				
 				let intersect = proposed.filter(function(node){
 					let isIntersect = false
@@ -322,12 +387,71 @@ var dbslice = (function (exports) {
 				
 				// If there are any intersections return false.
 				return intersect.length > 0 ? false : true
-			}
+			}, // isAreaFree
 			
-			return newPlotCtrl
+			findContainerSize: function findContainerSize(container, memberClass){
+				// CHANGE THE CORRESPONDING FUNCTION IN POSITIONING TO ABSORB THIS ONE!!
+
+				let dy = positioning.dy(container)
+		
+				// Index of the lowest plot bottom.
+				var ih = 0
+				container
+				  .selectAll( memberClass )
+				  .each(function(d){
+					  let ipb = d.format.position.iy + d.format.position.ih
+					  ih = ipb > ih ? ipb : ih
+				})
+				
+				return Math.ceil(ih*dy)
+				
 			
-		} // newPlot
-        
+			}, // findContainerSize
+			
+			repositionSiblingPlots: function repositionSiblingPlots(plotCtrl){
+				// A plot has moved. Reposition other plots around it.
+				// Maybe change this to reposition only the affected plots??
+				
+				let h = positioning.helpers
+				
+				// If the body of the plot moves, then hte other plots must also move.
+				let plotRowBody = d3.select(plotCtrl.format.parent)
+				let plotRowCtrl = plotRowBody.data()[0]
+				
+				
+				let dx = positioning.dx(plotRowBody)
+				let dy = positioning.dy(plotRowBody)
+				
+				// Update the positions of all hte other plots in this plot row.
+				let occupiedNodes = []
+				let pn = plotCtrl.format.position
+				h.pushNodes(occupiedNodes, pn.ix, pn.iy, pn.iw, pn.ih)
+				
+				plotRowCtrl.plots.forEach(function(plotCtrl_){
+					// Only reposition plots that aren't the current plot.
+					// Maybe change this to reposition only the affected plots?? Change it such that the plot moves a minimal amount?? If the adjacent positions are not free then move it down??
+					if(plotCtrl_ != plotCtrl){
+						
+						let f = plotCtrl_.format
+						let pn = f.position
+								  
+						// Find a new position for this plot.
+						positioning.onGrid(plotRowCtrl.grid.nx, occupiedNodes, pn)
+					  
+						// Update the occupied nodes.
+						h.pushNodes(occupiedNodes, pn.ix, pn.iy, pn.iw, pn.ih)
+						
+						// Update the plot DOMs.
+						f.wrapper
+						  .style("left", (f.parent.offsetLeft + f.position.ix*dx) + "px")
+						  .style("top" , (f.parent.offsetTop + f.position.iy*dy) + "px")
+						  
+					} // if
+				})
+				
+			} // repositionSiblingPlots
+			
+		} // helpers
 		
     } // positioning
 
@@ -343,8 +467,8 @@ var dbslice = (function (exports) {
 			var cfData = {};
 			cfData.metaDataProperties = metadata.header.metaDataProperties;
 			cfData.dataProperties = metadata.header.dataProperties;
-			cfData.sliceProperties = metadata.header.sliceProperties;
-			cfData.contourProperties = metadata.header.contourProperties;
+			cfData.line2dProperties = metadata.header.line2dProperties;
+			cfData.contour2dProperties = metadata.header.contour2dProperties;
 			cfData.cf = crossfilter(metadata.data);
 			cfData.metaDims = [];
 			cfData.metaDataUniqueValues = {};
@@ -393,6 +517,9 @@ var dbslice = (function (exports) {
 			
 			// Update the color options.
 			color.settings.options = dbsliceData.data.metaDataProperties
+			
+			
+		
 			
 		}, // cfInit
 		
@@ -458,6 +585,382 @@ var dbslice = (function (exports) {
 		}, // cfRemove
 		
 		
+		// On-demand file library:
+		refreshTasksInPlotRows: function refreshTasksInPlotRows() {
+			// Collect all files that need to be loaded, create promises for them and store them into plot promise arrays that can be used to signal to the plot functions when they can update themselves.
+			
+			// It is expected that the individual plot controls have the sliceId specified in 'ctrl.view.sliceId', and that they have the promises stored under 'ctrl.data.promises'.
+			
+			// 'dbsliceData.flowData' will contain references to all promises created, and will keep track of the individual file promises. 'plotPromise' is an array of promises constructed for individual plots, and should trigger the redraw on completion of promise.
+			
+			
+			// First do an inventory check of the central booking, and clear out unnecessary items.
+			
+			
+			
+			// Collect all the files that need to be loaded. Note that the files are individual properties of the records in the crossfilter.
+			cfDataManagement.removeRedundantFiles()
+			
+			
+			var filteredTasks = dbsliceData.data.taskDim.top(Infinity)
+			
+			
+			
+			// Create the actual promises to be stored in the central booking. This is a duplicative loop over the existing promises because the plot ctrl assigns the data processor function, which 'collectAllRequiredFiles' does not collect.
+			dbsliceData.session.plotRows.forEach(function(plotRowCtrl, i){
+			
+				// Only consider plots for loading if the plot row is a "plotter". In future this could be moved to the actual plot ctrl's themselves and they could say whether they're expecting data from outside or not.
+				if(plotRowCtrl.type == "plotter"){
+					
+				plotRowCtrl.plots.forEach(function(plotCtrl, j){
+			  
+				
+					// Loop over all the files that will be required for this plot.
+					var sliceId = plotCtrl.view.sliceId
+					var requiredFiles = filteredTasks.map(function(d){return d[sliceId] })
+					
+					// For this particular plot all promises must be made, and a record tracked.
+					var plotPromise = []
+					var file = undefined
+					
+					requiredFiles.forEach(function(url, k){
+					
+						// The loaded files must be updated to prevent duplicate loading.
+						file = undefined
+						var loadedFiles = dbsliceData.flowData.map(function(d){return d.url})
+					
+					
+						// Check if a promise to this file has already been created.
+						var fileIndex = loadedFiles.indexOf( url )
+						if( fileIndex < 0 ){
+							//console.log("loading: " + url)
+							// Promise for this file does not yet exist. Create it, store a reference in 'dbsliceData.flowData', and another in the 'plotCtrl.data.promises'. The storing into 'dbsliceData.flowData' is done in the makeFilePromise already. The storing in the plot ctrl is done to allow the plotting function itself to identify any differences between the plotted state and the tasks selected in hte filter. This is useful if the plots should communicate to the user that they need to be updated.
+							file = makeFilePromise( url, plotCtrl.data.processor )
+							
+						} else {
+						
+							file = dbsliceData.flowData[fileIndex]
+							
+						} // if
+						
+						plotCtrl.data.promises.push( file.promise )
+					
+					}) // forEach
+				
+				
+					// If a file is not found a rejected promise is stored. Therefore, if dbslice couldn't find the file, it will not look for it again. If it would instead search for it every time the refresh button is clicked, missing file issues could be resolved on the fly. However, if data is missing in the files the app must be reloaded so that the promises are cleared, so that on next load the new data is loaded too.
+					// It is important that the promises log themselves immediately, and remain in place in order to ensure no additional loading is scheduled. Therefore the central booking must clear out the rejected files AFTER all the promises have been processed. This is done when the "Plot Selected Tasks" button is pressed again. 
+					
+					
+					// Now that all the plot promises have been assembled, attach the event to run after their completion.
+					addUpdateOnPromiseCompletion(plotCtrl, sliceId, i, j)
+				
+			  
+				}) // forEach
+				
+				} // if
+			
+			}) // forEach
+			
+			function makeFilePromise( url, processor ){
+				// Has to return an object {url: url, promise: Promise(url)}. Furthermore, the completion of the promise should store the data into this same object.
+				
+				var file = {  url: url,
+						  promise: undefined,
+							 data: undefined}
+				
+				// Create teh promise to load and process the data.
+				file = processor.createFilePromise(file)
+				
+				// Store the file into the central booking location.
+				dbsliceData.flowData.push( file )
+				
+				return file
+				
+			} // makeFilePromise
+			
+			function addUpdateOnPromiseCompletion(plotCtrl, sliceId, i, j){
+			
+				
+				Promise.all( plotCtrl.data.promises ).then(function(){
+					// The data has been loaded, start the plotting. How to pass in special parameters?
+					
+					// console.log("Started plotting slice: "+sliceId+" ( plotRow:"+i+", plot: "+j+")")
+					
+					
+					plotCtrl.plotFunc.updateData(plotCtrl)
+					
+				})
+			
+			} // addUpdateOnPromiseCompletion
+
+		}, // refreshTasksInPlotRows
+		
+		collectAllRequiredUrls: function collectAllRequiredUrls(filteredTasks){
+		
+			var requiredUrls = []
+			dbsliceData.session.plotRows.forEach(function(plotRowCtrl){
+			
+				plotRowCtrl.plots.forEach(function(plotCtrl){
+			  
+				
+					// Loop over all the files that will be required for this plot.
+					if(plotCtrl.view.sliceId != undefined){
+						
+						requiredUrls = requiredUrls.concat( filteredTasks.map(function(d){
+							return d[ plotCtrl.view.sliceId ] 
+						}))
+					} // if
+			  
+			    }) // forEach
+			
+			}) // forEach
+		
+			return requiredUrls
+		}, // collectAllRequiredUrls
+		
+		removeRedundantFiles: function removeRedundantFiles(){
+			
+			// Collect all the files that need to be loaded. Note that the files are individual properties of the records in the crossfilter.
+			var filteredTasks = dbsliceData.data.taskDim.top(Infinity)
+			
+			
+			// Collect all the required, and loaded files, and identify which, if any, files in the central booking will be redundant, and clear them out.
+			var allRequiredUrls = cfDataManagement.collectAllRequiredUrls(filteredTasks)
+			var allLoadedUrls = dbsliceData.flowData.map(function(file){return file.url})
+			
+			var redundantFiles = dbsliceData.flowData.filter(function(loadedFile){
+				// Files are redundant if the refresh does not need them, or if their data could not be loaded, in which case a repeated attempt to laod them should be launched.
+				var urlNoLongerRequired = !allRequiredUrls.includes(loadedFile.url)
+				var urlWasRejected = loadedFile.data == undefined
+				return urlNoLongerRequired || urlWasRejected
+			})
+			
+			
+			
+			// Clear the redundant files out of central booking.
+			redundantFiles.forEach(function(redundantFile){
+				var redundantFileInd = helpers.indexOfObjectByAttr(dbsliceData.flowData, "url", redundantFile.url)
+				dbsliceData.flowData.splice(redundantFileInd,1)
+			}) // redundantUrls
+			
+			
+			
+			
+			
+			
+				
+		}, // removeRedundantFiles
+		
+		// Accessing on-demand data files.
+		getFileAvailabilityInfo: function getFileAvailabilityInfo(ctrl){
+			
+			  
+			
+			var getUrl = function(task){return task[ctrl.view.sliceId]}
+			var requiredTasks = dbsliceData.data.taskDim.top(Infinity)
+			var requiredUrls = requiredTasks.map( getUrl )
+			
+			// This is the set of urls of all files that have been loaded into internal storage that are required for this plot. The loaded files are not returned as that would mean they are logged into memory again.
+			// Furthermore, also check which have failed upon loading. Those are the files that were not found, therefore the promise was rejected.
+			var availableUrls = dbsliceData.flowData.filter(function(file){
+				var isUrlRequired = requiredUrls.includes( file.url )
+				var wasPromiseResolved = file.data != undefined
+				return isUrlRequired && wasPromiseResolved
+			}).map(function(file){return file.url})
+			
+			// Reverse reference the loaded files to find which required files are not available in the central storage. 
+			var missingUrls = requiredUrls
+			  .filter( function(url){return !availableUrls.includes(url)})	
+
+			
+			// Create 'file' responses detailing which files of which tasks were : 
+			// 1.) requested:
+			var requestedFiles = requiredTasks.map(returnFile)
+			
+			// 2.) available:
+			var availableFiles = requiredTasks.filter(function(task){
+				return availableUrls.includes( getUrl(task) )
+			}).map(returnFile)
+			
+			// 3.) missing:
+			var missingFiles = requiredTasks.filter(function(task){
+				return missingUrls.includes( getUrl(task) )
+			}).map(returnFile)
+			
+			// 4.) duplicated:
+			var duplicatedFiles = requiredTasks.filter(function(task){
+			  
+			  // Assume duplicate by default.
+			  var flag = true
+			  if( requiredUrls.indexOf(     getUrl(task) ) == 
+				  requiredUrls.lastIndexOf( getUrl(task) ) ){
+				// The first element is also the last occurence of this value, hence it is a unique value. This is therefore not a duplicating element.
+				flag = false
+			  } // if
+			  
+			  return flag
+			}).map(returnFile)
+			
+
+			return {
+				 requested: requestedFiles,
+				 available: availableFiles,
+				duplicates: duplicatedFiles,
+				   missing: missingFiles
+			}
+			
+			function returnFile(task){
+				// 'returnFile' changes the input single task from the metadata, and returns the corresponding selected 'file'. The 'file' contains the url selected as per the slice selection made by the user, and the corresponding task. The task is required to allow cross plot tracking of all the data connected to this task, and the optional coloring by the corresponding metadata values.
+				
+				// This here should also package up all the metadata properties that would enable the coloring to fill them in.
+				
+				// dbsliceData.flowData.filter(function(file){return file.url == task[ctrl.view.sliceId]})[0].data
+				var file = helpers.findObjectByAttribute(dbsliceData.flowData, "url", [task[ctrl.view.sliceId]], true)
+				
+				return {  task: task, 
+						   url: task[ctrl.view.sliceId],
+						  data: file.data}
+				
+			} // returnFile
+			
+		}, // getFileAvailabilityInfo
+		
+		
+		// Info on hte data in the files
+		getLineFileDataInfo: function getLineFileDataInfo(ctrl){
+			
+			var files = cfDataManagement.getFileAvailabilityInfo(ctrl)
+			
+			// Compatibility of nests!
+			// The nests will have to be exactly the SAME, that is a prerequisite for compatibility. The options for these nests can be different, and the variables in these nests can be different. From these is the intersect calculated.
+			var compatibilityAccessors = [
+				function(f){return f.data["userOptions"].map(function(o){return o.name})},
+				function(f){return f.data["commonOptions"].map(function(o){return o.name})}]
+			var c = helpers.chainCompatibilityCheck(files.available, compatibilityAccessors)
+			
+			// Compatibility ensures that all the files have exactly the same user tags available. Retrieve their intersect.
+			var intersect = c.compatibleFiles.length > 0 ?  helpers.getIntersectOptions( c.compatibleFiles ) : undefined
+			
+			// The data properties are only available after a particular subset of the data has been selected. Only then will the dropdown menus be updated.
+			ctrl.data.promises     = ctrl.data.promises
+			ctrl.data.requested    = files.requested
+			ctrl.data.available    = files.available
+			ctrl.data.duplicates   = files.duplicated
+			ctrl.data.missing      = files.missing
+			ctrl.data.compatible   = c.compatibleFiles
+			ctrl.data.incompatible = c.incompatibleFiles
+			ctrl.data.intersect    = intersect
+			
+
+		  
+		}, // getLineFileDataInfo
+		
+		getContour2dFileDataInfo: function getContour2dFileDataInfo(ctrl){
+			
+			// The files must all be 
+			
+			var files = cfDataManagement.getFileAvailabilityInfo(ctrl)
+			
+			// The contours are expected to only contain data of a single slice (2d) / slice scene (3d). Only the properties need to be compatible. For now this is just hard-coded here.
+			
+			var intersect = {
+				varOptions: files.available[0].data.properties
+			}
+
+			
+			
+			// The data properties are only available after a particular subset of the data has been selected. Only then will the dropdown menus be updated.
+			ctrl.data.promises  = ctrl.data.promises
+			ctrl.data.requested = files.requested
+			ctrl.data.available = files.available
+			ctrl.data.duplicates= files.duplicated
+			ctrl.data.missing   = files.missing
+			ctrl.data.compatible = files.available
+			ctrl.data.incompatible = []
+			ctrl.data.intersect = intersect
+			
+
+			
+		}, // getContour2dFileDataInfo
+		
+		// Accessing on-demand data
+		getLineDataVals: function getLineDataVals(file, ctrl){
+			// Make a distinction between accessing explicit and implicit data files.
+			
+			
+			// THIS SHOULD RETURN ALL DATA AT ONCE. IT IS IN THE MEMORY ALREADY ANYWAY. FIX
+			
+			// Assemble the names of the properties to plot.
+			var plotData
+			switch( file.data.type ){
+				case "implicit":
+					// The options in the ctrl cannot be associated with the actual variable names in the files. The same menu options may correspond to different file variables if the sub-part of the file selected changes.
+
+				
+					plotData = file.data.vals.map(function(d){
+						return {x: Number(d[ctrl.view.xVarOption.val]), 
+						        y: Number(d[ctrl.view.yVarOption.val])}
+					})
+					break;
+					
+				case "explicit":
+				
+					var f = helpers.findObjectByAttribute
+			
+					// Available properties after applying all the options.
+					// Retrieve the properties
+					var properties = file.data.properties
+				
+					// Apply all user selected options.	
+					ctrl.view.options.forEach(function(option){
+						properties = f( properties, option.name, [option.val], false)
+					})
+					
+					// Find onle the properties that correspond to the selected flow variable. In explicitly stated variables the flow variable is stored on hte y-axis, and the x-axis is a dummy option.
+					var flowProperties = f(properties,"varName",ctrl.view.yVarOption.val,false)
+					
+					
+					// Apply the separation by axis
+					var xProperties = f(flowProperties,"axis","x",false)
+					var yProperties = f(flowProperties,"axis","y",false)
+				
+					// Handle the combination of ps/ss, and x/y.
+					// NOTE THAT SS PS IS OPTIONAL! HANDLE THIS SEPARATELY AS WELL!!
+					var xSS = f(xProperties,"side", ["ss"], true)
+					var xPS = f(xProperties,"side", ["ps"], true)
+					var ySS = f(yProperties,"side", ["ss"], true)
+					var yPS = f(yProperties,"side", ["ps"], true)
+				
+					var ss = file.data.vals.map(function(d){
+						return {x: Number( d[xSS.val] ), y: Number( d[ySS.val] )}
+					})
+					var ps = file.data.vals.map(function(d){
+						return {x: Number( d[xPS.val] ), y: Number( d[yPS.val] )}
+					})
+					
+					plotData = ss.concat(ps.reverse())
+					
+					break;
+			
+			} // switch
+			
+			plotData.task = file.task
+			
+			return plotData
+		
+		
+			
+			
+		}, // getLineDataVals
+		
+		getContour2dDataVals: function getContour2dDataVals(file, ctrl){
+			// This is supposed to handle the cases where the files have different formats etc, or more data etc. Also, how to make the options available.
+			console.log("Implement getContour2dDataVals")
+			
+		}, // getContour2dDataVals
+		
+		// HELPERS
 		helpers : {
 			
 			getTaskIds: function getTaskIds(){
@@ -476,14 +979,14 @@ var dbslice = (function (exports) {
 				
 				var missingMetadataProperties = existingData.metaDataProperties.filter(function(d){  return !newData.header.metaDataProperties.includes(d) })
 				
-				var missingSliceProperties = existingData.sliceProperties.filter(function(d){  return !newData.header.sliceProperties.includes(d) })
+				var missingLine2dProperties = existingData.line2dProperties.filter(function(d){  return !newData.header.line2dProperties.includes(d) })
 					
-				var missingContourProperties = existingData.contourProperties.filter(function(d){  return !newData.header.contourProperties.includes(d) })
+				var missingContour2dProperties = existingData.contour2dProperties.filter(function(d){  return !newData.header.contourProperties.includes(d) })
 				
 				var allPropertiesIncluded =     (missingDataProperties.length == 0) && 
 										    (missingMetadataProperties.length == 0) &&
-										       (missingSliceProperties.length == 0) &&
-										     (missingContourProperties.length == 0)
+										      (missingline2dProperties.length == 0) &&
+										   (missingContour2dProperties.length == 0)
 											 
 				
 				
@@ -492,10 +995,10 @@ var dbslice = (function (exports) {
 				} else {
 					// Which ones are not included?
 					var warningText = "Selected data has been rejected. It requires additional variables:\n" + 
-					"Data variables:     " +     missingDataProperties.join(", ") + "\n" +
-				    "Metadata variables: " + missingMetadataProperties.join(", ") + "\n" +
-					"Slice variables:    " +    missingSliceProperties.join(", ") + "\n" +
-					"Contour variables:  " +  missingContourProperties.join(", ") + "\n"
+					"Data variables:     " +      missingDataProperties.join(", ") + "\n" +
+				    "Metadata variables: " +  missingMetadataProperties.join(", ") + "\n" +
+					"Slice variables:    " +    missingLine2dProperties.join(", ") + "\n" +
+					"Contour variables:  " + missingContour2dProperties.join(", ") + "\n"
 					
 					
 					window.alert(warningText)
@@ -512,7 +1015,16 @@ var dbslice = (function (exports) {
 	// General helpers
 	var helpers = {
 		
-					// General helpers
+			isIterable: function isIterable(object) {
+			  // https://stackoverflow.com/questions/18884249/checking-whether-something-is-iterable
+			  return object != null && typeof object[Symbol.iterator] === 'function'
+			}, // isIterable
+		
+			makeTranslate: function makeTranslate(x,y){
+				return "translate(" + x + "," + y + ")"
+			}, // makeTranslate
+		
+			// Arrays
 			unique: function unique(d){		
 				// https://stackoverflow.com/questions/1960473/get-all-unique-values-in-a-javascript-array-remove-duplicates
 				function onlyUnique(value, index, self) { 
@@ -522,6 +1034,29 @@ var dbslice = (function (exports) {
 				return d.filter( onlyUnique )
 			
 			}, // unique
+			
+			arrayIncludesAll: function arrayIncludesAll(A,B){
+				// 'arrayIncludesAll' checks if array A includes all elements of array B. The elements of the arrays are expected to be strings.
+				
+				// Return element of B if it is not contained in A. If the response array has length 0 then A includes all elements of B, and 'true' is returned.
+				var f = B.filter(function(b){
+					return !A.includes(b)
+				})
+				
+				return f.length == 0? true : false
+				
+				
+		    }, // arrayIncludesAll
+			
+			indexOfObjectByAttr: function indexOfObjectByAttr(array, attr, value) {
+				// Return hte index of the first object with the attribute 'attr' of value 'value'. 
+				for(var i = 0; i < array.length; i += 1) {
+					if(array[i][attr] === value) {
+						return i;
+					}
+				}
+				return -1;
+			}, // indexOfObjectByAttr
 			
 			findObjectByAttribute: function findObjectByAttribute(A, attribute, values, flag){
 				// Return the objects in an object array 'A', which have an attribute 'attribute', with the value 'value'. If they do not an empty set is returned. In cases when a single item is selected the item is returned as the object, without the wrapping array.
@@ -547,10 +1082,154 @@ var dbslice = (function (exports) {
 				})
 				return [].concat.apply([], C)	
 			
-			} // collectObjectArrayProperty
+			}, // collectObjectArrayProperty
 			
+			// Comparing file contents
+			
+			checkCompatibility: function checkCompatibility(files, accessor){
+				// 'checkCompatibility' checks if the properties retrieved using 'accessor( file )' are exactly the same. To check if the arrays are exactly the same all the contents of A have to be in B, and vice versa. 
+			  
+				// The first file is taken as the target. Others must be compatible to it.
+				var target = []
+				if(files.length > 0){
+					target = accessor( files[0] )
+				} // if
+				
+				
+				var compatibleFiles = files.filter(function(file){
+				
+					var tested = accessor( file )
+				
+					// Check if the tested array includes all target elements.
+					var allExpectedInTested = helpers.arrayIncludesAll(tested, target)
+					
+					// Check if the target array includes all test elements.
+					var allTestedInExpected = helpers.arrayIncludesAll(target, tested)
+					
+					return allExpectedInTested && allTestedInExpected
+				})
+				
+				
+				
+				// Remove any incompatible files from available files.
+				var compatibleUrls = compatibleFiles.map(function(file){return file.url})
+				var incompatibleFiles = files.filter(function(file){
+					return !compatibleUrls.includes( file.url )
+				})
+				
+				// Return the summary
+				return {compatibleFiles:   compatibleFiles,
+					  incompatibleFiles: incompatibleFiles}
+			  
+			}, // checkCompatibility
+				
+			chainCompatibilityCheck: function chainCompatibilityCheck(files, accessors){
+				// A wrapper to perform several compatibility checks at once.
+			  
+				var compatible = files
+				var incompatible = []
+					
+				// The compatibility checks are done in sequence.
+				accessors.forEach(function(accessor){
+					var c = helpers.checkCompatibility(compatible, accessor)
+					compatible = c.compatibleFiles
+					incompatible.concat(c.incompatibleFiles)
+				})
+		  
+				return {compatibleFiles:   compatible,
+					  incompatibleFiles: incompatible}
+			  
+			}, // chainCompatibilityCheck
+			  
+			getIntersectOptions: function getIntersectOptions(files){
+			  
+				// 'getIntersectOptions' returns the intersect of all options available. The compatibility checks established that the files have exactly the same option names available, now the intersect of option options is determined.
 
-		
+				// Three different options exist.
+				// 1.) User options (tags such as 'height', "circumference"...)
+				// 2.) Var options (possibilities for the x and y axes)
+				// 3.) Common options - to cater for explicit variable declaration. These are not included for the intersect as the user will not be allowed to select from them for now.
+
+				// First select the options for which the intersect is sought for. It assumes that all the files will have the same userOptions. This should be guaranteed by the compatibility check.
+				
+				
+				var i = helpers.calculateOptionIntersect
+				// 'calculateOptionIntersect' is geared to deal with an array of options, therefore it returns an array of intersects. For x and y options only 1 option is available, therefore the array wrapper is removed here.
+				var xVarIntersect = i( files, function(f){return [f.data.varOptions.x]}  )
+				var yVarIntersect = i( files, function(f){return [f.data.varOptions.y]}  )
+				
+				// Why index the first one out? To remove the array wrapper. User options need the array wrapper to allow later inclusion of additional options.
+				return {
+				   userOptions: 
+						   i( files, function (f){return f.data.userOptions} ),
+					varOptions: {
+						x: xVarIntersect[0],
+						y: yVarIntersect[0]
+					} // varOptions
+				} // intersectOptions
+				
+
+					
+			}, // getIntersectOptions
+					
+			calculateOptionIntersect: function calculateOptionIntersect( files, accessor ){
+				// 'calculateOptionIntersect' takes teh array of files 'files' and returns all options stored under the attribute files.data[<optionsName>] that all the files have.
+				
+				// The first file is selected as teh seed. Only the options that occur in all files are kept, so the initialisation makes no difference on the end result.
+				var seedSelections = accessor( files[0] )
+				var intersect = seedSelections.map(function(seedSelection){
+					
+					// The options of the seed user options will be the initial intersect options for this particular option.
+					var intersectOptions = seedSelection.options
+					
+					// For each of the options loop through all the files, and see which options are included. Only keep those that are at every step.
+					files.forEach(function(file){
+						
+						// For this particular file fitler all the options for this particular user option.
+						intersectOptions = intersectOptions.filter(function(option){
+						
+							// It is expected that only one option of the same name will be present. Pass in an option that only one element is required - last 'true' input.
+							var fileOptions = helpers.findObjectByAttribute(accessor(file), "name", [seedSelection.name], true)
+							
+							return fileOptions.options.includes( option )
+						}) // filter
+					}) // forEach
+
+					return {name: seedSelection.name,
+							 val: intersectOptions[0],
+						 options: intersectOptions}
+					
+				}) // map
+				
+				// Don't unwrap if it is a single object. In some cases the array is needed to allow other options to be joined later on.
+				
+				return intersect
+			
+			
+			}, // calculateOptionIntersect
+			
+			// Text sizing
+			fitTextToBox: function fitTextToBox(text, box, dim, val){
+				// `text' and `box' are d3 selections. `dim' must be either `width' or `height', and `val' must be a number.
+
+				
+				if( ["width", "height"].includes(dim) && !isNaN(val) ){
+				
+					let fontSize = 16
+					while( ( box.node().getBoundingClientRect()[dim] > val ) &&
+                           ( fontSize > 0 )	){
+						// Reduce the font size
+						fontSize -= 1
+						text.style("font-size", fontSize + "px")
+						
+					} // while
+				
+				} // if
+				
+				
+				
+			}, // fitTextToBox
+			
 	} // helpers
 	
 	// PLOTTING. 
@@ -565,7 +1244,7 @@ var dbslice = (function (exports) {
         make: function make(ctrl) {
         
             // Remove any controls in the plot title.
-			// cfD3BarChart.addInteractivity.updatePlotTitleControls(element)
+			// cfD3BarChart.interactivity.updatePlotTitleControls(element)
 			
 			
 			plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
@@ -580,7 +1259,7 @@ var dbslice = (function (exports) {
 			markup.append("g").attr("class", "label")
 			
 			// Handle the select.
-			var i= cfD3BarChart.addInteractivity.onSelectChange
+			var i= cfD3BarChart.interactivity.onSelectChange
 			plotHelpers.setupPlot.general.appendVerticalSelection(ctrl.figure.select(".leftAxisControlGroup"), i.vertical(ctrl))
 			plotHelpers.setupPlot.general.updateVerticalSelection(ctrl)
 			
@@ -813,8 +1492,8 @@ var dbslice = (function (exports) {
 				draw.axes(ctrl);
 				
 				// Add interactivity:
-				cfD3BarChart.addInteractivity.addOnMouseOver(ctrl);
-				cfD3BarChart.addInteractivity.addOnMouseClick(ctrl);
+				cfD3BarChart.interactivity.addOnMouseOver(ctrl);
+				cfD3BarChart.interactivity.addOnMouseClick(ctrl);
 				
 			}, // update
 			
@@ -915,7 +1594,7 @@ var dbslice = (function (exports) {
 		
 		}, // setupPlot
 	  
-		addInteractivity: {
+		interactivity: {
 			
 			onSelectChange: {
 				
@@ -928,7 +1607,7 @@ var dbslice = (function (exports) {
 						// Perform the regular task for y-select: update teh DOM elements, and the plot state object.
 						plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar)
 						
-						// Update the filter. If a variable is removed from view then it's filter must be removed as well. It is completely REMOVED, and not stored in the background.
+						// Update the filter. If a variable is removed from view then it's filter must be removed as well. It is completely REMOVED, and not stored in the background. Filter checks the variables in the control objects.
 						filter.apply()
 						
 						// Setup the tools anew.
@@ -937,7 +1616,7 @@ var dbslice = (function (exports) {
 						// Signal that a regroup is required.
 						ctrl.view.yVarChanged = true
 			
-						// Maybe just call a render here, but flag internally if a regroup is needed?
+						// Render is called because the filter may have changed.
 						render()			
 					
 					} // return
@@ -954,7 +1633,7 @@ var dbslice = (function (exports) {
 				svg.selectAll("rect").on("click", onClick);
 				
 				function onClick(d){
-					console.log("on bar click")
+
 					
 					// Update the filter selection.
 					filter.addUpdateMetadataFilter(property, d.val)
@@ -997,8 +1676,15 @@ var dbslice = (function (exports) {
 				
 			}, // addOnMouseOver
 			
+			refreshContainerSize: function refreshContainerSize(ctrl){
+				
+				var container = d3.select(ctrl.format.parent)
+				
+				builder.refreshPlotRowHeight( container )
+				
+			} // refreshContainerSize
 			
-		}, // addInteractivity
+		}, // interactivity
 	
 		helpers: {
 		
@@ -1020,9 +1706,6 @@ var dbslice = (function (exports) {
 								histogram: undefined},
 						format: {
 							title: "Edit title",
-							colWidth: 4,
-							width: undefined,
-							height: 400,
 							margin: {top: 10, right: 0, bottom: 30, left: 30},
 							axesMargin: {top: 10, right: 30, bottom: 30, left: 10},
 							parent: undefined,
@@ -1030,7 +1713,9 @@ var dbslice = (function (exports) {
 								ix: 0,
 								iy: 0,
 								iw: 4,
-								ih: 4
+								ih: 4,
+								minH: 290,
+								minW: 190
 							}
 						}
 				} // ctrl
@@ -1264,7 +1949,7 @@ var dbslice = (function (exports) {
          
             // Update the controls as required
 			// MISSING FOR NOW. IN THE END PLOTHELPERS SHOULD HAVE A VERTEILER FUNCTION
-			// cfD3Histogram.addInteractivity.updatePlotTitleControls(element)
+			// cfD3Histogram.interactivity.updatePlotTitleControls(element)
           
             // Setup the object that will internally handle all parts of the chart.
 			plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
@@ -1277,7 +1962,7 @@ var dbslice = (function (exports) {
 				    .attr("class", "extent")
 			
 			// cfD3Histogram.setupPlot.appendHorizonalSelection(ctrl.figure.select(".bottomAxisControlGroup"), ctrl)
-			var i= cfD3Histogram.addInteractivity.onSelectChange
+			var i= cfD3Histogram.interactivity.onSelectChange
 			plotHelpers.setupPlot.general.appendHorizontalSelection(ctrl.figure.select(".bottomAxisControlGroup"), i.horizontal(ctrl))
 			plotHelpers.setupPlot.general.updateHorizontalSelection(ctrl)
 			
@@ -1285,8 +1970,8 @@ var dbslice = (function (exports) {
 			cfD3Histogram.setupPlot.setupPlotTools(ctrl)
 			
 			
-			cfD3Histogram.addInteractivity.addBrush.make(ctrl)
-			cfD3Histogram.addInteractivity.addBinNumberControls.make(ctrl)
+			cfD3Histogram.interactivity.addBrush.make(ctrl)
+			cfD3Histogram.interactivity.addBinNumberControls.make(ctrl)
 			
 			
 			
@@ -1437,10 +2122,10 @@ var dbslice = (function (exports) {
 					      .select(".selection")
 						  .attr("xMin", d3.min( ctrl.tools.xscale.domain() ))
 						  .attr("xMax", d3.max( ctrl.tools.xscale.domain() ))
-						cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl)
+						cfD3Histogram.interactivity.addBrush.updateBrush(ctrl)
 						
 						// Update any bin controls.
-						cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl)
+						cfD3Histogram.interactivity.addBinNumberControls.updateMarkers(ctrl)
 						
 						// All elements were removed. Update teh chart.
 						cfD3Histogram.draw.update(ctrl)
@@ -1492,10 +2177,10 @@ var dbslice = (function (exports) {
 			
 			
 			// Update the bin number controls.
-			cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl)
+			cfD3Histogram.interactivity.addBinNumberControls.updateMarkers(ctrl)
 			
 			// UPDATE THE SELECT RECTANGLE TOO!!
-			cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl)
+			cfD3Histogram.interactivity.addBrush.updateBrush(ctrl)
 			
 		}, // rescale
 		
@@ -1617,7 +2302,7 @@ var dbslice = (function (exports) {
 			
 		}, // setupPlot
 		     
-        addInteractivity: {
+        interactivity: {
 		
 			onSelectChange: {
 				
@@ -1651,7 +2336,7 @@ var dbslice = (function (exports) {
 			
 				make: function make(ctrl){
 				
-					var h = cfD3Histogram.addInteractivity.addBrush
+					var h = cfD3Histogram.interactivity.addBrush
 					var property = ctrl.view.xVarOption.val
 				
 					// The hardcoded values need to be declared upfront, and abstracted.
@@ -1797,7 +2482,7 @@ var dbslice = (function (exports) {
 					ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
 
 					
-					var h = cfD3Histogram.addInteractivity.addBrush
+					var h = cfD3Histogram.interactivity.addBrush
 					var x = ctrl.tools.xscale
 					
 					var rect = d3.select(rectDOM)
@@ -1842,7 +2527,7 @@ var dbslice = (function (exports) {
 					
 					
 					// Update teh position of the left edge by the difference of the pointers movement.
-					var h = cfD3Histogram.addInteractivity.addBrush
+					var h = cfD3Histogram.interactivity.addBrush
 					var x = ctrl.tools.xscale
 					
 					var handle = d3.select(handleDOM)
@@ -1940,7 +2625,7 @@ var dbslice = (function (exports) {
 				
 				updateBrush: function updateBrush(ctrl){
 				
-					var h = cfD3Histogram.addInteractivity.addBrush
+					var h = cfD3Histogram.interactivity.addBrush
 					
 					// First get the scale
 					var svg = ctrl.figure.select("svg.plotArea")
@@ -1986,7 +2671,7 @@ var dbslice = (function (exports) {
 				make: function make(ctrl){
 				
 					// GENERALISE THE GROUP TRANSFORM!!
-					var h = cfD3Histogram.addInteractivity.addBinNumberControls
+					var h = cfD3Histogram.interactivity.addBinNumberControls
 					var svg = ctrl.figure.select("svg.plotArea")
 					var height = svg.select("g.data").attr("height")
 				
@@ -2060,7 +2745,7 @@ var dbslice = (function (exports) {
 			
 				update: function update(ctrl){
 				
-					var h = cfD3Histogram.addInteractivity.addBinNumberControls
+					var h = cfD3Histogram.interactivity.addBinNumberControls
 					
 					
 									
@@ -2133,6 +2818,14 @@ var dbslice = (function (exports) {
 
 				
 			}, // addBinNumberControls
+			
+			refreshContainerSize: function refreshContainerSize(ctrl){
+				
+				var container = d3.select(ctrl.format.parent)
+				
+				builder.refreshPlotRowHeight( container )
+				
+			} // refreshContainerSize
 			
 		}, // setupInteractivity
 		
@@ -2244,9 +2937,6 @@ var dbslice = (function (exports) {
 							histogram: undefined},
 					format: {
 						title: "Edit title",
-						colWidth: 4,
-						width: undefined,
-						height: 400,
 						margin: {top: 10, right: 0, bottom: 30, left: 0},
 						axesMargin: {top: 20, right: 20, bottom: 16, left: 45},
 						parent: undefined,
@@ -2254,7 +2944,9 @@ var dbslice = (function (exports) {
 							ix: 0,
 							iy: 0,
 							iw: 4,
-							ih: 4
+							ih: 4,
+							minH: 290,
+							minW: 190
 						}
 					}
 				} // ctrl
@@ -2450,7 +3142,7 @@ var dbslice = (function (exports) {
 				
 				var s = cfD3Scatter.setupPlot
 				var hs= plotHelpers.setupPlot
-				var i = cfD3Scatter.addInteractivity
+				var i = cfD3Scatter.interactivity
 				var hi= plotHelpers.setupInteractivity.twoInteractiveAxes
 				
 				
@@ -2526,14 +3218,14 @@ var dbslice = (function (exports) {
 					// Get the data to draw.
 					var pointData = cfD3Scatter.helpers.getUnfilteredPointData(ctrl)
 						
-						// Deal with the points
+					// Deal with the points
 					var points = ctrl.figure.select("svg.plotArea")
 					  .select(".data")
 					  .selectAll("circle")
-					  .data(pointData)
+					  .data(pointData, d => d.taskId)
 					 
-					points.enter()
-					  .append("circle")
+					points.join(
+					  enter => enter.append("circle")
 						.attr("r", 5)
 						.attr("cx", accessor.x )
 						.attr("cy", accessor.y )
@@ -2542,29 +3234,24 @@ var dbslice = (function (exports) {
 						.attr("clip-path", clipPath)
 						.attr("task-id", accessor.id )
 						.each(function(d){ 
-							cfD3Scatter.addInteractivity.addPointTooltip(ctrl, this) 
-						})
-						
-					points
-					  .attr("r", 5)
-					  .attr("cx", accessor.x )
-					  .attr("cy", accessor.y )
-					  .style("fill", "Gainsboro")
-					  .attr("task-id", accessor.id );
-					 
-					points.exit().remove();
+							cfD3Scatter.interactivity.addPointTooltip(ctrl, this) 
+						}),
+					  update => update,
+					  exit => exit.remove()
+					)
+
 					
 				}, // plotDataExtent
 				
 				plotCurrentSelection: function plotCurrentSelection(ctrl){
-					
+					// Current selection separates the current selection from the background data extent by coloring them appropriately.
 					// Change the properties of the selected part.
 					
 					// Get the data to draw.
 					var accessor = cfD3Scatter.helpers.getAccessors(ctrl)
 					var pointData = cfD3Scatter.helpers.getPointData(ctrl)
 					
-					// TRANSITION, BUT ONLY IF THERE IS A CHANGE!!
+					
 					
 					var gData = ctrl.figure
 						  .select("svg.plotArea")
@@ -2577,15 +3264,18 @@ var dbslice = (function (exports) {
 								this.remove()
 								gData.node().appendChild(this)
 								
+								// For some reason transitions break the change of color.
 								d3.select(this)
-								  .transition()
-									.duration(ctrl.view.transitions.duration)
-									.style("fill", accessor.c)
+									.style("fill", d=> accessor.c(d) )
 								
-							} // if
+							} else {
+								d3.select(this)
+									.style("fill", "Gainsboro" )
+							}// if
 						})
 					
-					
+					// If drawing was needed, then also the lines need to be updated. Drawing should only be updated if the variable is actiually selected.
+					ctrl.view.gVarOption.action = ctrl.view.gVarOption.val ? "draw" : undefined
 					
 				} // plotCurrentSelection
 				
@@ -2597,7 +3287,7 @@ var dbslice = (function (exports) {
 				// Refresh is called on zoom!! On zoom nothing is entering or leaving, it's just readjusted.
 				
 				var h = cfD3Scatter.helpers
-				var i = cfD3Scatter.addInteractivity
+				var i = cfD3Scatter.interactivity
 				
 				// Check to adjust the width of the plot in case of a redraw.
 				plotHelpers.setupPlot.general.rescaleSvg(ctrl)
@@ -2607,14 +3297,16 @@ var dbslice = (function (exports) {
 				var accessor = h.getAccessors(ctrl)
 				
 
-				// Move the points
+				// Refresh point positions
 				var points = ctrl.figure.select("svg.plotArea")
 				  .select(".data")
 				  .selectAll("circle")
-				  .attr("r", 5)
-				  .attr("cx", accessor.x )
-				  .attr("cy", accessor.y )
-				  .attr("task-id", accessor.id );
+				  .transition()
+				    .duration(ctrl.view.transitions.duration)
+				    .attr("r", 5)
+				    .attr("cx", accessor.x )
+				    .attr("cy", accessor.y )
+				    .attr("task-id", accessor.id );
 				
 					
 			
@@ -2650,6 +3342,8 @@ var dbslice = (function (exports) {
 			}, // rescale
 		
 			setupPlot: {
+				
+				
 				// This object adjusts the default plot to include all the relevant controls, and creates the internal structure for them.
 				
 				updateUiOptions: function updateUiOptions(ctrl){
@@ -2677,7 +3371,7 @@ var dbslice = (function (exports) {
 							name: "AR",
 							val: undefined,
 							options: ["User / Unity"],
-							event: h.buttonMenu.options.toggleAR
+							event: cfD3Scatter.interactivity.toggleAR
 						} // arOption
 						
 						
@@ -2753,7 +3447,24 @@ var dbslice = (function (exports) {
 			
 			}, // setupPlot
 		
-			addInteractivity: {
+			interactivity: {
+				
+				onSelectChange: function onSelectChange(ctrl){
+					
+					// Reset the AR values.
+					ctrl.view.dataAR = undefined
+					ctrl.view.viewAR = undefined
+					
+					// Update the plot tools
+					plotHelpers.setupTools.go(ctrl)
+					
+					// Update transition timings
+					ctrl.view.transitions = cfD3Scatter.helpers.transitions.animated()
+					
+					// Update plot itself
+					cfD3Scatter.update(ctrl)
+					
+				}, // onSelectChange
 				
 				// Tooltips
 				createLineTooltip: function createLineTooltip(ctrl){
@@ -2929,13 +3640,13 @@ var dbslice = (function (exports) {
 						// 'update' executes what 'make' lined up.
 						
 						// Shorthand handle
-						var h = cfD3Scatter.addInteractivity.groupLine
+						var h = cfD3Scatter.interactivity.groupLine
 						
 						switch(ctrl.view.gVarOption.action){
 							
 							case "zoom":
 							  // Just update the lines
-							  h.updateLines( ctrl, ctrl.view.transitions.duration )
+							  h.updateLines( ctrl, 0 )
 							  break;
 							  
 							case "draw":
@@ -2958,18 +3669,18 @@ var dbslice = (function (exports) {
 						// After the action is performed the action needs to be changed to the default - "zoom".
 						ctrl.view.gVarOption.action = "zoom"
 						
+						
+						
 					}, // update
 				
-					make: function make(ctrl, varName){
+					make: function make(ctrl, varName, linesVarSame){
 						
-						
+						// This is separated so that the lines just move with the zoom. Notice that this function does not handle zoom!!
 						
 						// Options to cover
 						var noLines = ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path").empty()
-						var linesVarSame = ctrl.view.gVarOption.val == varName
 						
 						
-
 						if( noLines ){
 							// 1: no existing lines - draw new lines
 							// h.drawLines(ctrl, varName)
@@ -2988,7 +3699,7 @@ var dbslice = (function (exports) {
 						
 						} // if
 						
-						
+						cfD3Scatter.interactivity.groupLine.update(ctrl)
 						
 					
 					}, // make
@@ -2996,8 +3707,8 @@ var dbslice = (function (exports) {
 					drawLines: function drawLines(ctrl, varName){
 					
 						// Shorthand handles.
-						var h = cfD3Scatter.addInteractivity.groupLine
-						var i = cfD3Scatter.addInteractivity
+						var h = cfD3Scatter.interactivity.groupLine
+						var i = cfD3Scatter.interactivity
 						
 						// Get the data to draw.
 						var pointData = ctrl.plotFunc.helpers.getPointData(ctrl)
@@ -3009,6 +3720,8 @@ var dbslice = (function (exports) {
 						// Now draw a line for each of them.
 						var paths = ctrl.figure.select("svg.plotArea").select(".markup").selectAll("path")
 						  .data(s)
+						  
+						paths
 						  .enter()
 						  .append("path")
 						  .attr("stroke", "black")
@@ -3025,8 +3738,23 @@ var dbslice = (function (exports) {
 						h.updateLines(ctrl, ctrl.view.transitions.duration)
 						
 						
+						// Remove any now unnecessary lines.
+						paths.exit()
+						  .each(function(){
+						
+							var totalLength = this.getTotalLength();
+							
+							d3.select(this)
+								.transition()
+								.duration( ctrl.view.transitions.duration )
+								.ease(d3.easeLinear)
+								.attr("stroke-dashoffset", totalLength)
+								.on("end", function(){d3.select(this).remove()})
+						})   
+						
+						
 						// Update the tooltips. These can be missing if new data is added.
-						ctrl.plotFunc.addInteractivity.addLineTooltip(ctrl)
+						ctrl.plotFunc.interactivity.addLineTooltip(ctrl)
 						
 						
 						// HELPER
@@ -3083,8 +3811,8 @@ var dbslice = (function (exports) {
 					}, // removeLines
 											
 					replaceLines: function replaceLines(ctrl, varName){
-					console.log("replaceLines")
-						var h = cfD3Scatter.addInteractivity.groupLine
+					
+						var h = cfD3Scatter.interactivity.groupLine
 						
 						// Update transitions:
 						ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
@@ -3108,7 +3836,7 @@ var dbslice = (function (exports) {
 										h.drawLines(ctrl, varName)
 										
 										// The lines were removed, therefore new tooltips are needed.
-										ctrl.plotFunc.addInteractivity.addLineTooltip(ctrl)
+										ctrl.plotFunc.interactivity.addLineTooltip(ctrl)
 									} // if
 								}) // on
 								
@@ -3140,7 +3868,7 @@ var dbslice = (function (exports) {
 							path.attr("stroke-dasharray", totalLength+" "+totalLength)
 								.attr("stroke-dashoffset", totalLength)
 								.transition()
-								  .duration( ctrl.view.transitions.duration )
+								  .duration( t )
 								  .ease(d3.easeLinear)
 								  .attr("stroke-dashoffset", 0);
 						})
@@ -3149,8 +3877,72 @@ var dbslice = (function (exports) {
 				
 				}, // groupLine
 			
+				toggleAR: function toggleAR(ctrl){
+					
+					if(ctrl.view.viewAR == 1){
+						// Change back to the data aspect ratio. Recalculate the plot tools.
+						ctrl.view.viewAR = ctrl.view.dataAR
+						
+						plotHelpers.setupTools.go(ctrl)
+					} else {
+						// Change to the unity aspect ratio. Adjust the y-axis to achieve it.
+						ctrl.view.viewAR = 1
+						
+						// When adjusting the AR the x domain should stay the same, and only the y domain should adjust accordingly. The bottom left corner should not move.
+					
+						// Adjust so that the middle of the plot stays at the same place.
+						
+						// How many pixels per dx=1
+						var xRange = ctrl.tools.xscale.range()
+						var yRange = ctrl.tools.yscale.range()
+						var xDomain = ctrl.tools.xscale.domain()
+						var yDomain = ctrl.tools.yscale.domain()
+						
+						var xAR = (xRange[1] - xRange[0]) / (xDomain[1] - xDomain[0])
+						var yAR = xAR/ctrl.view.viewAR
+						var yDomainRange = [yRange[0] - yRange[1]] / yAR
+						var yDomain_ = [
+							yDomain[0] - yDomainRange/2, 
+							yDomain[0] + yDomainRange/2]
+						
+						
+						ctrl.tools.yscale.domain( yDomain_ )
+					} // if
+					
+					
+					
+					
+					
+					// t is the transformation vector. It's stored so that a delta transformation from event to event can be calculated. -1 is a flag that the aspect ratio of the plot changed.
+					ctrl.view.t = -1
+					
+					ctrl.view.transitions = cfD3Scatter.helpers.transitions.animated()
+					cfD3Scatter.update(ctrl)
+					ctrl.view.transitions = cfD3Scatter.helpers.transitions.instantaneous()
+					
+				}, // toggleAR
+			
+				// When resizing the axes interactively
+				dragAdjustAR: function dragAdjustAR(ctrl){
+					
+					// Transitions
+					ctrl.view.transitions = cfD3Scatter.helpers.transitions.instantaneous()
+				  
+					// Offload to the function itself!! Line cannot update as per new axes, because it uses transform -> translate to move the lines around.
+					cfD3Scatter.update(ctrl)
+					
+				}, // dragAdjustAR
+			
+				// On resize/drag
+				refreshContainerSize: function refreshContainerSize(ctrl){
+				
+					var container = d3.select(ctrl.format.parent)
+					
+					builder.refreshPlotRowHeight( container )
+					
+				} // refreshContainerSize
 		
-			}, // addInteractivity
+			}, // interactivity
 			
 			helpers: {
 				
@@ -3181,9 +3973,6 @@ var dbslice = (function (exports) {
 								yscale: undefined},
 						format: {
 							title: "Edit title",
-							colWidth: 4,
-							width: undefined,
-							height: 400,
 							margin: {top: 10, right: 10, bottom: 38, left: 30},
 						    axesMargin: {top: 20, right: 20, bottom: 16, left: 30},
 							parent: undefined,
@@ -3191,13 +3980,15 @@ var dbslice = (function (exports) {
 								ix: 0,
 								iy: 0,
 								iw: 4,
-								ih: 4
+								ih: 4,
+								minH: 290,
+								minW: 190
 							}
 						}
 					} // ctrl
 					
 					// Initialise the options straight away.
-					var i = cfD3Scatter.addInteractivity
+					var i = cfD3Scatter.interactivity
 					var hs = plotHelpers.setupPlot.twoInteractiveAxes
 					var options = dbsliceData.data.dataProperties 
 					
@@ -3335,7 +4126,7 @@ var dbslice = (function (exports) {
 					animated: function animated(){
 					
 						return {
-							duration: 100,
+							duration: 500,
 							updateDelay: 0,
 							enterDelay: 0
 						}
@@ -3462,7 +4253,7 @@ var dbslice = (function (exports) {
 			
 			var hs = plotHelpers.setupPlot
 			var hi= plotHelpers.setupInteractivity.twoInteractiveAxes
-			var i = cfD3Line.addInteractivity
+			var i = cfD3Line.interactivity
 			
 			// Add the manual selection toggle to its title.
 			hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
@@ -3497,7 +4288,7 @@ var dbslice = (function (exports) {
 			var sliceOption = {
 				name: "Slice Id",
 				val: undefined,
-				options: dbsliceData.data.sliceProperties,
+				options: dbsliceData.data.line2dProperties,
 				event: function(ctrl, d){ctrl.view.sliceId = d}
 			} // sliceOption
 			
@@ -3510,6 +4301,28 @@ var dbslice = (function (exports) {
 		
 		}, // make
 		
+		update: function update(ctrl){
+			
+			// plotFunc.update is called in render when coordinating the plots with the crossfilter selection. On-demand plots don't respond to the crossfilter, therefore this function does nothing. In hte future it may report discrepancies between its state and the crossfilter.
+			
+			// Called on: AR change, color change
+		
+			// Update the color if necessary.
+			let allSeries = ctrl.figure.select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("path.line")
+				    .transition()
+					.duration( ctrl.view.transitions.duration )
+				    .style( "stroke", ctrl.tools.getColor )
+			
+			
+			// Maybe just introduce separate draw scales and axis scales??
+			
+			// Update the axes
+			cfD3Line.helpers.axes.update(ctrl)			
+				
+			
+		}, // update
 		
 		updateData: function updateData(ctrl){
 			
@@ -3518,7 +4331,7 @@ var dbslice = (function (exports) {
 			
 			
 			// GETDATAINFO should be launched when new data is loaded for it via the 'refresh' button, and when a different height is selected for it. Otherwise it is just hte data that gets loaded again.
-			cfD3Line.helpers.getLineDataInfo(ctrl)
+			cfDataManagement.getLineFileDataInfo(ctrl)
 			
 			
 			
@@ -3532,14 +4345,35 @@ var dbslice = (function (exports) {
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
 			
 			
-			// Setup the plot tools
-			cfD3Line.setupPlot.setupPlotTools(ctrl)
+			// Setup the plot tools. Also collects the data
+			cfD3Line.setupPlot.setupLineSeries(ctrl)
+			plotHelpers.setupTools.go(ctrl)
+			cfD3Line.setupPlot.setupLineTools(ctrl)
 			
-			cfD3Line.update(ctrl)
+			// The data domain is required for nicer AR adjusting.
+			ctrl.format.domain = {
+				x: ctrl.tools.xscale.domain(),
+				y: ctrl.tools.yscale.domain(),
+			}
+			
+			
+			cfD3Line.draw(ctrl)
+			
+			// Update the axes
+			cfD3Line.helpers.axes.update(ctrl)
+			
+			// Adjust the title
+			ctrl.format.wrapper.select("div.title").html(ctrl.view.sliceId)
+			
 			
 		}, // updateData
-				
-		update: function update(ctrl){
+			
+
+			
+		draw: function draw(ctrl){
+			
+			// Draw is used when the data changes. The transform is added in terms of pixels, so it could possibly be kept. So, when introducing new data add the transform already, so everything is kept at the same transform.
+			
 			// This function re-intialises the plots based on the data change that was initiated by the user.
 
 			// RELOCATE TO DRAW??
@@ -3548,17 +4382,17 @@ var dbslice = (function (exports) {
 				// Update the axes
 				cfD3Line.helpers.axes.update(ctrl)
 				
+				// CHANGE TO JOIN!!
 				
 				 // Assign the data
 				var allSeries = ctrl.figure.select("svg.plotArea")
 				  .select("g.data")
-				  .selectAll( ".plotSeries" )
+				  .selectAll("path.line")
 				  .data( ctrl.data.series );
 
-				// Enter/update/exit
+				// enter
 				allSeries.enter()
-				  .each( function(){
-					  var seriesLine = d3.select( this ).append( "g" )
+				  .append( "g" )
 						  .attr( "class", "plotSeries")
 						  .attr( "task-id", ctrl.tools.getTaskId)
 						.append( "path" )
@@ -3566,32 +4400,38 @@ var dbslice = (function (exports) {
 						  .attr( "d", ctrl.tools.line )
 						  .style( "stroke", ctrl.tools.getColor ) 
 						  .style( "fill", "none" )
-						  .style( "stroke-width", 2.5 )
-					
-					  // Add a tooltip to this line
-					  cfD3Line.addInteractivity.addLineTooltip(ctrl, seriesLine.node() )
-		
-					  // Add the option to select this line manually.
-					  cfD3Line.addInteractivity.addSelection( seriesLine.node() );
-				});
+						  .style( "stroke-width", 2.5 / ctrl.view.t.k )
+						  .on("mouseover", cfD3Line.interactivity.addTipOn(ctrl))
+						  .on("mouseout", cfD3Line.interactivity.addTipOff(ctrl))
+						  .on("click", cfD3Line.interactivity.addSelection)
 
-				// update: A bit convoluted as the paths have a wrapper containing some information for ease of user inspection in dev tools.
+				// update:
 				allSeries.each( function() {
-					var series = d3.select( this )
+					// The taskId is in the parent wrapper.
+					var series = d3.select( this.parentElement )
 						.attr( "task-id",  ctrl.tools.getTaskId);
+						
 				})	
-					
-				allSeries.selectAll( "path.line" )
+				
+				// Keep a reference to the original draw domain to allow the data to be updated more seamlessly?
+				allSeries
 					  .transition()
 					  .duration(ctrl.view.transitions.duration)
 					  .attr( "d", ctrl.tools.line )
 					  .style( "stroke", ctrl.tools.getColor )
-					   
+					  
+				// exit
 				allSeries.exit().remove();
+				
+				// Add the appropriate translate??
+				ctrl.figure.select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("g.plotSeries")
+					  .attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl) )
 			
 			} // if
 		
-		}, // update
+		}, // draw
 	
 		
 		refresh: function refresh(ctrl){
@@ -3599,12 +4439,21 @@ var dbslice = (function (exports) {
 			// Update the axes
 			cfD3Line.helpers.axes.update(ctrl)
 			
+			
 			// Using the transform on g to allow the zooming is much faster.
+				// MAYBE MOVE THE TRANSFORM ON g.data? WILL IT MAKE IT FASTER??
+			ctrl.figure.select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("g.plotSeries")
+					  .attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl) ) 
+				  
+				  
+			// Update the line thickness.
 			ctrl.figure.select("svg.plotArea")
 			  .select("g.data")
 			  .selectAll("g.plotSeries")
-                  .attr("transform", ctrl.view.t)
-
+			  .selectAll("path.line")
+			    .style( "stroke-width", 2.5 / ctrl.view.t.k )
 		
 		}, // refresh
 	
@@ -3632,13 +4481,13 @@ var dbslice = (function (exports) {
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
 			
 			// 2.) The plot tools need to be updated
-			plotHelpers.setupTools.go(ctrl)
+			cfD3Line.setupPlot.setupPlotTools(ctrl)
 			
 			
 				
 			
 			// 3.) The plot needs to be redrawn
-			cfD3Line.update(ctrl)
+			cfD3Line.draw(ctrl)
 			
 		}, // rescale
 	
@@ -3658,7 +4507,8 @@ var dbslice = (function (exports) {
 						ctrl.view.options.push({
 							   name: dataOption.name,
 							   val : dataOption.options[0],
-							options: dataOption.options
+							options: dataOption.options,
+							  event: cfD3Line.updateData
 						})
 					} else {
 						
@@ -3730,12 +4580,12 @@ var dbslice = (function (exports) {
 						name: "AR",
 						val: undefined,
 						options: ["User / Unity"],
-						event: h.buttonMenu.options.toggleAR
+						event: cfD3Line.interactivity.toggleAR
 					} // arOption
 					
 					
 					// Make functionality options for the menu.
-					var codedPlotOptions = [ctrl.view.cVarOption, arOption]
+					var codedPlotOptions = [color.settings, arOption]
 					
 					return codedPlotOptions.concat( ctrl.view.options )
 					
@@ -3744,10 +4594,17 @@ var dbslice = (function (exports) {
 			}, // updateUiOptions
 		
 			// Functionality required to setup the tools.
-			setupPlotTools: function setupPlotTools(ctrl){
+			setupLineSeries: function setupLineSeries(ctrl){
 				
-				// Setup the scales for plotting.
-				plotHelpers.setupTools.go(ctrl)
+				// Retrieve the data once.
+				ctrl.data.series = ctrl.data.compatible.map(function(file){
+					return cfDataManagement.getLineDataVals(file, ctrl)
+				})
+				
+			}, // setupLineSeries
+			
+			setupLineTools: function setupLineTools(ctrl){
+				// Needs to update the accessors.
 				
 				// Make the required line tool too!
 				// The d3.line expects an array of points, and will then connect it. Therefore the data must be in some form of: [{x: 0, y:0}, ...]
@@ -3755,18 +4612,13 @@ var dbslice = (function (exports) {
 					.x( function(d){ return ctrl.tools.xscale( d.x ) } )
 					.y( function(d){ return ctrl.tools.yscale( d.y ) } );
 					
-					
-				// Retrieve the data once.
-				ctrl.data.series = ctrl.data.compatible.map(function(file){
-					return importExportFunctionality.importing.line.getLineDataVals(file, ctrl)
-				})
-				
+
 				// Tools for retrieving the color and taskId
 				ctrl.tools.getTaskId = function(d){return d.task.taskId} 
 				ctrl.tools.getColor = function(d){return color.get(d.task[color.settings.variable])
 				} // getColor
 				
-			}, // setupPlotTools
+			}, // setupLineTools
 			
 			findPlotDimensions: function findPlotDimensions(svg){
 			
@@ -3779,14 +4631,12 @@ var dbslice = (function (exports) {
 			
 				// The series are now an array of data for each of the lines to be drawn. They possibly consist of more than one array of values. Loop over all to find the extent of the domain.
 				
-				var seriesExtremes = ctrl.data.compatible.map(function(file){
+				var seriesExtremes = ctrl.data.series.map(function(series){
 				
-					var plotData = importExportFunctionality.importing.line.getLineDataVals(file, ctrl)
-					
-					return {x: [d3.min(plotData, function(d){return d.x}),
- 					            d3.max(plotData, function(d){return d.x})], 
-					        y: [d3.min(plotData, function(d){return d.y}),
- 					            d3.max(plotData, function(d){return d.y})]
+					return {x: [d3.min(series, function(d){return d.x}),
+ 					            d3.max(series, function(d){return d.x})], 
+					        y: [d3.min(series, function(d){return d.y}),
+ 					            d3.max(series, function(d){return d.y})]
 							}
 				}) // map
 				
@@ -3802,12 +4652,80 @@ var dbslice = (function (exports) {
 				// Helpers
 				
 				
-			} // findDomainDimensions
+			}, // findDomainDimensions
 			
+		
+			// Find the appropriate transform for the data
+			adjustTransformToData: function (ctrl){
+				// Calculate the transform. Find the position of the domain minimum using the new scales.
+				
+				
+				
+				// Find the scaling based on the data domain and the scale domain.
+				let xDataDomain = ctrl.format.domain.x
+				let xScaleDomain = ctrl.tools.xscale.domain()
+				
+				let yDataDomain = ctrl.format.domain.y
+				let yScaleDomain = ctrl.tools.yscale.domain()
+				
+				
+				let x = (xDataDomain[1] - xDataDomain[0]) / (xScaleDomain[1] - xScaleDomain[0])
+				let y = (yDataDomain[1] - yDataDomain[0]) / (yScaleDomain[1] - yScaleDomain[0])
+				
+				
+				let scale = "scale(" + [x,y].join(",") + ")"
+				
+				
+				
+				// THE SCALE IS APPLIE WITH THE BASIS AT THE TOP CORNER. MEANS THAT AN ADDITIONAL TRANSLATE WILL BE NEEDED!!
+				// y-axis starts at the top! The correction for this, as well as the offset due to the top=based scaling is "- plotHeight + (1-y)*plotHeight"
+				let plotHeight = ctrl.tools.yscale.range()[0] - ctrl.tools.yscale.range()[1]
+				
+				// y-axis starts at the top!
+				let translate = helpers.makeTranslate(
+					ctrl.tools.xscale( ctrl.format.domain.x[0] ),
+					ctrl.tools.yscale( ctrl.format.domain.y[0] ) - y*plotHeight
+				)
+				
+				
+				return [translate, scale].join(" ")
+				
+				
+				
+				
+				
+				
+			}, // 
 		
 		}, // setupPlot
 	
-		addInteractivity: {
+		interactivity: {
+			
+			// Variable change
+			onSelectChange: function onSelectChange(ctrl){
+					
+				// Reset the AR values.
+				ctrl.view.dataAR = undefined
+				ctrl.view.viewAR = undefined
+				
+				// Update the plot tools. Data doesn't need to change - FIX
+				cfD3Line.setupPlot.setupLineSeries(ctrl)
+				plotHelpers.setupTools.go(ctrl)
+				cfD3Line.setupPlot.setupLineTools(ctrl)
+				
+				// The data domain is required for nicer AR adjusting.
+				ctrl.format.domain = {
+					x: ctrl.tools.xscale.domain(),
+					y: ctrl.tools.yscale.domain(),
+				}
+				
+				// Update transition timings
+				ctrl.view.transitions = cfD3Line.helpers.transitions.animated()
+				
+				// Update plot itself
+				cfD3Line.draw(ctrl)
+				
+			}, // onSelectChange
 				
 			// Tooltips
 			createLineTooltip: function createLineTooltip(ctrl){
@@ -3826,7 +4744,6 @@ var dbslice = (function (exports) {
 					var tip = d3.tip()
 						.attr('class', 'd3-tip')
 						.attr("type", "cfD3LineLineTooltip")
-						.offset([-15, 0])
 						.html(function (d) {
 							return "<span>" + d.task.label + "</span>";
 						});
@@ -3840,88 +4757,190 @@ var dbslice = (function (exports) {
 				
 			}, // createLineTooltip
 			
-			addLineTooltip: function addLineTooltip(ctrl, lineDOM){
-			  
-				// This controls al the tooltip functionality.
-			  
-				var lines = ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
-				  .selectAll("g.plotSeries");
-			  
-				lines.on("mouseover", tipOn)
-					 .on("mouseout", tipOff);
-			   
-				  
-				function tipOn(d) {
-					lines.style("opacity", 0.2);
-					d3.select(this)
-						.style("opacity", 1.0)
-						.style( "stroke-width", "4px" );
+			addTipOn: function addTipOn(ctrl){
+				
+				return function (d){			
 					
+					// path < plotSeries < g.data < svg
+					var coordinates = d3.mouse(this.parentElement.parentElement)
 					
 					var anchorPoint = ctrl.figure
 					  .select("svg.plotArea")
 					  .select("g.background")
 					  .select(".anchorPoint")
-						.attr( "cx" , d3.mouse(this)[0] )
-						.attr( "cy" , d3.mouse(this)[1] );
+						.attr( "cx" , coordinates[0] )
+						.attr( "cy" , coordinates[1] - 15);
 					
 					ctrl.view.lineTooltip.show(d, anchorPoint.node());
 					
 					crossPlotHighlighting.on(d, "cfD3Line")
 					
-				}; // tipOn
-
-				function tipOff(d) {
-					lines.style("opacity", 1.0);
-					d3.select(this)
-						.style( "stroke-width", "2.5px" );
+				}; // return 
+				
+			}, // addTipOn
+			
+			addTipOff: function addTipOff(ctrl){
+				
+				return function (d){
+					
 					
 					ctrl.view.lineTooltip.hide();
 					
 					crossPlotHighlighting.off(d, "cfD3Line")
 					
 				}; // tipOff
-			  
-			  
-			}, // addLineTooltip
-			
+				
+			}, // addTipOff 
 			
 
-			// Legacy
-			addSelection: function addSelection(lineDOM){
-				// This function adds the functionality to select elements on click. A switch must then be built into the header of the plot t allow this filter to be added on.
-				
-				d3.select(lineDOM).on("click", selectLine)
+			// Manual selection
+			addSelection: function addSelection(d){
+				// Functionality to select elements on click. 
 				
 				
+				// Toggle the selection
+				var p = dbsliceData.data.manuallySelectedTasks
 				
-				function selectLine(d){
-					// Toggle the selection
-					var p = dbsliceData.data.manuallySelectedTasks
-					
-					// Is this point in the array of manually selected tasks?
-					var isAlreadySelected = p.indexOf(d.task.taskId) > -1
+				// Is this point in the array of manually selected tasks?
+				var isAlreadySelected = p.indexOf(d.task.taskId) > -1
 
+				
+				if(isAlreadySelected){
+					// The poinhas currently been selected, but must now be removed
+					p.splice(p.indexOf(d.task.taskId),1)
+				} else {
+					p.push(d.task.taskId)
+				}// if
+				
+				
+				// Highlight the manually selected options.
+				crossPlotHighlighting.manuallySelectedTasks()
 					
-					if(isAlreadySelected){
-						// The poinhas currently been selected, but must now be removed
-						p.splice(p.indexOf(d.task.taskId),1)
-					} else {
-						p.push(d.task.taskId)
-					}// if
-					
-					
-					// Highlight the manually selected options.
-					crossPlotHighlighting.manuallySelectedTasks()
-					
-				} // selectPoint
+				
 				
 			}, // addSelecton
 			
+			// On resize/drag
+			refreshContainerSize: function refreshContainerSize(ctrl){
+				
+				var container = d3.select(ctrl.format.parent)
+				
+				builder.refreshPlotRowHeight( container )
+				
+			}, // refreshContainerSize
 
-		}, // addInteractivity
+			toggleAR: function toggleAR(ctrl){
+				
+				// Make sure the data stays in the view after the changes!!
+				
+				if(ctrl.view.viewAR == 1){
+						// Change back to the data aspect ratio. Recalculate the plot tools.
+						ctrl.view.viewAR = ctrl.view.dataAR
+					} else {
+						// Change to the unity aspect ratio. Adjust the y-axis to achieve it.
+						ctrl.view.viewAR = 1
+					} // if
+					
+					// When adjusting the AR the x domain should stay the same, and only the y domain should adjust accordingly. The bottom left corner should not move.
+				
+					// Adjust so that the middle of the visible data domain stays in the same place?
+					
+					
+					
+					var yAR = calculateAR(ctrl)
+					let newYDomain = calculateDomain(ctrl.tools.yscale, ctrl.format.domain.y, yAR)
+					ctrl.tools.yscale.domain( newYDomain )
+					
+					
+					// cfD3Line.setupPlot.setupLineTools(ctrl)
+					
+					// t is the transformation vector. It's stored so that a delta transformation from event to event can be calculated. -1 is a flag that the aspect ratio of the plot changed.
+					ctrl.view.t = -1
+					
+					
+					ctrl.view.transitions = cfD3Line.helpers.transitions.animated()
+
+					// Redraw is handled here, as the data domain must be used for the drawing. Shouldn't this also be true when changing the AR??
+					
+					// Revert back to original domain for drawing, but use the current axis domain for the axis update. d3.line in ctrl.tools.line accesses teh x and yscales when called, and so uses the current scale domains. These change on zooming, but the data must be drawn in the data domain, because the zooming and panning is done via transform -> translate.
+					let xscaleDomain = ctrl.tools.xscale.domain()
+					ctrl.tools.xscale.domain( ctrl.format.domain.x )
+					
+					
+					// Redraw the line in the new AR.
+					let allSeries = ctrl.figure.select("svg.plotArea")
+						  .select("g.data")
+						  .selectAll("path.line")
+							.transition()
+							.duration( ctrl.view.transitions.duration )
+							.attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl))
+							.attr( "d", ctrl.tools.line )
+					
+					ctrl.tools.xscale.domain(xscaleDomain)
+					
+					
+					
+					
+					function calculateAR(ctrl){
+						
+						let xRange = ctrl.tools.xscale.range()
+						let yRange = ctrl.tools.yscale.range()
+						let xDomain = ctrl.tools.xscale.domain()
+						let yDomain = ctrl.tools.yscale.domain()
+					
+						let xAR = (xRange[1] - xRange[0]) / (xDomain[1] - xDomain[0])
+						let yAR = xAR/ctrl.view.viewAR
+						return yAR
+					}
+					
+					function calculateDomain(scale, dataDomain, AR){
+						
+						// Always adjust teh AR so that the data remains in view. Keep the midpoint of the visible data where it is on the screen.
+						
+						let range = scale.range()
+						let domain = scale.domain()
+						
+						// First find the midpoint of the visible data.
+						let a = dataDomain[0] < domain[0] ? domain[0] : dataDomain[0]
+						let b = dataDomain[1] > domain[1] ? domain[1] : dataDomain[1]
+						let mid = (a+b)/2
+						
+						let domainRange = [range[0] - range[1]] / AR
+						let newDomain = [
+							mid - domainRange/2, 
+							mid + domainRange/2
+						]
+						
+						return newDomain
+						
+					} // calculateDomain
+				
+			}, // toggleAR
+			
+			// When resizing the axes interactively
+			dragAdjustAR: function dragAdjustAR(ctrl){
+				// Should direct redrawing be allowed in hte first place??
+				
+				// Transitions
+				ctrl.view.transitions = cfD3Scatter.helpers.transitions.instantaneous()
+			  
+				// Uses the scales with updated domains.
+				
+				ctrl.view.t = d3.zoomIdentity
+				ctrl.figure.select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("g.plotSeries")
+					.transition()
+					.duration( ctrl.view.transitions.duration )
+					.attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl))
+				
+				// Update the axes
+				cfD3Line.helpers.axes.update(ctrl)
+				
+				
+			}, // dragAdjustAR
+			
+		}, // interactivity
 		
 		helpers: {
 		
@@ -3972,9 +4991,6 @@ var dbslice = (function (exports) {
 							yscale: undefined},
 					format: {
 						title: "Edit title",
-						colWidth: 4,
-						width: undefined,
-						height: 400,
 						margin: {top: 10, right: 10, bottom: 38, left: 30},
 						axesMargin: {top: 20, right: 20, bottom: 16, left: 30},
 						parent: undefined,
@@ -3982,7 +4998,9 @@ var dbslice = (function (exports) {
 							ix: 0,
 							iy: 0,
 							iw: 4,
-							ih: 4
+							ih: 4,
+							minH: 290,
+							minW: 190
 						}
 					}
 				} // ctrl
@@ -3998,7 +5016,7 @@ var dbslice = (function (exports) {
 				
 				// If sliceId is defined, check if it exists in the metadata. If it does, then store it into the config.
 				if(plotData.sliceId != undefined){
-					if(dbsliceData.data.sliceProperties.includes(plotData.sliceId)){
+					if(dbsliceData.data.line2dProperties.includes(plotData.sliceId)){
 						ctrl.view.sliceId = plotData.sliceId
 					} // if
 				} // if
@@ -4053,13 +5071,21 @@ var dbslice = (function (exports) {
 				
 				update: function update(ctrl){
 				
-					var xAxis = d3.axisBottom( ctrl.tools.xscale ).ticks(5);
-					var yAxis = d3.axisLeft( ctrl.tools.yscale );
-				
-					ctrl.figure.select("svg.plotArea").select(".axis--x").call( xAxis )
-					ctrl.figure.select("svg.plotArea").select(".axis--y").call( yAxis )
 					
-					cfD3Line.helpers.axes.updateTicks(ctrl)
+				
+					if ( ctrl.tools.xscale && ctrl.tools.yscale ){
+						// Only update the axis if the scales are defined. When calling the update on an empty plot they will be undefined.
+						var xAxis = d3.axisBottom( ctrl.tools.xscale ).ticks(5);
+						var yAxis = d3.axisLeft( ctrl.tools.yscale );
+						
+						ctrl.figure.select("svg.plotArea").select(".axis--x").call( xAxis )
+						ctrl.figure.select("svg.plotArea").select(".axis--y").call( yAxis )
+					
+						cfD3Line.helpers.axes.updateTicks(ctrl)
+						
+					} // if
+				
+				
 				
 				}, // update
 				
@@ -4113,276 +5139,6 @@ var dbslice = (function (exports) {
 			}, // transitions
 		
 			
-			// Data retrieval
-			
-			// MOVE TO LIBRARY
-			getLineDataInfo: function getLineDataInfo(ctrl){
-				// File data compatibility
-				
-				var requiredTasks = dbsliceData.data.taskDim.top(Infinity)
-				
-				var requiredUrls = requiredTasks.map( getUrl )
-				
-				// This is the set of urls of all files that have been loaded into internal storage that are required for this plot. The loaded files are not returned as that would mean they are logged into memory again.
-				// Furthermore, also check which have failed upon loading. Those are the files that were not found, therefore the promise was rejected.
-				var availableUrls = dbsliceData.flowData.filter(function(file){
-					var isUrlRequired = requiredUrls.includes( file.url )
-					var wasPromiseResolved = file.data != undefined
-					return isUrlRequired && wasPromiseResolved
-				}).map(function(file){return file.url})
-				
-				// Reverse reference the loaded files to find which required files are not available in the central storage. 
-				var missingUrls = requiredUrls
-				  .filter( function(url){return !availableUrls.includes(url)})	
-
-				
-				// Create 'file' responses detailing which files of which tasks were : 
-				// 1.) requested:
-				var requestedFiles = requiredTasks.map(returnFile)
-				
-				// 2.) available:
-				var availableFiles = requiredTasks.filter(function(task){
-					return availableUrls.includes( getUrl(task) )
-				}).map(returnFile)
-				
-				// 3.) missing:
-				var missingFiles = requiredTasks.filter(function(task){
-					return missingUrls.includes( getUrl(task) )
-				}).map(returnFile)
-				
-				// 4.) duplicated:
-				var duplicatedFiles = requiredTasks.filter(function(task){
-				  
-				  // Assume duplicate by default.
-				  var flag = true
-				  if( requiredUrls.indexOf(     getUrl(task) ) == 
-				      requiredUrls.lastIndexOf( getUrl(task) ) ){
-					// The first element is also the last occurence of this value, hence it is a unique value. This is therefore not a duplicating element.
-					flag = false
-				  } // if
-				  
-				  return flag
-				}).map(returnFile)
-				
-				// NOTE: 'availableFiles' lists all the tasks for which the data is available, even if they are duplicated.
-				
-				
-				// 5.)
-				// CHECK FOR COMPATIBILITY OF NESTS!
-				// The nests will have to be exactly the SAME, that is a prerequisite for compatibility. The options for these nests can be different, and the variables in these nests can be different. From these is the intersect calculated.
-				var compatibilityAccessors = [
-					getOptionNamesAccessor("userOptions"),
-					getOptionNamesAccessor("commonOptions")
-				]
-				var c = chainCompatibilityCheck(availableFiles, compatibilityAccessors)
-				
-				
-				
-				
-				
-				
-				// Compatibility ensures that all the files have exactly the same user tags available. Now check which of the options are itnersectiong.
-				var intersect = undefined
-				if(c.compatibleFiles.length > 0){
-					intersect = getIntersectOptions( c.compatibleFiles )
-				}
-				
-				
-				// MAKE SURE ALL THE INTERSECT OPTIONS ACTUALLY HAVE SOME OPTIONS - OPTIONS ARE NOT EMPTY!!
-				
-				
-				
-				
-				// MAYBE FOR VARIABLES IT SHOULD RETURN JUST THE SHARED VARIABLES AT A LATER POINT?
-				
-				// The data properties are only available after a particular subset of the data has been selected. Only then will the dropdown menus be updated.
-				ctrl.data.promises  = ctrl.data.promises
-				ctrl.data.requested = requestedFiles
-				ctrl.data.available = availableFiles
-				ctrl.data.duplicates= duplicatedFiles
-				ctrl.data.missing   = missingFiles
-				ctrl.data.compatible = c.compatibleFiles
-				ctrl.data.incompatible = c.incompatibleFiles
-				ctrl.data.intersect = intersect
-				
-  
-			  
-				
-				
-			  // HELPER FUNCTIONS
-			  function returnFile(task){
-				// 'returnFile' changes the input single task from the metadata, and returns the corresponding selected 'file'. The 'file' contains the url selected as per the slice selection made by the user, and the corresponding task. The task is required to allow cross plot tracking of all the data connected to this task, and the optional coloring by the corresponding metadata values.
-				
-				// This here should also package up all the metadata properties that would enable the coloring to fill them in.
-				
-				// dbsliceData.flowData.filter(function(file){return file.url == task[ctrl.view.sliceId]})[0].data
-				var file = helpers.findObjectByAttribute(dbsliceData.flowData, "url", [task[ctrl.view.sliceId]], true)
-				
-				return {  task: task, 
-				           url: task[ctrl.view.sliceId],
-						  data: file.data}
-				
-			  } // returnFile
-			  
-			  function getUrl(task){
-			    // 'getUrl' is just an accessor of a particular property.
-				return task[ctrl.view.sliceId]
-			  } // getUrl
-			  
-			  function includesAll(A,B){
-					// 'includesAll' checks if array A includes all elements of array B. The elements of the arrays are expected to be strings.
-					
-					// Return element of B if it is not contained in A. If the response array has length 0 then A includes all elements of B, and 'true' is returned.
-					var f = B.filter(function(b){
-						return !A.includes(b)
-					})
-					
-					return f.length == 0? true : false
-					
-					
-			  } // includesAll
-				
-			  function checkCompatibility(files, accessor){
-				// 'checkCompatibility' checks if the properties retrieved using 'accessor( file )' are exactly the same. The comparison between two files is done on their arrays of properties obtained by the accessor. To check if the arrays are exactly the same all the contents of A have to be in B, and vice versa. 
-			  
-				var target = []
-				if(files.length > 0){
-					target = accessor( files[0] )
-				} // if
-				
-				
-				var compatibleFiles = files.filter(function(file){
-				
-					var tested = accessor( file )
-				
-					// Check if the tested array includes all target elements.
-					var allExpectedInTested = includesAll(tested, target)
-					
-					// Check if the target array includes all test elements.
-					var allTestedInExpected = includesAll(target, tested)
-					
-					return allExpectedInTested && allTestedInExpected
-				})
-				var compatibleUrls = compatibleFiles.map(function(file){return file.url})
-				
-				
-				// Remove any incompatible files from available files.
-				var incompatibleFiles = availableFiles.filter(function(file){
-					return !compatibleUrls.includes( file.url )
-				})
-				
-				return {compatibleFiles:   compatibleFiles,
-				      incompatibleFiles: incompatibleFiles}
-			  
-			  } // checkCompatibility
-				
-			  function chainCompatibilityCheck(files, accessors){
-			  
-					var compatible = files
-					var incompatible = []
-					
-					// The compatibility checks are done in sequence.
-					accessors.forEach(function(accessor){
-						var c = checkCompatibility(compatible, accessor)
-						compatible = c.compatibleFiles
-						incompatible.concat(c.incompatibleFiles)
-					})
-			  
-				    return {compatibleFiles:   compatible,
-				          incompatibleFiles: incompatible}
-			  
-			  } // chainCompatibilityCheck
-			  
-			  function getIntersectOptions(files){
-			  
-					// 'getIntersectOptions' returns the intersect of all options available. The compatibility checks established that the files have exactly the same option names available, now the intersect of option options is determined.
-
-					// Three different options exist.
-					// 1.) User options (tags such as 'height', "circumference"...)
-					// 2.) Var options (possibilities for the x and y axes)
-					// 3.) Common options - to cater for explicit variable declaration. These are not included for the intersect as the user will not be allowed to select from them for now.
-
-					// First select the options for which the intersect is sought for. It assumes that all the files will have the same userOptions. This should be guaranteed by the compatibility check.
-					
-					
-					
-					// 'calculateOptionIntersect' is geared to deal with an array of options, therefore it returns an array of intersects. For x and y options only 1 option is available, therefore the array wrapper is removed here.
-					var xVarIntersect = calculateOptionIntersect( files, xVarOptionAccessor )
-					var yVarIntersect = calculateOptionIntersect( files, yVarOptionAccessor )
-					
-					
-					return {
-					   userOptions: 
-					           calculateOptionIntersect( files, userOptionAccessor ),
-					    varOptions: {
-							x: xVarIntersect[0],
-							y: yVarIntersect[0]
-					    } // varOptions
-					} // intersectOptions
-					
-					// Helpers
-					
-					function userOptionAccessor(file){
-						return file.data.userOptions
-					} // userOptionAccessor
-					
-					function xVarOptionAccessor(file){
-						return [file.data.varOptions.x]
-					} // varOptionAccessor
-					
-					function yVarOptionAccessor(file){
-						return [file.data.varOptions.y]
-					} // varOptionAccessor
-					
-
-					function calculateOptionIntersect( files, optionsAccessor ){
-						// 'calculateOptionIntersect' takes teh array of files 'files' and returns all options stored under the attribute files.data[<optionsName>] that all the files have.
-						
-						// The first file is selected as teh seed. Only the options that occur in all files are kept, so the initialisation makes no difference on the end result.
-					    var seedOptions = optionsAccessor( files[0] )
-						var intersectOptions = seedOptions.map(function(seedOption){
-							
-							// The options of the seed user options will be the initial intersect options for this particular option.
-							var intersectOptions = seedOption.options
-							
-							// For each of the options loop through all the files, and see which options are included. Only keep those that are at every step.
-							files.forEach(function(file){
-								
-								// For this particular file fitler all the options for this particular user option.
-								intersectOptions = intersectOptions.filter(function(option){
-								
-									// It is expected that only one option of the same name will be present. Pass in an option that only one element is required - last 'true' input.
-									var fileOptions = helpers.findObjectByAttribute(optionsAccessor(file), "name", [seedOption.name], true)
-									
-									return fileOptions.options.includes( option )
-								}) // filter
-							}) // forEach
-
-							return {name: seedOption.name,
-							         val: intersectOptions[0],
-								 options: intersectOptions}
-							
-						}) // map
-						
-						return intersectOptions
-					
-					
-					} // calculateOptionIntersect
-			  
-			  } // getIntersectOptions
-			  
-			  function getOptionNamesAccessor(optionsName){
-					// This returns an accessor function.
-
-					var f = function(file){
-						return file.data[optionsName].map(function(o){return o.name})
-					}
-					
-					return f
-				} // getOptionNamesAccessor
-			  
-			}, // getLineDataInfo
-		
 			// Manual functionality
 			updateManualSelections: function updateManualSelections(ctrl){
 			
@@ -4400,7 +5156,7 @@ var dbslice = (function (exports) {
 						  // paint it orange, and bring it to the front.
 						  plotSeries.select("path.line")
 						    .style("stroke", "rgb(255, 127, 14)")
-						    .style("stroke-width", 4)
+						    .style("stroke-width", 4 / ctrl.view.t.k)
 						  
 						  
 						  this.remove()
@@ -4409,7 +5165,7 @@ var dbslice = (function (exports) {
 					  } else {
 						  plotSeries.select("path.line")
 						    .style("stroke", ctrl.tools.getColor)
-						    .style("stroke-width", 2.5)
+						    .style("stroke-width", 2.5 / ctrl.view.t.k)
 					  } // if
 				  })
 				
@@ -4419,10 +5175,6 @@ var dbslice = (function (exports) {
 			}, // updateManualSelections
 		
 			
-			
-			
-			
-		
 			// Functions supporting cross plot highlighting
 			unhighlight: function unhighlight(ctrl){
 				
@@ -4430,25 +5182,34 @@ var dbslice = (function (exports) {
 				  .select("svg.plotArea")
 				  .select("g.data")
 				  .selectAll(".line")
-					.style("opacity", 0.2);
+					.style("opacity", 0.2)
+					.style("stroke", "Gainsboro");
 				
 			}, // unhighlight
 			
 			highlight: function highlight(ctrl, allDataPoints){
 				
-				allDataPoints.forEach(function(d){
-					
-					// Find the line corresponding to the data point. Look for it by taskId.
-					ctrl.figure
+				let highlightedTaskIds = allDataPoints.map(d=>d.taskId)
+				
+				let plotSeries = ctrl.figure
 					  .select("svg.plotArea")
 					  .select("g.data")
-					  .selectAll('.plotSeries[task-id="' + d.taskId + '"]')
-					  .selectAll(".line")
+					  .selectAll('.plotSeries')
+					  
+				plotSeries.each(function(d){
+					let series = d3.select(this)
+					
+					if(highlightedTaskIds.includes(series.attr("task-id"))){
+						series.selectAll(".line")
 						.style("opacity", 1.0)
-						.style( "stroke-width", "4px" );
+						.style( "stroke", ctrl.tools.getColor ) 
+						.style( "stroke-width",  4 / ctrl.view.t.k )
 						
-				}) // forEach
-				
+						series.raise();
+						
+					}
+					
+				})
 				
 				
 			}, // highlight
@@ -4461,7 +5222,8 @@ var dbslice = (function (exports) {
 				  .select("g.data")
 				  .selectAll(".line")
 				    .style("opacity", 1.0)
-				    .style( "stroke-width", "2.5px" );
+					.style( "stroke", ctrl.tools.getColor ) 
+				    .style( "stroke-width", 2.5 / ctrl.view.t.k );
 					
 				// Rehighlight any manually selected tasks.
 				crossPlotHighlighting.manuallySelectedTasks()
@@ -4471,6 +5233,1374 @@ var dbslice = (function (exports) {
 		} // helpers
 	
 	} // cfD3Line
+	
+	var cfD3Contour2d = {
+		
+		// Externally visible methods are:
+		// name, make, update, rescale, helpers.highlught/unhighlight/defaultStyle, helpers.createDefaultControl/createLoadedControl/writeControl
+		
+		// SHOULD: the contour plot always occupy the whole width? Should it just size itself appropriately? It has a potential to cover other plots... Should all plots just reorder. I think only the clashing plots should reorder. Maybe implement this as general functionality first.
+		
+		// SHOULD: instead of looping over the contours when figuring out the dimension the plot dimensions be updated internally on the fly? By saving the maximum ih for example?
+	
+		// SHOULD: when calculating the statistics create domain areas on which to calculate the value for particular contour? Or is this too much? It does involve integration...
+	
+		name: "cfD3Contour2d",
+	
+		make: function(ctrl){
+		
+			// This function only makes the plot, but it does not update it with the data. That is left to the update which is launced when the user prompts it, and the relevant data is loaded.
+			
+			// How should the user select the variable to be plotted? At the beginning there will be no contours, so the controls need to be elsewhere. For now put them into the plot title.
+			
+			// Scale the card appropriately so that it occupies some area. Needs to be adjusted for hte title height
+			cfD3Contour2d.setupPlot.dimension(ctrl)
+			let p = ctrl.format.position
+			
+			// Add another div to hold the colorbar on the right hand side. The colorbar needs to be side by side with the plot. To position it correctly another div level needs to be present. Therefore both the contours and the colorbar have to go into div.card. An additional 5px margin is introduced to make sure the plot div and teh colorbar are in hte same row.
+			
+			
+			// `cfD3Contour2d' has a different structure than the other plots, therefore the `ctrl.figure' attribute needs to be updated.
+			ctrl.figure = ctrl.figure.append("div")
+			  .attr("class", "data")
+			  .style("width",  p.plotWidth + "px" )
+			  .style("height", p.plotHeight + "px" )
+			
+			
+			cfD3Contour2d.setupPlot.setupRightControlDOM(ctrl)
+			
+			// The plotBody must be reassigned here so that the rightcontrolgroup svgs are appended appropriately.
+			
+			
+			cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+			
+			// NOTES:
+			// How to configure the contour plot on the go? For now the positional variables will be just assumed.
+			
+		
+		}, // make
+		
+				
+		update: function update(ctrl){
+			// This is called during render. Do nothing. Maybe only signal differences to the crossfilter.
+			
+		}, // update
+	
+		updateData: function updateData(ctrl){
+			
+			// This should do what? Come up with the initial contour data? Maybe calculate the initial threshold items? Set a number of levels to show. Calculate the ideal bin number?
+			
+			// First collect and report the data available.
+			cfDataManagement.getContour2dFileDataInfo(ctrl)
+			
+			// How to handle contour data? The user should be expected to select the position variables once, and then just change the flow variable if needed. For now this is manually selected here, but the user should be able to select their varioable based on hte name. Implement that later. Maybe a focus out to adjust the contours, and then a focus in to show change. However, in json formats the user should just name the variables correctly!! How should it happen in csv?
+			
+			// Only use the first 6 files for now.
+			ctrl.data.available = ctrl.data.available.splice(0,6)
+			
+
+			// Calculate the extent of hte data and the thresholds
+			cfD3Contour2d.setupPlot.setupPlotTools(ctrl)
+			
+			// Get the contours based on the thresholds
+			cfD3Contour2d.draw.getContours(ctrl)
+				
+			// Draw the plot
+			cfD3Contour2d.draw.cards(ctrl)
+			
+			// Draw teh colorbar
+			cfD3Contour2d.draw.rightControlGroup(ctrl)
+			
+			
+			// Resize the plot cotnainers
+			cfD3Contour2d.interactivity.resizeOnInternalChange(ctrl)
+			
+			  
+			// ONE COLORBAR FOR ALL!! AT THE SIDE! The colorbar should only occupy the visible space, and should move with the view as the user scrolls down.
+			
+			// When panning over the levels markers on the colorbar highlight those on hte contours somehow.
+			
+			// Introduce a card folder to the side, and only present 4 at the same time at the beginning. Then the user should add other cards to the view.
+			
+			// A special tool to order the cards roughly? This is the grouping sort-of?
+			
+			// DRAW THE CONTOURS USING WEBGL
+			
+		}, // updateData
+		
+	
+		rescale: function rescale(ctrl){
+			
+			// Should rescale the whole plot and the individual contours in it.
+			
+			console.log("Rescaling cfD3Contour2d")
+			
+		}, // rescale
+		
+		rescaleContourCard: function rescaleContourCard(contourCtrl){
+			
+			// Retrieve the data AR from the plot ctrl.
+			let card = contourCtrl.format.wrapper
+			let p = contourCtrl.format.position
+			let plotCtrl = d3.select(contourCtrl.format.parent).data()[0]
+			
+			let dy = positioning.dy(plotCtrl.figure)
+			let dx = positioning.dx(plotCtrl.figure)
+			
+	
+			// Update the position based on the new ih and iw.
+			let position_ = cfD3Contour2d.draw.dimension(p.iw, p.ih, dx, dy, plotCtrl.data.domain.ar)
+			
+			p.w = position_.w
+			p.h = position_.h
+			p.sw = position_.sw
+			p.sh = position_.sh
+			p.minW = position_.minW
+			p.minH = position_.minH
+			p.ar = position_.ar
+			
+			// Update the relevant DOM elements.
+
+			// Update the title div. Enforce a 24px height for this div.
+			let title = card
+			  .select("div.title")
+			  .select("p")
+				.style("text-align", "center")
+				.style("margin-left", "5px")
+				.style("margin-right", "5px")
+				.style("margin-bottom", "8px")
+			  
+			  
+			helpers.fitTextToBox(title, title, "height", 24)
+	
+			// Update the plot svg
+			card.select("svg.plotArea")
+			  .attr("width",  p.sw)
+			  .attr("height", p.sh )
+			
+			
+		}, // rescaleContourCard
+	
+			
+		// Rename setupPlot -> setup
+		// Add groups: plot, controls, cards
+	
+		setupPlot: {
+			
+			// Broadly dimension the plot.
+			dimension: function dimension(ctrl){
+				
+				// `makeNewPlot' sizes the plot wrapper. Here calculate the dimensions of the internals.
+				let p = ctrl.format.position
+				let w = ctrl.format.wrapper
+				
+				let dy = positioning.dy(d3.select( ctrl.format.parent ))
+				let wrapperHeight = p.ih*dy
+				
+				p.titleHeight = w.select(".plotTitle").node().offsetHeight
+				p.plotHeight = wrapperHeight - p.titleHeight
+				p.plotWidth =  w.node().offsetWidth - p.rightControlWidth
+				
+				
+			}, // dimension
+			
+			// Right colorbar control group
+			
+			setupContourTools: function setupContourTools(ctrl){
+				
+				var h = cfD3Contour2d.setupPlot
+				var files = ctrl.data.available
+				
+				// Calculate the spatial domain.
+				var xDomain = h.getDomain(files, d=>d.data.vals.surfaces.x)
+				var yDomain = h.getDomain(files, d=>d.data.vals.surfaces.y)
+				var vDomain = h.getDomain(files, d=>d.data.vals.surfaces.v)
+				
+				
+				// Setup the domain.
+				ctrl.data.domain = {
+					x: xDomain,
+					y: yDomain,
+					v: vDomain,
+					ar: ( yDomain[1] - yDomain[0] ) / ( xDomain[1] - xDomain[0] ),
+					thresholds: undefined,
+					nLevels: undefined
+				}
+				
+				cfD3Contour2d.setupPlot.setupThresholds(ctrl, vDomain)
+				
+
+			}, // setupContourTools
+
+			setupColorbarTools: function setupColorbarTools(ctrl){
+				
+				let c = ctrl.format.rightControls.colorbar
+	
+			    // Tools. `scaleSequential' maps into a range between 0 and 1.
+				ctrl.tools.scales.px2clr = d3.scaleSequential(d3.interpolateViridis)
+				  .domain([0, c.height ])
+				  
+				// Thresholds respond to selections on hte histogram. This is the corresponding scale.
+				ctrl.tools.scales.val2px = d3.scaleLinear()
+				  .domain( d3.extent( ctrl.data.domain.thresholds ) )
+				  .range([0, c.height ])
+				 
+				// Histogram needs to use a fixed scale based on the data domain.
+				ctrl.tools.scales.val2px_ = d3.scaleLinear()
+				  .domain( ctrl.data.domain.v )
+				  .range([0, c.height ])
+				  
+				// Coloring
+				ctrl.tools.scales.val2clr = d3.scaleSequential(d3.interpolateViridis)
+				  .domain( d3.extent( ctrl.data.domain.thresholds ) )
+				  
+				
+			}, // setupColorbarTools
+			
+			setupHistogramTools: function setupHistogramTools(ctrl){
+				
+				
+				// There is a lot of data expected, and therefore each pixel can be used as a bin. Avoid making a new large array by calculating the histogram for each file independently, and then sum up all the bins.
+				
+				let s = ctrl.tools.scales
+				let c = ctrl.format.rightControls.colorbar
+				let h = ctrl.format.rightControls.histogram
+				
+				// Get the histogram data
+				let vMin = ctrl.data.domain.v[0]
+				let vMax = ctrl.data.domain.v[1]
+				let nBins = c.height
+				let thresholds = d3.range(vMin, vMax, (vMax - vMin)/nBins )
+				 
+				let histogram = d3.histogram()
+				  .domain( ctrl.data.domain.v )
+				  .thresholds( thresholds );
+								  
+				let fileBins = ctrl.data.available.map(function(file){
+					
+					// The returned bins acutally contain all the values. Rework the bins to remove them and thus minimise memory usage.
+					let bins = histogram( file.data.vals.surfaces.v )
+					
+					return bins.map(function(bin){return {x0:bin.x0, x1:bin.x1, n: bin.length}});
+				})
+				
+				// Now summ all hte bins together.
+				h.bins = fileBins.reduce(function(acc, val){
+					// Acc and val are arrays of bins, which have to be summed individually.
+					return acc.map(function(d,i){
+						d.n += val[i].n
+						return d
+					})
+				})
+				
+				// Take a log of the bin lengths to attempt to improve the histogram
+				h.bins = h.bins.map(function(d){
+					d.n = d.n == 0 ? 0 : Math.log10(d.n)
+					return d
+				})
+				
+				
+				// Tools for the histogram.
+				s.bin2px = d3.scaleLinear()
+				  .domain([0, d3.max( h.bins, d=>d.n ) ])
+				  .range([0, h.width ])
+				  
+				
+			}, // setupHistogramTools
+			
+			sizeRightControlGroup: function sizeRightControlGroup(ctrl){
+				
+				// Histogram can be narrower!
+				
+				let groupDiv = ctrl.format.wrapper.select("div.rightControlGroup")
+				let width  = groupDiv.node().getBoundingClientRect().width
+				let height = groupDiv.node().getBoundingClientRect().height
+				
+
+				let h = ctrl.format.rightControls.histogram
+				let c = ctrl.format.rightControls.colorbar
+
+				// Dimension control group. X and Y are positions of the svgs.			
+				c.width = width * 3/5 - c.margin.left - c.margin.right
+			    c.height = height - c.margin.top - c.margin.bottom
+				c.x = c.margin.left
+				c.y = c.margin.top
+				c.legendWidth = c.width * 1/2
+				c.axisWidth   = c.width * 1/2
+				
+				
+				h.width = width * 2/5 - h.margin.left - h.margin.right
+			    h.height = height - h.margin.top - h.margin.bottom
+				h.x = c.margin.left + c.width + c.margin.right + h.margin.left
+				h.y = h.margin.top
+				
+				// The control group consists of two SVGs side-by-side. The left holds an interactive histogram, the right holds the interactive colorbar. Both have the same size.
+				
+				
+				
+				
+				
+			}, // sizeRightControlGroup
+			
+			setupRightControlDOM: function setupRightControlDOM(ctrl){
+				
+				//Separate this out into colorbar and histogram??
+				let p = ctrl.format.position
+				let c = ctrl.format.rightControls.colorbar
+				let h = ctrl.format.rightControls.histogram
+				
+				// Let teh div be the wrapper, and the parent simultaneously.
+				
+				let rightControlDiv = ctrl.format.wrapper.select("div.plot")
+				  .append("div")
+					.attr("class", "rightControlGroup")
+					.style("width",  p.rightControlWidth + "px" )
+					.style("height", p.plotHeight + "px")
+					.style("position", "absolute")
+					.style("left", p.plotWidth + "px")
+					.style("top", p.titleHeight + "px")
+					
+					
+				// One stationary div
+				let rightControlSvgWrapper = rightControlDiv.append("div").attr("class", "rightControlWrapper")
+				  
+					
+				let rightControlSVG = rightControlSvgWrapper
+				  .append("svg")
+					.attr("class", "rightControlSVG")
+					.attr("width",  p.rightControlWidth )
+					.attr("height", Math.floor( p.plotHeight ) )
+					.style("position", "absolute")
+					
+				ctrl.format.rightControls.format.parent = rightControlSvgWrapper.node()
+				ctrl.format.rightControls.format.wrapper = rightControlSVG
+			
+
+				// Size the components.
+				cfD3Contour2d.setupPlot.sizeRightControlGroup(ctrl)
+			
+				// These should be sized later on, so in case some resizing is needed it is easier to update.
+				h.svg = rightControlSVG.append("svg")
+				c.svg = rightControlSVG.append("svg")
+				
+				// Update teh svgs
+				h.svg
+				  .attr("height", h.height )
+				  .attr("width", h.width )
+				  .attr("x", h.x )
+				  .attr("y", h.y )
+				
+			    c.svg
+				  .attr("height", c.height )
+				  .attr("width", c.width )
+				  .attr("x", c.x )
+				  .attr("y", c.y )
+
+				
+				
+				// Colorbar: the transform is required as d3.axisLeft positions itself in reference to the top right corner.
+				let gColorbar = c.svg.append("g")
+				  .attr("transform", helpers.makeTranslate(c.axisWidth, 0) )
+				gColorbar.append("g").attr("class", "gBar")
+				gColorbar.append("g").attr("class", "gBarAxis")
+				gColorbar.append("g").attr("class", "gBarLevels")
+				
+				// Histogram
+				h.svg.append("g").attr("class", "gHist")
+			    h.svg.append("g").attr("class", "gBrush")
+			    h.svg.append("g").attr("class", "gHistAxis")
+				
+				// Additional text for histogram.
+				let logNote = rightControlSVG
+				  .append("g")
+					.attr("class", "logNote")
+				    .attr("transform", helpers.makeTranslate(h.x + 20, h.height + h.y + 9) )
+				  .append("text")
+				    .style("font", "10px / 15px sans-serif")
+				    .style("font-size", 10 + "px")
+				    .style("display", "none")
+				logNote.append("tspan").text("log")
+				logNote.append("tspan").text("10").attr("dy", 7)
+				logNote.append("tspan").text("(n)").attr("dy", -7)
+				
+				
+				
+				
+				// Add the dragging.
+				let drag = d3.drag()
+				  .on("start", positioning.dragStart)
+				  .on("drag", positioning.dragMove)
+				  .on("end", positioning.dragEnd)
+				
+				rightControlSVG
+				  .append("g")
+				    .attr("class", "gRightGroupDrag")
+				  .append("circle")
+				    .attr("r","5")
+				    .attr("cx", h.x - 15 )
+				    .attr("cy", p.plotHeight - 6 )
+				    .attr("fill","gainsboro")
+				    .attr("cursor", "move")
+				    .attr("opacity", 0)
+				    .datum( ctrl.format.rightControls )
+				    .call(drag)
+				
+				
+				  
+				
+				
+			}, // setupRightControlDOM
+			
+			setupPlotTools: function setupPlotTools(ctrl){
+				
+				// Setup the colorbar tools. This is in a separate function to allow it to be updated later if needed. Maybe create individual functions for all three? Contour, Colorbar, Histogram?
+				cfD3Contour2d.setupPlot.setupContourTools(ctrl)
+				
+				cfD3Contour2d.setupPlot.setupColorbarTools(ctrl)
+				
+				cfD3Contour2d.setupPlot.setupHistogramTools(ctrl)
+				  
+			}, // setupPlotTools
+			
+			setupThresholds: function setupThresholds(ctrl, extent){
+				// The domain of the data, and the domain of the visualisation need not be the same. This is needed when selecting a subset on hte colorbar histogram.
+				
+				// Calculate the initial threshold values. Note that thresholds don't include teh maximum value.
+				
+				// First check if the number of levels has been determined already.
+				if( ctrl.data.domain.nLevels == undefined ){
+					// Base it off of the values in a single contour.
+					ctrl.data.domain.nLevels = d3.thresholdSturges( ctrl.data.available[0].data.vals.surfaces.v )
+				} // if
+				
+				
+				var thresholds = d3.range(extent[0], extent[1], (extent[1] - extent[0])/ctrl.data.domain.nLevels )
+				
+				ctrl.data.domain.thresholds = thresholds
+				
+				
+			}, // setupThresholds
+			
+			getDomain: function getDomain(data, accessor){
+				
+				// Data is expected to be an array of contour chart data 
+				// read from the attached json files.
+				let domain = data.map(function(d){
+					return d3.extent( accessor(d) )
+				}) // map
+						
+				return d3.extent( [].concat.apply([], domain) )
+			}, // getDomain
+			
+			// Contour cards
+			
+			design: function design(ctrl, file){
+				// This is the initial dimensioning of the size of the contour cards.
+				  
+				// Find a range aspect ratio that will fit at least 6 similar contours side by side.
+				
+				
+				  
+				// Max width is 3 grid nodes. Find a combination of nx and ny that get an AR lower than the domain AR.
+				let cardsPerRow = 6
+				let bestCandidate = {ar: 0}
+				
+				// Margins are implemented on the svg itself. They are taken into account through the projection.
+				
+				let dy = positioning.dy(ctrl.figure)
+				let dx = positioning.dx(ctrl.figure)
+				let nx = positioning.nx(ctrl.figure)
+				
+				
+				for(let iw = 1; iw <= nx/cardsPerRow; iw++){
+					for(let ih = 1; ih <= nx; ih++){
+					  
+						// Calculate proposed card dimensions  
+						let candidate = cfD3Contour2d.draw.dimension(iw, ih, dx, dy, ctrl.data.domain.ar)
+						  
+						// Enforce constraints. The data AR must be larger than the maximum available svg AR to allow the visualisation to fill the space as good as possible.
+						// Find the maximum (!) inner ar of the cnadidates. As candidates are enforced to have an AR smaller than the data AR this will be the closest to the data AR.
+						if( (ctrl.data.domain.ar >= candidate.ar) && (candidate.ar > bestCandidate.ar) ){
+							bestCandidate = candidate
+						} // if
+					} // for
+				} // for
+				  
+				  
+				
+				
+				return bestCandidate
+				
+			}, // design
+			
+			
+		}, // setupPlot
+	
+		// Keep both svg and webGL contour drawing. webGL can draw the colors, while the svg can draw teh levels. But even if the svg draws the levels it must go throug the same loops to do it...
+	
+		draw: {
+			
+			cards: function cards(ctrl){
+				// This should handle the enter/update/exit parts.
+  
+			    const div = ctrl.figure
+				let dx = positioning.dx(div)
+				let dy = positioning.dy(div)
+			  
+			    let drag = d3.drag()
+				  .on("start", positioning.dragStart)
+				  .on("drag", positioning.dragMove)
+				  .on("end", positioning.dragEnd)
+				  
+				function getPositionLeft(d){
+					return d.format.position.ix*dx + d.format.parent.offsetLeft + "px"
+				}
+				function getPositionTop(d){
+					return d.format.position.iy*dy + d.format.parent.offsetTop + "px"
+				}
+			    
+				// The key function must output a string by which the old data and new data are compared.
+			    let cards = div.selectAll(".card")
+				  .data(ctrl.data.plotted, d => d.task.taskId)
+			  
+			    // The update needed to be specified, otherwise errors occured.
+			    cards.join(
+				  enter => enter.append("div")
+					.attr("class", "card contourWrapper")
+					.attr("task",d=>d.task.taskId)
+					.style("position", "absolute")
+					.style("background-color", "white")
+					.style("left", getPositionLeft )
+					.style("top", getPositionTop )
+					.style("cursor", "move")
+					.call(drag)
+					.each(function(d){
+						
+						d.format.wrapper = d3.select(this)
+						
+						cfD3Contour2d.draw.contourBackbone(d)
+					
+						// Draw the actual contours.
+						cfD3Contour2d.draw.contours(d)
+					}),
+				  update => update
+				    .each( d => cfD3Contour2d.draw.contours(d) )
+					.style("left", getPositionLeft )
+					.style("top", getPositionTop ),
+				  exit => exit.remove()
+				)
+
+			   
+			   
+			   
+			}, // cards
+			
+			contourBackbone: function contourBackbone(d){
+				
+				// The projection should be updated here to cover the case when the user resizes the plot.
+  
+			    let card = d.format.wrapper
+			    
+			    // Set the width of the plot, and of the containing elements.
+			    card
+				  .style(     "width", d.format.position.w + "px" )
+				  .style( "max-width", d.format.position.w + "px" )
+				  .style(    "height", d.format.position.h + "px" )
+			  
+			    // Append the title div. Enforce a 24px height for this div.
+			    let title = card.append("div")
+				  .attr("class", "title")
+				  .append("p")
+				  .style("text-align", "center")
+				  .style("margin-left", "5px")
+				  .style("margin-right", "5px")
+				  .style("margin-bottom", "8px")
+				  .text( d=> d.task.taskId )
+				  
+				  
+				helpers.fitTextToBox(title, title, "height", 24)
+							  
+			    // Append the svg
+			    card.append("svg")
+				    .attr("class", "plotArea")
+				    .attr("width",  d.format.position.sw)
+				    .attr("height", d.format.position.sh )
+				    .style("fill", "smokewhite")
+				    .style("display", "block")
+				    .style("margin", "auto")
+			      .append("g")
+				    .attr("class", "contour")
+				    .attr("fill", "none")
+				    .attr("stroke", "#fff")
+				    .attr("stroke-opacity", "0.5")
+
+					
+				// The resize behavior. In addition to resizeEnd the resizing should also update the contour.
+				let resize = d3.drag()
+				  .on("start", positioning.resizeStart)
+				  .on("drag", positioning.resizeMove)
+				  .on("end", function(d){
+					  
+					  positioning.resizeEnd(d)
+					  
+					  cfD3Contour2d.draw.updateContour(d)
+				  })
+				  
+				card.append("svg")
+					.attr("width",  "10")
+					.attr("height", 10)
+					.style("position", "absolute")
+					.style("bottom", "0px")
+					.style("right", "0px")
+				  .append("circle")
+					.attr("cx", "5")
+					.attr("cy", 5)
+					.attr("r", 5)
+					.attr("fill", "gainsboro")
+					.attr("cursor", "nwse-resize")
+					.call(resize)
+				
+			}, // contourBackbone
+			
+			// Actual drawing
+			
+			contours: function contours(d){
+				
+				// The projection should be updated here to cover the case when the user resizes the plot.
+
+			  
+			    // Append the contour
+			    d.format.wrapper.select("g.contour")
+				  .selectAll("path")
+				  .data(d => d.levels)
+				  .join("path")
+				    .attr("fill", d.format.color )
+				    .attr("d", cfD3Contour2d.draw.projection(d) );
+				
+					  
+			}, // contours
+			
+			updateContour: function updateContour(d){
+				
+				// By this point everything external to the contour has been rescaled. Here the internal parts still need to be rescaled, and the contour levels redrawn.
+				
+				// Readjust the card DOM
+				cfD3Contour2d.rescaleContourCard(d)
+				
+				
+				// The projection should be updated here to cover the case when the user resizes the plot.
+  
+			    let card = d.format.wrapper
+			    let projection = cfD3Contour2d.draw.projection(d)
+
+			  
+			    // Update the contour
+				card.select("g.contour")
+				  .selectAll("path")
+				  .data(d => d.levels)
+				  .join(
+					enter => enter.append("path")
+					             .attr("fill", d.format.color )
+				                 .attr("d", projection ),
+					update => update
+					             .attr("fill", d.format.color )
+				                 .attr("d", projection ),
+					exit => exit.remove()
+				  )
+					
+					
+				
+				
+			}, // updateContour
+			
+			// The control group - can remain svg.
+			
+			rightControlGroup: function rightControlGroup(ctrl){
+				
+			    
+
+			    // The histogram on the left.
+			    cfD3Contour2d.draw.histogram(ctrl)
+			  
+			    // The colorbar on the right.
+				cfD3Contour2d.draw.colorbar(ctrl)
+				
+				let r = ctrl.format.rightControls
+				
+				// Turn the group controls and the note on.
+				r.format.wrapper
+				  .select("g.gRightGroupDrag")
+				  .selectAll("circle")
+				  .attr("opacity", 1)
+				  
+				let histogramLogNote = r.format.wrapper
+				  .select("g.logNote")
+				  .select("text")
+				    .style("display", "initial")
+			    
+				// Enforce that the axis text is the same size on both plots here!
+				
+				let colorbarAxisTicks = r.colorbar.svg.select("g.gBarAxis").selectAll("text")
+				let histogramAxisTicks = r.histogram.svg.select("g.gHistAxis").selectAll("text")
+				let histogramLogNoteText = histogramLogNote.selectAll("tspan")
+				
+				let minFontSize = d3.min([
+					parseInt( colorbarAxisTicks.style("font-size") ),
+					parseInt( histogramAxisTicks.style("font-size") ),
+					parseInt( histogramLogNote.style("font-size") )
+				])
+				
+				colorbarAxisTicks.style("font-size", minFontSize)
+				histogramAxisTicks.style("font-size", minFontSize)
+				histogramLogNote.style("font-size", minFontSize)
+				
+				// Draw ticks to show it's a log scale. This will have to be on the background svg. Axis to small to draw ticks - a text has been added instead.
+				
+				// Make the colorbar draggable. For the colorbar to move automatically a scrolling event would have to be listened to. Position sticky positions the colorbar below everything else.
+				
+				// Maybe draw the empty colorbar etc on startup already??
+				
+				// Make the colorbar interactive!!
+				
+			}, // rightControlGroup
+			
+			
+			
+			colorbar: function colorbar(ctrl){
+				// The colorbar must have it's own axis, because the user may want to change the color extents to play with the data more. 
+				
+				let c = ctrl.format.rightControls.colorbar
+				let s = ctrl.tools.scales
+				
+
+				// Color bars
+			    c.svg.select("g.gBar").selectAll("rect")
+				  .data( d3.range( c.height ) )
+				  .enter()
+				  .append("rect")
+				    .attr("class", "bars")
+				    .attr("x", 0)
+				    .attr("y", d=>d)
+				    .attr("height", 2)
+				    .attr("width", c.legendWidth)
+				    .style("fill", s.px2clr )    
+			  
+			    // Add in the axis with some ticks.
+				let gBarAxis = c.svg.select("g.gBarAxis")
+				gBarAxis.call( d3.axisLeft( s.val2px ) )
+						
+				// Dimension the axis apropriately. 
+				helpers.fitTextToBox(gBarAxis.selectAll("text"), gBarAxis, "width", c.axisWidth)
+				
+				
+				// Draw the contour plot levels.
+				c.svg.select("g.gBarLevels").selectAll("rect")
+				  .data( ctrl.data.domain.thresholds )
+				  .enter()
+				    .append("rect")
+				      .attr("class", "bars")
+				      .attr("x", 2)
+				      .attr("y", d => s.val2px(d) )
+				      .attr("height", 2)
+				      .attr("width", c.legendWidth - 3)
+					  .attr("cursor", "ns-resize")
+				      .style("fill", "gainsboro" )
+				
+			}, // colorbar
+			
+			histogram: function histogram(ctrl){
+				
+				
+				let h = ctrl.format.rightControls.histogram
+				let s = ctrl.tools.scales
+				
+			    let gHist = h.svg.select("g.gHist")
+				
+				
+			  
+			    let rects = gHist.selectAll("rect").data( h.bins )
+			    rects.enter()
+				  .append("rect")
+				    .attr("height", d => s.val2px_(d.x1) - s.val2px_(d.x0) )
+				    .attr("width", d => s.bin2px(d.n) )
+				    .attr("y", d => s.val2px_(d.x0) )
+				    .style("fill", "DarkGrey")
+			  
+				
+			  
+			    // Brushing and axes.
+			    let gBrush = h.svg.select("g.gBrush")
+			    let gHistAxis = h.svg.select("g.gHistAxis")
+				  
+			    let brush = d3.brushY(s.val2px_).on("end", cfD3Contour2d.interactivity.rightControls.histogramBrushMove);
+			  
+			    gBrush.call(brush);
+			  
+			    // Add in the axis with some ticks.
+				gHistAxis.call( d3.axisRight( s.val2px_ ) )
+				
+				
+				h.svg.select("g.gHistBottom").append("p").text("log10(n)")
+				
+			}, // histogram
+			
+			
+			
+			// MOVE getContours, json2contour, dimensioning, projection TO SETUP PLOT!!
+			
+			getContours: function getContours(ctrl){
+				// Assemble all information required to draw the individual contours in a single object.
+			  
+
+			  
+				let item
+				let alreadyPlottedTasks = ctrl.data.plotted.map(d=>d.task.taskId)
+				
+				// Create contours
+				ctrl.data.plotted = ctrl.data.available.map(function(file){
+					// The available files is a collection in the memory. Mapping this data into `plotted' establishes the connection to DOM, and allows to check whether this file already has a DOM card associated to it.
+					
+					// The files already have properties:
+					// data, task, url.
+					
+					// Add properties: `plotFunc', `levels', `parent', `wrapper', `format'.
+					
+					// If the current file is already in hte plotted array then just return that. Otherwise initialise a new one.
+					
+					// What happens if the URL is duplicated?? Instead focus on retrieving the taskId
+					let i = alreadyPlottedTasks.indexOf(file.task.taskId)
+					
+					if( i > -1 ){
+						// Return the already existing object.
+						item = ctrl.data.plotted[i]
+						
+					} else {
+						// Initialise new plotting entry.
+						
+						item = {
+							data: file.data,
+							task: file.task,
+							url: file.url,
+							plotFunc: cfD3Contour2d,
+							levels: cfD3Contour2d.draw.json2contour(file.data.vals.surfaces, ctrl.data.domain.thresholds),
+							format: {
+								parent: ctrl.figure.node(),
+								wrapper: undefined,
+								position: cfD3Contour2d.setupPlot.design(ctrl, file),
+								domain: ctrl.data.domain,
+								color: function(d){ return ctrl.tools.scales.val2clr(d.value) }
+							}
+						} // item
+						
+					
+					} // if
+					
+					return item
+				}) // items
+				  
+				  
+				// Positioning needs to be re-done to allow for update to add cards. Position the new cards below the existing cards.
+				positioning.newCard(ctrl)
+				
+				
+			}, // getContours
+			
+			json2contour: function json2contour(surface, thresholds){
+			  // Create the contour data
+			  return d3.contours()
+						.size(surface.size)
+						.thresholds(thresholds)
+						(surface.v)
+			}, // json2contour
+
+
+			dimension: function dimension(iw, ih, dx, dy, dataAR){
+				// Calculates the inner dimensions of a contour plot card, which depend on the data aspect ratio, and the dimensions of the card.
+				
+				// Specify a margin to the card sides, and the title of hte card.
+				// 24px for title, 10px for resize controls. The minimum height of the card in px is the title width plus 30px.
+				let margin = {y: 7, x: 7}
+				let title = 24 + 10
+				
+				// Calculate proposed card dimensions
+				let divHeight = ih*dy
+				let divWidth = iw*dx
+				let divAR = divHeight/divWidth
+				let innerHeight = divHeight - 2*margin.y - title
+				let innerWidth = divWidth - 2*margin.x
+				
+				return {ix: undefined,
+						iy: undefined,
+						iw: iw, 
+						ih: ih, 
+						w: divWidth,
+						h: divHeight,
+						sw: innerHeight / dataAR,
+						sh: innerHeight,
+						minW: dx,
+						minH: title + 30,
+						ar: innerHeight / innerWidth
+				}
+				
+				
+				
+				
+				
+			}, // dimension
+			
+			projection: function projection(file){
+				// The projection is only concerned by plotting the appropriate contour level points at the appropriate x and y positions. That is why the projection only relies on x and y data, and can be computed for all contours at the same time, if they use the same x and y locations.
+
+				let xscale = d3.scaleLinear()
+						.domain( file.format.domain.x )
+						.range( [0, file.format.position.sw] );
+
+				let yscale = d3.scaleLinear()
+						.domain( file.format.domain.y ) 
+						.range( [file.format.position.sh, 0] );
+				
+				let x = file.data.vals.surfaces.x;
+				let y = file.data.vals.surfaces.y;
+				let m = file.data.vals.surfaces.size[0];
+				let n = file.data.vals.surfaces.size[1];
+
+				// configure a projection to map the contour coordinates returned by
+				// d3.contours (px,py) to the input data (xgrid,ygrid)
+				let p = d3.geoTransform( {
+					point: function( px, py ) {
+						let xfrac, yfrac, xnow, ynow;
+						let xidx, yidx, idx0, idx1, idx2, idx3;
+						// remove the 0.5 offset that comes from d3-contour
+						px = px - 0.5;
+						py = py - 0.5;
+						// clamp to the limits of the xgrid and ygrid arrays (removes "bevelling" from outer perimeter of contours)
+						px < 0 ? px = 0 : px;
+						py < 0 ? py = 0 : py;
+						px > ( n - 1 ) ? px = n - 1 : px;
+						py > ( m - 1 ) ? py = m - 1 : py;
+						// xidx and yidx are the array indices of the "bottom left" corner
+						// of the cell in which the point (px,py) resides
+						xidx = Math.floor(px);
+						yidx = Math.floor(py); 
+						xidx == ( n - 1 ) ? xidx = n - 2 : xidx;
+						yidx == ( m - 1 ) ? yidx = m - 2 : yidx;
+						// xfrac and yfrac give the coordinates, between 0 and 1,
+						// of the point within the cell 
+						xfrac = px - xidx;
+						yfrac = py - yidx;
+						// indices of the 4 corners of the cell
+						idx0 = xidx + yidx * n;
+						idx1 = idx0 + 1;
+						idx2 = idx0 + n;
+						idx3 = idx2 + 1;
+						// bilinear interpolation to find projected coordinates (xnow,ynow)
+						// of the current contour coordinate
+						xnow = (1-xfrac)*(1-yfrac)*x[idx0] + xfrac*(1-yfrac)*x[idx1] + yfrac*(1-xfrac)*x[idx2] + xfrac*yfrac*x[idx3];
+						ynow = (1-xfrac)*(1-yfrac)*y[idx0] + xfrac*(1-yfrac)*y[idx1] + yfrac*(1-xfrac)*y[idx2] + xfrac*yfrac*y[idx3];
+						this.stream.point(xscale(xnow), yscale(ynow));
+					} // point
+				}); // geoTransform
+				
+				return d3.geoPath( p );
+			} // projection
+
+			
+			
+			
+		}, // draw
+	
+		interactivity: {
+			
+			refreshContainerSize: function refreshContainerSize(ctrl){
+				
+				// There are 4 events that may prompt resisizing.
+				// 1: Moving plots
+				// 2: Resizing plots - cannot resize contour plot for now!!
+				// 3: Moving contours
+				// 4: Resizing contours
+				
+				if(ctrl.format.title !=undefined){
+					// Plot
+					cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+					
+				} else {
+					// Contour
+					
+					let contourPlot = d3.select(ctrl.format.parent)
+					let contourPlotCtrl = contourPlot.data()[0]
+					
+					cfD3Contour2d.interactivity.resizeOnInternalChange(contourPlotCtrl)
+					
+				} // if
+				
+				
+				
+			}, // refreshContainerSize
+
+			resizeOnInternalChange: function (ctrl){
+				// An internal change has occured that prompted the plot to be resized (contours were added, moved, or resized).
+				
+				let h = positioning.helpers
+				let f = ctrl.format
+				
+				let titleDOM = f.wrapper.select("div.plotTitle").node()
+				let rightControlSize = f.wrapper.select("svg.rightControlSVG").node().getBoundingClientRect()
+				let rightControlY = f.rightControls.format.position.iy * positioning.dy( d3.select(f.rightControls.format.parent) )
+				
+				// Update the plot, AND the plot row. When updating the plot row also the other plots need to be repositioned on the grid.
+				
+				// Needs to update:
+  				// 1 plot (div.plot holding the contours), 
+				// 2 plotWrapper (containing hte whole plot)
+				// 3 plotRowBody (containing the plot). 
+				// 4 other plots of hte plot row need to be repositioned.
+				
+				// First update the size of the contour plotting area. Based on this size update the plot wrapper. Based on the new plot wrapper size update the plot row.
+				
+
+				
+				// Get the required height for the contour plot area.
+				let titleHeight = titleDOM.offsetHeight
+				let plotHeight = h.findContainerSize(ctrl.figure, ".contourWrapper")
+				let colorbarHeight = rightControlY + rightControlSize.height
+				let figureHeight = colorbarHeight > plotHeight ? colorbarHeight : plotHeight
+				
+				// Size the plotWrapper appropriately.
+				let dx = positioning.dx( d3.select( f.parent ) )
+				let dy = positioning.dy( d3.select( f.parent ) )
+				let ih = Math.ceil( (figureHeight + titleHeight) / dy) 
+				ih = ih < 4 ? 4 : ih
+				
+				f.position.ih = ih 
+				f.wrapper.style("height", ih*dy + "px" )
+				ctrl.figure.style("height", (ih*dy - titleHeight) + "px" )
+				
+
+				
+				
+				// Reposition other on-demand plots and size the plot row accordingly.
+				cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+				
+				
+				
+				
+			}, // resizeOnInternalChange
+			
+			resizeOnExternalChange: function resizeOnExternalChange(plotCtrl){
+				// An external change occured - the plot was moved or resized.
+				
+				// The contour plot is not allowed to clash with other plots. Once an appropriate sizing logic will be selected and implemented this can be relaxed. Therefore when it is moved or resized other plots in the same plot row need to be repositioned.
+				
+				// If the body of the plot moves, then hte other plots must also move.
+				positioning.helpers.repositionSiblingPlots(plotCtrl)
+				
+				// Update the plot row height itself.
+				let plotRowBody = d3.select(plotCtrl.format.parent)
+				builder.refreshPlotRowHeight(plotRowBody)
+				
+				
+			}, // resizeOnExternalChange
+			
+			rightControls: {
+				// Move everything related to the right controls here!!
+				update: function update(ctrl){
+					
+					let c = ctrl.format.rightControls.colorbar
+					let s = ctrl.tools.scales
+					
+					// Needs to primarily update teh colorbar.
+					let gBarAxis = c.svg.select("g.gBarAxis")
+					gBarAxis.call( d3.axisLeft( s.val2px ) )
+					
+					
+					// Update the threshold indicator positions.
+					c.svg.select("g.gBarLevels").selectAll("rect")
+					  .data( ctrl.data.domain.thresholds )
+				      .attr("y", d => s.val2px(d) )
+				      
+					// Update the contour data. For this the levels need to be recalculated.
+					ctrl.data.plotted.forEach(function(item){
+						item.levels = cfD3Contour2d.draw.json2contour(item.data.vals.surfaces, ctrl.data.domain.thresholds)
+					})
+					
+					// Update teh contour graphics.
+					cfD3Contour2d.draw.cards(ctrl)
+					
+					
+				}, // update
+				
+				
+				histogramBrushMove: function histogramBrushMove(ctrl){
+					
+					let s = ctrl.tools.scales
+					let extent = d3.event.selection.map(s.val2px_.invert, s.val2px_);
+				
+				    // Change the colorbar appearance by changing the scale.
+
+					
+					// This needs to figure out the new thresholds, and then update all the contours.
+					cfD3Contour2d.setupPlot.setupThresholds(ctrl, extent)
+					cfD3Contour2d.setupPlot.setupColorbarTools(ctrl)
+					
+					// Now update the right control group
+					cfD3Contour2d.interactivity.rightControls.update(ctrl)
+					
+				}, // histogramBrushMove
+				
+				interactivity: {
+					
+					refreshContainerSize: function refreshContainerSize(rightControlCtrl){
+					
+						// Has to take the right controls object, and resize the plot. First extract the ctrl for the whole plot, and then resize.
+						
+						let plotCtrl = rightControlCtrl.format.wrapper.data()[0]
+						
+						// Resize the plot.
+						cfD3Contour2d.interactivity.resizeOnInternalChange(plotCtrl)
+						
+						
+						// Resize the plot row.
+						let plotRowBody = d3.select(plotCtrl.format.parent)
+						builder.refreshPlotRowHeight(plotRowBody)
+						
+					}, // refreshContainerSize
+					
+					
+				}, // interactivity
+				
+				
+				
+			}, // rightControls
+
+			
+		}, // interactivity
+		
+		helpers: {
+		
+			// Initialisation
+			createDefaultControl: function createDefaultControl(){
+			
+				// data:
+				 
+				// • .promises are promises completed before drawing the graphics.
+				// • .requested is an array of urls whose data are requested by the plotting tool. These need not be the same as the data in promises as those are loaded on user prompt!
+				// • .available is an array of urls which were found in the central booking,
+				// • .missing                              NOT found
+				// • .dataProperties is a string array of properties found in the data.
+				// • .data is an array of n-data arrays of the n-task slice files.
+				
+				
+				var ctrl = {
+				    plotFunc: cfD3Contour2d,
+					figure: undefined,
+					svg: undefined,
+					grid: {nx: 12},
+					data: {plotted: [],
+						   promises: [],
+					       requested: [],
+						   available: [],
+						   duplicates: [],
+					       missing : [],
+						   compatible: [],
+						   incompatible: [],
+						   intersect: [],
+						   domain: {
+							   x: undefined,
+							   y: undefined,
+							   v: undefined,
+							   ar: undefined,
+							   thresholds: undefined,
+							   nLevels: undefined,
+						   },
+						   processor: importExportFunctionality.importing.contour2d
+					       },
+					view: {sliceId: undefined,
+					       options: [],
+						   viewAR: NaN,
+						   dataAR: NaN,
+						   xVarOption: undefined,
+						   yVarOption : undefined,
+						   cVarOption : undefined,
+						   transitions: {
+								duration: 500,
+								updateDelay: 0,
+								enterDelay: 0								
+							   },
+						   t: undefined
+						   },
+					tools: {
+							scales: {
+								px2clr: undefined,
+								val2clr: undefined,
+								val2px: undefined,
+								val2px_: undefined,
+								bin2px: undefined
+							}
+						},
+					format: {
+						title: "Edit title",
+						parent: undefined,
+						wrapper: undefined,
+						position: {
+							ix: 0,
+							iy: 0,
+							iw: 12,
+							ih: 4,
+							minH: 290,
+							minW: 340,
+							titleHeight: undefined,
+							plotHeight: undefined,
+							plotWidth: undefined,
+							rightControlWidth: 170
+						},
+						rightControls: {
+							plotFunc: cfD3Contour2d.interactivity.rightControls,
+							grid: {nx: 1},
+							format: {
+								parent: undefined,
+								wrapper: undefined,
+								position: {
+									ix: 0,
+									iy: 0,
+									iw: 12,
+									ih: undefined							
+								},
+							},							
+							colorbar: {
+								margin: {top: 20, bottom: 20, left: 10, right: 5},
+								svg: undefined,
+								height: undefined,
+								width: undefined,
+								x: undefined,
+								y: undefined,
+							}, // colorbar
+							histogram: {
+								margin: {top: 20, bottom: 20, left: 5, right: 10},
+								svg: undefined,
+								height: undefined,
+								width: undefined,
+								x: undefined,
+								y: undefined,
+								bins: undefined
+							} // histogram
+						}
+					}
+				} // ctrl
+				
+				
+				return ctrl
+			
+			}, // createDefaultControl
+		
+			createLoadedControl: function createLoadedControl(plotData){
+				
+				var ctrl = cfD3Contour2d.helpers.createDefaultControl()
+				
+				// If sliceId is defined, check if it exists in the metadata. If it does, then store it into the config.
+				if(plotData.sliceId != undefined){
+					// Needs to check the slice properties that this plot cal draw. 
+					if(dbsliceData.data.contour2dProperties.includes(plotData.sliceId)){
+						ctrl.view.sliceId = plotData.sliceId
+					} // if
+				} // if
+				
+				// When the session is loaded all previously existing plots would have been removed, and with them all on demand loaded data. Therefore the variables for this plot cannot be loaded, as they will depend on the data.
+											
+				return ctrl
+				
+				
+			}, // createLoadedControl
+			
+			writeControl: function writeControl(ctrl){
+				
+				var s = ""
+				s = s + '{';
+				s = s + '"type": "' + ctrl.plotFunc.name + '", ';
+				s = s + '"title": "' + ctrl.format.title + '"';
+				  
+				  
+				// For metadata plots at least the x variable will be available from the first draw of the plot. For scatter plots both will be available.
+				// Slice plots have the user select the data SOURCE, as opposed to variables, and therefore these will be undefined when the plot is first made. For slice plots a sliceId is stored.
+				  
+				var sliceId = accessProperty( ctrl.view, "sliceId" )
+				
+				s = s + writeOptionalVal("sliceId", sliceId)
+				
+				s = s + '}';
+				
+				return s
+				
+				function writeOptionalVal(name, val){
+					var s_ = ""
+					if (val !== undefined) {
+					  s_ = s_ + ', ';
+					  s_ = s_ + '"' + name + '": "' + val + '"';
+					} // if
+					return s_
+					
+				} // writeOptionalVal
+				
+				function accessProperty(o,p){
+					// When accessing a property of the child of an object it is possible that the child itself is undefined. In this case an error will be thrown as a property of undefined cannot be accessed.
+					// This was warranted as the line plot has it's x and y options left undefined until data is laoded in.
+					return o==undefined? undefined : o[p]
+				} // accessProperty
+				
+			}, // writeControl
+			
+			// Interactivity
+			transitions: {
+				instantaneous: function instantaneous(){
+				
+					return {
+						duration: 0,
+						updateDelay: 0,
+						enterDelay: 0
+					}
+				
+				}, // instantaneous
+				
+				animated: function animated(){
+				
+					return {
+						duration: 500,
+						updateDelay: 0,
+						enterDelay: 0
+					}
+				
+				} // animated
+			}, // transitions
+		
+
+			// Functions supporting cross plot highlighting
+			unhighlight: function unhighlight(ctrl){
+				
+				
+				
+			}, // unhighlight
+			
+			highlight: function highlight(ctrl, allDataPoints){
+				
+				
+				
+				
+				
+			}, // highlight
+			
+			defaultStyle: function defaultStyle(ctrl){
+					
+				
+				
+			}, // defaultStyle
+		
+			
+			
+		
+		} // helpers
+	
+		
+	} // cfD3Contour2d
+	
 	
 	// Plot creation abstract object.
     var plotHelpers = {
@@ -4487,11 +6617,9 @@ var dbslice = (function (exports) {
 					f.parent = this._parent
 					let dx = positioning.dx( d3.select(f.parent) )
 					let dy = positioning.dy( d3.select(f.parent) )
-	
-	
 					
-					  
-					var plot = d3.select(this)
+	
+					var wrapper = d3.select(this)
 					  .append("div")
 						.attr("class", "plotWrapper")
 						.attr("plottype", plotCtrl.plotFunc.name)
@@ -4500,6 +6628,8 @@ var dbslice = (function (exports) {
 						.style("top"   , f.parent.offsetTop + f.position.iy*dy + "px")
 						.style("width" , f.position.iw*dx + "px")
 						.style("height", f.position.ih*dy + "px")
+						
+					var plot = wrapper
 					  .append("div")
 					    .attr("class", "card")
 
@@ -4521,6 +6651,7 @@ var dbslice = (function (exports) {
 					// Add the actual title
 					plotHeader
 					  .append("div")
+					    .attr("class", "title")
 						.attr("style","display:inline")
 						.html(plotCtrl.format.title)
 						.attr("spellcheck", "false")
@@ -4551,8 +6682,9 @@ var dbslice = (function (exports) {
 						
 					// Bind the DOM element to the control object.
 					plotCtrl.figure = plotBody
+					plotCtrl.format.wrapper = wrapper
+
 					
-					// Make the plot draggable.
 					
 					
 					// Draw the plot
@@ -4917,11 +7049,12 @@ var dbslice = (function (exports) {
 					// USE THIS RESTANGLE AS THE clipPAth too??
 					var background = svg
 						.select("g.background")
-							
+						
+					// At some point this didn't work:
+					// .attr("clipPathUnits","objectBoundingBox")
 					background
 						.append("clipPath")
 							.attr("id", "zoomClip")
-							.attr("clipPathUnits","objectBoundingBox")
 						.append("rect")
 					background.append("rect")
 						.attr("class", "zoom-area")
@@ -5041,14 +7174,15 @@ var dbslice = (function (exports) {
 									
 									// Update the corresponding ctrl attribute.
 									// 'option' is a reference to either a manually created option in 'update', or a reference to an actual option in 'ctrl.view.options'.
-									option.val = option.val == d ? undefined : d;
+									var optionSame = option.val == d
+									option.val = optionSame ? undefined : d;
 									
 									// If a special event is specified, execute it here. This event might require to know the previous state, therefore execute it before updating the state.
 									if(option.event != undefined){
 										
 										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
 										
-										option.event(ctrl, option.val)
+										option.event(ctrl, option.val, optionSame)
 										
 										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
 									} // if
@@ -5075,47 +7209,6 @@ var dbslice = (function (exports) {
 					
 					}, // update
 					
-					options: {
-					
-						toggleAR: function toggleAR(ctrl){
-							// This should stick to the ange specified by the user.
-							
-							
-							if(ctrl.view.viewAR == 1){
-								ctrl.view.viewAR = ctrl.view.dataAR
-							} else {
-								ctrl.view.viewAR = 1
-							} // if
-							
-							// When adjusting the AR the x domain should stay the same, and only the y domain should adjust accordingly. The bottom left corner should not move.
-							
-							// How many pixels per dx=1
-							var xRange = ctrl.tools.xscale.range()
-							var yRange = ctrl.tools.yscale.range()
-							var xDomain = ctrl.tools.xscale.domain()
-							var yDomain = ctrl.tools.yscale.domain()
-							
-							var xAR = (xRange[1] - xRange[0]) / (xDomain[1] - xDomain[0])
-							var yAR = xAR/ctrl.view.viewAR
-							var yDomainRange = [yRange[0] - yRange[1]] / yAR
-							var yDomain_ = [yDomain[0], 
-											yDomain[0] + yDomainRange]
-							
-							
-							ctrl.tools.yscale.domain( yDomain_ )
-							
-							
-							
-							// t is the transformation vector. It's stored so that a delta transformation from event to event can be calculated. -1 is a flag that the aspect ratio of the plot changed.
-							ctrl.view.t = -1
-							
-							
-							ctrl.plotFunc.update(ctrl)
-							
-						} // toggleAR
-					
-					}, // options
-				
 					helpers: {
 						
 						
@@ -5304,8 +7397,9 @@ var dbslice = (function (exports) {
 							// Perform the regular task for y-select.
 							plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar)
 							
-							// Perform tasks required on both vertical and horizontal select changes, but that are only valid for plots with 2 interactive axes.
-							plotHelpers.setupInteractivity.twoInteractiveAxes.onSelectChange.common(ctrl)
+
+							// Perform other needed tasks and refresh.
+							ctrl.plotFunc.interactivity.onSelectChange(ctrl)
 						
 						} // return
 						
@@ -5322,27 +7416,13 @@ var dbslice = (function (exports) {
 							ctrl.view.xVarOption.val = selectedVar
 							
 							// Perform other needed tasks and refresh.
-							plotHelpers.setupInteractivity.twoInteractiveAxes.onSelectChange.common(ctrl)
+							ctrl.plotFunc.interactivity.onSelectChange(ctrl)
+							
 						} // return
 						
 					}, // horizontal
 					
-					common: function common(ctrl){
-						
-						// Reset the AR values.
-						ctrl.view.dataAR = undefined
-						ctrl.view.viewAR = undefined
-						
-						// Update the plot tools
-						plotHelpers.setupTools.go(ctrl)
-						
-						// Update transition timings
-						ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
-						
-						// Update plot itself
-						ctrl.plotFunc.refresh(ctrl)
-						
-					}, // common
+					
 					
 					
 				}, // onSelectChange
@@ -5364,7 +7444,8 @@ var dbslice = (function (exports) {
 						mw = Number( svg.select("g.data").attr("width") )
 						mh = Number( svg.select("g.data").attr("height") )
 						
-						var p = d3.event.x;
+						let axisXDOM = svg.select("g.axis--x").node()
+						var p = d3.mouse(axisXDOM)[0];
 						downx = ctrl.tools.xscale.invert(p);
 						downscalex = ctrl.tools.xscale;
 						
@@ -5375,7 +7456,8 @@ var dbslice = (function (exports) {
 						mw = Number( svg.select("g.data").attr("width") )
 						mh = Number( svg.select("g.data").attr("height") )
 						
-						var p = d3.event.y;
+						let axisYDOM = svg.select("g.axis--y").node()
+						var p = d3.mouse(axisYDOM)[1];
 						downy = ctrl.tools.yscale.invert(p);
 						downscaley = ctrl.tools.yscale;
 						
@@ -5386,27 +7468,43 @@ var dbslice = (function (exports) {
 					
 					svg
 					  .on("mousemove", function(d) {
+						  
+						let axisXDOM = d3.select(this).select("g.axis--x").node()
+						let axisYDOM = d3.select(this).select("g.axis--y").node()
 						
 						if (!isNaN(downx)) {
-						  var px = d3.event.x
-						  var dpx = d3.event.dx
-						  if (dpx != 0) {
-							ctrl.tools.xscale.domain([downscalex.domain()[0],  mw * (downx - downscalex.domain()[0]) / px + downscalex.domain()[0]]);
+						  var px = d3.mouse( axisXDOM )[0]
+						  if (downscalex(px) != downx) {
+							// Here it would be great if the dragged number would move to where the cursor is.
+							
+							//let tx = ctrl.view.t.x
+							//let tv = downscalex.invert( tx )
+							//let vb = tv + ( downx - tv )/( px - tx )*( mw - tx )
+							//let va = tv - ( downx - tv )/( px - tx )*tx
+							
+							let va = downscalex.domain()[0]
+							let vb = mw * (downx - downscalex.domain()[0]) / px + downscalex.domain()[0]
+							  
+							ctrl.tools.xscale.domain([ va,  vb ]);
 						  } // if
 						  
-						  handleRedraw()
+						  // Execute redraw
+						  ctrl.plotFunc.interactivity.dragAdjustAR(ctrl)
 						  
 						} // if
 						
 						
 						if (!isNaN(downy)) {
-						  var py = d3.event.y
-						  var dpy = d3.event.dy
-						  if (dpy != 0) {
-							ctrl.tools.yscale.domain([downscaley.domain()[0],  mh * ( downy - downscaley.domain()[0]) / (mh - py) + downscaley.domain()[0]])
+						  var py = d3.mouse( axisYDOM )[1]
+						  if (downscaley(py) != downy) {
+							ctrl.tools.yscale.domain([
+								downscaley.domain()[0],  
+								mh * ( downy - downscaley.domain()[0]) / (mh-py) + downscaley.domain()[0] 
+							])
 						  } // if
 						  
-						  handleRedraw()
+						  // Execute redraw
+						  ctrl.plotFunc.interactivity.dragAdjustAR(ctrl)
 							
 						} // if
 						
@@ -5414,21 +7512,12 @@ var dbslice = (function (exports) {
 					  .on("mouseup", function(d) {
 						downx = Math.NaN;
 						downy = Math.NaN;
-						
+						// When the domain is manually adjusted the previous transformations are no longer valid, and to calculate the delta at next zoom event the transformation needs to be reinitiated.
 						ctrl.view.t = -1
 					  });
 					  
 					  
-					  // Helpers
-					  function handleRedraw(){
-					  
-							// Transitions
-							ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
-						  
-							// Create dummies.
-							ctrl.plotFunc.update(ctrl)
-					  
-					  } // handleRedraw
+
 									
 						 
 					  
@@ -5490,8 +7579,8 @@ var dbslice = (function (exports) {
 							
 							
 							// Update the plot
-							// Create dummies.
 							ctrl.plotFunc.refresh(ctrl)
+							
 							
 						} // if
 						
@@ -5856,7 +7945,7 @@ var dbslice = (function (exports) {
 						// Collect all the relevant data points by tskId.
 						var cfDataPoints = dbsliceData.data.taskDim.top(Infinity)
 						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.task.taskId});
-						// console.log(allDataPoints);
+						
 					  break;
 					  
 					  					  
@@ -5899,26 +7988,46 @@ var dbslice = (function (exports) {
             
             elementOptionsArray: function(plotRowType){
                 
-                var options;
+				let d = dbsliceData.data
+				
+                var options = [{val: "undefined"    , text: " "}];
                 switch(plotRowType){
                     case "metadata":
-                        options = [
-                            {val: "undefined"    , text: " "},
-                            {val: "cfD3BarChart" , text: "Bar Chart"},
-                            {val: "cfD3Scatter"  , text: "Scatter"},
-                            {val: "cfD3Histogram", text: "Histogram"}
-                        ]
+					
+						if( existsAndHasElements(d.metaDataProperties) ){
+							options.push( {val: "cfD3BarChart" , text: "Bar Chart"} )
+						}
+						
+						if( existsAndHasElements(d.dataProperties) ){
+							options.push( {val: "cfD3Scatter"  , text: "Scatter"} )
+							options.push( {val: "cfD3Histogram", text: "Histogram"} )
+						}
                         break;
                     
                     case "plotter":
-                        options = [
-                            {val: "undefined"    , text: " "},
-                            {val: "cfD3Line"     , text: "Line"}
-                        ]
+					
+						if( existsAndHasElements(d.line2dProperties) ){
+							options.push( {val: "cfD3Line"     , text: "Line"} )
+						}
+					
+						if( existsAndHasElements(d.contour2dProperties) ){
+							options.push( {val: "cfD3Contour2d", text: "2D Contour"} )
+						}
+					
                         break;
                 }; // switch
                 
                 return options;
+				
+				
+				
+				function existsAndHasElements(A){
+					let response = false
+					if(A){
+						response = A.length > 0
+					}
+					return response
+				}
                 
             },
                             
@@ -6048,7 +8157,17 @@ var dbslice = (function (exports) {
 						
                       break;
 					  
-					  
+					case "cfD3Contour2d":
+                    
+                        // The user selected variable to plot is stored in config.newCtrl, with all other user selected variables. However, for this type of plot it needs to be one level above, which is achieved here.
+                        // Store the currently selected slice, then push everything forward.
+                        
+                    
+                        plotCtrl = cfD3Contour2d.helpers.createDefaultControl()
+						
+						plotCtrl.view.sliceId = config.newCtrl.slice
+						
+                      break;  
 					
                       
 
@@ -6130,6 +8249,12 @@ var dbslice = (function (exports) {
                         disabledFlag = false;
                     
                       break;
+					  
+					case "cfD3Contour2d":
+                        // Nothing else is needed, just enable the submit button.
+                        disabledFlag = false;
+                    
+                      break;
                       
                     default :
                         // Disable
@@ -6204,9 +8329,17 @@ var dbslice = (function (exports) {
 					  
 					  
 					  // slice is required.
-					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.sliceProperties, "Select variable");
+					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.line2dProperties, "Select variable");
 					  break;
 					  
+					case "cfD3Contour2d":
+					  
+					  
+					  // slice is required.
+					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.contour2dProperties, "Select variable");
+					  break;
+					  
+					
 					  
 					default :
 					 
@@ -6253,7 +8386,7 @@ var dbslice = (function (exports) {
 				})[0]
 				
 				// Position the new plot row in hte plot container.
-				plotToPush = positioning.newPlot(plotRow, plotToPush)
+				positioning.newPlot(plotRow, plotToPush)
 				
 				
 				plotRow.plots.push(plotToPush)
@@ -6261,7 +8394,7 @@ var dbslice = (function (exports) {
                 
                 // Add the new plot to the session object. How does this know which section to add to? Get it from the parent of the button!! Button is not this!
                 // var plotRowIndex = d3.select(this).attr("plot-row-index")
-                // console.log(element)
+                
                 
                 // Redraw the screen.
                 render();
@@ -6537,8 +8670,14 @@ var dbslice = (function (exports) {
 					  
 					  // button -> plotrowTitle -> plotRow
 					  this.parentElement.parentElement.remove()
+					  
+					  // Remove any filters that have been removed.
+					  filter.remove()
+					  filter.apply()
 
-					 
+					  // Re-render the view
+					  render()
+					  
 				  }); // on
 				
 				
@@ -7027,7 +9166,7 @@ var dbslice = (function (exports) {
 					.attr("id", "refreshTasksButton")
 					.html("Plot Selected Tasks")
 					.on("click", function () {
-						refreshTasksInPlotRows();
+						cfDataManagement.refreshTasksInPlotRows();
 					});
 			} // if
 
@@ -7252,7 +9391,10 @@ var dbslice = (function (exports) {
 			
 			// Update any new plots
 			plots
-			  .each(function(plotCtrl){plotCtrl.plotFunc.update(plotCtrl)});
+			  .each(function(plotCtrl){
+				  plotCtrl.view.transitions = plotCtrl.plotFunc.helpers.transitions.animated()
+				  plotCtrl.plotFunc.update(plotCtrl)
+			  });
 			  
 			  
 			// Adjust the plot row height
@@ -7272,22 +9414,11 @@ var dbslice = (function (exports) {
 		
 		refreshPlotRowHeight: function refreshPlotRowHeight(plotRowBody){
             
-            // MAYBE THERE SHOULD BE A MARGIN IMPLEMENTED INSTEAD??
-            
-            let dy = positioning.dy(plotRowBody)
-            
-            // Index of the lowest plot bottom.
-            var ih = 0
-            plotRowBody
-              .selectAll(".plotWrapper")
-              .each(function(d){
-                  let ipb = d.format.position.iy + d.format.position.ih
-                  ih = ipb > ih ? ipb : ih
-            })
+            var plotRowHeight = positioning.helpers.findContainerSize(plotRowBody, ".plotWrapper")
             
             // Adjust the actual height.
-            if(ih*dy != plotRowBody.node().offsetHeight){
-                plotRowBody.style("height", (ih*dy + 20) + "px")
+            if(plotRowHeight != plotRowBody.node().offsetHeight){
+                plotRowBody.style("height", plotRowHeight + "px")
             }
             
         }, // refreshPlotRowHeight
@@ -7295,7 +9426,7 @@ var dbslice = (function (exports) {
 		refreshPlotRowWidth: function refreshPlotRowWidth(plotRowBody){
             
             // Adjust all plots to the new grid.
-            console.log(plotRowBody)
+            
 			let dy = positioning.dy(plotRowBody)
 			let dx = positioning.dx(plotRowBody)
 			
@@ -7388,7 +9519,7 @@ var dbslice = (function (exports) {
 			dbsliceData.elementId = elementId;
 			
 
-			// The state is ready.
+			// The state is ready. 
 			resolve("")
 			
 			
@@ -7404,7 +9535,7 @@ var dbslice = (function (exports) {
 			render()
 			},
 			function(error){
-				// The reject hasn't been called, so this shouldn't run at all.
+				// The reject hasn't been called, so this shouldn't run at all. See info in `dataInitPromise'.
 				console.log("I shouldn't have run, why did I?")
 			})
 		  
@@ -7417,176 +9548,6 @@ var dbslice = (function (exports) {
     
 
 
-
-	// Merge with data management, import/export
-    function refreshTasksInPlotRows() {
-        // Collect all files that need to be loaded, create promises for them and store them into plot promise arrays that can be used to signal to the plot functions when they can update themselves.
-		
-		// It is expected that the individual plot controls have the sliceId specified in 'ctrl.view.sliceId', and that they have the promises stored under 'ctrl.data.promises'.
-		
-		// 'dbsliceData.flowData' will contain references to all promises created, and will keep track of the individual file promises. 'plotPromise' is an array of promises constructed for individual plots, and should trigger the redraw on completion of promise.
-		
-		
-		// First do an inventory check of the central booking, and clear out unnecessary items.
-		
-		
-		
-		// Collect all the files that need to be loaded. Note that the files are individual properties of the records in the crossfilter.
-		var filteredTasks = dbsliceData.data.taskDim.top(Infinity)
-		
-		
-		// Collect all the required, and loaded files, and identify which, if any, files in the central booking will be redundant, and clear them out.
-		var allRequiredUrls = collectAllRequiredFiles(filteredTasks)
-		var allLoadedUrls = dbsliceData.flowData.map(function(file){return file.url})
-		
-		var redundantFiles = dbsliceData.flowData.filter(function(loadedFile){
-			// Files are redundant if the refresh does not need them, or if their data could not be loaded, in which case a repeated attempt to laod them should be launched.
-			var urlNoLongerRequired = !allRequiredUrls.includes(loadedFile.url)
-			var urlWasRejected = loadedFile.data == undefined
-			return urlNoLongerRequired || urlWasRejected
-		})
-		
-		
-		
-		// Clear the redundant files out of central booking.
-		redundantFiles.forEach(function(redundantFile){
-			var redundantFileInd = indexOfAttr(dbsliceData.flowData, "url", redundantFile.url)
-			dbsliceData.flowData.splice(redundantFileInd,1)
-		}) // redundantUrls
-		
-		
-		
-		
-		// Create the actual promises to be stored in the central booking. This is a duplicative loop over the existing promises because the plot ctrl assigns the data processor function, which 'collectAllRequiredFiles' does not collect.
-		dbsliceData.session.plotRows.forEach(function(plotRowCtrl, i){
-		
-			// Only consider plots for loading if the plot row is a "plotter". In future this could be moved to the actual plot ctrl's themselves and they could say whether they're expecting data from outside or not.
-			if(plotRowCtrl.type == "plotter"){
-				
-			plotRowCtrl.plots.forEach(function(plotCtrl, j){
-		  
-		    
-				// Loop over all the files that will be required for this plot.
-				var sliceId = plotCtrl.view.sliceId
-				var requiredFiles = filteredTasks.map(function(d){return d[sliceId] })
-				
-				// For this particular plot all promises must be made, and a record tracked.
-				var plotPromise = []
-				var file = undefined
-				
-				requiredFiles.forEach(function(url, k){
-				
-					// The loaded files must be updated to prevent duplicate loading.
-					file = undefined
-					var loadedFiles = dbsliceData.flowData.map(function(d){return d.url})
-				
-				
-					// Check if a promise to this file has already been created.
-					var fileIndex = loadedFiles.indexOf( url )
-					if( fileIndex < 0 ){
-						console.log("loading: " + url)
-						// Promise for this file does not yet exist. Create it, store a reference in 'dbsliceData.flowData', and another in the 'plotCtrl.data.promises'. The storing into 'dbsliceData.flowData' is done in the makeFilePromise already. The storing in the plot ctrl is done to allow the plotting function itself to identify any differences between the plotted state and the tasks selected in hte filter. This is useful if the plots should communicate to the user that they need to be updated.
-						file = makeFilePromise( url, plotCtrl.data.processor )
-						
-					} else {
-					
-						file = dbsliceData.flowData[fileIndex]
-						
-					} // if
-					
-					plotCtrl.data.promises.push( file.promise )
-				
-				}) // forEach
-			
-			
-				// If a file is not found a rejected promise is stored. Therefore, if dbslice couldn't find the file, it will not look for it again. If it would instead search for it every time the refresh button is clicked, missing file issues could be resolved on the fly. However, if data is missing in the files the app must be reloaded so that the promises are cleared, so that on next load the new data is loaded too.
-				// It is important that the promises log themselves immediately, and remain in place in order to ensure no additional loading is scheduled. Therefore the central booking must clear out the rejected files AFTER all the promises have been processed. This is done when the "Plot Selected Tasks" button is pressed again. 
-				
-				
-				// Now that all the plot promises have been assembled, attach the event to run after their completion.
-				addUpdateOnPromiseCompletion(plotCtrl, sliceId, i, j)
-			
-		  
-		    }) // forEach
-			
-			} // if
-		
-		}) // forEach
-		
-		function makeFilePromise( url, processor ){
-			// Has to return an object {url: url, promise: Promise(url)}. Furthermore, the completion of the promise should store the data into this same object.
-			
-			var file = {  url: url,
-					  promise: undefined,
-					     data: undefined}
-			
-			// Create teh promise to load and process the data.
-			file = processor.createFilePromise(file)
-			
-			// Store the file into the central booking location.
-			dbsliceData.flowData.push( file )
-			
-			return file
-			
-		} // makeFilePromise
-		
-		function addUpdateOnPromiseCompletion(plotCtrl, sliceId, i, j){
-		
-			
-			Promise.all( plotCtrl.data.promises ).then(function(){
-				// The data has been loaded, start the plotting. How to pass in special parameters?
-				
-				console.log("Started plotting slice: "+sliceId+" ( plotRow:"+i+", plot: "+j+")")
-				
-				// INCORPORATE CALL TO DRAWING FUNCTION HERE
-				// Replace the redundant inputs with just the relevant plot control object. The control object should know which function it needs to invoke.
-				
-				// DUMMY FUNCTIONALITY!
-				// In the real version this should call either render, or simply the function update, depending on what happens upon plot configure. If plot configure already creates an empty plot this could just call the update. Otherwise this would call render directly.
-				plotCtrl.plotFunc.updateData(plotCtrl)
-				
-				
-				
-				
-				
-			})
-		
-		} // addUpdateOnPromiseCompletion
-      
-        function collectAllRequiredFiles(filteredTasks){
-		
-			var requiredUrls = []
-			dbsliceData.session.plotRows.forEach(function(plotRowCtrl){
-			
-				plotRowCtrl.plots.forEach(function(plotCtrl){
-			  
-				
-					// Loop over all the files that will be required for this plot.
-					if(plotCtrl.view.sliceId != undefined){
-						
-						requiredUrls = requiredUrls.concat( filteredTasks.map(function(d){
-							return d[ plotCtrl.view.sliceId ] 
-						}))
-					} // if
-			  
-			    }) // forEach
-			
-			}) // forEach
-		
-			return requiredUrls
-		} // collectAllRequiredFiles
-		
-		function indexOfAttr(array, attr, value) {
-			for(var i = 0; i < array.length; i += 1) {
-				if(array[i][attr] === value) {
-					return i;
-				}
-			}
-			return -1;
-		} // indexOfAttr
-		
-    } // refreshTasksInPlotRows
-	
 
 	// Merge with data management, import/export
     var filter = {
@@ -7879,11 +9840,15 @@ var dbslice = (function (exports) {
 		importing : {
 			// WIP: This has to be able to load in data from anywhere on the client computer, not just the server root.
 			
-			// WIP: It must be able to load in additional data. The user must be prompted to identify variables that are different in loaded, and to be loaded data.
+			
 			
 			// DONE: It must be able to load both csv and json fle formats.
 			
-			// DONE/WIP: Must prompt the user if the variables don't include those in existing plots. Solution: does not prompt the user, but for now just removed any incompatible plots. The prompt for the user to resolve the incompatibility is the next step.
+			// DONE: Must prompt the user if the variables don't include those in existing plots. Solution: does not prompt the user, but for now just removed any incompatible plots.
+			
+			// WIP: The user must be prompted to identify variables that are different in loaded, and to be loaded data.
+			
+			// DONE: Handle the case where the user attempts to load data, but selects a session json.
 			
 			metadata : function metadata(file, dataAction){
 				
@@ -7947,21 +9912,29 @@ var dbslice = (function (exports) {
 						break;
 						
 					case "json":
-						d3.json(url, function(metadata){
+						d3.json(url).then(function(metadata){
 							
-							// Add the source file to tha data
-							metadata.data.forEach(function(d){d.file = file.name})
+							// ERROR HANDLING: The metadata must have a `data' attribute that is an iterable. Otherwise show a prompt to the user.
+							if(helpers.isIterable(metadata.data)){
 							
+								// Add the source file to tha data
+								metadata.data.forEach(function(d){d.file = file.name})
+								
+								
+								// Change any backslashes with forward slashes
+								metadata.data.forEach(function(d){
+									importExportFunctionality.importing.helpers.replaceSlashes(d, "taskId");
+								}) // forEach
+								
+								// Store the data appropriately
+								actionOnInternalStorage(metadata)
+								
+								render();
 							
-							// Change any backslashes with forward slashes
-							metadata.data.forEach(function(d){
-								importExportFunctionality.importing.helpers.replaceSlashes(d, "taskId");
-							}) // forEach
-							
-							// Store the data appropriately
-							actionOnInternalStorage(metadata)
-							
-							render();
+							} else {
+								
+								window.alert("Selected .json file must have iterable property `.data'.")
+							} // if
 							
 						}) // d3.json
 						break;
@@ -7987,6 +9960,8 @@ var dbslice = (function (exports) {
 				// DONE: Must only load json files.
 				
 				// WIP: Must prompt the user if the variables don't include those in loaded data.
+				
+				
 
 				var h = importExportFunctionality.importing.helpers
 			
@@ -8050,79 +10025,48 @@ var dbslice = (function (exports) {
 					
 				}, // createFilePromise
 				
-				
-				
-				
-				
-				
-				
-				// MOVE TO THE LIBRARY INSTEAD!!
-				// But at the moment there is no special library. There is only the attribute in the dbsliceData object.
-				getLineDataVals: function getLineDataVals(file, ctrl){
-					// Make a distinction between accessing explicit and implicit data files.
-					
-					var f = helpers.findObjectByAttribute
-					
-					// Available properties after applying all the options.
-					// Retrieve the properties
-					var properties = file.data.properties
-				
-					// Apply all user selected options.	
-					ctrl.view.options.forEach(function(option){
-						properties = f( properties, option.name, [option.val], false)
-					})
-					
-					var xProperties = f(properties,"varName",ctrl.view.xVarOption.val,true)
-					var yProperties = f(properties,"varName",ctrl.view.yVarOption.val,true)
-					
-					
-					// Assemble the names of the properties to plot.
-					var plotData
-					switch( file.data.type ){
-						case "explicit":
-							// The options in the ctrl cannot be associated with the actual variable names in the files. The same menu options may correspond to different file variables if the sub-part of the file selected changes.
-
-						
-							plotData = file.data.vals.map(function(d){
-								return {x: d[xProperties.val], y: d[yProperties.val]}
-							})
-							break;
-							
-						case "implicit":
-							// Handle the combination of ps/ss, and x/y.
-							// NOTE THAT SS PS IS OPTIONAL! HANDLE THIS SEPARATELY AS WELL!!
-							var xSS = f(xProperties,"side", ["ss"], true)
-							var xPS = f(xProperties,"side", ["ps"], true)
-							var ySS = f(yProperties,"side", ["ss"], true)
-							var yPS = f(yProperties,"side", ["ps"], true)
-						
-							var ss = file.data.vals.map(function(d){
-								return {x: d[xSS.val], y: d[ySS.val]}
-							})
-							var ps = file.data.vals.map(function(d){
-								return {x: d[xPS.val], y: d[yPS.val]}
-							})
-							
-							plotData = ss.concat(ps)
-							
-							break;
-					
-					} // switch
-					
-					plotData.task = file.task
-					
-					return plotData
-				
-				
-					
-					
-				}, // getLineDataVals
-				
-				
-				
 			}, // line
 		
-			
+			contour2d: {
+				
+				createFilePromise: function(file){
+					
+					var i = importExportFunctionality.importing.helpers
+					
+					// The extension must be either json or csv
+					var extension = file.url.split(".").pop()
+					
+					switch(extension){
+						case "json":
+						
+						   file.promise = d3.json(file.url).then(function(data){
+								file.data = i.json2contour2d( data )
+							}).catch(function(d){
+								console.log("Loading of a file failed.")
+							}) // d3.csv 
+						
+						  break;
+						  
+						  
+						case "csv":
+						    // Each row is a point, and can have multiple attributes. 
+						
+							file.promise = d3.csv(file.url).then(function(data){
+								file.data = i.csv2contour2d( data )
+							}).catch(function(d){
+								console.log("Loading of a file failed.")
+							}) // d3.csv 
+						
+						  break;
+						
+					} // switch
+					
+					return file
+					
+				}, // createFilePromise
+				
+
+			}, // contour2d
 			
 			
 			helpers: {
@@ -8169,8 +10113,8 @@ var dbslice = (function (exports) {
 					// Assemble dataProperties, and metadataProperties.
 					var dataProperties = [];
 					var metadataProperties = [];
-					var sliceProperties = [];
-					var contourProperties = [];
+					var line2dProperties = [];
+					var contour2dProperties = [];
 					
 					for(var i=0; i<headerNames.length;i++){
 						
@@ -8195,14 +10139,14 @@ var dbslice = (function (exports) {
 								break;
 							case "s":
 								// Slices
-								sliceProperties.push(variableNew);
+								line2dProperties.push(variableNew);
 								
 								h.renameVariables(metadata, variable, variableNew)
 								break;
 								
 							case "c2d":
 								// Contours
-								contourProperties.push(variableNew);
+								contour2dProperties.push(variableNew);
 								
 								h.renameVariables(metadata, variable, variableNew)
 							  
@@ -8230,8 +10174,8 @@ var dbslice = (function (exports) {
 						 header: {
 								  dataProperties :     dataProperties,
 							  metaDataProperties : metadataProperties,
-								 sliceProperties :    sliceProperties,
-							   contourProperties :  contourProperties,
+								 line2dProperties :    line2dProperties,
+							 contour2dProperties :  contour2dProperties,
 						 }
 					};
 					
@@ -8244,7 +10188,8 @@ var dbslice = (function (exports) {
 					// This only creates a function when there are somne properties for that function to use.
 					var isDataAvailable = dbsliceData.data.dataProperties.length > 0
 					var isMetadataAvailable = dbsliceData.data.metaDataProperties.length > 0
-					var isSliceDataAvailable = dbsliceData.data.sliceProperties.length > 0
+					var isLine2dDataAvailable = dbsliceData.data.line2dProperties.length > 0
+					var isContour2dDataAvailable = dbsliceData.data.contour2dProperties.length > 0
 					
 					var func;
 					switch(string){
@@ -8258,7 +10203,10 @@ var dbslice = (function (exports) {
 							func = isDataAvailable? cfD3Scatter : undefined;
 							break;
 						case "cfD3Line":
-							func = isSliceDataAvailable? cfD3Line : undefined;
+							func = isLine2dDataAvailable? cfD3Line : undefined;
+							break;
+						case "cfD3Contour2d":
+							func = isContour2dDataAvailable? cfD3Contour2d : undefined;
 							break;
 							
 						default :
@@ -8284,7 +10232,7 @@ var dbslice = (function (exports) {
 							var plotToPush = f.helpers.createLoadedControl(plotData)
 							
 							// Position the new plot row in hte plot container.
-							plotToPush = positioning.newPlot(plotRow, plotToPush)
+							positioning.newPlot(plotRow, plotToPush)
 						
 							plotRow.plots.push(plotToPush);
 							
@@ -8358,7 +10306,7 @@ var dbslice = (function (exports) {
 				}, // assembleSession
 				
 				
-				// CFD3LINE
+				// ON-DEMAND VARIABLES
 				handlePropertyNames: function handlePropertyNames(properties){
 			
 					// NOTES
@@ -8603,9 +10551,7 @@ var dbslice = (function (exports) {
 						return commonTokens.includes("axis")? "explicit" : "implicit"
 					
 					} // getVariableDeclarationType
-					
-					
-					
+									
 					function getFlowVarOptions(properties_, type){
 						// 'getFlowVarOptions' sets up which properties this plot can offer to the x and y axes. This can also be used to assign the accessors to the data!
 						
@@ -8638,6 +10584,8 @@ var dbslice = (function (exports) {
 					
 				}, // handlePropertyNames
 				
+				
+				// CFD3LINE
 				json2line: function json2line(data){
 					// json are assumed to have only one series, with several properties possible per series.
 					
@@ -8672,8 +10620,26 @@ var dbslice = (function (exports) {
 					return info
 					
 				
-				} // csv2line
+				}, // csv2line
 				
+				// CFD3CONTOUR2D
+				json2contour2d: function json2contour2d(data){
+					
+					// For 2d contours the surfaces attribute has a single object. For 3d contours it has an array of surfaces. In `json2contour3d' the property names will have to be differentiated into options.
+					
+					// Don't check the property names. The data of the entire domain is too large to be loaded at once.
+					return {
+						properties: Object.getOwnPropertyNames(data.surfaces),
+						vals: data
+					}
+					
+				}, // json2contour2d
+				
+				csv2contour2d: function csv2contour2d(data){
+					
+					console.log("implement csv2contour2d!")
+					
+				} // csv2contour2d
 				
 			} // helpers
 			

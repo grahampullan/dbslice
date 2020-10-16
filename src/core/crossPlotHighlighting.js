@@ -118,7 +118,7 @@ var crossPlotHighlighting = {
 						// Collect all the relevant data points by tskId.
 						var cfDataPoints = dbsliceData.data.taskDim.top(Infinity)
 						allDataPoints = cfDataPoints.filter(function(p){return p.taskId == d.task.taskId});
-						// console.log(allDataPoints);
+						
 					  break;
 					  
 					  					  
@@ -150,6 +150,6 @@ var crossPlotHighlighting = {
 		}, // manuallySelectedTasks
 		
 	} // crossPlotHighlighting 
-				
+					
 
 export { crossPlotHighlighting };

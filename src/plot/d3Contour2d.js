@@ -1,376 +1,1372 @@
 import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
 import { plotHelpers } from '../plot/plotHelpers.js';
 
-const d3Contour2d = {
-        
-        name: "d3Contour2d",
-      
-        margin: {top: 20, right: 65, bottom: 20, left: 10},
-      
-        colour: [],
-
-        make : function ( element, data, layout ){
+const cfD3Contour2d = {
+		
+		// Externally visible methods are:
+		// name, make, update, rescale, helpers.highlught/unhighlight/defaultStyle, helpers.createDefaultControl/createLoadedControl/writeControl
+		
+		// SHOULD: the contour plot always occupy the whole width? Should it just size itself appropriately? It has a potential to cover other plots... Should all plots just reorder. I think only the clashing plots should reorder. Maybe implement this as general functionality first.
+		
+		// SHOULD: instead of looping over the contours when figuring out the dimension the plot dimensions be updated internally on the fly? By saving the maximum ih for example?
+	
+		// SHOULD: when calculating the statistics create domain areas on which to calculate the value for particular contour? Or is this too much? It does involve integration...
+	
+		name: "cfD3Contour2d",
+	
+		make: function(ctrl){
+		
+			// This function only makes the plot, but it does not update it with the data. That is left to the update which is launced when the user prompts it, and the relevant data is loaded.
 			
-			// Remove any controls in the plot title.
-			d3Contour2d.addInteractivity.updatePlotTitleControls(element)
+			// How should the user select the variable to be plotted? At the beginning there will be no contours, so the controls need to be elsewhere. For now put them into the plot title.
+			
+			// Scale the card appropriately so that it occupies some area. Needs to be adjusted for hte title height
+			cfD3Contour2d.setupPlot.dimension(ctrl)
+			let p = ctrl.format.position
+			
+			// Add another div to hold the colorbar on the right hand side. The colorbar needs to be side by side with the plot. To position it correctly another div level needs to be present. Therefore both the contours and the colorbar have to go into div.card. An additional 5px margin is introduced to make sure the plot div and teh colorbar are in hte same row.
+			
+			
+			// `cfD3Contour2d' has a different structure than the other plots, therefore the `ctrl.figure' attribute needs to be updated.
+			ctrl.figure = ctrl.figure.append("div")
+			  .attr("class", "data")
+			  .style("width",  p.plotWidth + "px" )
+			  .style("height", p.plotHeight + "px" )
+			
+			
+			cfD3Contour2d.setupPlot.setupRightControlDOM(ctrl)
+			
+			// The plotBody must be reassigned here so that the rightcontrolgroup svgs are appended appropriately.
+			
+			
+			cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+			
+			// NOTES:
+			// How to configure the contour plot on the go? For now the positional variables will be just assumed.
+			
+		
+		}, // make
+		
+				
+		update: function update(ctrl){
+			// This is called during render. Do nothing. Maybe only signal differences to the crossfilter.
+			
+		}, // update
+	
+		updateData: function updateData(ctrl){
+			
+			// This should do what? Come up with the initial contour data? Maybe calculate the initial threshold items? Set a number of levels to show. Calculate the ideal bin number?
+			
+			// First collect and report the data available.
+			cfDataManagement.getContour2dFileDataInfo(ctrl)
+			
+			// How to handle contour data? The user should be expected to select the position variables once, and then just change the flow variable if needed. For now this is manually selected here, but the user should be able to select their varioable based on hte name. Implement that later. Maybe a focus out to adjust the contours, and then a focus in to show change. However, in json formats the user should just name the variables correctly!! How should it happen in csv?
+			
+			// Only use the first 6 files for now.
+			ctrl.data.available = ctrl.data.available.splice(0,6)
+			
 
-            d3Contour2d.update ( element, data, layout )
-
-        }, // make
-
-        update : function ( element, data, layout ){
-
-            var container = d3.select(element);
-
-            d3Contour2d.setupSvg(container, data, layout);
-
-            var svg = container.select("svg");
-            
-
-
-            // Make a projection for the points
-            var projection = d3Contour2d.helpers.createProjection(data, svg);
-
-            // Claculate threshold values
-            var vMinAll = data.limits.v[0];
-            var vMaxAll = data.limits.v[1];
-            var thresholds = d3.range( vMinAll , vMaxAll , ( vMaxAll - vMinAll ) / 21 );
-
-            // Setup colour scale
-            var colourScale = d3Contour2d.colour;
-            colourScale.domain(d3.extent(thresholds));
-
-
-
-
-
-            // Initialise contours
-            var contours = d3.contours()
-                .size(data.surfaces.size)
-                .smooth(true)
-                .thresholds(thresholds);
-
-            // make and project the contours
-            svg.select(".plotArea").selectAll("path")
-                .data(contours( data.surfaces.v ))
-                .enter()
-				  .append("path")
-                    .attr("d", d3.geoPath(projection))
-                    .attr("fill", function(d){return colourScale(d.value);})
-                    .attr("transform", "translate(5,20)");                    
-
-
-            // Create a colourbar
-            var scaleHeight = svg.attr("height")/2
-            colourScale.domain( [0, scaleHeight]);
-
-            var scaleBars = svg.select(".scaleArea").selectAll(".scaleBar")
-                .data(d3.range(scaleHeight), function(d){return d;})
-                .enter()
-				  .append("rect")
-                    .attr("class", "scaleBar")
-                    .attr("x", 0 )
-                    .attr("y", function(d, i){return scaleHeight - i;})
-                    .attr("height", 1)
-                    .attr("width", 20)
-                    .style("fill", function(d, i ){return colourScale(d);})
-
-            var cscale = d3.scaleLinear()
-                .domain( d3.extent(thresholds) )
-                .range( [scaleHeight, 0]);
-
-            var cAxis = d3.axisRight( cscale ).ticks(5);
-
-
-            var colorAxisDOM = svg.select(".scaleArea").select("g");
-			if(colorAxisDOM.empty()){
-				svg.select(".scaleArea")
-				  .append("g")
-                    .attr("transform", "translate(20,0)")
-                    .call(cAxis);
-			} else {
-				colorAxisDOM.call(cAxis);
-			} // if
+			// Calculate the extent of hte data and the thresholds
+			cfD3Contour2d.setupPlot.setupPlotTools(ctrl)
+			
+			// Get the contours based on the thresholds
+			cfD3Contour2d.draw.getContours(ctrl)
+				
+			// Draw the plot
+			cfD3Contour2d.draw.cards(ctrl)
+			
+			// Draw teh colorbar
+			cfD3Contour2d.draw.rightControlGroup(ctrl)
+			
+			
+			// Resize the plot cotnainers
+			cfD3Contour2d.interactivity.resizeOnInternalChange(ctrl)
+			
 			  
-            
-            
-            // ADD INTERACTIVITY
-            d3Contour2d.addInteractivity.addZooming(svg);
-            
-			d3Contour2d.addInteractivity.addOnMouseOver(svg);
-
-            // Mark the data flag
-            data.newData = false;
-        }, // update
-        
-        setupSvg : function setupSvg(container, data, layout){
-            
-            // DON'T MOVE THIS TO MAKE!
-            d3Contour2d.margin = layout.margin === undefined ? d3Contour2d.margin : layout.margin;
-            d3Contour2d.colour = layout.colourMap === undefined ? d3.scaleSequential( d3.interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
-            
-            
-
-            // Check if there is a svg first.
-            var svg = container.select("svg");
-            if (svg.empty()){
-              
-                // Append new svg
-                svg = container.append("svg");
-                
-                // Update its dimensions.
-                curateSvg();
-                 
-            } else {
-                
-                // Differentiate between changing plot types, or just changing the data!!
-                // If just the data is changing nothing needs to be done here. If the plot type is changing then the svg needs to be refreshed, its attributes updated, the 'plotWrapper' 'plottype' changed, and the interactivity restored.
-                  
-                var plotWrapper = container.select(function() {return this.parentElement.parentElement;});
-
-                var expectedPlotType = plotWrapper.attr("plottype");
-                
-                if (expectedPlotType !== "d3Contour2d" ){
-                    // If the plot type has changed, then the svg contents need to be removed completely.
-                    plotWrapper.attr("plottype", "d3Contour2d")
-                    
-                    svg.selectAll("*").remove();
-                    curateSvg();
-                    
-                    // ADD FUNCTIONALITY.
-                    // cfD3Histogram.addInteractivity(container, data);
-                    
-                } else {
-                    // Axes might need to be updated, thus the svg element needs to be refreshed.
-                    curateSvg();
-                    
-                }; // if    
-              
-            }; // if
-
-                    
-                    
-            function curateSvg(){
-                
-                var svgWidth = container.node().offsetWidth;
-                var svgHeight = layout.height;
-
-                var width = svgWidth - d3Contour2d.margin.left - d3Contour2d.margin.right;
-                var height = svgHeight - d3Contour2d.margin.top - d3Contour2d.margin.bottom;
-                
-                // Curating the svg.                
-                container.select("svg")
-                  .attr("width", svgWidth)
-                  .attr("height", svgHeight)
-                  .attr("plotWidth", width)
-                  .attr("plotHeight", height);
-                    
-                var plotArea = container.select("svg").select(".plotArea");
-                if(plotArea.empty()){
-                    // If there's none, add it.
-                    container.select("svg")
-                      .append("g")
-                        .attr("transform", "translate(" + d3Contour2d.margin.left + "," + d3Contour2d.margin.top + ")")
-                        .attr("class", "plotArea")
-						.attr("task-id", data.taskId);
-                    
-                }; // if
-                
-                // The same with the clip path for zooming.
-                var clipId = "clip-"+container.attr("plot-row-index")+"-"+container.attr("plot-index");
-                var clip = container.select("svg").select("clipPath")
-                if (clip.empty()){
-                    container.select("svg")
-                      .append("defs")
-                      .append("clipPath")
-                        .attr("id", clipId)
-                      .append("rect")
-                        .attr("width", svg.attr("plotWidth"))
-                        .attr("height", svg.attr("plotHeight"));
-                    
-                } else {
-                    clip.select("rect")
-                        .attr("width", svg.attr("plotWidth"))
-                        .attr("height", svg.attr("plotHeight"))    
-                }; // if
-                
-                
-                // Create a 'g' for the colorbar.
-                var colorbar = container.select("svg").select(".scaleArea");
-                if(colorbar.empty()){
-                    container.select("svg")
-                      .append("g")
-                        .attr("class", "scaleArea")
-                        .attr("transform", "translate(" + (svgWidth-60) + "," + d3Contour2d.margin.top + ")")            
-                }; // if
-                
-                
-            }; // curateSvg
-        }, // setupSvg
-        
-        addInteractivity: {
-            
-            addZooming: function addZooming(svg){
-              
-                var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
-        
-                svg.transition().call(zoom.transform, d3.zoomIdentity);
-                svg.call(zoom);
-
-                function zoomed() {
-                    var t = d3.event.transform;
-                    svg.select(".plotArea").attr( "transform", t );
-                }; // zoomed
-              
-            }, // addZooming
+			// ONE COLORBAR FOR ALL!! AT THE SIDE! The colorbar should only occupy the visible space, and should move with the view as the user scrolls down.
 			
-			addOnMouseOver: function addOnMouseOver(svg){
+			// When panning over the levels markers on the colorbar highlight those on hte contours somehow.
+			
+			// Introduce a card folder to the side, and only present 4 at the same time at the beginning. Then the user should add other cards to the view.
+			
+			// A special tool to order the cards roughly? This is the grouping sort-of?
+			
+			// DRAW THE CONTOURS USING WEBGL
+			
+		}, // updateData
+		
+	
+		rescale: function rescale(ctrl){
+			
+			// Should rescale the whole plot and the individual contours in it.
+			
+			console.log("Rescaling cfD3Contour2d")
+			
+		}, // rescale
+		
+		rescaleContourCard: function rescaleContourCard(contourCtrl){
+			
+			// Retrieve the data AR from the plot ctrl.
+			let card = contourCtrl.format.wrapper
+			let p = contourCtrl.format.position
+			let plotCtrl = d3.select(contourCtrl.format.parent).data()[0]
+			
+			let dy = positioning.dy(plotCtrl.figure)
+			let dx = positioning.dx(plotCtrl.figure)
+			
+	
+			// Update the position based on the new ih and iw.
+			let position_ = cfD3Contour2d.draw.dimension(p.iw, p.ih, dx, dy, plotCtrl.data.domain.ar)
+			
+			p.w = position_.w
+			p.h = position_.h
+			p.sw = position_.sw
+			p.sh = position_.sh
+			p.minW = position_.minW
+			p.minH = position_.minH
+			p.ar = position_.ar
+			
+			// Update the relevant DOM elements.
+
+			// Update the title div. Enforce a 24px height for this div.
+			let title = card
+			  .select("div.title")
+			  .select("p")
+				.style("text-align", "center")
+				.style("margin-left", "5px")
+				.style("margin-right", "5px")
+				.style("margin-bottom", "8px")
+			  
+			  
+			helpers.fitTextToBox(title, title, "height", 24)
+	
+			// Update the plot svg
+			card.select("svg.plotArea")
+			  .attr("width",  p.sw)
+			  .attr("height", p.sh )
+			
+			
+		}, // rescaleContourCard
+	
+			
+		// Rename setupPlot -> setup
+		// Add groups: plot, controls, cards
+	
+		setupPlot: {
+			
+			// Broadly dimension the plot.
+			dimension: function dimension(ctrl){
 				
-				// Select the whole card for mouseover, but what needs to be returned is the data of the plot.
-				var contour = svg.selectAll(".plotArea");
+				// `makeNewPlot' sizes the plot wrapper. Here calculate the dimensions of the internals.
+				let p = ctrl.format.position
+				let w = ctrl.format.wrapper
 				
-				contour.on("mouseover", crossHighlightOn)
-                       .on("mouseout",  crossHighlightOff);
+				let dy = positioning.dy(d3.select( ctrl.format.parent ))
+				let wrapperHeight = p.ih*dy
+				
+				p.titleHeight = w.select(".plotTitle").node().offsetHeight
+				p.plotHeight = wrapperHeight - p.titleHeight
+				p.plotWidth =  w.node().offsetWidth - p.rightControlWidth
+				
+				
+			}, // dimension
+			
+			// Right colorbar control group
+			
+			setupContourTools: function setupContourTools(ctrl){
+				
+				var h = cfD3Contour2d.setupPlot
+				var files = ctrl.data.available
+				
+				// Calculate the spatial domain.
+				var xDomain = h.getDomain(files, d=>d.data.vals.surfaces.x)
+				var yDomain = h.getDomain(files, d=>d.data.vals.surfaces.y)
+				var vDomain = h.getDomain(files, d=>d.data.vals.surfaces.v)
+				
+				
+				// Setup the domain.
+				ctrl.data.domain = {
+					x: xDomain,
+					y: yDomain,
+					v: vDomain,
+					ar: ( yDomain[1] - yDomain[0] ) / ( xDomain[1] - xDomain[0] ),
+					thresholds: undefined,
+					nLevels: undefined
+				}
+				
+				cfD3Contour2d.setupPlot.setupThresholds(ctrl, vDomain)
+				
+
+			}, // setupContourTools
+
+			setupColorbarTools: function setupColorbarTools(ctrl){
+				
+				let c = ctrl.format.rightControls.colorbar
+	
+			    // Tools. `scaleSequential' maps into a range between 0 and 1.
+				ctrl.tools.scales.px2clr = d3.scaleSequential(d3.interpolateViridis)
+				  .domain([0, c.height ])
+				  
+				// Thresholds respond to selections on hte histogram. This is the corresponding scale.
+				ctrl.tools.scales.val2px = d3.scaleLinear()
+				  .domain( d3.extent( ctrl.data.domain.thresholds ) )
+				  .range([0, c.height ])
+				 
+				// Histogram needs to use a fixed scale based on the data domain.
+				ctrl.tools.scales.val2px_ = d3.scaleLinear()
+				  .domain( ctrl.data.domain.v )
+				  .range([0, c.height ])
+				  
+				// Coloring
+				ctrl.tools.scales.val2clr = d3.scaleSequential(d3.interpolateViridis)
+				  .domain( d3.extent( ctrl.data.domain.thresholds ) )
+				  
+				
+			}, // setupColorbarTools
+			
+			setupHistogramTools: function setupHistogramTools(ctrl){
+				
+				
+				// There is a lot of data expected, and therefore each pixel can be used as a bin. Avoid making a new large array by calculating the histogram for each file independently, and then sum up all the bins.
+				
+				let s = ctrl.tools.scales
+				let c = ctrl.format.rightControls.colorbar
+				let h = ctrl.format.rightControls.histogram
+				
+				// Get the histogram data
+				let vMin = ctrl.data.domain.v[0]
+				let vMax = ctrl.data.domain.v[1]
+				let nBins = c.height
+				let thresholds = d3.range(vMin, vMax, (vMax - vMin)/nBins )
+				 
+				let histogram = d3.histogram()
+				  .domain( ctrl.data.domain.v )
+				  .thresholds( thresholds );
+								  
+				let fileBins = ctrl.data.available.map(function(file){
+					
+					// The returned bins acutally contain all the values. Rework the bins to remove them and thus minimise memory usage.
+					let bins = histogram( file.data.vals.surfaces.v )
+					
+					return bins.map(function(bin){return {x0:bin.x0, x1:bin.x1, n: bin.length}});
+				})
+				
+				// Now summ all hte bins together.
+				h.bins = fileBins.reduce(function(acc, val){
+					// Acc and val are arrays of bins, which have to be summed individually.
+					return acc.map(function(d,i){
+						d.n += val[i].n
+						return d
+					})
+				})
+				
+				// Take a log of the bin lengths to attempt to improve the histogram
+				h.bins = h.bins.map(function(d){
+					d.n = d.n == 0 ? 0 : Math.log10(d.n)
+					return d
+				})
+				
+				
+				// Tools for the histogram.
+				s.bin2px = d3.scaleLinear()
+				  .domain([0, d3.max( h.bins, d=>d.n ) ])
+				  .range([0, h.width ])
+				  
+				
+			}, // setupHistogramTools
+			
+			sizeRightControlGroup: function sizeRightControlGroup(ctrl){
+				
+				// Histogram can be narrower!
+				
+				let groupDiv = ctrl.format.wrapper.select("div.rightControlGroup")
+				let width  = groupDiv.node().getBoundingClientRect().width
+				let height = groupDiv.node().getBoundingClientRect().height
+				
+
+				let h = ctrl.format.rightControls.histogram
+				let c = ctrl.format.rightControls.colorbar
+
+				// Dimension control group. X and Y are positions of the svgs.			
+				c.width = width * 3/5 - c.margin.left - c.margin.right
+			    c.height = height - c.margin.top - c.margin.bottom
+				c.x = c.margin.left
+				c.y = c.margin.top
+				c.legendWidth = c.width * 1/2
+				c.axisWidth   = c.width * 1/2
+				
+				
+				h.width = width * 2/5 - h.margin.left - h.margin.right
+			    h.height = height - h.margin.top - h.margin.bottom
+				h.x = c.margin.left + c.width + c.margin.right + h.margin.left
+				h.y = h.margin.top
+				
+				// The control group consists of two SVGs side-by-side. The left holds an interactive histogram, the right holds the interactive colorbar. Both have the same size.
+				
+				
+				
+				
+				
+			}, // sizeRightControlGroup
+			
+			setupRightControlDOM: function setupRightControlDOM(ctrl){
+				
+				//Separate this out into colorbar and histogram??
+				let p = ctrl.format.position
+				let c = ctrl.format.rightControls.colorbar
+				let h = ctrl.format.rightControls.histogram
+				
+				// Let teh div be the wrapper, and the parent simultaneously.
+				
+				let rightControlDiv = ctrl.format.wrapper.select("div.plot")
+				  .append("div")
+					.attr("class", "rightControlGroup")
+					.style("width",  p.rightControlWidth + "px" )
+					.style("height", p.plotHeight + "px")
+					.style("position", "absolute")
+					.style("left", p.plotWidth + "px")
+					.style("top", p.titleHeight + "px")
+					
+					
+				// One stationary div
+				let rightControlSvgWrapper = rightControlDiv.append("div").attr("class", "rightControlWrapper")
+				  
+					
+				let rightControlSVG = rightControlSvgWrapper
+				  .append("svg")
+					.attr("class", "rightControlSVG")
+					.attr("width",  p.rightControlWidth )
+					.attr("height", Math.floor( p.plotHeight ) )
+					.style("position", "absolute")
+					
+				ctrl.format.rightControls.format.parent = rightControlSvgWrapper.node()
+				ctrl.format.rightControls.format.wrapper = rightControlSVG
+			
+
+				// Size the components.
+				cfD3Contour2d.setupPlot.sizeRightControlGroup(ctrl)
+			
+				// These should be sized later on, so in case some resizing is needed it is easier to update.
+				h.svg = rightControlSVG.append("svg")
+				c.svg = rightControlSVG.append("svg")
+				
+				// Update teh svgs
+				h.svg
+				  .attr("height", h.height )
+				  .attr("width", h.width )
+				  .attr("x", h.x )
+				  .attr("y", h.y )
+				
+			    c.svg
+				  .attr("height", c.height )
+				  .attr("width", c.width )
+				  .attr("x", c.x )
+				  .attr("y", c.y )
+
+				
+				
+				// Colorbar: the transform is required as d3.axisLeft positions itself in reference to the top right corner.
+				let gColorbar = c.svg.append("g")
+				  .attr("transform", helpers.makeTranslate(c.axisWidth, 0) )
+				gColorbar.append("g").attr("class", "gBar")
+				gColorbar.append("g").attr("class", "gBarAxis")
+				gColorbar.append("g").attr("class", "gBarLevels")
+				
+				// Histogram
+				h.svg.append("g").attr("class", "gHist")
+			    h.svg.append("g").attr("class", "gBrush")
+			    h.svg.append("g").attr("class", "gHistAxis")
+				
+				// Additional text for histogram.
+				let logNote = rightControlSVG
+				  .append("g")
+					.attr("class", "logNote")
+				    .attr("transform", helpers.makeTranslate(h.x + 20, h.height + h.y + 9) )
+				  .append("text")
+				    .style("font", "10px / 15px sans-serif")
+				    .style("font-size", 10 + "px")
+				    .style("display", "none")
+				logNote.append("tspan").text("log")
+				logNote.append("tspan").text("10").attr("dy", 7)
+				logNote.append("tspan").text("(n)").attr("dy", -7)
+				
+				
+				
+				
+				// Add the dragging.
+				let drag = d3.drag()
+				  .on("start", positioning.dragStart)
+				  .on("drag", positioning.dragMove)
+				  .on("end", positioning.dragEnd)
+				
+				rightControlSVG
+				  .append("g")
+				    .attr("class", "gRightGroupDrag")
+				  .append("circle")
+				    .attr("r","5")
+				    .attr("cx", h.x - 15 )
+				    .attr("cy", p.plotHeight - 6 )
+				    .attr("fill","gainsboro")
+				    .attr("cursor", "move")
+				    .attr("opacity", 0)
+				    .datum( ctrl.format.rightControls )
+				    .call(drag)
+				
+				
+				  
+				
+				
+			}, // setupRightControlDOM
+			
+			setupPlotTools: function setupPlotTools(ctrl){
+				
+				// Setup the colorbar tools. This is in a separate function to allow it to be updated later if needed. Maybe create individual functions for all three? Contour, Colorbar, Histogram?
+				cfD3Contour2d.setupPlot.setupContourTools(ctrl)
+				
+				cfD3Contour2d.setupPlot.setupColorbarTools(ctrl)
+				
+				cfD3Contour2d.setupPlot.setupHistogramTools(ctrl)
+				  
+			}, // setupPlotTools
+			
+			setupThresholds: function setupThresholds(ctrl, extent){
+				// The domain of the data, and the domain of the visualisation need not be the same. This is needed when selecting a subset on hte colorbar histogram.
+				
+				// Calculate the initial threshold values. Note that thresholds don't include teh maximum value.
+				
+				// First check if the number of levels has been determined already.
+				if( ctrl.data.domain.nLevels == undefined ){
+					// Base it off of the values in a single contour.
+					ctrl.data.domain.nLevels = d3.thresholdSturges( ctrl.data.available[0].data.vals.surfaces.v )
+				} // if
+				
+				
+				var thresholds = d3.range(extent[0], extent[1], (extent[1] - extent[0])/ctrl.data.domain.nLevels )
+				
+				ctrl.data.domain.thresholds = thresholds
+				
+				
+			}, // setupThresholds
+			
+			getDomain: function getDomain(data, accessor){
+				
+				// Data is expected to be an array of contour chart data 
+				// read from the attached json files.
+				let domain = data.map(function(d){
+					return d3.extent( accessor(d) )
+				}) // map
+						
+				return d3.extent( [].concat.apply([], domain) )
+			}, // getDomain
+			
+			// Contour cards
+			
+			design: function design(ctrl, file){
+				// This is the initial dimensioning of the size of the contour cards.
+				  
+				// Find a range aspect ratio that will fit at least 6 similar contours side by side.
+				
+				
+				  
+				// Max width is 3 grid nodes. Find a combination of nx and ny that get an AR lower than the domain AR.
+				let cardsPerRow = 6
+				let bestCandidate = {ar: 0}
+				
+				// Margins are implemented on the svg itself. They are taken into account through the projection.
+				
+				let dy = positioning.dy(ctrl.figure)
+				let dx = positioning.dx(ctrl.figure)
+				let nx = positioning.nx(ctrl.figure)
+				
+				
+				for(let iw = 1; iw <= nx/cardsPerRow; iw++){
+					for(let ih = 1; ih <= nx; ih++){
 					  
-				function crossHighlightOn(d){
-					
-					crossPlotHighlighting.on(d, "d3Contour2d")
-					
-				}; // crossHighlightOn
+						// Calculate proposed card dimensions  
+						let candidate = cfD3Contour2d.draw.dimension(iw, ih, dx, dy, ctrl.data.domain.ar)
+						  
+						// Enforce constraints. The data AR must be larger than the maximum available svg AR to allow the visualisation to fill the space as good as possible.
+						// Find the maximum (!) inner ar of the cnadidates. As candidates are enforced to have an AR smaller than the data AR this will be the closest to the data AR.
+						if( (ctrl.data.domain.ar >= candidate.ar) && (candidate.ar > bestCandidate.ar) ){
+							bestCandidate = candidate
+						} // if
+					} // for
+				} // for
+				  
+				  
 				
-				function crossHighlightOff(d){
-					
-					crossPlotHighlighting.off(d, "d3Contour2d")
-					
-				}; // crossHighlightOff
 				
-			}, // addOnMouseOver
-            
-			updatePlotTitleControls: function updatePlotTitleControls(element){
+				return bestCandidate
 				
-				// Remove any controls in the plot title.
-				plotHelpers.removePlotTitleControls(element)
-				
-			} // updatePlotTitleControls
+			}, // design
 			
-        }, // addInteractivity
-        
-        helpers: {
-            
-            getScaleRange: function getScaleRange(data, svg){
-                
-                var width = svg.attr("plotWidth");
-                var height = svg.attr("plotHeight");
-                
-                // set x and y scale to maintain 1:1 aspect ratio  
-                var domainAspectRatio = d3Contour2d.helpers.calculateDataAspectRatio(data);
-                var rangeAspectRatio = d3Contour2d.helpers.calculateSvgAspectRatio(svg);
-          
-                if (rangeAspectRatio > domainAspectRatio) {
-                    var xScaleRange = [ 0 , width ];
-                    var yScaleRange = [ domainAspectRatio * width , 0 ];    
-                    
-                } else {
-                    var xScaleRange = [ 0 , height / domainAspectRatio ];
-                    var yScaleRange = [ height , 0 ];
-                    
-                } // if
-                
-                return {x: xScaleRange, y: yScaleRange};
-                
-            }, // getScaleRange
-            
-            calculateDataAspectRatio: function calculateDataAspectRatio(data){
-                
-                var xMinAll = data.limits.x[0];
-                var yMinAll = data.limits.y[0];
+			
+		}, // setupPlot
+	
+		// Keep both svg and webGL contour drawing. webGL can draw the colors, while the svg can draw teh levels. But even if the svg draws the levels it must go throug the same loops to do it...
+	
+		draw: {
+			
+			cards: function cards(ctrl){
+				// This should handle the enter/update/exit parts.
+  
+			    const div = ctrl.figure
+				let dx = positioning.dx(div)
+				let dy = positioning.dy(div)
+			  
+			    let drag = d3.drag()
+				  .on("start", positioning.dragStart)
+				  .on("drag", positioning.dragMove)
+				  .on("end", positioning.dragEnd)
+				  
+				function getPositionLeft(d){
+					return d.format.position.ix*dx + d.format.parent.offsetLeft + "px"
+				}
+				function getPositionTop(d){
+					return d.format.position.iy*dy + d.format.parent.offsetTop + "px"
+				}
+			    
+				// The key function must output a string by which the old data and new data are compared.
+			    let cards = div.selectAll(".card")
+				  .data(ctrl.data.plotted, d => d.task.taskId)
+			  
+			    // The update needed to be specified, otherwise errors occured.
+			    cards.join(
+				  enter => enter.append("div")
+					.attr("class", "card contourWrapper")
+					.attr("task",d=>d.task.taskId)
+					.style("position", "absolute")
+					.style("background-color", "white")
+					.style("left", getPositionLeft )
+					.style("top", getPositionTop )
+					.style("cursor", "move")
+					.call(drag)
+					.each(function(d){
+						
+						d.format.wrapper = d3.select(this)
+						
+						cfD3Contour2d.draw.contourBackbone(d)
+					
+						// Draw the actual contours.
+						cfD3Contour2d.draw.contours(d)
+					}),
+				  update => update
+				    .each( d => cfD3Contour2d.draw.contours(d) )
+					.style("left", getPositionLeft )
+					.style("top", getPositionTop ),
+				  exit => exit.remove()
+				)
 
-                var xMaxAll = data.limits.x[1];
-                var yMaxAll = data.limits.y[1];
+			   
+			   
+			   
+			}, // cards
+			
+			contourBackbone: function contourBackbone(d){
+				
+				// The projection should be updated here to cover the case when the user resizes the plot.
+  
+			    let card = d.format.wrapper
+			    
+			    // Set the width of the plot, and of the containing elements.
+			    card
+				  .style(     "width", d.format.position.w + "px" )
+				  .style( "max-width", d.format.position.w + "px" )
+				  .style(    "height", d.format.position.h + "px" )
+			  
+			    // Append the title div. Enforce a 24px height for this div.
+			    let title = card.append("div")
+				  .attr("class", "title")
+				  .append("p")
+				  .style("text-align", "center")
+				  .style("margin-left", "5px")
+				  .style("margin-right", "5px")
+				  .style("margin-bottom", "8px")
+				  .text( d=> d.task.taskId )
+				  
+				  
+				helpers.fitTextToBox(title, title, "height", 24)
+							  
+			    // Append the svg
+			    card.append("svg")
+				    .attr("class", "plotArea")
+				    .attr("width",  d.format.position.sw)
+				    .attr("height", d.format.position.sh )
+				    .style("fill", "smokewhite")
+				    .style("display", "block")
+				    .style("margin", "auto")
+			      .append("g")
+				    .attr("class", "contour")
+				    .attr("fill", "none")
+				    .attr("stroke", "#fff")
+				    .attr("stroke-opacity", "0.5")
 
-                var xRange = xMaxAll - xMinAll;
-                var yRange = yMaxAll - yMinAll;
+					
+				// The resize behavior. In addition to resizeEnd the resizing should also update the contour.
+				let resize = d3.drag()
+				  .on("start", positioning.resizeStart)
+				  .on("drag", positioning.resizeMove)
+				  .on("end", function(d){
+					  
+					  positioning.resizeEnd(d)
+					  
+					  cfD3Contour2d.draw.updateContour(d)
+				  })
+				  
+				card.append("svg")
+					.attr("width",  "10")
+					.attr("height", 10)
+					.style("position", "absolute")
+					.style("bottom", "0px")
+					.style("right", "0px")
+				  .append("circle")
+					.attr("cx", "5")
+					.attr("cy", 5)
+					.attr("r", 5)
+					.attr("fill", "gainsboro")
+					.attr("cursor", "nwse-resize")
+					.call(resize)
+				
+			}, // contourBackbone
+			
+			// Actual drawing
+			
+			contours: function contours(d){
+				
+				// The projection should be updated here to cover the case when the user resizes the plot.
 
-                // set x and y scale to maintain 1:1 aspect ratio  
-                return yRange / xRange;
-                
-            }, // calculateDataAspectRatio
-            
-            calculateSvgAspectRatio: function calculateSvgAspectRatio(svg){
-                
-                var width = svg.attr("plotWidth");
-                var height = svg.attr("plotHeight");
-                
-                return height / width;
-                
-            }, // calculateSvgAspectRatio
-            
-            createProjection: function createProjection(data, svg){
-                
-                // Create the scale ranges, and ensure that a 1:1 aspect ratio is kept.
-                var scaleRanges = d3Contour2d.helpers.getScaleRange(data, svg);
-                
-                var xscale = d3.scaleLinear()
-                        .domain( data.limits.x )
-                        .range( scaleRanges.x );
+			  
+			    // Append the contour
+			    d.format.wrapper.select("g.contour")
+				  .selectAll("path")
+				  .data(d => d.levels)
+				  .join("path")
+				    .attr("fill", d.format.color )
+				    .attr("d", cfD3Contour2d.draw.projection(d) );
+				
+					  
+			}, // contours
+			
+			updateContour: function updateContour(d){
+				
+				// By this point everything external to the contour has been rescaled. Here the internal parts still need to be rescaled, and the contour levels redrawn.
+				
+				// Readjust the card DOM
+				cfD3Contour2d.rescaleContourCard(d)
+				
+				
+				// The projection should be updated here to cover the case when the user resizes the plot.
+  
+			    let card = d.format.wrapper
+			    let projection = cfD3Contour2d.draw.projection(d)
 
-                var yscale = d3.scaleLinear()
-                        .domain( data.limits.y ) 
-                        .range( scaleRanges.y );
-                
+			  
+			    // Update the contour
+				card.select("g.contour")
+				  .selectAll("path")
+				  .data(d => d.levels)
+				  .join(
+					enter => enter.append("path")
+					             .attr("fill", d.format.color )
+				                 .attr("d", projection ),
+					update => update
+					             .attr("fill", d.format.color )
+				                 .attr("d", projection ),
+					exit => exit.remove()
+				  )
+					
+					
+				
+				
+			}, // updateContour
+			
+			// The control group - can remain svg.
+			
+			rightControlGroup: function rightControlGroup(ctrl){
+				
+			    
+
+			    // The histogram on the left.
+			    cfD3Contour2d.draw.histogram(ctrl)
+			  
+			    // The colorbar on the right.
+				cfD3Contour2d.draw.colorbar(ctrl)
+				
+				let r = ctrl.format.rightControls
+				
+				// Turn the group controls and the note on.
+				r.format.wrapper
+				  .select("g.gRightGroupDrag")
+				  .selectAll("circle")
+				  .attr("opacity", 1)
+				  
+				let histogramLogNote = r.format.wrapper
+				  .select("g.logNote")
+				  .select("text")
+				    .style("display", "initial")
+			    
+				// Enforce that the axis text is the same size on both plots here!
+				
+				let colorbarAxisTicks = r.colorbar.svg.select("g.gBarAxis").selectAll("text")
+				let histogramAxisTicks = r.histogram.svg.select("g.gHistAxis").selectAll("text")
+				let histogramLogNoteText = histogramLogNote.selectAll("tspan")
+				
+				let minFontSize = d3.min([
+					parseInt( colorbarAxisTicks.style("font-size") ),
+					parseInt( histogramAxisTicks.style("font-size") ),
+					parseInt( histogramLogNote.style("font-size") )
+				])
+				
+				colorbarAxisTicks.style("font-size", minFontSize)
+				histogramAxisTicks.style("font-size", minFontSize)
+				histogramLogNote.style("font-size", minFontSize)
+				
+				// Draw ticks to show it's a log scale. This will have to be on the background svg. Axis to small to draw ticks - a text has been added instead.
+				
+				// Make the colorbar draggable. For the colorbar to move automatically a scrolling event would have to be listened to. Position sticky positions the colorbar below everything else.
+				
+				// Maybe draw the empty colorbar etc on startup already??
+				
+				// Make the colorbar interactive!!
+				
+			}, // rightControlGroup
+			
+			
+			
+			colorbar: function colorbar(ctrl){
+				// The colorbar must have it's own axis, because the user may want to change the color extents to play with the data more. 
+				
+				let c = ctrl.format.rightControls.colorbar
+				let s = ctrl.tools.scales
+				
+
+				// Color bars
+			    c.svg.select("g.gBar").selectAll("rect")
+				  .data( d3.range( c.height ) )
+				  .enter()
+				  .append("rect")
+				    .attr("class", "bars")
+				    .attr("x", 0)
+				    .attr("y", d=>d)
+				    .attr("height", 2)
+				    .attr("width", c.legendWidth)
+				    .style("fill", s.px2clr )    
+			  
+			    // Add in the axis with some ticks.
+				let gBarAxis = c.svg.select("g.gBarAxis")
+				gBarAxis.call( d3.axisLeft( s.val2px ) )
+						
+				// Dimension the axis apropriately. 
+				helpers.fitTextToBox(gBarAxis.selectAll("text"), gBarAxis, "width", c.axisWidth)
+				
+				
+				// Draw the contour plot levels.
+				c.svg.select("g.gBarLevels").selectAll("rect")
+				  .data( ctrl.data.domain.thresholds )
+				  .enter()
+				    .append("rect")
+				      .attr("class", "bars")
+				      .attr("x", 2)
+				      .attr("y", d => s.val2px(d) )
+				      .attr("height", 2)
+				      .attr("width", c.legendWidth - 3)
+					  .attr("cursor", "ns-resize")
+				      .style("fill", "gainsboro" )
+				
+			}, // colorbar
+			
+			histogram: function histogram(ctrl){
+				
+				
+				let h = ctrl.format.rightControls.histogram
+				let s = ctrl.tools.scales
+				
+			    let gHist = h.svg.select("g.gHist")
+				
+				
+			  
+			    let rects = gHist.selectAll("rect").data( h.bins )
+			    rects.enter()
+				  .append("rect")
+				    .attr("height", d => s.val2px_(d.x1) - s.val2px_(d.x0) )
+				    .attr("width", d => s.bin2px(d.n) )
+				    .attr("y", d => s.val2px_(d.x0) )
+				    .style("fill", "DarkGrey")
+			  
+				
+			  
+			    // Brushing and axes.
+			    let gBrush = h.svg.select("g.gBrush")
+			    let gHistAxis = h.svg.select("g.gHistAxis")
+				  
+			    let brush = d3.brushY(s.val2px_).on("end", cfD3Contour2d.interactivity.rightControls.histogramBrushMove);
+			  
+			    gBrush.call(brush);
+			  
+			    // Add in the axis with some ticks.
+				gHistAxis.call( d3.axisRight( s.val2px_ ) )
+				
+				
+				h.svg.select("g.gHistBottom").append("p").text("log10(n)")
+				
+			}, // histogram
+			
+			
+			
+			// MOVE getContours, json2contour, dimensioning, projection TO SETUP PLOT!!
+			
+			getContours: function getContours(ctrl){
+				// Assemble all information required to draw the individual contours in a single object.
+			  
+
+			  
+				let item
+				let alreadyPlottedTasks = ctrl.data.plotted.map(d=>d.task.taskId)
+				
+				// Create contours
+				ctrl.data.plotted = ctrl.data.available.map(function(file){
+					// The available files is a collection in the memory. Mapping this data into `plotted' establishes the connection to DOM, and allows to check whether this file already has a DOM card associated to it.
+					
+					// The files already have properties:
+					// data, task, url.
+					
+					// Add properties: `plotFunc', `levels', `parent', `wrapper', `format'.
+					
+					// If the current file is already in hte plotted array then just return that. Otherwise initialise a new one.
+					
+					// What happens if the URL is duplicated?? Instead focus on retrieving the taskId
+					let i = alreadyPlottedTasks.indexOf(file.task.taskId)
+					
+					if( i > -1 ){
+						// Return the already existing object.
+						item = ctrl.data.plotted[i]
+						
+					} else {
+						// Initialise new plotting entry.
+						
+						item = {
+							data: file.data,
+							task: file.task,
+							url: file.url,
+							plotFunc: cfD3Contour2d,
+							levels: cfD3Contour2d.draw.json2contour(file.data.vals.surfaces, ctrl.data.domain.thresholds),
+							format: {
+								parent: ctrl.figure.node(),
+								wrapper: undefined,
+								position: cfD3Contour2d.setupPlot.design(ctrl, file),
+								domain: ctrl.data.domain,
+								color: function(d){ return ctrl.tools.scales.val2clr(d.value) }
+							}
+						} // item
+						
+					
+					} // if
+					
+					return item
+				}) // items
+				  
+				  
+				// Positioning needs to be re-done to allow for update to add cards. Position the new cards below the existing cards.
+				positioning.newCard(ctrl)
+				
+				
+			}, // getContours
+			
+			json2contour: function json2contour(surface, thresholds){
+			  // Create the contour data
+			  return d3.contours()
+						.size(surface.size)
+						.thresholds(thresholds)
+						(surface.v)
+			}, // json2contour
 
 
-                
-                var x = data.surfaces.x;
-                var y = data.surfaces.y;
-                var v = data.surfaces.v;
-                var m = data.surfaces.size[0];
-                var n = data.surfaces.size[1];
+			dimension: function dimension(iw, ih, dx, dy, dataAR){
+				// Calculates the inner dimensions of a contour plot card, which depend on the data aspect ratio, and the dimensions of the card.
+				
+				// Specify a margin to the card sides, and the title of hte card.
+				// 24px for title, 10px for resize controls. The minimum height of the card in px is the title width plus 30px.
+				let margin = {y: 7, x: 7}
+				let title = 24 + 10
+				
+				// Calculate proposed card dimensions
+				let divHeight = ih*dy
+				let divWidth = iw*dx
+				let divAR = divHeight/divWidth
+				let innerHeight = divHeight - 2*margin.y - title
+				let innerWidth = divWidth - 2*margin.x
+				
+				return {ix: undefined,
+						iy: undefined,
+						iw: iw, 
+						ih: ih, 
+						w: divWidth,
+						h: divHeight,
+						sw: innerHeight / dataAR,
+						sh: innerHeight,
+						minW: dx,
+						minH: title + 30,
+						ar: innerHeight / innerWidth
+				}
+				
+				
+				
+				
+				
+			}, // dimension
+			
+			projection: function projection(file){
+				// The projection is only concerned by plotting the appropriate contour level points at the appropriate x and y positions. That is why the projection only relies on x and y data, and can be computed for all contours at the same time, if they use the same x and y locations.
 
-                // configure a projection to map the contour coordinates returned by
-                // d3.contours (px,py) to the input data (xgrid,ygrid)
-                var projection = d3.geoTransform( {
-                    point: function( px, py ) {
-                        var xfrac, yfrac, xnow, ynow;
-                        var xidx, yidx, idx0, idx1, idx2, idx3;
-                        // remove the 0.5 offset that comes from d3-contour
-                        px = px - 0.5;
-                        py = py - 0.5;
-                        // clamp to the limits of the xgrid and ygrid arrays (removes "bevelling" from outer perimeter of contours)
-                        px < 0 ? px = 0 : px;
-                        py < 0 ? py = 0 : py;
-                        px > ( n - 1 ) ? px = n - 1 : px;
-                        py > ( m - 1 ) ? py = m - 1 : py;
-                        // xidx and yidx are the array indices of the "bottom left" corner
-                        // of the cell in which the point (px,py) resides
-                        xidx = Math.floor(px);
-                        yidx = Math.floor(py); 
-                        xidx == ( n - 1 ) ? xidx = n - 2 : xidx;
-                        yidx == ( m - 1 ) ? yidx = m - 2 : yidx;
-                        // xfrac and yfrac give the coordinates, between 0 and 1,
-                        // of the point within the cell 
-                        xfrac = px - xidx;
-                        yfrac = py - yidx;
-                        // indices of the 4 corners of the cell
-                        idx0 = xidx + yidx * n;
-                        idx1 = idx0 + 1;
-                        idx2 = idx0 + n;
-                        idx3 = idx2 + 1;
-                        // bilinear interpolation to find projected coordinates (xnow,ynow)
-                        // of the current contour coordinate
-                        xnow = (1-xfrac)*(1-yfrac)*x[idx0] + xfrac*(1-yfrac)*x[idx1] + yfrac*(1-xfrac)*x[idx2] + xfrac*yfrac*x[idx3];
-                        ynow = (1-xfrac)*(1-yfrac)*y[idx0] + xfrac*(1-yfrac)*y[idx1] + yfrac*(1-xfrac)*y[idx2] + xfrac*yfrac*y[idx3];
-                        this.stream.point(xscale(xnow), yscale(ynow));
-                    } // point
-                }); // geoTransform
-                
-                return projection;
-                
-            } // createProjection
+				let xscale = d3.scaleLinear()
+						.domain( file.format.domain.x )
+						.range( [0, file.format.position.sw] );
 
-        } // helpers
-        
-    } // d3Contour2d
+				let yscale = d3.scaleLinear()
+						.domain( file.format.domain.y ) 
+						.range( [file.format.position.sh, 0] );
+				
+				let x = file.data.vals.surfaces.x;
+				let y = file.data.vals.surfaces.y;
+				let m = file.data.vals.surfaces.size[0];
+				let n = file.data.vals.surfaces.size[1];
 
+				// configure a projection to map the contour coordinates returned by
+				// d3.contours (px,py) to the input data (xgrid,ygrid)
+				let p = d3.geoTransform( {
+					point: function( px, py ) {
+						let xfrac, yfrac, xnow, ynow;
+						let xidx, yidx, idx0, idx1, idx2, idx3;
+						// remove the 0.5 offset that comes from d3-contour
+						px = px - 0.5;
+						py = py - 0.5;
+						// clamp to the limits of the xgrid and ygrid arrays (removes "bevelling" from outer perimeter of contours)
+						px < 0 ? px = 0 : px;
+						py < 0 ? py = 0 : py;
+						px > ( n - 1 ) ? px = n - 1 : px;
+						py > ( m - 1 ) ? py = m - 1 : py;
+						// xidx and yidx are the array indices of the "bottom left" corner
+						// of the cell in which the point (px,py) resides
+						xidx = Math.floor(px);
+						yidx = Math.floor(py); 
+						xidx == ( n - 1 ) ? xidx = n - 2 : xidx;
+						yidx == ( m - 1 ) ? yidx = m - 2 : yidx;
+						// xfrac and yfrac give the coordinates, between 0 and 1,
+						// of the point within the cell 
+						xfrac = px - xidx;
+						yfrac = py - yidx;
+						// indices of the 4 corners of the cell
+						idx0 = xidx + yidx * n;
+						idx1 = idx0 + 1;
+						idx2 = idx0 + n;
+						idx3 = idx2 + 1;
+						// bilinear interpolation to find projected coordinates (xnow,ynow)
+						// of the current contour coordinate
+						xnow = (1-xfrac)*(1-yfrac)*x[idx0] + xfrac*(1-yfrac)*x[idx1] + yfrac*(1-xfrac)*x[idx2] + xfrac*yfrac*x[idx3];
+						ynow = (1-xfrac)*(1-yfrac)*y[idx0] + xfrac*(1-yfrac)*y[idx1] + yfrac*(1-xfrac)*y[idx2] + xfrac*yfrac*y[idx3];
+						this.stream.point(xscale(xnow), yscale(ynow));
+					} // point
+				}); // geoTransform
+				
+				return d3.geoPath( p );
+			} // projection
+
+			
+			
+			
+		}, // draw
+	
+		interactivity: {
+			
+			refreshContainerSize: function refreshContainerSize(ctrl){
+				
+				// There are 4 events that may prompt resisizing.
+				// 1: Moving plots
+				// 2: Resizing plots - cannot resize contour plot for now!!
+				// 3: Moving contours
+				// 4: Resizing contours
+				
+				if(ctrl.format.title !=undefined){
+					// Plot
+					cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+					
+				} else {
+					// Contour
+					
+					let contourPlot = d3.select(ctrl.format.parent)
+					let contourPlotCtrl = contourPlot.data()[0]
+					
+					cfD3Contour2d.interactivity.resizeOnInternalChange(contourPlotCtrl)
+					
+				} // if
+				
+				
+				
+			}, // refreshContainerSize
+
+			resizeOnInternalChange: function (ctrl){
+				// An internal change has occured that prompted the plot to be resized (contours were added, moved, or resized).
+				
+				let h = positioning.helpers
+				let f = ctrl.format
+				
+				let titleDOM = f.wrapper.select("div.plotTitle").node()
+				let rightControlSize = f.wrapper.select("svg.rightControlSVG").node().getBoundingClientRect()
+				let rightControlY = f.rightControls.format.position.iy * positioning.dy( d3.select(f.rightControls.format.parent) )
+				
+				// Update the plot, AND the plot row. When updating the plot row also the other plots need to be repositioned on the grid.
+				
+				// Needs to update:
+  				// 1 plot (div.plot holding the contours), 
+				// 2 plotWrapper (containing hte whole plot)
+				// 3 plotRowBody (containing the plot). 
+				// 4 other plots of hte plot row need to be repositioned.
+				
+				// First update the size of the contour plotting area. Based on this size update the plot wrapper. Based on the new plot wrapper size update the plot row.
+				
+
+				
+				// Get the required height for the contour plot area.
+				let titleHeight = titleDOM.offsetHeight
+				let plotHeight = h.findContainerSize(ctrl.figure, ".contourWrapper")
+				let colorbarHeight = rightControlY + rightControlSize.height
+				let figureHeight = colorbarHeight > plotHeight ? colorbarHeight : plotHeight
+				
+				// Size the plotWrapper appropriately.
+				let dx = positioning.dx( d3.select( f.parent ) )
+				let dy = positioning.dy( d3.select( f.parent ) )
+				let ih = Math.ceil( (figureHeight + titleHeight) / dy) 
+				ih = ih < 4 ? 4 : ih
+				
+				f.position.ih = ih 
+				f.wrapper.style("height", ih*dy + "px" )
+				ctrl.figure.style("height", (ih*dy - titleHeight) + "px" )
+				
+
+				
+				
+				// Reposition other on-demand plots and size the plot row accordingly.
+				cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+				
+				
+				
+				
+			}, // resizeOnInternalChange
+			
+			resizeOnExternalChange: function resizeOnExternalChange(plotCtrl){
+				// An external change occured - the plot was moved or resized.
+				
+				// The contour plot is not allowed to clash with other plots. Once an appropriate sizing logic will be selected and implemented this can be relaxed. Therefore when it is moved or resized other plots in the same plot row need to be repositioned.
+				
+				// If the body of the plot moves, then hte other plots must also move.
+				positioning.helpers.repositionSiblingPlots(plotCtrl)
+				
+				// Update the plot row height itself.
+				let plotRowBody = d3.select(plotCtrl.format.parent)
+				builder.refreshPlotRowHeight(plotRowBody)
+				
+				
+			}, // resizeOnExternalChange
+			
+			rightControls: {
+				// Move everything related to the right controls here!!
+				update: function update(ctrl){
+					
+					let c = ctrl.format.rightControls.colorbar
+					let s = ctrl.tools.scales
+					
+					// Needs to primarily update teh colorbar.
+					let gBarAxis = c.svg.select("g.gBarAxis")
+					gBarAxis.call( d3.axisLeft( s.val2px ) )
+					
+					
+					// Update the threshold indicator positions.
+					c.svg.select("g.gBarLevels").selectAll("rect")
+					  .data( ctrl.data.domain.thresholds )
+				      .attr("y", d => s.val2px(d) )
+				      
+					// Update the contour data. For this the levels need to be recalculated.
+					ctrl.data.plotted.forEach(function(item){
+						item.levels = cfD3Contour2d.draw.json2contour(item.data.vals.surfaces, ctrl.data.domain.thresholds)
+					})
+					
+					// Update teh contour graphics.
+					cfD3Contour2d.draw.cards(ctrl)
+					
+					
+				}, // update
+				
+				
+				histogramBrushMove: function histogramBrushMove(ctrl){
+					
+					let s = ctrl.tools.scales
+					let extent = d3.event.selection.map(s.val2px_.invert, s.val2px_);
+				
+				    // Change the colorbar appearance by changing the scale.
+
+					
+					// This needs to figure out the new thresholds, and then update all the contours.
+					cfD3Contour2d.setupPlot.setupThresholds(ctrl, extent)
+					cfD3Contour2d.setupPlot.setupColorbarTools(ctrl)
+					
+					// Now update the right control group
+					cfD3Contour2d.interactivity.rightControls.update(ctrl)
+					
+				}, // histogramBrushMove
+				
+				interactivity: {
+					
+					refreshContainerSize: function refreshContainerSize(rightControlCtrl){
+					
+						// Has to take the right controls object, and resize the plot. First extract the ctrl for the whole plot, and then resize.
+						
+						let plotCtrl = rightControlCtrl.format.wrapper.data()[0]
+						
+						// Resize the plot.
+						cfD3Contour2d.interactivity.resizeOnInternalChange(plotCtrl)
+						
+						
+						// Resize the plot row.
+						let plotRowBody = d3.select(plotCtrl.format.parent)
+						builder.refreshPlotRowHeight(plotRowBody)
+						
+					}, // refreshContainerSize
+					
+					
+				}, // interactivity
+				
+				
+				
+			}, // rightControls
+
+			
+		}, // interactivity
+		
+		helpers: {
+		
+			// Initialisation
+			createDefaultControl: function createDefaultControl(){
+			
+				// data:
+				 
+				// • .promises are promises completed before drawing the graphics.
+				// • .requested is an array of urls whose data are requested by the plotting tool. These need not be the same as the data in promises as those are loaded on user prompt!
+				// • .available is an array of urls which were found in the central booking,
+				// • .missing                              NOT found
+				// • .dataProperties is a string array of properties found in the data.
+				// • .data is an array of n-data arrays of the n-task slice files.
+				
+				
+				var ctrl = {
+				    plotFunc: cfD3Contour2d,
+					figure: undefined,
+					svg: undefined,
+					grid: {nx: 12},
+					data: {plotted: [],
+						   promises: [],
+					       requested: [],
+						   available: [],
+						   duplicates: [],
+					       missing : [],
+						   compatible: [],
+						   incompatible: [],
+						   intersect: [],
+						   domain: {
+							   x: undefined,
+							   y: undefined,
+							   v: undefined,
+							   ar: undefined,
+							   thresholds: undefined,
+							   nLevels: undefined,
+						   },
+						   processor: importExportFunctionality.importing.contour2d
+					       },
+					view: {sliceId: undefined,
+					       options: [],
+						   viewAR: NaN,
+						   dataAR: NaN,
+						   xVarOption: undefined,
+						   yVarOption : undefined,
+						   cVarOption : undefined,
+						   transitions: {
+								duration: 500,
+								updateDelay: 0,
+								enterDelay: 0								
+							   },
+						   t: undefined
+						   },
+					tools: {
+							scales: {
+								px2clr: undefined,
+								val2clr: undefined,
+								val2px: undefined,
+								val2px_: undefined,
+								bin2px: undefined
+							}
+						},
+					format: {
+						title: "Edit title",
+						parent: undefined,
+						wrapper: undefined,
+						position: {
+							ix: 0,
+							iy: 0,
+							iw: 12,
+							ih: 4,
+							minH: 290,
+							minW: 340,
+							titleHeight: undefined,
+							plotHeight: undefined,
+							plotWidth: undefined,
+							rightControlWidth: 170
+						},
+						rightControls: {
+							plotFunc: cfD3Contour2d.interactivity.rightControls,
+							grid: {nx: 1},
+							format: {
+								parent: undefined,
+								wrapper: undefined,
+								position: {
+									ix: 0,
+									iy: 0,
+									iw: 12,
+									ih: undefined							
+								},
+							},							
+							colorbar: {
+								margin: {top: 20, bottom: 20, left: 10, right: 5},
+								svg: undefined,
+								height: undefined,
+								width: undefined,
+								x: undefined,
+								y: undefined,
+							}, // colorbar
+							histogram: {
+								margin: {top: 20, bottom: 20, left: 5, right: 10},
+								svg: undefined,
+								height: undefined,
+								width: undefined,
+								x: undefined,
+								y: undefined,
+								bins: undefined
+							} // histogram
+						}
+					}
+				} // ctrl
+				
+				
+				return ctrl
+			
+			}, // createDefaultControl
+		
+			createLoadedControl: function createLoadedControl(plotData){
+				
+				var ctrl = cfD3Contour2d.helpers.createDefaultControl()
+				
+				// If sliceId is defined, check if it exists in the metadata. If it does, then store it into the config.
+				if(plotData.sliceId != undefined){
+					// Needs to check the slice properties that this plot cal draw. 
+					if(dbsliceData.data.contour2dProperties.includes(plotData.sliceId)){
+						ctrl.view.sliceId = plotData.sliceId
+					} // if
+				} // if
+				
+				// When the session is loaded all previously existing plots would have been removed, and with them all on demand loaded data. Therefore the variables for this plot cannot be loaded, as they will depend on the data.
+											
+				return ctrl
+				
+				
+			}, // createLoadedControl
+			
+			writeControl: function writeControl(ctrl){
+				
+				var s = ""
+				s = s + '{';
+				s = s + '"type": "' + ctrl.plotFunc.name + '", ';
+				s = s + '"title": "' + ctrl.format.title + '"';
+				  
+				  
+				// For metadata plots at least the x variable will be available from the first draw of the plot. For scatter plots both will be available.
+				// Slice plots have the user select the data SOURCE, as opposed to variables, and therefore these will be undefined when the plot is first made. For slice plots a sliceId is stored.
+				  
+				var sliceId = accessProperty( ctrl.view, "sliceId" )
+				
+				s = s + writeOptionalVal("sliceId", sliceId)
+				
+				s = s + '}';
+				
+				return s
+				
+				function writeOptionalVal(name, val){
+					var s_ = ""
+					if (val !== undefined) {
+					  s_ = s_ + ', ';
+					  s_ = s_ + '"' + name + '": "' + val + '"';
+					} // if
+					return s_
+					
+				} // writeOptionalVal
+				
+				function accessProperty(o,p){
+					// When accessing a property of the child of an object it is possible that the child itself is undefined. In this case an error will be thrown as a property of undefined cannot be accessed.
+					// This was warranted as the line plot has it's x and y options left undefined until data is laoded in.
+					return o==undefined? undefined : o[p]
+				} // accessProperty
+				
+			}, // writeControl
+			
+			// Interactivity
+			transitions: {
+				instantaneous: function instantaneous(){
+				
+					return {
+						duration: 0,
+						updateDelay: 0,
+						enterDelay: 0
+					}
+				
+				}, // instantaneous
+				
+				animated: function animated(){
+				
+					return {
+						duration: 500,
+						updateDelay: 0,
+						enterDelay: 0
+					}
+				
+				} // animated
+			}, // transitions
+		
+
+			// Functions supporting cross plot highlighting
+			unhighlight: function unhighlight(ctrl){
+				
+				
+				
+			}, // unhighlight
+			
+			highlight: function highlight(ctrl, allDataPoints){
+				
+				
+				
+				
+				
+			}, // highlight
+			
+			defaultStyle: function defaultStyle(ctrl){
+					
+				
+				
+			}, // defaultStyle
+		
+			
+			
+		
+		} // helpers
+	
+		
+	} // cfD3Contour2d
+	
 
 export { d3Contour2d };

@@ -17,11 +17,9 @@ var plotHelpers = {
 					f.parent = this._parent
 					let dx = positioning.dx( d3.select(f.parent) )
 					let dy = positioning.dy( d3.select(f.parent) )
-	
-	
 					
-					  
-					var plot = d3.select(this)
+	
+					var wrapper = d3.select(this)
 					  .append("div")
 						.attr("class", "plotWrapper")
 						.attr("plottype", plotCtrl.plotFunc.name)
@@ -30,6 +28,8 @@ var plotHelpers = {
 						.style("top"   , f.parent.offsetTop + f.position.iy*dy + "px")
 						.style("width" , f.position.iw*dx + "px")
 						.style("height", f.position.ih*dy + "px")
+						
+					var plot = wrapper
 					  .append("div")
 					    .attr("class", "card")
 
@@ -51,6 +51,7 @@ var plotHelpers = {
 					// Add the actual title
 					plotHeader
 					  .append("div")
+					    .attr("class", "title")
 						.attr("style","display:inline")
 						.html(plotCtrl.format.title)
 						.attr("spellcheck", "false")
@@ -81,8 +82,9 @@ var plotHelpers = {
 						
 					// Bind the DOM element to the control object.
 					plotCtrl.figure = plotBody
+					plotCtrl.format.wrapper = wrapper
+
 					
-					// Make the plot draggable.
 					
 					
 					// Draw the plot
@@ -447,11 +449,12 @@ var plotHelpers = {
 					// USE THIS RESTANGLE AS THE clipPAth too??
 					var background = svg
 						.select("g.background")
-							
+						
+					// At some point this didn't work:
+					// .attr("clipPathUnits","objectBoundingBox")
 					background
 						.append("clipPath")
 							.attr("id", "zoomClip")
-							.attr("clipPathUnits","objectBoundingBox")
 						.append("rect")
 					background.append("rect")
 						.attr("class", "zoom-area")
@@ -571,14 +574,15 @@ var plotHelpers = {
 									
 									// Update the corresponding ctrl attribute.
 									// 'option' is a reference to either a manually created option in 'update', or a reference to an actual option in 'ctrl.view.options'.
-									option.val = option.val == d ? undefined : d;
+									var optionSame = option.val == d
+									option.val = optionSame ? undefined : d;
 									
 									// If a special event is specified, execute it here. This event might require to know the previous state, therefore execute it before updating the state.
 									if(option.event != undefined){
 										
 										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
 										
-										option.event(ctrl, option.val)
+										option.event(ctrl, option.val, optionSame)
 										
 										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
 									} // if
@@ -605,47 +609,6 @@ var plotHelpers = {
 					
 					}, // update
 					
-					options: {
-					
-						toggleAR: function toggleAR(ctrl){
-							// This should stick to the ange specified by the user.
-							
-							
-							if(ctrl.view.viewAR == 1){
-								ctrl.view.viewAR = ctrl.view.dataAR
-							} else {
-								ctrl.view.viewAR = 1
-							} // if
-							
-							// When adjusting the AR the x domain should stay the same, and only the y domain should adjust accordingly. The bottom left corner should not move.
-							
-							// How many pixels per dx=1
-							var xRange = ctrl.tools.xscale.range()
-							var yRange = ctrl.tools.yscale.range()
-							var xDomain = ctrl.tools.xscale.domain()
-							var yDomain = ctrl.tools.yscale.domain()
-							
-							var xAR = (xRange[1] - xRange[0]) / (xDomain[1] - xDomain[0])
-							var yAR = xAR/ctrl.view.viewAR
-							var yDomainRange = [yRange[0] - yRange[1]] / yAR
-							var yDomain_ = [yDomain[0], 
-											yDomain[0] + yDomainRange]
-							
-							
-							ctrl.tools.yscale.domain( yDomain_ )
-							
-							
-							
-							// t is the transformation vector. It's stored so that a delta transformation from event to event can be calculated. -1 is a flag that the aspect ratio of the plot changed.
-							ctrl.view.t = -1
-							
-							
-							ctrl.plotFunc.update(ctrl)
-							
-						} // toggleAR
-					
-					}, // options
-				
 					helpers: {
 						
 						
@@ -834,8 +797,9 @@ var plotHelpers = {
 							// Perform the regular task for y-select.
 							plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar)
 							
-							// Perform tasks required on both vertical and horizontal select changes, but that are only valid for plots with 2 interactive axes.
-							plotHelpers.setupInteractivity.twoInteractiveAxes.onSelectChange.common(ctrl)
+
+							// Perform other needed tasks and refresh.
+							ctrl.plotFunc.interactivity.onSelectChange(ctrl)
 						
 						} // return
 						
@@ -852,27 +816,13 @@ var plotHelpers = {
 							ctrl.view.xVarOption.val = selectedVar
 							
 							// Perform other needed tasks and refresh.
-							plotHelpers.setupInteractivity.twoInteractiveAxes.onSelectChange.common(ctrl)
+							ctrl.plotFunc.interactivity.onSelectChange(ctrl)
+							
 						} // return
 						
 					}, // horizontal
 					
-					common: function common(ctrl){
-						
-						// Reset the AR values.
-						ctrl.view.dataAR = undefined
-						ctrl.view.viewAR = undefined
-						
-						// Update the plot tools
-						plotHelpers.setupTools.go(ctrl)
-						
-						// Update transition timings
-						ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
-						
-						// Update plot itself
-						ctrl.plotFunc.refresh(ctrl)
-						
-					}, // common
+					
 					
 					
 				}, // onSelectChange
@@ -894,7 +844,8 @@ var plotHelpers = {
 						mw = Number( svg.select("g.data").attr("width") )
 						mh = Number( svg.select("g.data").attr("height") )
 						
-						var p = d3.event.x;
+						let axisXDOM = svg.select("g.axis--x").node()
+						var p = d3.mouse(axisXDOM)[0];
 						downx = ctrl.tools.xscale.invert(p);
 						downscalex = ctrl.tools.xscale;
 						
@@ -905,7 +856,8 @@ var plotHelpers = {
 						mw = Number( svg.select("g.data").attr("width") )
 						mh = Number( svg.select("g.data").attr("height") )
 						
-						var p = d3.event.y;
+						let axisYDOM = svg.select("g.axis--y").node()
+						var p = d3.mouse(axisYDOM)[1];
 						downy = ctrl.tools.yscale.invert(p);
 						downscaley = ctrl.tools.yscale;
 						
@@ -916,27 +868,43 @@ var plotHelpers = {
 					
 					svg
 					  .on("mousemove", function(d) {
+						  
+						let axisXDOM = d3.select(this).select("g.axis--x").node()
+						let axisYDOM = d3.select(this).select("g.axis--y").node()
 						
 						if (!isNaN(downx)) {
-						  var px = d3.event.x
-						  var dpx = d3.event.dx
-						  if (dpx != 0) {
-							ctrl.tools.xscale.domain([downscalex.domain()[0],  mw * (downx - downscalex.domain()[0]) / px + downscalex.domain()[0]]);
+						  var px = d3.mouse( axisXDOM )[0]
+						  if (downscalex(px) != downx) {
+							// Here it would be great if the dragged number would move to where the cursor is.
+							
+							//let tx = ctrl.view.t.x
+							//let tv = downscalex.invert( tx )
+							//let vb = tv + ( downx - tv )/( px - tx )*( mw - tx )
+							//let va = tv - ( downx - tv )/( px - tx )*tx
+							
+							let va = downscalex.domain()[0]
+							let vb = mw * (downx - downscalex.domain()[0]) / px + downscalex.domain()[0]
+							  
+							ctrl.tools.xscale.domain([ va,  vb ]);
 						  } // if
 						  
-						  handleRedraw()
+						  // Execute redraw
+						  ctrl.plotFunc.interactivity.dragAdjustAR(ctrl)
 						  
 						} // if
 						
 						
 						if (!isNaN(downy)) {
-						  var py = d3.event.y
-						  var dpy = d3.event.dy
-						  if (dpy != 0) {
-							ctrl.tools.yscale.domain([downscaley.domain()[0],  mh * ( downy - downscaley.domain()[0]) / (mh - py) + downscaley.domain()[0]])
+						  var py = d3.mouse( axisYDOM )[1]
+						  if (downscaley(py) != downy) {
+							ctrl.tools.yscale.domain([
+								downscaley.domain()[0],  
+								mh * ( downy - downscaley.domain()[0]) / (mh-py) + downscaley.domain()[0] 
+							])
 						  } // if
 						  
-						  handleRedraw()
+						  // Execute redraw
+						  ctrl.plotFunc.interactivity.dragAdjustAR(ctrl)
 							
 						} // if
 						
@@ -944,21 +912,12 @@ var plotHelpers = {
 					  .on("mouseup", function(d) {
 						downx = Math.NaN;
 						downy = Math.NaN;
-						
+						// When the domain is manually adjusted the previous transformations are no longer valid, and to calculate the delta at next zoom event the transformation needs to be reinitiated.
 						ctrl.view.t = -1
 					  });
 					  
 					  
-					  // Helpers
-					  function handleRedraw(){
-					  
-							// Transitions
-							ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
-						  
-							// Create dummies.
-							ctrl.plotFunc.update(ctrl)
-					  
-					  } // handleRedraw
+
 									
 						 
 					  
@@ -1020,8 +979,8 @@ var plotHelpers = {
 							
 							
 							// Update the plot
-							// Create dummies.
 							ctrl.plotFunc.refresh(ctrl)
+							
 							
 						} // if
 						

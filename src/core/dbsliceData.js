@@ -1,13 +1,12 @@
 
 // https://www.sitepoint.com/javascript-object-creation-patterns-best-practises/
 
-class DbsliceData {
-  constructor() {
-    this.data = undefined;
-    this.flowData = [];
-	this.session = {}
-  }
-}
+class dbsliceData = {
+		data: undefined,
+		flowData: [],
+		session: {}
+	} // dbsliceData
+
 
 export let dbsliceData = new DbsliceData();
 

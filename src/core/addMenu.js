@@ -12,26 +12,46 @@ var addMenu = {
             
             elementOptionsArray: function(plotRowType){
                 
-                var options;
+				let d = dbsliceData.data
+				
+                var options = [{val: "undefined"    , text: " "}];
                 switch(plotRowType){
                     case "metadata":
-                        options = [
-                            {val: "undefined"    , text: " "},
-                            {val: "cfD3BarChart" , text: "Bar Chart"},
-                            {val: "cfD3Scatter"  , text: "Scatter"},
-                            {val: "cfD3Histogram", text: "Histogram"}
-                        ]
+					
+						if( existsAndHasElements(d.metaDataProperties) ){
+							options.push( {val: "cfD3BarChart" , text: "Bar Chart"} )
+						}
+						
+						if( existsAndHasElements(d.dataProperties) ){
+							options.push( {val: "cfD3Scatter"  , text: "Scatter"} )
+							options.push( {val: "cfD3Histogram", text: "Histogram"} )
+						}
                         break;
                     
                     case "plotter":
-                        options = [
-                            {val: "undefined"    , text: " "},
-                            {val: "cfD3Line"     , text: "Line"}
-                        ]
+					
+						if( existsAndHasElements(d.line2dProperties) ){
+							options.push( {val: "cfD3Line"     , text: "Line"} )
+						}
+					
+						if( existsAndHasElements(d.contour2dProperties) ){
+							options.push( {val: "cfD3Contour2d", text: "2D Contour"} )
+						}
+					
                         break;
                 }; // switch
                 
                 return options;
+				
+				
+				
+				function existsAndHasElements(A){
+					let response = false
+					if(A){
+						response = A.length > 0
+					}
+					return response
+				}
                 
             },
                             
@@ -161,7 +181,17 @@ var addMenu = {
 						
                       break;
 					  
-					  
+					case "cfD3Contour2d":
+                    
+                        // The user selected variable to plot is stored in config.newCtrl, with all other user selected variables. However, for this type of plot it needs to be one level above, which is achieved here.
+                        // Store the currently selected slice, then push everything forward.
+                        
+                    
+                        plotCtrl = cfD3Contour2d.helpers.createDefaultControl()
+						
+						plotCtrl.view.sliceId = config.newCtrl.slice
+						
+                      break;  
 					
                       
 
@@ -243,6 +273,12 @@ var addMenu = {
                         disabledFlag = false;
                     
                       break;
+					  
+					case "cfD3Contour2d":
+                        // Nothing else is needed, just enable the submit button.
+                        disabledFlag = false;
+                    
+                      break;
                       
                     default :
                         // Disable
@@ -317,9 +353,17 @@ var addMenu = {
 					  
 					  
 					  // slice is required.
-					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.sliceProperties, "Select variable");
+					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.line2dProperties, "Select variable");
 					  break;
 					  
+					case "cfD3Contour2d":
+					  
+					  
+					  // slice is required.
+					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.contour2dProperties, "Select variable");
+					  break;
+					  
+					
 					  
 					default :
 					 
@@ -366,7 +410,7 @@ var addMenu = {
 				})[0]
 				
 				// Position the new plot row in hte plot container.
-				plotToPush = positioning.newPlot(plotRow, plotToPush)
+				positioning.newPlot(plotRow, plotToPush)
 				
 				
 				plotRow.plots.push(plotToPush)
@@ -374,7 +418,7 @@ var addMenu = {
                 
                 // Add the new plot to the session object. How does this know which section to add to? Get it from the parent of the button!! Button is not this!
                 // var plotRowIndex = d3.select(this).attr("plot-row-index")
-                // console.log(element)
+                
                 
                 // Redraw the screen.
                 render();
@@ -650,8 +694,14 @@ var addMenu = {
 					  
 					  // button -> plotrowTitle -> plotRow
 					  this.parentElement.parentElement.remove()
+					  
+					  // Remove any filters that have been removed.
+					  filter.remove()
+					  filter.apply()
 
-					 
+					  // Re-render the view
+					  render()
+					  
 				  }); // on
 				
 				

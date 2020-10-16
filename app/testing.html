@@ -40,8 +40,38 @@
 
 <body>
 
+	<!-- side by side svgs.-->
+	<div class="plotWrapper" plottype="cfD3Contour2d" style="position: absolute; left: 0px; top: 63px; width: 1193px; height: 397.667px;">
+		<div class="card">
+			<div class="card-header plotTitle" style="cursor: grab;">
+				<div style="display: inline; cursor: text;" spellcheck="false" contenteditable="true">Edit title</div>
+				<div class="ctrlGrp float-right" style="display:inline-block">
+					<button class="btn btn-danger float-right">x</button>
+				</div>
+			</div>
+			
+			<div>
+				<div class="plot" style="height: 334.667px; width: 1100px; background-color: Gray; float: left">
+					
+					<svg>
+					<svg fill="cornflowerblue">
+						<rect width="300" height="100" />
+					</svg>
+					<svg fill="gainsboro" x="300">
+						<rect width="300" height="100" />
+					</svg>
+					</svg>
+					
+				</div>
+				<div class="colorbar" style="height: 334.667px; width: 50px; background-color: cornflowerblue; float: right"></div>
+			</div>
+		</div>
+	</div>
+	
+	
+	
 
-
+	<!-- Clipping>
 
 
 	<div class="card">
@@ -185,15 +215,27 @@
 			</div>
 		</div>
 	</div>
+	
+	<-->
+	
+	<!-- Testing the title height
+	<div class="card titleSize" style="position: absolute; background-color: white; left: 0px; top: 700px; cursor: move; width: 99.25px; max-width: 99.25px; height: 198.5px;">
+		<div class="title">
+			<p style="text-align: center;">./data/task_99</p>
+		</div>
+		<svg width="70.55590916869828" height="129.5" style="display: block; margin: auto;">
+			<g class="contour" fill="none" stroke="#fff" stroke-opacity="0.5">
+			</g>
+		</svg>
+	</div>
+	
+	-->
 
 	<script>
 	
-		
-		
-		// Add teh zooming.
-		//d3.select("svg.plotArea")
-		//	  .select("g.data")
-		//        .attr("clip-path", "url(#zoomClip)")
+		/*
+	
+		// CLIPPING
 				
 		d3.select("svg.plotArea")
 			  .select("g.data")
@@ -220,8 +262,34 @@
 			  .select("g.data")
 			  .selectAll("g.plotSeries")
 			  .attr("transform", d3.event.transform)
+			  //  
 		
 		} // zoomed
+		
+		
+		
+		
+		
+		// CONTROL TEXT SIZE.
+		var title = d3.select("div.titleSize")
+		  .select("div.title")
+		  .select("p")
+		  
+		// Make a while loop to run until the title size is appropriate. Make sure the plots initially all have the same title size.
+		var fontSize = 16
+		while( title.node().getBoundingClientRect().height > 24 ){
+			// Reduce the font size
+			fontSize -= 1
+			
+			title.style("font-size", fontSize + "px")
+		} // while
+		
+		console.log(title)
+		
+		
+		
+		*/
+		
 	
 	</script>
 

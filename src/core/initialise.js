@@ -22,7 +22,7 @@ function initialise(elementId, session, data) {
 			dbsliceData.elementId = elementId;
 			
 
-			// The state is ready.
+			// The state is ready. 
 			resolve("")
 			
 			
@@ -38,7 +38,7 @@ function initialise(elementId, session, data) {
 			render()
 			},
 			function(error){
-				// The reject hasn't been called, so this shouldn't run at all.
+				// The reject hasn't been called, so this shouldn't run at all. See info in `dataInitPromise'.
 				console.log("I shouldn't have run, why did I?")
 			})
 		  

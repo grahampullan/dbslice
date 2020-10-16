@@ -14,7 +14,7 @@ var cfD3BarChart = {
         make: function make(ctrl) {
         
             // Remove any controls in the plot title.
-			// cfD3BarChart.addInteractivity.updatePlotTitleControls(element)
+			// cfD3BarChart.interactivity.updatePlotTitleControls(element)
 			
 			
 			plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
@@ -29,7 +29,7 @@ var cfD3BarChart = {
 			markup.append("g").attr("class", "label")
 			
 			// Handle the select.
-			var i= cfD3BarChart.addInteractivity.onSelectChange
+			var i= cfD3BarChart.interactivity.onSelectChange
 			plotHelpers.setupPlot.general.appendVerticalSelection(ctrl.figure.select(".leftAxisControlGroup"), i.vertical(ctrl))
 			plotHelpers.setupPlot.general.updateVerticalSelection(ctrl)
 			
@@ -262,8 +262,8 @@ var cfD3BarChart = {
 				draw.axes(ctrl);
 				
 				// Add interactivity:
-				cfD3BarChart.addInteractivity.addOnMouseOver(ctrl);
-				cfD3BarChart.addInteractivity.addOnMouseClick(ctrl);
+				cfD3BarChart.interactivity.addOnMouseOver(ctrl);
+				cfD3BarChart.interactivity.addOnMouseClick(ctrl);
 				
 			}, // update
 			
@@ -364,7 +364,7 @@ var cfD3BarChart = {
 		
 		}, // setupPlot
 	  
-		addInteractivity: {
+		interactivity: {
 			
 			onSelectChange: {
 				
@@ -377,7 +377,7 @@ var cfD3BarChart = {
 						// Perform the regular task for y-select: update teh DOM elements, and the plot state object.
 						plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar)
 						
-						// Update the filter. If a variable is removed from view then it's filter must be removed as well. It is completely REMOVED, and not stored in the background.
+						// Update the filter. If a variable is removed from view then it's filter must be removed as well. It is completely REMOVED, and not stored in the background. Filter checks the variables in the control objects.
 						filter.apply()
 						
 						// Setup the tools anew.
@@ -386,7 +386,7 @@ var cfD3BarChart = {
 						// Signal that a regroup is required.
 						ctrl.view.yVarChanged = true
 			
-						// Maybe just call a render here, but flag internally if a regroup is needed?
+						// Render is called because the filter may have changed.
 						render()			
 					
 					} // return
@@ -403,7 +403,7 @@ var cfD3BarChart = {
 				svg.selectAll("rect").on("click", onClick);
 				
 				function onClick(d){
-					console.log("on bar click")
+
 					
 					// Update the filter selection.
 					filter.addUpdateMetadataFilter(property, d.val)
@@ -446,8 +446,15 @@ var cfD3BarChart = {
 				
 			}, // addOnMouseOver
 			
+			refreshContainerSize: function refreshContainerSize(ctrl){
+				
+				var container = d3.select(ctrl.format.parent)
+				
+				builder.refreshPlotRowHeight( container )
+				
+			} // refreshContainerSize
 			
-		}, // addInteractivity
+		}, // interactivity
 	
 		helpers: {
 		
@@ -469,9 +476,6 @@ var cfD3BarChart = {
 								histogram: undefined},
 						format: {
 							title: "Edit title",
-							colWidth: 4,
-							width: undefined,
-							height: 400,
 							margin: {top: 10, right: 0, bottom: 30, left: 30},
 							axesMargin: {top: 10, right: 30, bottom: 30, left: 10},
 							parent: undefined,
@@ -479,7 +483,9 @@ var cfD3BarChart = {
 								ix: 0,
 								iy: 0,
 								iw: 4,
-								ih: 4
+								ih: 4,
+								minH: 290,
+								minW: 190
 							}
 						}
 				} // ctrl
@@ -659,7 +665,13 @@ var cfD3BarChart = {
 			// Functions supporting cross plot highlighting
 			unhighlight: function unhighlight(ctrl){
 				
-				
+				/*
+				ctrl.figure
+				  .select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("rect")
+				    .attr("opacity", 0.5)
+				*/
 			}, // unhighlight
 			
 			highlight: function highlight(ctrl, allDataPoints){

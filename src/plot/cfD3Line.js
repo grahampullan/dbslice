@@ -19,7 +19,7 @@ var cfD3Line = {
 			
 			var hs = plotHelpers.setupPlot
 			var hi= plotHelpers.setupInteractivity.twoInteractiveAxes
-			var i = cfD3Line.addInteractivity
+			var i = cfD3Line.interactivity
 			
 			// Add the manual selection toggle to its title.
 			hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
@@ -54,7 +54,7 @@ var cfD3Line = {
 			var sliceOption = {
 				name: "Slice Id",
 				val: undefined,
-				options: dbsliceData.data.sliceProperties,
+				options: dbsliceData.data.line2dProperties,
 				event: function(ctrl, d){ctrl.view.sliceId = d}
 			} // sliceOption
 			
@@ -67,6 +67,28 @@ var cfD3Line = {
 		
 		}, // make
 		
+		update: function update(ctrl){
+			
+			// plotFunc.update is called in render when coordinating the plots with the crossfilter selection. On-demand plots don't respond to the crossfilter, therefore this function does nothing. In hte future it may report discrepancies between its state and the crossfilter.
+			
+			// Called on: AR change, color change
+		
+			// Update the color if necessary.
+			let allSeries = ctrl.figure.select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("path.line")
+				    .transition()
+					.duration( ctrl.view.transitions.duration )
+				    .style( "stroke", ctrl.tools.getColor )
+			
+			
+			// Maybe just introduce separate draw scales and axis scales??
+			
+			// Update the axes
+			cfD3Line.helpers.axes.update(ctrl)			
+				
+			
+		}, // update
 		
 		updateData: function updateData(ctrl){
 			
@@ -75,7 +97,7 @@ var cfD3Line = {
 			
 			
 			// GETDATAINFO should be launched when new data is loaded for it via the 'refresh' button, and when a different height is selected for it. Otherwise it is just hte data that gets loaded again.
-			cfD3Line.helpers.getLineDataInfo(ctrl)
+			cfDataManagement.getLineFileDataInfo(ctrl)
 			
 			
 			
@@ -89,14 +111,35 @@ var cfD3Line = {
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
 			
 			
-			// Setup the plot tools
-			cfD3Line.setupPlot.setupPlotTools(ctrl)
+			// Setup the plot tools. Also collects the data
+			cfD3Line.setupPlot.setupLineSeries(ctrl)
+			plotHelpers.setupTools.go(ctrl)
+			cfD3Line.setupPlot.setupLineTools(ctrl)
 			
-			cfD3Line.update(ctrl)
+			// The data domain is required for nicer AR adjusting.
+			ctrl.format.domain = {
+				x: ctrl.tools.xscale.domain(),
+				y: ctrl.tools.yscale.domain(),
+			}
+			
+			
+			cfD3Line.draw(ctrl)
+			
+			// Update the axes
+			cfD3Line.helpers.axes.update(ctrl)
+			
+			// Adjust the title
+			ctrl.format.wrapper.select("div.title").html(ctrl.view.sliceId)
+			
 			
 		}, // updateData
-				
-		update: function update(ctrl){
+			
+
+			
+		draw: function draw(ctrl){
+			
+			// Draw is used when the data changes. The transform is added in terms of pixels, so it could possibly be kept. So, when introducing new data add the transform already, so everything is kept at the same transform.
+			
 			// This function re-intialises the plots based on the data change that was initiated by the user.
 
 			// RELOCATE TO DRAW??
@@ -105,17 +148,17 @@ var cfD3Line = {
 				// Update the axes
 				cfD3Line.helpers.axes.update(ctrl)
 				
+				// CHANGE TO JOIN!!
 				
 				 // Assign the data
 				var allSeries = ctrl.figure.select("svg.plotArea")
 				  .select("g.data")
-				  .selectAll( ".plotSeries" )
+				  .selectAll("path.line")
 				  .data( ctrl.data.series );
 
-				// Enter/update/exit
+				// enter
 				allSeries.enter()
-				  .each( function(){
-					  var seriesLine = d3.select( this ).append( "g" )
+				  .append( "g" )
 						  .attr( "class", "plotSeries")
 						  .attr( "task-id", ctrl.tools.getTaskId)
 						.append( "path" )
@@ -123,32 +166,38 @@ var cfD3Line = {
 						  .attr( "d", ctrl.tools.line )
 						  .style( "stroke", ctrl.tools.getColor ) 
 						  .style( "fill", "none" )
-						  .style( "stroke-width", 2.5 )
-					
-					  // Add a tooltip to this line
-					  cfD3Line.addInteractivity.addLineTooltip(ctrl, seriesLine.node() )
-		
-					  // Add the option to select this line manually.
-					  cfD3Line.addInteractivity.addSelection( seriesLine.node() );
-				});
+						  .style( "stroke-width", 2.5 / ctrl.view.t.k )
+						  .on("mouseover", cfD3Line.interactivity.addTipOn(ctrl))
+						  .on("mouseout", cfD3Line.interactivity.addTipOff(ctrl))
+						  .on("click", cfD3Line.interactivity.addSelection)
 
-				// update: A bit convoluted as the paths have a wrapper containing some information for ease of user inspection in dev tools.
+				// update:
 				allSeries.each( function() {
-					var series = d3.select( this )
+					// The taskId is in the parent wrapper.
+					var series = d3.select( this.parentElement )
 						.attr( "task-id",  ctrl.tools.getTaskId);
+						
 				})	
-					
-				allSeries.selectAll( "path.line" )
+				
+				// Keep a reference to the original draw domain to allow the data to be updated more seamlessly?
+				allSeries
 					  .transition()
 					  .duration(ctrl.view.transitions.duration)
 					  .attr( "d", ctrl.tools.line )
 					  .style( "stroke", ctrl.tools.getColor )
-					   
+					  
+				// exit
 				allSeries.exit().remove();
+				
+				// Add the appropriate translate??
+				ctrl.figure.select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("g.plotSeries")
+					  .attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl) )
 			
 			} // if
 		
-		}, // update
+		}, // draw
 	
 		
 		refresh: function refresh(ctrl){
@@ -156,12 +205,21 @@ var cfD3Line = {
 			// Update the axes
 			cfD3Line.helpers.axes.update(ctrl)
 			
+			
 			// Using the transform on g to allow the zooming is much faster.
+				// MAYBE MOVE THE TRANSFORM ON g.data? WILL IT MAKE IT FASTER??
+			ctrl.figure.select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("g.plotSeries")
+					  .attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl) ) 
+				  
+				  
+			// Update the line thickness.
 			ctrl.figure.select("svg.plotArea")
 			  .select("g.data")
 			  .selectAll("g.plotSeries")
-                  .attr("transform", ctrl.view.t)
-
+			  .selectAll("path.line")
+			    .style( "stroke-width", 2.5 / ctrl.view.t.k )
 		
 		}, // refresh
 	
@@ -189,13 +247,13 @@ var cfD3Line = {
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
 			
 			// 2.) The plot tools need to be updated
-			plotHelpers.setupTools.go(ctrl)
+			cfD3Line.setupPlot.setupPlotTools(ctrl)
 			
 			
 				
 			
 			// 3.) The plot needs to be redrawn
-			cfD3Line.update(ctrl)
+			cfD3Line.draw(ctrl)
 			
 		}, // rescale
 	
@@ -215,7 +273,8 @@ var cfD3Line = {
 						ctrl.view.options.push({
 							   name: dataOption.name,
 							   val : dataOption.options[0],
-							options: dataOption.options
+							options: dataOption.options,
+							  event: cfD3Line.updateData
 						})
 					} else {
 						
@@ -287,12 +346,12 @@ var cfD3Line = {
 						name: "AR",
 						val: undefined,
 						options: ["User / Unity"],
-						event: h.buttonMenu.options.toggleAR
+						event: cfD3Line.interactivity.toggleAR
 					} // arOption
 					
 					
 					// Make functionality options for the menu.
-					var codedPlotOptions = [ctrl.view.cVarOption, arOption]
+					var codedPlotOptions = [color.settings, arOption]
 					
 					return codedPlotOptions.concat( ctrl.view.options )
 					
@@ -301,10 +360,17 @@ var cfD3Line = {
 			}, // updateUiOptions
 		
 			// Functionality required to setup the tools.
-			setupPlotTools: function setupPlotTools(ctrl){
+			setupLineSeries: function setupLineSeries(ctrl){
 				
-				// Setup the scales for plotting.
-				plotHelpers.setupTools.go(ctrl)
+				// Retrieve the data once.
+				ctrl.data.series = ctrl.data.compatible.map(function(file){
+					return cfDataManagement.getLineDataVals(file, ctrl)
+				})
+				
+			}, // setupLineSeries
+			
+			setupLineTools: function setupLineTools(ctrl){
+				// Needs to update the accessors.
 				
 				// Make the required line tool too!
 				// The d3.line expects an array of points, and will then connect it. Therefore the data must be in some form of: [{x: 0, y:0}, ...]
@@ -312,18 +378,13 @@ var cfD3Line = {
 					.x( function(d){ return ctrl.tools.xscale( d.x ) } )
 					.y( function(d){ return ctrl.tools.yscale( d.y ) } );
 					
-					
-				// Retrieve the data once.
-				ctrl.data.series = ctrl.data.compatible.map(function(file){
-					return importExportFunctionality.importing.line.getLineDataVals(file, ctrl)
-				})
-				
+
 				// Tools for retrieving the color and taskId
 				ctrl.tools.getTaskId = function(d){return d.task.taskId} 
 				ctrl.tools.getColor = function(d){return color.get(d.task[color.settings.variable])
 				} // getColor
 				
-			}, // setupPlotTools
+			}, // setupLineTools
 			
 			findPlotDimensions: function findPlotDimensions(svg){
 			
@@ -336,14 +397,12 @@ var cfD3Line = {
 			
 				// The series are now an array of data for each of the lines to be drawn. They possibly consist of more than one array of values. Loop over all to find the extent of the domain.
 				
-				var seriesExtremes = ctrl.data.compatible.map(function(file){
+				var seriesExtremes = ctrl.data.series.map(function(series){
 				
-					var plotData = importExportFunctionality.importing.line.getLineDataVals(file, ctrl)
-					
-					return {x: [d3.min(plotData, function(d){return d.x}),
- 					            d3.max(plotData, function(d){return d.x})], 
-					        y: [d3.min(plotData, function(d){return d.y}),
- 					            d3.max(plotData, function(d){return d.y})]
+					return {x: [d3.min(series, function(d){return d.x}),
+ 					            d3.max(series, function(d){return d.x})], 
+					        y: [d3.min(series, function(d){return d.y}),
+ 					            d3.max(series, function(d){return d.y})]
 							}
 				}) // map
 				
@@ -359,12 +418,80 @@ var cfD3Line = {
 				// Helpers
 				
 				
-			} // findDomainDimensions
+			}, // findDomainDimensions
 			
+		
+			// Find the appropriate transform for the data
+			adjustTransformToData: function (ctrl){
+				// Calculate the transform. Find the position of the domain minimum using the new scales.
+				
+				
+				
+				// Find the scaling based on the data domain and the scale domain.
+				let xDataDomain = ctrl.format.domain.x
+				let xScaleDomain = ctrl.tools.xscale.domain()
+				
+				let yDataDomain = ctrl.format.domain.y
+				let yScaleDomain = ctrl.tools.yscale.domain()
+				
+				
+				let x = (xDataDomain[1] - xDataDomain[0]) / (xScaleDomain[1] - xScaleDomain[0])
+				let y = (yDataDomain[1] - yDataDomain[0]) / (yScaleDomain[1] - yScaleDomain[0])
+				
+				
+				let scale = "scale(" + [x,y].join(",") + ")"
+				
+				
+				
+				// THE SCALE IS APPLIE WITH THE BASIS AT THE TOP CORNER. MEANS THAT AN ADDITIONAL TRANSLATE WILL BE NEEDED!!
+				// y-axis starts at the top! The correction for this, as well as the offset due to the top=based scaling is "- plotHeight + (1-y)*plotHeight"
+				let plotHeight = ctrl.tools.yscale.range()[0] - ctrl.tools.yscale.range()[1]
+				
+				// y-axis starts at the top!
+				let translate = helpers.makeTranslate(
+					ctrl.tools.xscale( ctrl.format.domain.x[0] ),
+					ctrl.tools.yscale( ctrl.format.domain.y[0] ) - y*plotHeight
+				)
+				
+				
+				return [translate, scale].join(" ")
+				
+				
+				
+				
+				
+				
+			}, // 
 		
 		}, // setupPlot
 	
-		addInteractivity: {
+		interactivity: {
+			
+			// Variable change
+			onSelectChange: function onSelectChange(ctrl){
+					
+				// Reset the AR values.
+				ctrl.view.dataAR = undefined
+				ctrl.view.viewAR = undefined
+				
+				// Update the plot tools. Data doesn't need to change - FIX
+				cfD3Line.setupPlot.setupLineSeries(ctrl)
+				plotHelpers.setupTools.go(ctrl)
+				cfD3Line.setupPlot.setupLineTools(ctrl)
+				
+				// The data domain is required for nicer AR adjusting.
+				ctrl.format.domain = {
+					x: ctrl.tools.xscale.domain(),
+					y: ctrl.tools.yscale.domain(),
+				}
+				
+				// Update transition timings
+				ctrl.view.transitions = cfD3Line.helpers.transitions.animated()
+				
+				// Update plot itself
+				cfD3Line.draw(ctrl)
+				
+			}, // onSelectChange
 				
 			// Tooltips
 			createLineTooltip: function createLineTooltip(ctrl){
@@ -383,7 +510,6 @@ var cfD3Line = {
 					var tip = d3.tip()
 						.attr('class', 'd3-tip')
 						.attr("type", "cfD3LineLineTooltip")
-						.offset([-15, 0])
 						.html(function (d) {
 							return "<span>" + d.task.label + "</span>";
 						});
@@ -397,88 +523,190 @@ var cfD3Line = {
 				
 			}, // createLineTooltip
 			
-			addLineTooltip: function addLineTooltip(ctrl, lineDOM){
-			  
-				// This controls al the tooltip functionality.
-			  
-				var lines = ctrl.figure
-				  .select("svg.plotArea")
-				  .select("g.data")
-				  .selectAll("g.plotSeries");
-			  
-				lines.on("mouseover", tipOn)
-					 .on("mouseout", tipOff);
-			   
-				  
-				function tipOn(d) {
-					lines.style("opacity", 0.2);
-					d3.select(this)
-						.style("opacity", 1.0)
-						.style( "stroke-width", "4px" );
+			addTipOn: function addTipOn(ctrl){
+				
+				return function (d){			
 					
+					// path < plotSeries < g.data < svg
+					var coordinates = d3.mouse(this.parentElement.parentElement)
 					
 					var anchorPoint = ctrl.figure
 					  .select("svg.plotArea")
 					  .select("g.background")
 					  .select(".anchorPoint")
-						.attr( "cx" , d3.mouse(this)[0] )
-						.attr( "cy" , d3.mouse(this)[1] );
+						.attr( "cx" , coordinates[0] )
+						.attr( "cy" , coordinates[1] - 15);
 					
 					ctrl.view.lineTooltip.show(d, anchorPoint.node());
 					
 					crossPlotHighlighting.on(d, "cfD3Line")
 					
-				}; // tipOn
-
-				function tipOff(d) {
-					lines.style("opacity", 1.0);
-					d3.select(this)
-						.style( "stroke-width", "2.5px" );
+				}; // return 
+				
+			}, // addTipOn
+			
+			addTipOff: function addTipOff(ctrl){
+				
+				return function (d){
+					
 					
 					ctrl.view.lineTooltip.hide();
 					
 					crossPlotHighlighting.off(d, "cfD3Line")
 					
 				}; // tipOff
-			  
-			  
-			}, // addLineTooltip
-			
+				
+			}, // addTipOff 
 			
 
-			// Legacy
-			addSelection: function addSelection(lineDOM){
-				// This function adds the functionality to select elements on click. A switch must then be built into the header of the plot t allow this filter to be added on.
-				
-				d3.select(lineDOM).on("click", selectLine)
+			// Manual selection
+			addSelection: function addSelection(d){
+				// Functionality to select elements on click. 
 				
 				
+				// Toggle the selection
+				var p = dbsliceData.data.manuallySelectedTasks
 				
-				function selectLine(d){
-					// Toggle the selection
-					var p = dbsliceData.data.manuallySelectedTasks
-					
-					// Is this point in the array of manually selected tasks?
-					var isAlreadySelected = p.indexOf(d.task.taskId) > -1
+				// Is this point in the array of manually selected tasks?
+				var isAlreadySelected = p.indexOf(d.task.taskId) > -1
 
+				
+				if(isAlreadySelected){
+					// The poinhas currently been selected, but must now be removed
+					p.splice(p.indexOf(d.task.taskId),1)
+				} else {
+					p.push(d.task.taskId)
+				}// if
+				
+				
+				// Highlight the manually selected options.
+				crossPlotHighlighting.manuallySelectedTasks()
 					
-					if(isAlreadySelected){
-						// The poinhas currently been selected, but must now be removed
-						p.splice(p.indexOf(d.task.taskId),1)
-					} else {
-						p.push(d.task.taskId)
-					}// if
-					
-					
-					// Highlight the manually selected options.
-					crossPlotHighlighting.manuallySelectedTasks()
-					
-				} // selectPoint
+				
 				
 			}, // addSelecton
 			
+			// On resize/drag
+			refreshContainerSize: function refreshContainerSize(ctrl){
+				
+				var container = d3.select(ctrl.format.parent)
+				
+				builder.refreshPlotRowHeight( container )
+				
+			}, // refreshContainerSize
 
-		}, // addInteractivity
+			toggleAR: function toggleAR(ctrl){
+				
+				// Make sure the data stays in the view after the changes!!
+				
+				if(ctrl.view.viewAR == 1){
+						// Change back to the data aspect ratio. Recalculate the plot tools.
+						ctrl.view.viewAR = ctrl.view.dataAR
+					} else {
+						// Change to the unity aspect ratio. Adjust the y-axis to achieve it.
+						ctrl.view.viewAR = 1
+					} // if
+					
+					// When adjusting the AR the x domain should stay the same, and only the y domain should adjust accordingly. The bottom left corner should not move.
+				
+					// Adjust so that the middle of the visible data domain stays in the same place?
+					
+					
+					
+					var yAR = calculateAR(ctrl)
+					let newYDomain = calculateDomain(ctrl.tools.yscale, ctrl.format.domain.y, yAR)
+					ctrl.tools.yscale.domain( newYDomain )
+					
+					
+					// cfD3Line.setupPlot.setupLineTools(ctrl)
+					
+					// t is the transformation vector. It's stored so that a delta transformation from event to event can be calculated. -1 is a flag that the aspect ratio of the plot changed.
+					ctrl.view.t = -1
+					
+					
+					ctrl.view.transitions = cfD3Line.helpers.transitions.animated()
+
+					// Redraw is handled here, as the data domain must be used for the drawing. Shouldn't this also be true when changing the AR??
+					
+					// Revert back to original domain for drawing, but use the current axis domain for the axis update. d3.line in ctrl.tools.line accesses teh x and yscales when called, and so uses the current scale domains. These change on zooming, but the data must be drawn in the data domain, because the zooming and panning is done via transform -> translate.
+					let xscaleDomain = ctrl.tools.xscale.domain()
+					ctrl.tools.xscale.domain( ctrl.format.domain.x )
+					
+					
+					// Redraw the line in the new AR.
+					let allSeries = ctrl.figure.select("svg.plotArea")
+						  .select("g.data")
+						  .selectAll("path.line")
+							.transition()
+							.duration( ctrl.view.transitions.duration )
+							.attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl))
+							.attr( "d", ctrl.tools.line )
+					
+					ctrl.tools.xscale.domain(xscaleDomain)
+					
+					
+					
+					
+					function calculateAR(ctrl){
+						
+						let xRange = ctrl.tools.xscale.range()
+						let yRange = ctrl.tools.yscale.range()
+						let xDomain = ctrl.tools.xscale.domain()
+						let yDomain = ctrl.tools.yscale.domain()
+					
+						let xAR = (xRange[1] - xRange[0]) / (xDomain[1] - xDomain[0])
+						let yAR = xAR/ctrl.view.viewAR
+						return yAR
+					}
+					
+					function calculateDomain(scale, dataDomain, AR){
+						
+						// Always adjust teh AR so that the data remains in view. Keep the midpoint of the visible data where it is on the screen.
+						
+						let range = scale.range()
+						let domain = scale.domain()
+						
+						// First find the midpoint of the visible data.
+						let a = dataDomain[0] < domain[0] ? domain[0] : dataDomain[0]
+						let b = dataDomain[1] > domain[1] ? domain[1] : dataDomain[1]
+						let mid = (a+b)/2
+						
+						let domainRange = [range[0] - range[1]] / AR
+						let newDomain = [
+							mid - domainRange/2, 
+							mid + domainRange/2
+						]
+						
+						return newDomain
+						
+					} // calculateDomain
+				
+			}, // toggleAR
+			
+			// When resizing the axes interactively
+			dragAdjustAR: function dragAdjustAR(ctrl){
+				// Should direct redrawing be allowed in hte first place??
+				
+				// Transitions
+				ctrl.view.transitions = cfD3Scatter.helpers.transitions.instantaneous()
+			  
+				// Uses the scales with updated domains.
+				
+				ctrl.view.t = d3.zoomIdentity
+				ctrl.figure.select("svg.plotArea")
+				  .select("g.data")
+				  .selectAll("g.plotSeries")
+					.transition()
+					.duration( ctrl.view.transitions.duration )
+					.attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl))
+				
+				// Update the axes
+				cfD3Line.helpers.axes.update(ctrl)
+				
+				
+			}, // dragAdjustAR
+			
+		}, // interactivity
 		
 		helpers: {
 		
@@ -529,9 +757,6 @@ var cfD3Line = {
 							yscale: undefined},
 					format: {
 						title: "Edit title",
-						colWidth: 4,
-						width: undefined,
-						height: 400,
 						margin: {top: 10, right: 10, bottom: 38, left: 30},
 						axesMargin: {top: 20, right: 20, bottom: 16, left: 30},
 						parent: undefined,
@@ -539,7 +764,9 @@ var cfD3Line = {
 							ix: 0,
 							iy: 0,
 							iw: 4,
-							ih: 4
+							ih: 4,
+							minH: 290,
+							minW: 190
 						}
 					}
 				} // ctrl
@@ -555,7 +782,7 @@ var cfD3Line = {
 				
 				// If sliceId is defined, check if it exists in the metadata. If it does, then store it into the config.
 				if(plotData.sliceId != undefined){
-					if(dbsliceData.data.sliceProperties.includes(plotData.sliceId)){
+					if(dbsliceData.data.line2dProperties.includes(plotData.sliceId)){
 						ctrl.view.sliceId = plotData.sliceId
 					} // if
 				} // if
@@ -610,13 +837,21 @@ var cfD3Line = {
 				
 				update: function update(ctrl){
 				
-					var xAxis = d3.axisBottom( ctrl.tools.xscale ).ticks(5);
-					var yAxis = d3.axisLeft( ctrl.tools.yscale );
-				
-					ctrl.figure.select("svg.plotArea").select(".axis--x").call( xAxis )
-					ctrl.figure.select("svg.plotArea").select(".axis--y").call( yAxis )
 					
-					cfD3Line.helpers.axes.updateTicks(ctrl)
+				
+					if ( ctrl.tools.xscale && ctrl.tools.yscale ){
+						// Only update the axis if the scales are defined. When calling the update on an empty plot they will be undefined.
+						var xAxis = d3.axisBottom( ctrl.tools.xscale ).ticks(5);
+						var yAxis = d3.axisLeft( ctrl.tools.yscale );
+						
+						ctrl.figure.select("svg.plotArea").select(".axis--x").call( xAxis )
+						ctrl.figure.select("svg.plotArea").select(".axis--y").call( yAxis )
+					
+						cfD3Line.helpers.axes.updateTicks(ctrl)
+						
+					} // if
+				
+				
 				
 				}, // update
 				
@@ -670,276 +905,6 @@ var cfD3Line = {
 			}, // transitions
 		
 			
-			// Data retrieval
-			
-			// MOVE TO LIBRARY
-			getLineDataInfo: function getLineDataInfo(ctrl){
-				// File data compatibility
-				
-				var requiredTasks = dbsliceData.data.taskDim.top(Infinity)
-				
-				var requiredUrls = requiredTasks.map( getUrl )
-				
-				// This is the set of urls of all files that have been loaded into internal storage that are required for this plot. The loaded files are not returned as that would mean they are logged into memory again.
-				// Furthermore, also check which have failed upon loading. Those are the files that were not found, therefore the promise was rejected.
-				var availableUrls = dbsliceData.flowData.filter(function(file){
-					var isUrlRequired = requiredUrls.includes( file.url )
-					var wasPromiseResolved = file.data != undefined
-					return isUrlRequired && wasPromiseResolved
-				}).map(function(file){return file.url})
-				
-				// Reverse reference the loaded files to find which required files are not available in the central storage. 
-				var missingUrls = requiredUrls
-				  .filter( function(url){return !availableUrls.includes(url)})	
-
-				
-				// Create 'file' responses detailing which files of which tasks were : 
-				// 1.) requested:
-				var requestedFiles = requiredTasks.map(returnFile)
-				
-				// 2.) available:
-				var availableFiles = requiredTasks.filter(function(task){
-					return availableUrls.includes( getUrl(task) )
-				}).map(returnFile)
-				
-				// 3.) missing:
-				var missingFiles = requiredTasks.filter(function(task){
-					return missingUrls.includes( getUrl(task) )
-				}).map(returnFile)
-				
-				// 4.) duplicated:
-				var duplicatedFiles = requiredTasks.filter(function(task){
-				  
-				  // Assume duplicate by default.
-				  var flag = true
-				  if( requiredUrls.indexOf(     getUrl(task) ) == 
-				      requiredUrls.lastIndexOf( getUrl(task) ) ){
-					// The first element is also the last occurence of this value, hence it is a unique value. This is therefore not a duplicating element.
-					flag = false
-				  } // if
-				  
-				  return flag
-				}).map(returnFile)
-				
-				// NOTE: 'availableFiles' lists all the tasks for which the data is available, even if they are duplicated.
-				
-				
-				// 5.)
-				// CHECK FOR COMPATIBILITY OF NESTS!
-				// The nests will have to be exactly the SAME, that is a prerequisite for compatibility. The options for these nests can be different, and the variables in these nests can be different. From these is the intersect calculated.
-				var compatibilityAccessors = [
-					getOptionNamesAccessor("userOptions"),
-					getOptionNamesAccessor("commonOptions")
-				]
-				var c = chainCompatibilityCheck(availableFiles, compatibilityAccessors)
-				
-				
-				
-				
-				
-				
-				// Compatibility ensures that all the files have exactly the same user tags available. Now check which of the options are itnersectiong.
-				var intersect = undefined
-				if(c.compatibleFiles.length > 0){
-					intersect = getIntersectOptions( c.compatibleFiles )
-				}
-				
-				
-				// MAKE SURE ALL THE INTERSECT OPTIONS ACTUALLY HAVE SOME OPTIONS - OPTIONS ARE NOT EMPTY!!
-				
-				
-				
-				
-				// MAYBE FOR VARIABLES IT SHOULD RETURN JUST THE SHARED VARIABLES AT A LATER POINT?
-				
-				// The data properties are only available after a particular subset of the data has been selected. Only then will the dropdown menus be updated.
-				ctrl.data.promises  = ctrl.data.promises
-				ctrl.data.requested = requestedFiles
-				ctrl.data.available = availableFiles
-				ctrl.data.duplicates= duplicatedFiles
-				ctrl.data.missing   = missingFiles
-				ctrl.data.compatible = c.compatibleFiles
-				ctrl.data.incompatible = c.incompatibleFiles
-				ctrl.data.intersect = intersect
-				
-  
-			  
-				
-				
-			  // HELPER FUNCTIONS
-			  function returnFile(task){
-				// 'returnFile' changes the input single task from the metadata, and returns the corresponding selected 'file'. The 'file' contains the url selected as per the slice selection made by the user, and the corresponding task. The task is required to allow cross plot tracking of all the data connected to this task, and the optional coloring by the corresponding metadata values.
-				
-				// This here should also package up all the metadata properties that would enable the coloring to fill them in.
-				
-				// dbsliceData.flowData.filter(function(file){return file.url == task[ctrl.view.sliceId]})[0].data
-				var file = helpers.findObjectByAttribute(dbsliceData.flowData, "url", [task[ctrl.view.sliceId]], true)
-				
-				return {  task: task, 
-				           url: task[ctrl.view.sliceId],
-						  data: file.data}
-				
-			  } // returnFile
-			  
-			  function getUrl(task){
-			    // 'getUrl' is just an accessor of a particular property.
-				return task[ctrl.view.sliceId]
-			  } // getUrl
-			  
-			  function includesAll(A,B){
-					// 'includesAll' checks if array A includes all elements of array B. The elements of the arrays are expected to be strings.
-					
-					// Return element of B if it is not contained in A. If the response array has length 0 then A includes all elements of B, and 'true' is returned.
-					var f = B.filter(function(b){
-						return !A.includes(b)
-					})
-					
-					return f.length == 0? true : false
-					
-					
-			  } // includesAll
-				
-			  function checkCompatibility(files, accessor){
-				// 'checkCompatibility' checks if the properties retrieved using 'accessor( file )' are exactly the same. The comparison between two files is done on their arrays of properties obtained by the accessor. To check if the arrays are exactly the same all the contents of A have to be in B, and vice versa. 
-			  
-				var target = []
-				if(files.length > 0){
-					target = accessor( files[0] )
-				} // if
-				
-				
-				var compatibleFiles = files.filter(function(file){
-				
-					var tested = accessor( file )
-				
-					// Check if the tested array includes all target elements.
-					var allExpectedInTested = includesAll(tested, target)
-					
-					// Check if the target array includes all test elements.
-					var allTestedInExpected = includesAll(target, tested)
-					
-					return allExpectedInTested && allTestedInExpected
-				})
-				var compatibleUrls = compatibleFiles.map(function(file){return file.url})
-				
-				
-				// Remove any incompatible files from available files.
-				var incompatibleFiles = availableFiles.filter(function(file){
-					return !compatibleUrls.includes( file.url )
-				})
-				
-				return {compatibleFiles:   compatibleFiles,
-				      incompatibleFiles: incompatibleFiles}
-			  
-			  } // checkCompatibility
-				
-			  function chainCompatibilityCheck(files, accessors){
-			  
-					var compatible = files
-					var incompatible = []
-					
-					// The compatibility checks are done in sequence.
-					accessors.forEach(function(accessor){
-						var c = checkCompatibility(compatible, accessor)
-						compatible = c.compatibleFiles
-						incompatible.concat(c.incompatibleFiles)
-					})
-			  
-				    return {compatibleFiles:   compatible,
-				          incompatibleFiles: incompatible}
-			  
-			  } // chainCompatibilityCheck
-			  
-			  function getIntersectOptions(files){
-			  
-					// 'getIntersectOptions' returns the intersect of all options available. The compatibility checks established that the files have exactly the same option names available, now the intersect of option options is determined.
-
-					// Three different options exist.
-					// 1.) User options (tags such as 'height', "circumference"...)
-					// 2.) Var options (possibilities for the x and y axes)
-					// 3.) Common options - to cater for explicit variable declaration. These are not included for the intersect as the user will not be allowed to select from them for now.
-
-					// First select the options for which the intersect is sought for. It assumes that all the files will have the same userOptions. This should be guaranteed by the compatibility check.
-					
-					
-					
-					// 'calculateOptionIntersect' is geared to deal with an array of options, therefore it returns an array of intersects. For x and y options only 1 option is available, therefore the array wrapper is removed here.
-					var xVarIntersect = calculateOptionIntersect( files, xVarOptionAccessor )
-					var yVarIntersect = calculateOptionIntersect( files, yVarOptionAccessor )
-					
-					
-					return {
-					   userOptions: 
-					           calculateOptionIntersect( files, userOptionAccessor ),
-					    varOptions: {
-							x: xVarIntersect[0],
-							y: yVarIntersect[0]
-					    } // varOptions
-					} // intersectOptions
-					
-					// Helpers
-					
-					function userOptionAccessor(file){
-						return file.data.userOptions
-					} // userOptionAccessor
-					
-					function xVarOptionAccessor(file){
-						return [file.data.varOptions.x]
-					} // varOptionAccessor
-					
-					function yVarOptionAccessor(file){
-						return [file.data.varOptions.y]
-					} // varOptionAccessor
-					
-
-					function calculateOptionIntersect( files, optionsAccessor ){
-						// 'calculateOptionIntersect' takes teh array of files 'files' and returns all options stored under the attribute files.data[<optionsName>] that all the files have.
-						
-						// The first file is selected as teh seed. Only the options that occur in all files are kept, so the initialisation makes no difference on the end result.
-					    var seedOptions = optionsAccessor( files[0] )
-						var intersectOptions = seedOptions.map(function(seedOption){
-							
-							// The options of the seed user options will be the initial intersect options for this particular option.
-							var intersectOptions = seedOption.options
-							
-							// For each of the options loop through all the files, and see which options are included. Only keep those that are at every step.
-							files.forEach(function(file){
-								
-								// For this particular file fitler all the options for this particular user option.
-								intersectOptions = intersectOptions.filter(function(option){
-								
-									// It is expected that only one option of the same name will be present. Pass in an option that only one element is required - last 'true' input.
-									var fileOptions = helpers.findObjectByAttribute(optionsAccessor(file), "name", [seedOption.name], true)
-									
-									return fileOptions.options.includes( option )
-								}) // filter
-							}) // forEach
-
-							return {name: seedOption.name,
-							         val: intersectOptions[0],
-								 options: intersectOptions}
-							
-						}) // map
-						
-						return intersectOptions
-					
-					
-					} // calculateOptionIntersect
-			  
-			  } // getIntersectOptions
-			  
-			  function getOptionNamesAccessor(optionsName){
-					// This returns an accessor function.
-
-					var f = function(file){
-						return file.data[optionsName].map(function(o){return o.name})
-					}
-					
-					return f
-				} // getOptionNamesAccessor
-			  
-			}, // getLineDataInfo
-		
 			// Manual functionality
 			updateManualSelections: function updateManualSelections(ctrl){
 			
@@ -957,7 +922,7 @@ var cfD3Line = {
 						  // paint it orange, and bring it to the front.
 						  plotSeries.select("path.line")
 						    .style("stroke", "rgb(255, 127, 14)")
-						    .style("stroke-width", 4)
+						    .style("stroke-width", 4 / ctrl.view.t.k)
 						  
 						  
 						  this.remove()
@@ -966,7 +931,7 @@ var cfD3Line = {
 					  } else {
 						  plotSeries.select("path.line")
 						    .style("stroke", ctrl.tools.getColor)
-						    .style("stroke-width", 2.5)
+						    .style("stroke-width", 2.5 / ctrl.view.t.k)
 					  } // if
 				  })
 				
@@ -976,10 +941,6 @@ var cfD3Line = {
 			}, // updateManualSelections
 		
 			
-			
-			
-			
-		
 			// Functions supporting cross plot highlighting
 			unhighlight: function unhighlight(ctrl){
 				
@@ -987,25 +948,34 @@ var cfD3Line = {
 				  .select("svg.plotArea")
 				  .select("g.data")
 				  .selectAll(".line")
-					.style("opacity", 0.2);
+					.style("opacity", 0.2)
+					.style("stroke", "Gainsboro");
 				
 			}, // unhighlight
 			
 			highlight: function highlight(ctrl, allDataPoints){
 				
-				allDataPoints.forEach(function(d){
-					
-					// Find the line corresponding to the data point. Look for it by taskId.
-					ctrl.figure
+				let highlightedTaskIds = allDataPoints.map(d=>d.taskId)
+				
+				let plotSeries = ctrl.figure
 					  .select("svg.plotArea")
 					  .select("g.data")
-					  .selectAll('.plotSeries[task-id="' + d.taskId + '"]')
-					  .selectAll(".line")
+					  .selectAll('.plotSeries')
+					  
+				plotSeries.each(function(d){
+					let series = d3.select(this)
+					
+					if(highlightedTaskIds.includes(series.attr("task-id"))){
+						series.selectAll(".line")
 						.style("opacity", 1.0)
-						.style( "stroke-width", "4px" );
+						.style( "stroke", ctrl.tools.getColor ) 
+						.style( "stroke-width",  4 / ctrl.view.t.k )
 						
-				}) // forEach
-				
+						series.raise();
+						
+					}
+					
+				})
 				
 				
 			}, // highlight
@@ -1018,7 +988,8 @@ var cfD3Line = {
 				  .select("g.data")
 				  .selectAll(".line")
 				    .style("opacity", 1.0)
-				    .style( "stroke-width", "2.5px" );
+					.style( "stroke", ctrl.tools.getColor ) 
+				    .style( "stroke-width", 2.5 / ctrl.view.t.k );
 					
 				// Rehighlight any manually selected tasks.
 				crossPlotHighlighting.manuallySelectedTasks()

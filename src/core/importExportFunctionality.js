@@ -21,11 +21,15 @@ var importExportFunctionality = {
 		importing : {
 			// WIP: This has to be able to load in data from anywhere on the client computer, not just the server root.
 			
-			// WIP: It must be able to load in additional data. The user must be prompted to identify variables that are different in loaded, and to be loaded data.
+			
 			
 			// DONE: It must be able to load both csv and json fle formats.
 			
-			// DONE/WIP: Must prompt the user if the variables don't include those in existing plots. Solution: does not prompt the user, but for now just removed any incompatible plots. The prompt for the user to resolve the incompatibility is the next step.
+			// DONE: Must prompt the user if the variables don't include those in existing plots. Solution: does not prompt the user, but for now just removed any incompatible plots.
+			
+			// WIP: The user must be prompted to identify variables that are different in loaded, and to be loaded data.
+			
+			// DONE: Handle the case where the user attempts to load data, but selects a session json.
 			
 			metadata : function metadata(file, dataAction){
 				
@@ -89,21 +93,29 @@ var importExportFunctionality = {
 						break;
 						
 					case "json":
-						d3.json(url, function(metadata){
+						d3.json(url).then(function(metadata){
 							
-							// Add the source file to tha data
-							metadata.data.forEach(function(d){d.file = file.name})
+							// ERROR HANDLING: The metadata must have a `data' attribute that is an iterable. Otherwise show a prompt to the user.
+							if(helpers.isIterable(metadata.data)){
 							
+								// Add the source file to tha data
+								metadata.data.forEach(function(d){d.file = file.name})
+								
+								
+								// Change any backslashes with forward slashes
+								metadata.data.forEach(function(d){
+									importExportFunctionality.importing.helpers.replaceSlashes(d, "taskId");
+								}) // forEach
+								
+								// Store the data appropriately
+								actionOnInternalStorage(metadata)
+								
+								render();
 							
-							// Change any backslashes with forward slashes
-							metadata.data.forEach(function(d){
-								importExportFunctionality.importing.helpers.replaceSlashes(d, "taskId");
-							}) // forEach
-							
-							// Store the data appropriately
-							actionOnInternalStorage(metadata)
-							
-							render();
+							} else {
+								
+								window.alert("Selected .json file must have iterable property `.data'.")
+							} // if
 							
 						}) // d3.json
 						break;
@@ -129,6 +141,8 @@ var importExportFunctionality = {
 				// DONE: Must only load json files.
 				
 				// WIP: Must prompt the user if the variables don't include those in loaded data.
+				
+				
 
 				var h = importExportFunctionality.importing.helpers
 			
@@ -192,79 +206,48 @@ var importExportFunctionality = {
 					
 				}, // createFilePromise
 				
-				
-				
-				
-				
-				
-				
-				// MOVE TO THE LIBRARY INSTEAD!!
-				// But at the moment there is no special library. There is only the attribute in the dbsliceData object.
-				getLineDataVals: function getLineDataVals(file, ctrl){
-					// Make a distinction between accessing explicit and implicit data files.
-					
-					var f = helpers.findObjectByAttribute
-					
-					// Available properties after applying all the options.
-					// Retrieve the properties
-					var properties = file.data.properties
-				
-					// Apply all user selected options.	
-					ctrl.view.options.forEach(function(option){
-						properties = f( properties, option.name, [option.val], false)
-					})
-					
-					var xProperties = f(properties,"varName",ctrl.view.xVarOption.val,true)
-					var yProperties = f(properties,"varName",ctrl.view.yVarOption.val,true)
-					
-					
-					// Assemble the names of the properties to plot.
-					var plotData
-					switch( file.data.type ){
-						case "explicit":
-							// The options in the ctrl cannot be associated with the actual variable names in the files. The same menu options may correspond to different file variables if the sub-part of the file selected changes.
-
-						
-							plotData = file.data.vals.map(function(d){
-								return {x: d[xProperties.val], y: d[yProperties.val]}
-							})
-							break;
-							
-						case "implicit":
-							// Handle the combination of ps/ss, and x/y.
-							// NOTE THAT SS PS IS OPTIONAL! HANDLE THIS SEPARATELY AS WELL!!
-							var xSS = f(xProperties,"side", ["ss"], true)
-							var xPS = f(xProperties,"side", ["ps"], true)
-							var ySS = f(yProperties,"side", ["ss"], true)
-							var yPS = f(yProperties,"side", ["ps"], true)
-						
-							var ss = file.data.vals.map(function(d){
-								return {x: d[xSS.val], y: d[ySS.val]}
-							})
-							var ps = file.data.vals.map(function(d){
-								return {x: d[xPS.val], y: d[yPS.val]}
-							})
-							
-							plotData = ss.concat(ps)
-							
-							break;
-					
-					} // switch
-					
-					plotData.task = file.task
-					
-					return plotData
-				
-				
-					
-					
-				}, // getLineDataVals
-				
-				
-				
 			}, // line
 		
-			
+			contour2d: {
+				
+				createFilePromise: function(file){
+					
+					var i = importExportFunctionality.importing.helpers
+					
+					// The extension must be either json or csv
+					var extension = file.url.split(".").pop()
+					
+					switch(extension){
+						case "json":
+						
+						   file.promise = d3.json(file.url).then(function(data){
+								file.data = i.json2contour2d( data )
+							}).catch(function(d){
+								console.log("Loading of a file failed.")
+							}) // d3.csv 
+						
+						  break;
+						  
+						  
+						case "csv":
+						    // Each row is a point, and can have multiple attributes. 
+						
+							file.promise = d3.csv(file.url).then(function(data){
+								file.data = i.csv2contour2d( data )
+							}).catch(function(d){
+								console.log("Loading of a file failed.")
+							}) // d3.csv 
+						
+						  break;
+						
+					} // switch
+					
+					return file
+					
+				}, // createFilePromise
+				
+
+			}, // contour2d
 			
 			
 			helpers: {
@@ -311,8 +294,8 @@ var importExportFunctionality = {
 					// Assemble dataProperties, and metadataProperties.
 					var dataProperties = [];
 					var metadataProperties = [];
-					var sliceProperties = [];
-					var contourProperties = [];
+					var line2dProperties = [];
+					var contour2dProperties = [];
 					
 					for(var i=0; i<headerNames.length;i++){
 						
@@ -337,14 +320,14 @@ var importExportFunctionality = {
 								break;
 							case "s":
 								// Slices
-								sliceProperties.push(variableNew);
+								line2dProperties.push(variableNew);
 								
 								h.renameVariables(metadata, variable, variableNew)
 								break;
 								
 							case "c2d":
 								// Contours
-								contourProperties.push(variableNew);
+								contour2dProperties.push(variableNew);
 								
 								h.renameVariables(metadata, variable, variableNew)
 							  
@@ -372,8 +355,8 @@ var importExportFunctionality = {
 						 header: {
 								  dataProperties :     dataProperties,
 							  metaDataProperties : metadataProperties,
-								 sliceProperties :    sliceProperties,
-							   contourProperties :  contourProperties,
+								 line2dProperties :    line2dProperties,
+							 contour2dProperties :  contour2dProperties,
 						 }
 					};
 					
@@ -386,7 +369,8 @@ var importExportFunctionality = {
 					// This only creates a function when there are somne properties for that function to use.
 					var isDataAvailable = dbsliceData.data.dataProperties.length > 0
 					var isMetadataAvailable = dbsliceData.data.metaDataProperties.length > 0
-					var isSliceDataAvailable = dbsliceData.data.sliceProperties.length > 0
+					var isLine2dDataAvailable = dbsliceData.data.line2dProperties.length > 0
+					var isContour2dDataAvailable = dbsliceData.data.contour2dProperties.length > 0
 					
 					var func;
 					switch(string){
@@ -400,7 +384,10 @@ var importExportFunctionality = {
 							func = isDataAvailable? cfD3Scatter : undefined;
 							break;
 						case "cfD3Line":
-							func = isSliceDataAvailable? cfD3Line : undefined;
+							func = isLine2dDataAvailable? cfD3Line : undefined;
+							break;
+						case "cfD3Contour2d":
+							func = isContour2dDataAvailable? cfD3Contour2d : undefined;
 							break;
 							
 						default :
@@ -426,7 +413,7 @@ var importExportFunctionality = {
 							var plotToPush = f.helpers.createLoadedControl(plotData)
 							
 							// Position the new plot row in hte plot container.
-							plotToPush = positioning.newPlot(plotRow, plotToPush)
+							positioning.newPlot(plotRow, plotToPush)
 						
 							plotRow.plots.push(plotToPush);
 							
@@ -500,7 +487,7 @@ var importExportFunctionality = {
 				}, // assembleSession
 				
 				
-				// CFD3LINE
+				// ON-DEMAND VARIABLES
 				handlePropertyNames: function handlePropertyNames(properties){
 			
 					// NOTES
@@ -745,9 +732,7 @@ var importExportFunctionality = {
 						return commonTokens.includes("axis")? "explicit" : "implicit"
 					
 					} // getVariableDeclarationType
-					
-					
-					
+									
 					function getFlowVarOptions(properties_, type){
 						// 'getFlowVarOptions' sets up which properties this plot can offer to the x and y axes. This can also be used to assign the accessors to the data!
 						
@@ -780,6 +765,8 @@ var importExportFunctionality = {
 					
 				}, // handlePropertyNames
 				
+				
+				// CFD3LINE
 				json2line: function json2line(data){
 					// json are assumed to have only one series, with several properties possible per series.
 					
@@ -814,8 +801,26 @@ var importExportFunctionality = {
 					return info
 					
 				
-				} // csv2line
+				}, // csv2line
 				
+				// CFD3CONTOUR2D
+				json2contour2d: function json2contour2d(data){
+					
+					// For 2d contours the surfaces attribute has a single object. For 3d contours it has an array of surfaces. In `json2contour3d' the property names will have to be differentiated into options.
+					
+					// Don't check the property names. The data of the entire domain is too large to be loaded at once.
+					return {
+						properties: Object.getOwnPropertyNames(data.surfaces),
+						vals: data
+					}
+					
+				}, // json2contour2d
+				
+				csv2contour2d: function csv2contour2d(data){
+					
+					console.log("implement csv2contour2d!")
+					
+				} // csv2contour2d
 				
 			} // helpers
 			

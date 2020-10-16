@@ -15,7 +15,7 @@ var cfD3Histogram = {
          
             // Update the controls as required
 			// MISSING FOR NOW. IN THE END PLOTHELPERS SHOULD HAVE A VERTEILER FUNCTION
-			// cfD3Histogram.addInteractivity.updatePlotTitleControls(element)
+			// cfD3Histogram.interactivity.updatePlotTitleControls(element)
           
             // Setup the object that will internally handle all parts of the chart.
 			plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
@@ -28,7 +28,7 @@ var cfD3Histogram = {
 				    .attr("class", "extent")
 			
 			// cfD3Histogram.setupPlot.appendHorizonalSelection(ctrl.figure.select(".bottomAxisControlGroup"), ctrl)
-			var i= cfD3Histogram.addInteractivity.onSelectChange
+			var i= cfD3Histogram.interactivity.onSelectChange
 			plotHelpers.setupPlot.general.appendHorizontalSelection(ctrl.figure.select(".bottomAxisControlGroup"), i.horizontal(ctrl))
 			plotHelpers.setupPlot.general.updateHorizontalSelection(ctrl)
 			
@@ -36,8 +36,8 @@ var cfD3Histogram = {
 			cfD3Histogram.setupPlot.setupPlotTools(ctrl)
 			
 			
-			cfD3Histogram.addInteractivity.addBrush.make(ctrl)
-			cfD3Histogram.addInteractivity.addBinNumberControls.make(ctrl)
+			cfD3Histogram.interactivity.addBrush.make(ctrl)
+			cfD3Histogram.interactivity.addBinNumberControls.make(ctrl)
 			
 			
 			
@@ -188,10 +188,10 @@ var cfD3Histogram = {
 					      .select(".selection")
 						  .attr("xMin", d3.min( ctrl.tools.xscale.domain() ))
 						  .attr("xMax", d3.max( ctrl.tools.xscale.domain() ))
-						cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl)
+						cfD3Histogram.interactivity.addBrush.updateBrush(ctrl)
 						
 						// Update any bin controls.
-						cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl)
+						cfD3Histogram.interactivity.addBinNumberControls.updateMarkers(ctrl)
 						
 						// All elements were removed. Update teh chart.
 						cfD3Histogram.draw.update(ctrl)
@@ -243,10 +243,10 @@ var cfD3Histogram = {
 			
 			
 			// Update the bin number controls.
-			cfD3Histogram.addInteractivity.addBinNumberControls.updateMarkers(ctrl)
+			cfD3Histogram.interactivity.addBinNumberControls.updateMarkers(ctrl)
 			
 			// UPDATE THE SELECT RECTANGLE TOO!!
-			cfD3Histogram.addInteractivity.addBrush.updateBrush(ctrl)
+			cfD3Histogram.interactivity.addBrush.updateBrush(ctrl)
 			
 		}, // rescale
 		
@@ -368,7 +368,7 @@ var cfD3Histogram = {
 			
 		}, // setupPlot
 		     
-        addInteractivity: {
+        interactivity: {
 		
 			onSelectChange: {
 				
@@ -402,7 +402,7 @@ var cfD3Histogram = {
 			
 				make: function make(ctrl){
 				
-					var h = cfD3Histogram.addInteractivity.addBrush
+					var h = cfD3Histogram.interactivity.addBrush
 					var property = ctrl.view.xVarOption.val
 				
 					// The hardcoded values need to be declared upfront, and abstracted.
@@ -548,7 +548,7 @@ var cfD3Histogram = {
 					ctrl.view.transitions = cfD3Histogram.helpers.transitions.instantaneous()
 
 					
-					var h = cfD3Histogram.addInteractivity.addBrush
+					var h = cfD3Histogram.interactivity.addBrush
 					var x = ctrl.tools.xscale
 					
 					var rect = d3.select(rectDOM)
@@ -593,7 +593,7 @@ var cfD3Histogram = {
 					
 					
 					// Update teh position of the left edge by the difference of the pointers movement.
-					var h = cfD3Histogram.addInteractivity.addBrush
+					var h = cfD3Histogram.interactivity.addBrush
 					var x = ctrl.tools.xscale
 					
 					var handle = d3.select(handleDOM)
@@ -691,7 +691,7 @@ var cfD3Histogram = {
 				
 				updateBrush: function updateBrush(ctrl){
 				
-					var h = cfD3Histogram.addInteractivity.addBrush
+					var h = cfD3Histogram.interactivity.addBrush
 					
 					// First get the scale
 					var svg = ctrl.figure.select("svg.plotArea")
@@ -737,7 +737,7 @@ var cfD3Histogram = {
 				make: function make(ctrl){
 				
 					// GENERALISE THE GROUP TRANSFORM!!
-					var h = cfD3Histogram.addInteractivity.addBinNumberControls
+					var h = cfD3Histogram.interactivity.addBinNumberControls
 					var svg = ctrl.figure.select("svg.plotArea")
 					var height = svg.select("g.data").attr("height")
 				
@@ -811,7 +811,7 @@ var cfD3Histogram = {
 			
 				update: function update(ctrl){
 				
-					var h = cfD3Histogram.addInteractivity.addBinNumberControls
+					var h = cfD3Histogram.interactivity.addBinNumberControls
 					
 					
 									
@@ -884,6 +884,14 @@ var cfD3Histogram = {
 
 				
 			}, // addBinNumberControls
+			
+			refreshContainerSize: function refreshContainerSize(ctrl){
+				
+				var container = d3.select(ctrl.format.parent)
+				
+				builder.refreshPlotRowHeight( container )
+				
+			} // refreshContainerSize
 			
 		}, // setupInteractivity
 		
@@ -995,9 +1003,6 @@ var cfD3Histogram = {
 							histogram: undefined},
 					format: {
 						title: "Edit title",
-						colWidth: 4,
-						width: undefined,
-						height: 400,
 						margin: {top: 10, right: 0, bottom: 30, left: 0},
 						axesMargin: {top: 20, right: 20, bottom: 16, left: 45},
 						parent: undefined,
@@ -1005,7 +1010,9 @@ var cfD3Histogram = {
 							ix: 0,
 							iy: 0,
 							iw: 4,
-							ih: 4
+							ih: 4,
+							minH: 290,
+							minW: 190
 						}
 					}
 				} // ctrl
