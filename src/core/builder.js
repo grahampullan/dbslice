@@ -32,10 +32,18 @@ var builder = {
 			
 			sessionTitle
 			  .append("h1")
+			    .attr("class", "sessionTitle")
 				.attr("style", "display:inline")
 				.attr("spellcheck", "false")
 				.html(dbsliceData.session.title)
-				.attr("contenteditable", true);
+				.attr("contenteditable", true)
+				.each(function(){
+					this.addEventListener("input", function(){
+						dbsliceData.session.title = this.innerHTML
+					})
+				})
+			
+		  
 		  
 			if (dbsliceData.session.plotTasksButton) {
 				sessionTitle
@@ -104,13 +112,13 @@ var builder = {
 				.html("Add data")
 				.on("click", function(){dataInput.click()})
 				
-			sessionMenu
+			var removeDataItem = sessionMenu
 			  .append("a")
 			    .attr("class", "dropdown-item")
 				.attr("href", "#")
 				.attr("id", "removeData")
 				.html("Remove data")
-			addMenu.removeDataControls.make("removeData")
+			addMenu.removeDataControls.make(removeDataItem)
 				
 			var sessionInput = createFileInputElement( importExportFunctionality.importing.session )
 			sessionMenu
@@ -155,7 +163,38 @@ var builder = {
 			  .append("br")
 			  
 
-		  
+			
+			
+			// Add a callback for when hte window is resized.
+			window.addEventListener("resize", function(){
+				
+				// All the plotrows should be resized to the width of the screen. The plots will need to be repositioned.
+				let session = d3.select( "#" + dbsliceData.elementId )
+				
+				// Calculate the width so that the plots will still actually fit.
+				var width = session.node().offsetWidth - 45
+				
+				let plotRows = session.selectAll("div.plotRow")
+				  .style("width", width + "px")
+				  
+				  
+				// Because teh width changed the internal positions of the plots must be readjusted. Maybe just reposition them?
+				
+				
+				let plots = plotRows.selectAll("div.plotWrapper")
+				
+				// First redo the widths and heights of all plots.
+				plots.each(function(plotCtrl){
+					positioning.helpers.readjustPlotSize(plotCtrl)
+					
+					positioning.helpers.readjustPlotPosition(plotCtrl)
+				})
+				
+				// For now just keep the positions, but redraw. Adequate for now.
+				
+				
+				
+			})
 
 			// HELPER FUNCTIONS:
 			function createFileInputElement(loadFunction, dataAction){
@@ -191,6 +230,12 @@ var builder = {
 				element.select(".filteredTaskCount").select("p")
 				  .html("<p> Number of Tasks in Filter = All </p>");
 			}; // if
+			
+			// Update the session title.
+			element
+			  .select("div.sessionTitle")
+			  .select("h1.sessionTitle")
+			    .html(dbsliceData.session.title)
 			
 		}, // updateSessionHeader
 		
@@ -237,8 +282,21 @@ var builder = {
 			  
 			// Buttons
 			newPlotRowsHeader.each(function(plotRowCtrl){
-				addMenu.addPlotControls.make( this, plotRowCtrl );
-				addMenu.removePlotRowControls.make( this, plotRowCtrl );
+				
+				var removePlotRowButton = d3.select(this)
+				  .append("button")
+					.attr("class", "btn btn-danger float-right removePlotButton")
+					.html("x")
+				addMenu.removePlotRowControls.make( removePlotRowButton, plotRowCtrl );
+				
+				// Make the 'add plot' button
+				var addPlotButton = d3.select(this)
+				  .append("button")
+					.attr("style","display:inline")
+					.attr("class", "btn btn-success float-right")
+					.html("Add plot");
+				addMenu.addPlotControls.make( addPlotButton, plotRowCtrl );
+				
 			}); // each
 			
 			
@@ -286,7 +344,18 @@ var builder = {
 		
 		makeAddPlotRowButton: function makeAddPlotRowButton(){
 			
-			addMenu.addPlotRowControls.make(dbsliceData.elementId, "addPlotRowButton")
+			var addPlotRowButton = d3.select("#addPlotRowButton")
+			
+			if(addPlotRowButton.empty()){
+			    
+				addPlotRowButton = d3.select("#" + dbsliceData.elementId)
+			      .append("button")
+			        .attr("id", "addPlotRowButton")
+				    .attr("class", "btn btn-info btn-block")
+				    .html("+");
+			
+			    addMenu.addPlotRowControls.make(addPlotRowButton)
+			} // if
 			
 		}, // makeAddPlotRowButton
 		
@@ -318,6 +387,6 @@ var builder = {
 		
 		
 	} // builder
-				
+					
 
 export { builder };

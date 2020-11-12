@@ -150,6 +150,6 @@ var crossPlotHighlighting = {
 		}, // manuallySelectedTasks
 		
 	} // crossPlotHighlighting 
-					
+						
 
 export { crossPlotHighlighting };

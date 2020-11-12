@@ -202,6 +202,7 @@ var helpers = {
 				if( ["width", "height"].includes(dim) && !isNaN(val) ){
 				
 					let fontSize = 16
+					text.style("font-size", fontSize + "px")
 					while( ( box.node().getBoundingClientRect()[dim] > val ) &&
                            ( fontSize > 0 )	){
 						// Reduce the font size
@@ -215,6 +216,16 @@ var helpers = {
 				
 				
 			}, // fitTextToBox
+			
+			calculateExponent: function(val){
+				// calculate the exponent for the scientific notation.
+				var exp = 0
+				while( Math.floor( val / 10**(exp+1) ) > 0 ){ exp+=1 }
+				
+				// Convert the exponent to multiple of three
+				return Math.floor( exp / 3 )*3
+			
+			}, // calculateExponent
 			
 	} // helpers
 	

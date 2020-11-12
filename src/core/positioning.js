@@ -439,7 +439,83 @@ var positioning = {
 					} // if
 				})
 				
-			} // repositionSiblingPlots
+			}, // repositionSiblingPlots
+			
+			readjustPlotSize: function readjustPlotSize(plotCtrl){
+				
+				// Calculate the new size of the plot based on the current size in 'px', and the new grid dimension. The new size must definitely be larger than before to ensure the plots don't get too small.
+				
+				var f = plotCtrl.format
+				let p = plotCtrl.format.position
+				
+				// By recalculating the indices of the grid the plots never really get any smaller, and therefore cannot violate the smallest size.
+				let wrapperDOM = f.wrapper.node()
+				let height = wrapperDOM.offsetHeight
+				let width = wrapperDOM.offsetWidth
+				
+				
+				let container = d3.select( f.parent )
+				let nx = positioning.nx( container )
+				let dx = positioning.dx( container )
+				let dy = positioning.dy( container )
+				
+				// Find the smallest option that would work.
+				p.iw = Math.ceil( width / dx )
+				p.ih = Math.ceil( height / dy )
+				
+				
+				// Make sure the new iw doesn't exceed the limit.
+				p.iw = p.iw > nx ? nx : p.iw
+				
+				
+				f.wrapper
+				  .style("max-width", p.iw*dx + "px")
+				  .style("width"    , p.iw*dx + "px" )
+				  .style("height"   , p.ih*dy + "px" )
+				  
+				f.wrapper.select("div.card")
+				  .style("max-width", p.iw*dx + "px")
+				  .style("width"    , p.iw*dx + "px" )
+				  .style("height"   , p.ih*dy + "px" )
+				
+				
+				// UPDATE THE PLOT
+				plotCtrl.plotFunc.rescale(plotCtrl)
+				
+				// Resize the containers accordingly
+				plotCtrl.plotFunc.interactivity.refreshContainerSize(plotCtrl)
+				
+			}, // readjustPlotSize
+			
+			readjustPlotPosition: function readjustPlotPosition(plotCtrl){
+				
+				// Calculate the new size of the plot based on the current size in 'px', and the new grid dimension. The new size must definitely be larger than before to ensure the plots don't get too small.
+				
+				var f = plotCtrl.format
+				let p = plotCtrl.format.position
+				
+
+				
+				let container = d3.select( f.parent )
+				let nx = positioning.nx( container )
+				let dx = positioning.dx( container )
+				let dy = positioning.dy( container )
+				
+				// Readjust the ix so that the plot is not out of the container.
+				p.ix = p.ix + p.iw > nx ? nx - p.iw : p.ix
+				
+				
+				
+				
+				
+				f.wrapper
+                  .style("left", (f.parent.offsetLeft + p.ix*dx) + "px")
+                
+				// Move this to the individual functions. This allows the contour plot to change both the plot and plot row sizes. The contour plot will also have to move the other plots if necessary!!
+				
+				plotCtrl.plotFunc.interactivity.refreshContainerSize(plotCtrl)
+				
+			} // readjustPlotPosition
 			
 		} // helpers
 		

@@ -449,13 +449,270 @@ var dbslice = (function (exports) {
 					} // if
 				})
 				
-			} // repositionSiblingPlots
+			}, // repositionSiblingPlots
+			
+			readjustPlotSize: function readjustPlotSize(plotCtrl){
+				
+				// Calculate the new size of the plot based on the current size in 'px', and the new grid dimension. The new size must definitely be larger than before to ensure the plots don't get too small.
+				
+				var f = plotCtrl.format
+				let p = plotCtrl.format.position
+				
+				// By recalculating the indices of the grid the plots never really get any smaller, and therefore cannot violate the smallest size.
+				let wrapperDOM = f.wrapper.node()
+				let height = wrapperDOM.offsetHeight
+				let width = wrapperDOM.offsetWidth
+				
+				
+				let container = d3.select( f.parent )
+				let nx = positioning.nx( container )
+				let dx = positioning.dx( container )
+				let dy = positioning.dy( container )
+				
+				// Find the smallest option that would work.
+				p.iw = Math.ceil( width / dx )
+				p.ih = Math.ceil( height / dy )
+				
+				
+				// Make sure the new iw doesn't exceed the limit.
+				p.iw = p.iw > nx ? nx : p.iw
+				
+				
+				f.wrapper
+				  .style("max-width", p.iw*dx + "px")
+				  .style("width"    , p.iw*dx + "px" )
+				  .style("height"   , p.ih*dy + "px" )
+				  
+				f.wrapper.select("div.card")
+				  .style("max-width", p.iw*dx + "px")
+				  .style("width"    , p.iw*dx + "px" )
+				  .style("height"   , p.ih*dy + "px" )
+				
+				
+				// UPDATE THE PLOT
+				plotCtrl.plotFunc.rescale(plotCtrl)
+				
+				// Resize the containers accordingly
+				plotCtrl.plotFunc.interactivity.refreshContainerSize(plotCtrl)
+				
+			}, // readjustPlotSize
+			
+			readjustPlotPosition: function readjustPlotPosition(plotCtrl){
+				
+				// Calculate the new size of the plot based on the current size in 'px', and the new grid dimension. The new size must definitely be larger than before to ensure the plots don't get too small.
+				
+				var f = plotCtrl.format
+				let p = plotCtrl.format.position
+				
+
+				
+				let container = d3.select( f.parent )
+				let nx = positioning.nx( container )
+				let dx = positioning.dx( container )
+				let dy = positioning.dy( container )
+				
+				// Readjust the ix so that the plot is not out of the container.
+				p.ix = p.ix + p.iw > nx ? nx - p.iw : p.ix
+				
+				
+				
+				
+				
+				f.wrapper
+                  .style("left", (f.parent.offsetLeft + p.ix*dx) + "px")
+                
+				// Move this to the individual functions. This allows the contour plot to change both the plot and plot row sizes. The contour plot will also have to move the other plots if necessary!!
+				
+				plotCtrl.plotFunc.interactivity.refreshContainerSize(plotCtrl)
+				
+			} // readjustPlotPosition
 			
 		} // helpers
 		
     } // positioning
 
     
+	// Lasso
+	var lasso = {
+		
+		/*
+		The 'lasso.add' method requires a specific input lasso object, which contains all hte information required.
+		
+		var lassoObj = {
+			element: {
+				// 'owner': element to attach the lasso to.
+				// 'svg'  : where to draw the lasso to
+				// 'ref'  : reference for position retrieval
+				owner: svg,
+				svg: svg.select("g.markup"),
+				ref: svg.select("g.data")
+			},
+			data: {
+				// 'boundary': array holding boundary points
+				// 'selection': array holding the selected data
+				// 'getBasisData': accessor getting the actual tasks to be selected by the lasso.
+				boundary: [],
+				selection: [],
+				getBasisData: function(){ return data; }
+			},		
+			accessor: {
+				// accessor retrieving the appropriate attributes of underlying data.
+				x: function(d){return d.x},
+				y: function(d){return d.y},
+			},
+			scales: {
+				// scales to convert the on-screen pixels to the values of the data. Inverse of the scales used to convert values to on-screen position.
+				x: val2pxX.invert,
+				y: val2pxY.invert
+			},
+			// Function to execute in response. The selected tasks are the input
+			response: highlight,
+		}
+		*/
+	
+		add: function add(lassoObj){
+		
+			lassoObj.element.owner
+			  .call( d3.drag()
+				.on("start", function(){
+					// Clear previous lasso.
+					lassoObj.data.boundary = []
+					lasso.draw( lassoObj )
+					
+					// Perform any pre-emptive action required.
+					lassoObj.preemptive()
+				})
+				.on("drag", function(){
+					lasso.addPointToLasso( lassoObj )
+					lasso.draw( lassoObj )
+				})
+				.on("end", function(){
+					if(lassoObj.data.boundary.length > 3){
+						
+						lassoObj.data.selection = lasso.findTasksInLasso(lassoObj)
+						
+						if(lassoObj.data.selection.length > 0){
+							lassoObj.response(lassoObj.data.selection)
+						} // if
+						
+						// After the selection is done remove the lasso.
+						lasso.remove( lassoObj )
+					} // if
+				})
+			  )
+		
+		}, // add
+		
+		addPointToLasso: function addPointToLasso(lassoObj){
+		
+			let position = d3.mouse(lassoObj.element.ref.node())
+			
+			lassoObj.data.boundary.push({
+				cx: position[0],
+				cy: position[1],
+				 x: lassoObj.scales.x(position[0]), 
+				 y: lassoObj.scales.y(position[1])
+			})
+		
+		}, // addPointToLasso
+		
+		findTasksInLasso: function findTasksInLasso(lassoObj){
+		
+			// Find min and max for the lasso selection. Her the accessors can be hard coded because the points definition is hard coded.
+			var dom = {
+				x: d3.extent( lassoObj.data.boundary, d=>d.x ),
+				y: d3.extent( lassoObj.data.boundary, d=>d.y ),
+			}
+		
+			// Don't get the data through the dom elements - this won't work for canvas lassoing. Instead focus directly on the data in hte plot.
+			let allTasks = lassoObj.data.getBasisData()
+			
+			var selectedTasks = allTasks.filter(function(d_){
+				// Check if it is inside the lasso bounding box. Otherwise no need to check anyway.
+				
+				// Implement an accessor for d.x/y.
+				var d = {
+					x: lassoObj.accessor.x(d_),
+					y: lassoObj.accessor.y(d_),
+				}
+				
+				var isInside = false
+				if( 
+				  ( (dom.x[0] <= d.x) && (d.x <= dom.x[1]) ) &&
+				  ( (dom.y[0] <= d.y) && (d.y <= dom.y[1]) )
+				){
+					isInside = lasso.isPointInside(d, lassoObj.data.boundary)
+				} // if
+				
+				return isInside
+			})
+			
+			return selectedTasks
+		
+		}, // findTasksInLasso
+		  
+		isPointInside: function isPointInside(point, boundary){
+			// Check wheteher the 'point' is within the polygon defined by the points array 'boundary'.
+			
+			var isInside = false
+			for(let i=1; i<boundary.length; i++){
+				checkIntersect(boundary[i-1], boundary[i], point)
+			} // for
+			checkIntersect(boundary[boundary.length-1], boundary[0], point)
+			
+			return isInside
+			
+			// Need to check the same number of edge segments as vertex points. The last edge should be the last and the first point.
+		
+			function checkIntersect(p0, p1, point){
+				// One point needs to be above, while the other needs to be below -> the above conditions must be different.
+				
+				if( (p0.y > point.y) !== (p1.y > point.y) ){
+					// One is above, and the other below. Now find if the x are positioned so that the ray passes through. Essentially interpolate the x at the y of the point, and see if it is larger.
+					let x = (p1.x - p0.x)/(p1.y - p0.y)*(point.y - p0.y) + p0.x
+					
+					isInside = x > point.x ? !isInside : isInside
+					
+				} // if
+			} // checkIntersect
+		
+		}, // isPointInside
+		  	
+		draw: function draw(lassoObj){
+			
+			var d = [lassoObj.data.boundary.map(d=>[d.cx, d.cy].join()).join(" ")]
+			
+			lassoObj.element.svg
+			  .selectAll("polygon")
+			  .data(d)
+			  .join(
+				enter => enter.append("polygon")
+							  .attr("points", d=>d)
+							  .style("fill", "cornflowerblue")
+							  .style("stroke", "dodgerblue")
+							  .style("stroke-width", 2)
+							  .attr("opacity", 0.4),
+				update => update
+							  .attr("points", d=>d),
+				exit => exit.remove()
+			  )
+			
+			 
+		}, // draw
+		
+		remove: function remove(lassoObj){
+		
+			lassoObj.element.svg
+			  .selectAll("polygon")
+			  .remove()
+		} // remove
+		
+	} // lasso
+	
+	
+	
+	
+	
 	
 	
 	// Data management. Handles all internal data manipulation.
@@ -522,8 +779,7 @@ var dbslice = (function (exports) {
 		
 			
 		}, // cfInit
-		
-		
+				
 		cfAdd: function cfAdd(metadata){
 			// This function attempts to add data to the already existing dataset. It allows a compromise between searching for all available data and loading it in, and personally creating additional combinations of the metadata in csv files.
 			// The ideal solution would be for each individual task to have it's own small metadata file, which could then by parsed by a search engine. This is unpractical for a localised application - this functionality is usable however.
@@ -556,8 +812,7 @@ var dbslice = (function (exports) {
 			
 			
 		}, // cfAdd
-		
-		
+			
 		cfRemove: function cfRemove(dataFilesToRemove){
 			// This function will remove the data from the crossfilter.
 			
@@ -577,9 +832,12 @@ var dbslice = (function (exports) {
 			// Remove the temporary filter.
 			dbsliceData.data.fileDim.filterAll()
 			
+			
+			// Refresh the data info
+			cfDataManagement.helpers.refreshMetadataInfo()
+			
 			// Reinstate user specified data filters.
 			filter.apply()
-			
 			
 			
 		}, // cfRemove
@@ -889,7 +1147,7 @@ var dbslice = (function (exports) {
 			// Make a distinction between accessing explicit and implicit data files.
 			
 			
-			// THIS SHOULD RETURN ALL DATA AT ONCE. IT IS IN THE MEMORY ALREADY ANYWAY. FIX
+			// Fix for accessing the json files.
 			
 			// Assemble the names of the properties to plot.
 			var plotData
@@ -897,14 +1155,18 @@ var dbslice = (function (exports) {
 				case "implicit":
 					// The options in the ctrl cannot be associated with the actual variable names in the files. The same menu options may correspond to different file variables if the sub-part of the file selected changes.
 
-				
-					plotData = file.data.vals.map(function(d){
+					// IS IT POSSIBLE TO REPLACE THIS WITH ACCESSORS??
+					// No - it is possible that the user is trying to combine data from different file specification types.
+					
+					plotData = file.data.properties.map(function(d){
 						return {x: Number(d[ctrl.view.xVarOption.val]), 
 						        y: Number(d[ctrl.view.yVarOption.val])}
 					})
 					break;
 					
 				case "explicit":
+				
+					// json files also resolve to here, in which case they should just
 				
 					var f = helpers.findObjectByAttribute
 			
@@ -917,29 +1179,11 @@ var dbslice = (function (exports) {
 						properties = f( properties, option.name, [option.val], false)
 					})
 					
-					// Find onle the properties that correspond to the selected flow variable. In explicitly stated variables the flow variable is stored on hte y-axis, and the x-axis is a dummy option.
-					var flowProperties = f(properties,"varName",ctrl.view.yVarOption.val,false)
+					// Pick the appropriate flow variable
+					let flowProperty = f( properties, "varName", ctrl.view.yVarOption.val, true)
 					
 					
-					// Apply the separation by axis
-					var xProperties = f(flowProperties,"axis","x",false)
-					var yProperties = f(flowProperties,"axis","y",false)
-				
-					// Handle the combination of ps/ss, and x/y.
-					// NOTE THAT SS PS IS OPTIONAL! HANDLE THIS SEPARATELY AS WELL!!
-					var xSS = f(xProperties,"side", ["ss"], true)
-					var xPS = f(xProperties,"side", ["ps"], true)
-					var ySS = f(yProperties,"side", ["ss"], true)
-					var yPS = f(yProperties,"side", ["ps"], true)
-				
-					var ss = file.data.vals.map(function(d){
-						return {x: Number( d[xSS.val] ), y: Number( d[ySS.val] )}
-					})
-					var ps = file.data.vals.map(function(d){
-						return {x: Number( d[xPS.val] ), y: Number( d[yPS.val] )}
-					})
-					
-					plotData = ss.concat(ps.reverse())
+					plotData = flowProperty.vals
 					
 					break;
 			
@@ -954,11 +1198,7 @@ var dbslice = (function (exports) {
 			
 		}, // getLineDataVals
 		
-		getContour2dDataVals: function getContour2dDataVals(file, ctrl){
-			// This is supposed to handle the cases where the files have different formats etc, or more data etc. Also, how to make the options available.
-			console.log("Implement getContour2dDataVals")
-			
-		}, // getContour2dDataVals
+		
 		
 		// HELPERS
 		helpers : {
@@ -1005,7 +1245,91 @@ var dbslice = (function (exports) {
 					return false
 				} // if
 				
-			} // checkProperties
+			}, // checkProperties
+			
+			refreshMetadataInfo: function refreshMetadataInfo(){
+				
+				// IMPORTANT!!!!!!!!!!!!
+				// The metadata properties need to be refershed whn the data changes!!!
+				
+				// Just check if the dim returns any data!!
+				var d_ = dbsliceData.data
+				
+				// First check if there is still any data left.
+				var data = d_.fileDim.top(Infinity)
+				if(data.length < 1){
+					// No data available,  remove all dims and associate info.
+					
+					d_.metaDataProperties = [];
+					d_.dataProperties = [];
+					d_.line2dProperties = [];
+					d_.contour2dProperties = [];
+					
+					d_.metaDims = [];
+					d_.dataDims = [];
+				
+					d_.metaDataUniqueValues = {};
+					d_.histogramSelectedRanges = [];
+				} else {
+					
+					// Some data is available. Find which properties are still available.
+					var task = data[0]
+					var properties = Object.getOwnPropertyNames( task )
+					
+					// Check if the dbsliceData properties are in the example task properties.
+					
+					// CLEAN THIS UP!!!!!!
+					d_.metaDataProperties = d_.metaDataProperties.filter(function(metaDataProperty){
+						var isMetaDataAvailable = properties.includes(metaDataProperty)
+						if( !properties.includes(metaDataProperty) ){
+							// Remove the property that corresponds to no data properties.
+							delete d_.metaDims[metaDataProperty]
+							delete d_.metaDataUniqueValues[metaDataProperty]
+						} else {
+							d_.metaDataUniqueValues[metaDataProperty] = helpers.unique( data.map(
+						function (d){return d[metaDataProperty]} ))
+						} // if
+						return isMetaDataAvailable
+					}) // filter
+					
+					d_.dataProperties = d_.dataProperties.filter(function(dataProperty){
+						var isDataAvailable = properties.includes(dataProperty)
+						if( !properties.includes(dataProperty) ){
+							// Remove the property that corresponds to no data properties.
+							delete d_.dataDims[dataProperty]
+							delete d_.histogramSelectedRanges[dataProperty]
+						} // if
+						return isDataAvailable
+					}) // filter
+					
+					
+					d_.line2dProperties = d_.line2dProperties.filter(function(sliceId){
+						return properties.includes(sliceId)
+					});
+					
+					d_.contour2dProperties = d_.contour2dProperties.filter(function(sliceId){
+						return properties.includes(sliceId)
+					});
+					
+				} // if
+				
+
+				
+			}, // refreshMetadataInfo
+			
+			isPropertyInDbsliceData: function isPropertyInDbsliceData(property){
+				
+					var isInData = [ 
+						dbsliceData.data.metaDataProperties.includes(property),
+						dbsliceData.data.dataProperties.includes(property),
+						dbsliceData.data.line2dProperties.includes(property),
+						dbsliceData.data.contour2dProperties.includes(property)
+					]
+					
+				
+				return isInData.some(d=>d)
+				
+			}, // isPropertyInDbsliceData
 			
 		} // helpers
 		
@@ -1216,6 +1540,7 @@ var dbslice = (function (exports) {
 				if( ["width", "height"].includes(dim) && !isNaN(val) ){
 				
 					let fontSize = 16
+					text.style("font-size", fontSize + "px")
 					while( ( box.node().getBoundingClientRect()[dim] > val ) &&
                            ( fontSize > 0 )	){
 						// Reduce the font size
@@ -1229,6 +1554,16 @@ var dbslice = (function (exports) {
 				
 				
 			}, // fitTextToBox
+			
+			calculateExponent: function(val){
+				// calculate the exponent for the scientific notation.
+				var exp = 0
+				while( Math.floor( val / 10**(exp+1) ) > 0 ){ exp+=1 }
+				
+				// Convert the exponent to multiple of three
+				return Math.floor( exp / 3 )*3
+			
+			}, // calculateExponent
 			
 	} // helpers
 	
@@ -1265,6 +1600,9 @@ var dbslice = (function (exports) {
 			
 			
 			cfD3BarChart.setupPlot.setupPlotTools(ctrl)
+			
+			cfD3BarChart.helpers.axes.addXLabel(ctrl)
+			
         
             cfD3BarChart.update(ctrl);
         }, // make
@@ -1489,7 +1827,7 @@ var dbslice = (function (exports) {
 				
 				
 				// Handle the axes.
-				draw.axes(ctrl);
+				h.axes.update(ctrl);
 				
 				// Add interactivity:
 				cfD3BarChart.interactivity.addOnMouseOver(ctrl);
@@ -1497,38 +1835,7 @@ var dbslice = (function (exports) {
 				
 			}, // update
 			
-			axes: function axes(ctrl){
-				
-				var svg = ctrl.figure.select("svg.plotArea")
-				var divBACG = ctrl.figure.select("div.bottomAxisControlGroup")
-				
-				var xAxis = svg.select("g.axis--x");
-				var yAxis = svg.select("g.axis--y");
-
-				// Add the text into hte bottomAxisControlGroup
-				if (divBACG.select("text").empty()){
-					divBACG
-					  .append("text")
-					    .attr("class", "txt-horizontal-axis")
-						.style("float", "right")
-						.style("margin-right", "15px")
-						.text("Number of Tasks");
-				}; // if
-				
-				// Control the tick values, and make sure they only display integeers.
-				var xAxisTicks = ctrl.tools.xscale.ticks()
-					.filter(function(d){ return Number.isInteger(d) });
-				
-				xAxis
-				  .call( d3.axisBottom(ctrl.tools.xscale)
-					.tickValues(xAxisTicks)
-					.tickFormat(d3.format("d")) );
-				
-
-				yAxis
-				  .call(d3.axisLeft(ctrl.tools.yscale).tickValues([]));
-				
-			} // axes
+			
 			
 		}, // draw
 		
@@ -1575,7 +1882,7 @@ var dbslice = (function (exports) {
 				// 'align' controls how the outer padding is distributed between both ends of the band range.
 				ctrl.tools.yscale = d3.scaleBand()
 				    .range([0, height])
-				    .domain(  items.map(function (d) {return d.val;})  )
+				    .domain(  items.map(function (d) {return d.val;}).sort()  )
 				    .padding([0.2])
 				    .align([0.5]);
 					
@@ -1742,7 +2049,10 @@ var dbslice = (function (exports) {
 						ctrl.view.gVar =           plotData.yProperty
 					} // if						
 				} // if				
-											
+							
+
+				ctrl.format.title = plotData.title
+							
 				return ctrl
 				
 				
@@ -1788,6 +2098,54 @@ var dbslice = (function (exports) {
 			
 			
 			// Functions supporting interactivity
+			axes: {
+				
+				update: function update(ctrl){
+					
+					
+
+					cfD3BarChart.helpers.axes.formatAxesX(ctrl)
+					
+					// Empty y-axis as the labels are drawn.
+					ctrl.figure
+					  .select("svg.plotArea")
+					  .select("g.axis--y")
+					  .call(d3.axisLeft(ctrl.tools.yscale).tickValues([]));
+					
+				}, // update
+				
+				formatAxesX: function formatAxesX(ctrl){
+				
+					var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.xscale)
+
+					ctrl.figure.select(".axis--x")
+						.selectAll("g.exponent")
+						.select("text")
+						  .attr("fill", format.fill)
+						.select("tspan.exp")
+						  .html(format.exp)
+			
+					ctrl.figure.select(".axis--x").call( d3.axisBottom( format.scale ).ticks(5) )
+						  
+				
+				}, // formatAxesY
+				
+				addXLabel: function addXLabel(ctrl){
+					
+					ctrl.figure
+					  .select("div.bottomAxisControlGroup")
+					  .append("text")
+						.attr("class", "txt-horizontal-axis")
+						.style("float", "right")
+						.style("margin-right", "15px")
+						.text("Number of Tasks");
+					
+				}, // addXLabel
+				
+				
+			}, // axes
+			
+			
 			transitions: {
 				instantaneous: function instantaneous(){
 					// For 'cfD3BarChart' animated transitions handles filter changes.
@@ -1945,11 +2303,6 @@ var dbslice = (function (exports) {
         
         make: function make(ctrl) {
 			
-			
-         
-            // Update the controls as required
-			// MISSING FOR NOW. IN THE END PLOTHELPERS SHOULD HAVE A VERTEILER FUNCTION
-			// cfD3Histogram.interactivity.updatePlotTitleControls(element)
           
             // Setup the object that will internally handle all parts of the chart.
 			plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
@@ -1961,7 +2314,7 @@ var dbslice = (function (exports) {
 				  .append("g")
 				    .attr("class", "extent")
 			
-			// cfD3Histogram.setupPlot.appendHorizonalSelection(ctrl.figure.select(".bottomAxisControlGroup"), ctrl)
+			
 			var i= cfD3Histogram.interactivity.onSelectChange
 			plotHelpers.setupPlot.general.appendHorizontalSelection(ctrl.figure.select(".bottomAxisControlGroup"), i.horizontal(ctrl))
 			plotHelpers.setupPlot.general.updateHorizontalSelection(ctrl)
@@ -1973,7 +2326,8 @@ var dbslice = (function (exports) {
 			cfD3Histogram.interactivity.addBrush.make(ctrl)
 			cfD3Histogram.interactivity.addBinNumberControls.make(ctrl)
 			
-			
+			// Add the y label to the y axis.
+			cfD3Histogram.helpers.axes.addYLabel(ctrl)
 			
 			cfD3Histogram.update(ctrl)
           
@@ -2155,7 +2509,7 @@ var dbslice = (function (exports) {
 				
 				
 				// Handle the axes.
-				cfD3Histogram.helpers.createAxes(ctrl);
+				cfD3Histogram.helpers.axes.update(ctrl);
 				
 				
 				
@@ -2831,6 +3185,83 @@ var dbslice = (function (exports) {
 		
 		helpers: {
 			
+			axes: {
+				
+				update: function update(ctrl){
+					
+					cfD3Scatter.helpers.axes.formatAxesY(ctrl)
+					cfD3Scatter.helpers.axes.formatAxesX(ctrl)
+					
+					
+					
+				}, // update
+				
+				formatAxesY: function formatAxesY(ctrl){
+				
+					var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.yscale)
+
+					var gExponent = ctrl.figure.select(".axis--y")
+						.selectAll("g.exponent")
+							.select("text")
+							  .attr("fill", format.fill)
+							.select("tspan.exp")
+							  .html(format.exp)
+					  
+					// The y axis shows a number of items, which is always an integer. However, integers in scientific notation can have decimal spaces. Therefore pick integers from the original scale, and then transform them into the new scale.
+					var yAxisTicks = ctrl.tools.yscale.ticks()
+					  .filter(d=>Number.isInteger(d) )
+					  .map(d=>Number.isInteger(format.exp) ? d/10**format.exp : d )
+					
+						
+					ctrl.figure.select(".axis--y").call( 
+						d3.axisLeft( format.scale )
+							.tickValues(yAxisTicks)
+							.tickFormat(d3.format("d")) 
+					)
+							  
+					
+				}, // formatAxesY
+				
+				formatAxesX: function formatAxesX(ctrl){
+			
+					var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.xscale)
+
+					var gExponent = ctrl.figure.select(".axis--x")
+						.selectAll("g.exponent")
+						
+					gExponent.select("tspan.exp")
+					  .html(format.exp)
+						  
+					gExponent.select("text")
+					  .attr("fill", format.fill)
+						
+						
+					ctrl.figure.select(".axis--x").call( d3.axisBottom( format.scale ).ticks(5) )
+						  
+				
+				}, // formatAxesY
+				
+				addYLabel: function addYLabel(ctrl){
+					
+					ctrl.figure
+					  .select("g.axis--y")
+					  .selectAll("text.yAxisLabel")
+					  .data( ["Number of tasks"] ).enter()
+					  .append("text")
+						.attr("class", "yAxisLabel")
+						.attr("fill", "#000")
+						.attr("transform", "rotate(-90)")
+						.attr("x", 0)
+						.attr("y", -25)
+						.attr("text-anchor", "end")
+						.style("font-weight", "bold")
+						.style("font-size", 12)
+						.text(function(d){return d});
+					
+				}, // addYLabel
+				
+			}, // axes
+			
 			createAxes: function createAxes(ctrl){
 				
 				var svg = ctrl.figure.select("svg.plotArea")
@@ -2840,21 +3271,7 @@ var dbslice = (function (exports) {
 				  .call( d3.axisBottom(ctrl.tools.xscale) );
 				
 				
-				/*
-				var xLabelD3 = ctrl.svg.select("g.axis--x").selectAll("text.xAxisLabel")
 				
-				xLabelD3.data( [ctrl.view.xVar] ).enter()
-					.append("text")
-					  .attr("class", "xAxisLabel")
-					  .attr("fill", "#000")
-					  .attr("x", ctrl.svg.attr("plotWidth"))
-					  .attr("y", 30)
-					  .attr("text-anchor", "end")
-					  .style("font-weight", "bold")
-					  .text(function(d){return d});
-				  
-				xLabelD3.text(function(d){return d});
-				*/
 				
 				// Y AXIS
 				
@@ -2872,21 +3289,7 @@ var dbslice = (function (exports) {
 					  .tickFormat(d3.format("d")) 
 				);
 			
-				var yLabelD3 = svg.select("g.axis--y").selectAll("text.yAxisLabel")
 				
-				yLabelD3.data( ["Number of tasks"] ).enter()
-					.append("text")
-					  .attr("class", "yAxisLabel")
-					  .attr("fill", "#000")
-					  .attr("transform", "rotate(-90)")
-					  .attr("x", 0)
-					  .attr("y", -25)
-					  .attr("text-anchor", "end")
-					  .style("font-weight", "bold")
-					  .style("font-size", 12)
-					  .text(function(d){return d});
-				  
-				yLabelD3.text(function(d){return d});
 
 				
 
@@ -2973,7 +3376,9 @@ var dbslice = (function (exports) {
 						ctrl.view.xVarOption.val = plotData.xProperty
 						ctrl.view.gVar =           plotData.xProperty
 					} // if						
-				} // if				
+				} // if	
+
+				ctrl.format.title = plotData.title
 											
 				return ctrl
 				
@@ -3216,7 +3621,7 @@ var dbslice = (function (exports) {
 					
 					
 					// Get the data to draw.
-					var pointData = cfD3Scatter.helpers.getUnfilteredPointData(ctrl)
+					var pointData = cfD3Scatter.helpers.getPointData(ctrl)
 						
 					// Deal with the points
 					var points = ctrl.figure.select("svg.plotArea")
@@ -3250,29 +3655,18 @@ var dbslice = (function (exports) {
 					// Get the data to draw.
 					var accessor = cfD3Scatter.helpers.getAccessors(ctrl)
 					var pointData = cfD3Scatter.helpers.getPointData(ctrl)
+					var taskIds = pointData.map(d=>d.taskId)
 					
-					
+					// Weird... right now all data should still be drawn...
 					
 					var gData = ctrl.figure
 						  .select("svg.plotArea")
 						  .select("g.data")
 						  
 					gData.selectAll("circle")
-						.each(function(d){
-							if(pointData.includes(d)){
-								// Attach and detach the point, then trigger the change.
-								this.remove()
-								gData.node().appendChild(this)
-								
-								// For some reason transitions break the change of color.
-								d3.select(this)
-									.style("fill", d=> accessor.c(d) )
-								
-							} else {
-								d3.select(this)
-									.style("fill", "Gainsboro" )
-							}// if
-						})
+					    .filter(function(d_){return taskIds.includes(d_.taskId)})
+						.style("fill", d=> accessor.c(d) )
+						.raise()
 					
 					// If drawing was needed, then also the lines need to be updated. Drawing should only be updated if the variable is actiually selected.
 					ctrl.view.gVarOption.action = ctrl.view.gVarOption.val ? "draw" : undefined
@@ -4030,7 +4424,7 @@ var dbslice = (function (exports) {
 						} // if						
 					} // if
 					
-					
+					ctrl.format.title = plotData.title
 												
 					return ctrl
 					
@@ -4081,15 +4475,45 @@ var dbslice = (function (exports) {
 					
 					update: function update(ctrl){
 					
-						var xAxis = d3.axisBottom( ctrl.tools.xscale ).ticks(5);
-						var yAxis = d3.axisLeft( ctrl.tools.yscale );
+						cfD3Scatter.helpers.axes.formatAxesY(ctrl)
+						cfD3Scatter.helpers.axes.formatAxesX(ctrl)
 					
-						ctrl.figure.select("svg.plotArea").select(".axis--x").call( xAxis )
-						ctrl.figure.select("svg.plotArea").select(".axis--y").call( yAxis )
-						
 						cfD3Scatter.helpers.axes.updateTicks(ctrl)
 					
 					}, // update
+					
+					
+					formatAxesY: function formatAxesY(ctrl){
+				
+						var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.yscale)
+
+						ctrl.figure.select(".axis--y")
+							.selectAll("g.exponent")
+							.select("text")
+							  .attr("fill", format.fill)
+							.select("tspan.exp")
+							  .html(format.exp)
+							
+						ctrl.figure.select(".axis--y").call( d3.axisLeft( format.scale ) )
+							  
+					
+					}, // formatAxesY
+					
+					formatAxesX: function formatAxesX(ctrl){
+				
+						var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.xscale)
+
+						ctrl.figure.select(".axis--x")
+							.selectAll("g.exponent")
+							.select("text")
+							  .attr("fill", format.fill)
+							.select("tspan.exp")
+							  .html(format.exp)
+				
+						ctrl.figure.select(".axis--x").call( d3.axisBottom( format.scale ).ticks(5) )
+							  
+					
+					}, // formatAxesX
 					
 					updateTicks: function updateTicks(ctrl){
 					  
@@ -4134,7 +4558,7 @@ var dbslice = (function (exports) {
 					} // animated
 				}, // transitions
 			
-			
+				// Data handling
 				getAccessors: function getAccessors(ctrl){
 				
 				return {
@@ -4171,6 +4595,8 @@ var dbslice = (function (exports) {
 					
 				}, // getUnfilteredPointData
 			
+			
+				
 				// Functions for cross plot highlighting:
 				unhighlight: function unhighlight(ctrl){
 					
@@ -4178,37 +4604,39 @@ var dbslice = (function (exports) {
 					  .select("svg.plotArea")
 					  .select("g.data")
 					  .selectAll("circle")
-						  .style("opacity", 0.2);
+					    .style("fill", "Gainsboro");
+						 // .style("opacity", 0.2);
 					
 				}, // unhighlight
 				
 				highlight: function highlight(ctrl, allDataPoints){
 					
-					allDataPoints.forEach(function(d){
-						
-						// Find the circle corresponding to the data point. Look for it by taskId.
-						ctrl.figure
-						  .select("svg.plotArea")
-						  .select("g.data")
-							.selectAll("circle")
-							.filter(function(d_){return d_.taskId == d.taskId})
-							  .style("opacity", 1.0)
-							  .attr("r", 7);
-						
-					}) // forEach
+					var taskIds = allDataPoints.map(d=>d.taskId)
 					
-					
+					ctrl.figure
+					  .select("svg.plotArea")
+					  .select("g.data")
+					  .selectAll("circle")
+						.filter(function(d_){return taskIds.includes(d_.taskId)})
+						  .style("fill", "cornflowerblue")
+						  .attr("r", 7);
 					
 				}, // highlight
 				
 				defaultStyle: function defaultStyle(ctrl){
 					
-					// Find all the circles, style them appropriately.
+					// Use crossfilter to do these loops? How to speed this all up?
+					
+					var filteredItems = cfD3Scatter.helpers.getPointData(ctrl)
+					var taskIds = filteredItems.map(d=>d.taskId)
+					
+					// This should only color the filtered items in blue.
 					ctrl.figure
 					  .select("svg.plotArea")
 					  .select("g.data")
 					  .selectAll("circle")
-					    .style("opacity", 1)
+					    .filter(function(d_){return taskIds.includes(d_.taskId)})
+					    .style("fill", "cornflowerblue")
 					    .attr("r", 5);
 						
 					
@@ -4481,7 +4909,12 @@ var dbslice = (function (exports) {
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
 			
 			// 2.) The plot tools need to be updated
-			cfD3Line.setupPlot.setupPlotTools(ctrl)
+			if(ctrl.data.compatible != undefined){
+				cfD3Line.setupPlot.setupLineSeries(ctrl)
+				plotHelpers.setupTools.go(ctrl)
+				cfD3Line.setupPlot.setupLineTools(ctrl)
+			} // if
+			
 			
 			
 				
@@ -5022,7 +5455,9 @@ var dbslice = (function (exports) {
 				} // if
 				
 				// When the session is loaded all previously existing plots would have been removed, and with them all on demand loaded data. Therefore the variables for this plot cannot be loaded, as they will depend on the data.
-											
+				
+				ctrl.format.title = plotData.title
+				
 				return ctrl
 				
 				
@@ -5255,24 +5690,23 @@ var dbslice = (function (exports) {
 			
 			// Scale the card appropriately so that it occupies some area. Needs to be adjusted for hte title height
 			cfD3Contour2d.setupPlot.dimension(ctrl)
-			let p = ctrl.format.position
 			
-			// Add another div to hold the colorbar on the right hand side. The colorbar needs to be side by side with the plot. To position it correctly another div level needs to be present. Therefore both the contours and the colorbar have to go into div.card. An additional 5px margin is introduced to make sure the plot div and teh colorbar are in hte same row.
+			
 			
 			
 			// `cfD3Contour2d' has a different structure than the other plots, therefore the `ctrl.figure' attribute needs to be updated.
-			ctrl.figure = ctrl.figure.append("div")
-			  .attr("class", "data")
-			  .style("width",  p.plotWidth + "px" )
-			  .style("height", p.plotHeight + "px" )
+			cfD3Contour2d.setupPlot.setupPlottingArea(ctrl)
+			
+			// Add the lassoing.
+			cfD3Contour2d.interactivity.lassoing(ctrl)
 			
 			
-			cfD3Contour2d.setupPlot.setupRightControlDOM(ctrl)
+			
 			
 			// The plotBody must be reassigned here so that the rightcontrolgroup svgs are appended appropriately.
 			
 			
-			cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+			cfD3Contour2d.resizing.plotOnExternalChange(ctrl)
 			
 			// NOTES:
 			// How to configure the contour plot on the go? For now the positional variables will be just assumed.
@@ -5296,7 +5730,7 @@ var dbslice = (function (exports) {
 			// How to handle contour data? The user should be expected to select the position variables once, and then just change the flow variable if needed. For now this is manually selected here, but the user should be able to select their varioable based on hte name. Implement that later. Maybe a focus out to adjust the contours, and then a focus in to show change. However, in json formats the user should just name the variables correctly!! How should it happen in csv?
 			
 			// Only use the first 6 files for now.
-			ctrl.data.available = ctrl.data.available.splice(0,6)
+			// ctrl.data.available = ctrl.data.available.splice(0,6)
 			
 
 			// Calculate the extent of hte data and the thresholds
@@ -5313,10 +5747,9 @@ var dbslice = (function (exports) {
 			
 			
 			// Resize the plot cotnainers
-			cfD3Contour2d.interactivity.resizeOnInternalChange(ctrl)
+			cfD3Contour2d.resizing.plotOnInternalChange(ctrl)
 			
 			  
-			// ONE COLORBAR FOR ALL!! AT THE SIDE! The colorbar should only occupy the visible space, and should move with the view as the user scrolls down.
 			
 			// When panning over the levels markers on the colorbar highlight those on hte contours somehow.
 			
@@ -5324,62 +5757,143 @@ var dbslice = (function (exports) {
 			
 			// A special tool to order the cards roughly? This is the grouping sort-of?
 			
-			// DRAW THE CONTOURS USING WEBGL
-			
 		}, // updateData
 		
-	
+		// MOVE ALL RESCALING TO A SINGLE OBJECT?
 		rescale: function rescale(ctrl){
 			
 			// Should rescale the whole plot and the individual contours in it.
 			
 			console.log("Rescaling cfD3Contour2d")
 			
+			// Make sure the overlay is the right size
+			
 		}, // rescale
 		
-		rescaleContourCard: function rescaleContourCard(contourCtrl){
+		
+		resizing: {
 			
-			// Retrieve the data AR from the plot ctrl.
-			let card = contourCtrl.format.wrapper
-			let p = contourCtrl.format.position
-			let plotCtrl = d3.select(contourCtrl.format.parent).data()[0]
+			contourCard: function contourCard(contourCtrl){
 			
-			let dy = positioning.dy(plotCtrl.figure)
-			let dx = positioning.dx(plotCtrl.figure)
-			
-	
-			// Update the position based on the new ih and iw.
-			let position_ = cfD3Contour2d.draw.dimension(p.iw, p.ih, dx, dy, plotCtrl.data.domain.ar)
-			
-			p.w = position_.w
-			p.h = position_.h
-			p.sw = position_.sw
-			p.sh = position_.sh
-			p.minW = position_.minW
-			p.minH = position_.minH
-			p.ar = position_.ar
-			
-			// Update the relevant DOM elements.
+				// Retrieve the data AR from the plot ctrl.
+				let card = contourCtrl.format.wrapper
+				let p = contourCtrl.format.position
+				let plotCtrl = d3.select(contourCtrl.format.parent).data()[0]
+				
+				let dy = positioning.dy(plotCtrl.figure)
+				let dx = positioning.dx(plotCtrl.figure)
+				
+		
+				// Update the position based on the new ih and iw.
+				let position_ = cfD3Contour2d.draw.dimension(p.iw, p.ih, dx, dy, plotCtrl.data.domain.ar)
+				
+				p.w = position_.w
+				p.h = position_.h
+				p.sw = position_.sw
+				p.sh = position_.sh
+				p.minW = position_.minW
+				p.minH = position_.minH
+				p.ar = position_.ar
+				
+				// Update the relevant DOM elements.
 
-			// Update the title div. Enforce a 24px height for this div.
-			let title = card
-			  .select("div.title")
-			  .select("p")
-				.style("text-align", "center")
-				.style("margin-left", "5px")
-				.style("margin-right", "5px")
-				.style("margin-bottom", "8px")
-			  
-			  
-			helpers.fitTextToBox(title, title, "height", 24)
-	
-			// Update the plot svg
-			card.select("svg.plotArea")
-			  .attr("width",  p.sw)
-			  .attr("height", p.sh )
+				// Update the title div. Enforce a 24px height for this div.
+				let title = card
+				  .select("div.title")
+				  .select("p")
+					.style("text-align", "center")
+					.style("margin-left", "5px")
+					.style("margin-right", "5px")
+					.style("margin-bottom", "8px")
+				  
+				  
+				helpers.fitTextToBox(title, title, "height", 24)
+		
+				// Update the plot svg
+				card.select("svg.plotArea")
+				  .attr("width",  p.sw)
+				  .attr("height", p.sh )
+				
+				
+			}, // contourCard
+			
+			plotOnInternalChange: function plotOnInternalChange(ctrl){
+				// An internal change has occured that prompted the plot to be resized (contours were added, moved, or resized).
+				
+				// Update the plot, AND the plot row. When updating the plot row also the other plots need to be repositioned on the grid.
+				
+				// Needs to update:
+  				// 1 plot (div.plot holding the contours), 
+				// 2 plotWrapper (containing hte whole plot)
+				// 3 plotRowBody (containing the plot). 
+				// 4 other plots of hte plot row need to be repositioned.
+				
+				// First update the size of the contour plotting area. Based on this size update the plot wrapper. Based on the new plot wrapper size update the plot row.
+				
+				
+				let h = positioning.helpers
+				let f = ctrl.format
+				let w = ctrl.format.wrapper
+				
+				let dx = positioning.dx( d3.select( f.parent ) )
+				let dy = positioning.dy( d3.select( f.parent ) )
+				
+				
+				
+				let rightControlSize = w.select("svg.rightControlSVG").node().getBoundingClientRect()
+				let rightControlY = f.rightControls.format.position.iy * positioning.dy( d3.select(f.rightControls.format.parent) )
+				
+				
+				// Heights of components
+				let titleHeight = w.select("div.plotTitle").node().offsetHeight
+				let plotHeight = h.findContainerSize(ctrl.figure, ".contourWrapper")
+				let colorbarHeight = rightControlY + rightControlSize.height
+				let figureHeight = colorbarHeight > plotHeight ? colorbarHeight : plotHeight
+				
+				// Size the plotWrapper appropriately.
+				let ih = Math.ceil( (figureHeight + titleHeight) / dy) 
+				f.position.ih = ih < 4 ? 4 : ih
+				
+				
+				// Update the heights of the wrapper, hte plot body, and the svg overlay.
+				let wrapperHeight = f.position.ih*dy
+				let plotAreaHeight= wrapperHeight - titleHeight
+				
+				w.style("height", wrapperHeight + "px" )
+				ctrl.figure.style("height", plotAreaHeight + "px" )
+				
+				w.select("svg.overlay").style("height", plotAreaHeight + "px")
+				
+				
+				// Reposition other on-demand plots and size the plot row accordingly.
+				cfD3Contour2d.resizing.plotOnExternalChange(ctrl)
+				
+				
+				
+				
+			}, // plotOnInternalChange
+			
+			plotOnExternalChange: function plotOnExternalChange(plotCtrl){
+				// An external change occured - the plot was moved or resized.
+				
+				// The contour plot is not allowed to clash with other plots. Once an appropriate sizing logic will be selected and implemented this can be relaxed. Therefore when it is moved or resized other plots in the same plot row need to be repositioned.
+				
+				// If the body of the plot moves, then hte other plots must also move.
+				positioning.helpers.repositionSiblingPlots(plotCtrl)
+				
+				// Update the plot row height itself.
+				let plotRowBody = d3.select(plotCtrl.format.parent)
+				builder.refreshPlotRowHeight(plotRowBody)
+				
+				
+			}, // plotOnExternalChange
 			
 			
-		}, // rescaleContourCard
+			
+			
+		}, // resizing
+		
+
 	
 			
 		// Rename setupPlot -> setup
@@ -5403,6 +5917,60 @@ var dbslice = (function (exports) {
 				
 				
 			}, // dimension
+			
+			setupPlottingArea: function setupPlottingArea(ctrl){
+				
+				let p = ctrl.format.position
+				
+				// `cfD3Contour2d' has a different structure than the other plots, therefore the `ctrl.figure' attribute needs to be updated.
+				let dataDiv = ctrl.figure.append("div")
+				  .attr("class", "data")
+				  .style("width",  p.plotWidth + "px" )
+				  .style("height", p.plotHeight + "px" )
+				  
+				// MOST OF BELOW IS DUE TO LASSOING. MOVE!!
+				var overlaySvg = ctrl.figure.append("svg")
+					.attr("class", "overlay")
+					.style("width",  p.plotWidth + "px" )
+					.style("height", p.plotHeight + "px" )
+					.style("position", "absolute")
+					.style("top", p.titleHeight + "px")
+					.style("display", "none")
+					
+				
+				  
+				dataDiv.on("mousemove", function(){
+					  if (event.shiftKey) {
+						  overlaySvg.style("display", "")
+					  } else {
+						  overlaySvg.style("display", "none")
+					  } // if
+				})
+				
+				overlaySvg.on("mousemove", function(){
+					if (event.shiftKey) {
+						  
+						  
+					} else {
+						// If shift is released, hide overlay
+						overlaySvg.style("display", "none")
+					} // if
+				})
+				
+				
+				// Add in hte tooltip that hosts the tools operating on lasso selection.
+				cfD3Contour2d.interactivity.tooltip.add(ctrl)
+				
+				
+				
+				// Reassing hte figure to support drag-move.
+				ctrl.figure = dataDiv
+				
+				
+				// Also setup the right hand side controls
+				cfD3Contour2d.setupPlot.setupRightControlDOM(ctrl)
+				
+			}, // setupPlottingArea
 			
 			// Right colorbar control group
 			
@@ -5507,6 +6075,7 @@ var dbslice = (function (exports) {
 				  
 				
 			}, // setupHistogramTools
+			
 			
 			sizeRightControlGroup: function sizeRightControlGroup(ctrl){
 				
@@ -5651,6 +6220,8 @@ var dbslice = (function (exports) {
 				
 			}, // setupRightControlDOM
 			
+			
+			// The plotting tools
 			setupPlotTools: function setupPlotTools(ctrl){
 				
 				// Setup the colorbar tools. This is in a separate function to allow it to be updated later if needed. Maybe create individual functions for all three? Contour, Colorbar, Histogram?
@@ -5693,7 +6264,6 @@ var dbslice = (function (exports) {
 			}, // getDomain
 			
 			// Contour cards
-			
 			design: function design(ctrl, file){
 				// This is the initial dimensioning of the size of the contour cards.
 				  
@@ -5740,6 +6310,7 @@ var dbslice = (function (exports) {
 	
 		draw: {
 			
+			// Making the presentation blocks.
 			cards: function cards(ctrl){
 				// This should handle the enter/update/exit parts.
   
@@ -5863,7 +6434,6 @@ var dbslice = (function (exports) {
 			}, // contourBackbone
 			
 			// Actual drawing
-			
 			contours: function contours(d){
 				
 				// The projection should be updated here to cover the case when the user resizes the plot.
@@ -5885,7 +6455,7 @@ var dbslice = (function (exports) {
 				// By this point everything external to the contour has been rescaled. Here the internal parts still need to be rescaled, and the contour levels redrawn.
 				
 				// Readjust the card DOM
-				cfD3Contour2d.rescaleContourCard(d)
+				cfD3Contour2d.resizing.contourCard(d)
 				
 				
 				// The projection should be updated here to cover the case when the user resizes the plot.
@@ -5913,8 +6483,8 @@ var dbslice = (function (exports) {
 				
 			}, // updateContour
 			
-			// The control group - can remain svg.
 			
+			// The control group
 			rightControlGroup: function rightControlGroup(ctrl){
 				
 			    
@@ -5963,8 +6533,6 @@ var dbslice = (function (exports) {
 				// Make the colorbar interactive!!
 				
 			}, // rightControlGroup
-			
-			
 			
 			colorbar: function colorbar(ctrl){
 				// The colorbar must have it's own axis, because the user may want to change the color extents to play with the data more. 
@@ -6211,7 +6779,9 @@ var dbslice = (function (exports) {
 	
 		interactivity: {
 			
+			// POTENTIALLY MOVE FOR ALL PLOTS?
 			refreshContainerSize: function refreshContainerSize(ctrl){
+				// This is used in other plots too, so must remain here.
 				
 				// There are 4 events that may prompt resisizing.
 				// 1: Moving plots
@@ -6220,8 +6790,8 @@ var dbslice = (function (exports) {
 				// 4: Resizing contours
 				
 				if(ctrl.format.title !=undefined){
-					// Plot
-					cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+					// Plot. These don't have a title attribute.
+					cfD3Contour2d.resizing.plotOnExternalChange(ctrl)
 					
 				} else {
 					// Contour
@@ -6229,7 +6799,7 @@ var dbslice = (function (exports) {
 					let contourPlot = d3.select(ctrl.format.parent)
 					let contourPlotCtrl = contourPlot.data()[0]
 					
-					cfD3Contour2d.interactivity.resizeOnInternalChange(contourPlotCtrl)
+					cfD3Contour2d.resizing.plotOnInternalChange(contourPlotCtrl)
 					
 				} // if
 				
@@ -6237,70 +6807,7 @@ var dbslice = (function (exports) {
 				
 			}, // refreshContainerSize
 
-			resizeOnInternalChange: function (ctrl){
-				// An internal change has occured that prompted the plot to be resized (contours were added, moved, or resized).
-				
-				let h = positioning.helpers
-				let f = ctrl.format
-				
-				let titleDOM = f.wrapper.select("div.plotTitle").node()
-				let rightControlSize = f.wrapper.select("svg.rightControlSVG").node().getBoundingClientRect()
-				let rightControlY = f.rightControls.format.position.iy * positioning.dy( d3.select(f.rightControls.format.parent) )
-				
-				// Update the plot, AND the plot row. When updating the plot row also the other plots need to be repositioned on the grid.
-				
-				// Needs to update:
-  				// 1 plot (div.plot holding the contours), 
-				// 2 plotWrapper (containing hte whole plot)
-				// 3 plotRowBody (containing the plot). 
-				// 4 other plots of hte plot row need to be repositioned.
-				
-				// First update the size of the contour plotting area. Based on this size update the plot wrapper. Based on the new plot wrapper size update the plot row.
-				
-
-				
-				// Get the required height for the contour plot area.
-				let titleHeight = titleDOM.offsetHeight
-				let plotHeight = h.findContainerSize(ctrl.figure, ".contourWrapper")
-				let colorbarHeight = rightControlY + rightControlSize.height
-				let figureHeight = colorbarHeight > plotHeight ? colorbarHeight : plotHeight
-				
-				// Size the plotWrapper appropriately.
-				let dx = positioning.dx( d3.select( f.parent ) )
-				let dy = positioning.dy( d3.select( f.parent ) )
-				let ih = Math.ceil( (figureHeight + titleHeight) / dy) 
-				ih = ih < 4 ? 4 : ih
-				
-				f.position.ih = ih 
-				f.wrapper.style("height", ih*dy + "px" )
-				ctrl.figure.style("height", (ih*dy - titleHeight) + "px" )
-				
-
-				
-				
-				// Reposition other on-demand plots and size the plot row accordingly.
-				cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
-				
-				
-				
-				
-			}, // resizeOnInternalChange
-			
-			resizeOnExternalChange: function resizeOnExternalChange(plotCtrl){
-				// An external change occured - the plot was moved or resized.
-				
-				// The contour plot is not allowed to clash with other plots. Once an appropriate sizing logic will be selected and implemented this can be relaxed. Therefore when it is moved or resized other plots in the same plot row need to be repositioned.
-				
-				// If the body of the plot moves, then hte other plots must also move.
-				positioning.helpers.repositionSiblingPlots(plotCtrl)
-				
-				// Update the plot row height itself.
-				let plotRowBody = d3.select(plotCtrl.format.parent)
-				builder.refreshPlotRowHeight(plotRowBody)
-				
-				
-			}, // resizeOnExternalChange
-			
+			// Colorbar group
 			rightControls: {
 				// Move everything related to the right controls here!!
 				update: function update(ctrl){
@@ -6356,7 +6863,7 @@ var dbslice = (function (exports) {
 						let plotCtrl = rightControlCtrl.format.wrapper.data()[0]
 						
 						// Resize the plot.
-						cfD3Contour2d.interactivity.resizeOnInternalChange(plotCtrl)
+						cfD3Contour2d.resizing.plotOnInternalChange(plotCtrl)
 						
 						
 						// Resize the plot row.
@@ -6372,7 +6879,142 @@ var dbslice = (function (exports) {
 				
 			}, // rightControls
 
-			
+			// Lasso
+			lassoing: function lassoing(ctrl){
+				
+				var svgOverlay = ctrl.format.wrapper.select("svg.overlay")
+				
+				var lassoInstance = {
+					element: {
+						// 'owner': element to attach the lasso to.
+						// 'svg'  : where to draw the lasso to
+						// 'ref'  : reference for position retrieval
+						owner: svgOverlay,
+						svg: svgOverlay,
+						ref: ctrl.figure
+					},
+					data: {
+						boundary: [],
+						getBasisData: function(){ return ctrl.data.plotted; }
+					},		
+					accessor: {
+						// Here the data that is searched after is the position of the card on the screen.
+						x: function(d){
+							let dx = positioning.dx(ctrl.figure)
+							let imx = d.format.position.ix + 
+									  d.format.position.iw/2
+							return imx*dx
+						},
+						y: function(d){
+							let dy = positioning.dy(ctrl.figure)
+							let imy = d.format.position.iy + 
+									  d.format.position.ih/2
+							return imy*dy 
+						},
+					},
+					scales: {
+						x: function(x){return x},
+						y: function(y){return y}
+					},
+					preemptive: function(){
+						cfD3Contour2d.interactivity.tooltip.tipOff(ctrl)
+					},
+					response: function(allDataPoints){
+						// Highlight the selection
+						cfD3Contour2d.helpers.highlight(ctrl, allDataPoints.map(d=>d.task))
+						
+						// Display the tooltip.
+						cfD3Contour2d.interactivity.tooltip.tipOn(ctrl)
+					},
+				} // lassoInstance
+				
+				ctrl.tools.lasso = lassoInstance;
+				
+				lasso.add(lassoInstance)
+				
+				
+			}, // lassoing
+
+			// Use selection
+			tooltip: {
+		
+				add: function add(ctrl){
+					// Needs to know where to place the tooltip, and where to store the reference. How should the tooltip be triggered? Only on lasso selection! In that case just tipOn and tipOff must be presented, and should run given a selection of data. The data can them be used to calculate the appropriate position of hte tooltip.
+					var f = cfD3Contour2d.interactivity.tooltip.functionality
+					var tooltip = ctrl.figure.append("div")
+						.attr("class", "contourTooltip")
+						.style("display", "none")
+						
+					addButton("stack-overflow", f.pileAndSummarise)
+					addButton("search", f.highlight)
+					addButton("tags", f.tag)
+					addButton("close", function(){
+						cfD3Contour2d.interactivity.tooltip.tipOff(ctrl)
+					})
+					
+					
+					ctrl.tools.tooltip = tooltip
+					
+					function addButton(icon, event){
+						tooltip.append("button")
+						.attr("class", "btn")
+						.on("click", event)
+					  .append("i")
+						.attr("class", "fa fa-" + icon)
+						.style("cursor", "pointer")
+					} // addButton
+				
+				}, // add
+				
+				tipOn: function tipOn(ctrl){
+					
+					// Position hte tooltip appropriately. Use the lasso boundary to calculate a mean. Crude, but ok.
+					
+					var n = ctrl.tools.lasso.data.boundary.length
+					var position = ctrl.tools.lasso.data.boundary.reduce(function(total, item){
+						total.x += item.cx / n
+						total.y += item.cy / n
+						return total
+					},
+					{
+						x: 0,
+						y: 0
+					})
+					
+					// Offset by the expected tooltip size. How to calculate that when display:none?
+					ctrl.tools.tooltip
+					  .style("display", "")
+					  .style("left", (position.x-100) + "px")
+					  .style("top",  (position.y-30) + "px")
+					  
+				}, // tipOn
+						
+				tipOff: function tipOff(ctrl){
+					ctrl.tools.tooltip.style("display", "none")
+				}, // tipOff
+						
+				functionality: {
+				
+					highlight: function highlight(){
+						console.log("Run cross plot highlighting")
+					}, // highlight
+					
+					pileAndSummarise: function pileAndSummarise(){
+					
+						console.log("Pile and calculate standard deviation plot")
+					}, // pileAndSummarise
+					
+					tag: function tag(){
+						console.log("Run tagging interface")
+					}, // tag
+				
+				} // functionality
+				
+			}, // tooltip
+
+			// Introduce piling
+			piling: {}, // piling
+
 		}, // interactivity
 		
 		helpers: {
@@ -6435,7 +7077,12 @@ var dbslice = (function (exports) {
 								val2px: undefined,
 								val2px_: undefined,
 								bin2px: undefined
-							}
+							},
+							lasso: {
+								points: [],
+								tasks: []
+							},
+							tooltip: undefined,
 						},
 					format: {
 						title: "Edit title",
@@ -6575,32 +7222,57 @@ var dbslice = (function (exports) {
 			// Functions supporting cross plot highlighting
 			unhighlight: function unhighlight(ctrl){
 				
-				
+				ctrl.figure
+				  .selectAll("div.contourWrapper")
+				  .style("border-width", "")
+				  .style("border-style", "")
+				  .style("border-color", "")
 				
 			}, // unhighlight
 			
 			highlight: function highlight(ctrl, allDataPoints){
 				
+				// Udate the boundary.
+				var allCards = ctrl.figure
+				  .selectAll("div.contourWrapper")
+				  
+				var selectedCards = allCards.filter(function(d){
+					  return allDataPoints.includes(d.task)
+				})
+				
+				var others = allCards.filter(function(d){
+					  return !allDataPoints.includes(d.task)
+				})
 				
 				
+				selectedCards
+				  .style("border-width", "4px")
+				  .style("border-style", "dashed")
+				  .style("border-color", "black")
 				
+				others
+				  .style("border-width", "")
+				  .style("border-style", "")
+				  .style("border-color", "")
 				
 			}, // highlight
 			
 			defaultStyle: function defaultStyle(ctrl){
 					
-				
+				ctrl.figure
+				  .selectAll("div.contourWrapper")
+				  .style("border-width", "")
+				  .style("border-style", "")
+				  .style("border-color", "")
 				
 			}, // defaultStyle
 		
-			
 			
 		
 		} // helpers
 	
 		
 	} // cfD3Contour2d
-	
 	
 	// Plot creation abstract object.
     var plotHelpers = {
@@ -6649,15 +7321,11 @@ var dbslice = (function (exports) {
 
 					
 					// Add the actual title
-					plotHeader
+					var titleBox = plotHeader
 					  .append("div")
 					    .attr("class", "title")
-						.attr("style","display:inline")
-						.html(plotCtrl.format.title)
-						.attr("spellcheck", "false")
-						.attr("contenteditable", true)
-						.style("cursor", "text")
-						.on("mousedown", function() { d3.event.stopPropagation(); })
+						.style("display","inline")
+						
 						
 						
 						
@@ -6672,6 +7340,20 @@ var dbslice = (function (exports) {
 						.on("mousedown", function() { d3.event.stopPropagation(); })
 						.on("click", addMenu.removePlotControls )
 					
+					  
+					// Now add the text - this had to wait for hte button to be added first, as it takes up some space.
+					titleBox.html(plotCtrl.format.title)
+					  .attr("spellcheck", false)
+					  .attr("contenteditable", true)
+					  .style("cursor", "text")
+					  .on("mousedown", function() { d3.event.stopPropagation(); })
+					  .each(function(ctrl){
+						  this.addEventListener("input", function(){
+							  ctrl.format.title = this.innerHTML
+						  })
+					  })
+					  
+					  
 					  
 					var plotBody = plot
 					  .append("div")
@@ -6794,11 +7476,32 @@ var dbslice = (function (exports) {
 					// Group for the x axis
 					svg.append("g")
 						.attr( "class", "axis--x")
+					  .append("g")
+					    .attr("class", "exponent")
+					  .append("text")
+					    .attr("fill", "none")
+						.attr("y", "-0.32em")
+					  .append("tspan")
+					    .html("x10")
+					  .append("tspan")
+					    .attr("class","exp")
+					    .attr("dy", -5)
 						
 					// Group for the y axis
 					svg.append("g")
 						.attr( "class", "axis--y")
-					
+					  .append("g")
+					    .attr("class", "exponent")
+					  .append("text")
+					    .attr("fill", "none")
+						.attr("x", -8)
+					  .append("tspan")
+					    .html("x10")
+					  .append("tspan")
+					    .attr("class","exp")
+					    .attr("dy", -5)
+					  
+						
 				}, // setupPlotContainerBackbone
 				
 				
@@ -6875,11 +7578,15 @@ var dbslice = (function (exports) {
 					// Group for the x axis
 					svg.select("g.axis--x")
 						.attr( "transform", makeTranslate(axesMargin.left, plotHeight + axesMargin.top) )
-						
+					  .select("g.exponent")
+					  .select("text")
+					    .attr("x", plotWidth - 12)
 						
 					// Group for the y axis
 					svg.select("g.axis--y")
 						.attr( "transform", axesTranslate )
+						.attr("x", -12)
+						.attr("y", 5)
 				
 						
 					function makeTranslate(x,y){
@@ -6928,6 +7635,7 @@ var dbslice = (function (exports) {
 						.append("option")
 						   .attr("class","dropdown-item")
 						   .html(function(d){return d})
+						   .attr("value", function(d){return d})
 						   
 					options.html(function(d){return d})
 					
@@ -7392,6 +8100,7 @@ var dbslice = (function (exports) {
 						
 						return function(){
 									
+							// `this' is the vertical select! 
 							var selectedVar = this.value
 							
 							// Perform the regular task for y-select.
@@ -7701,6 +8410,42 @@ var dbslice = (function (exports) {
 		}, // setupTools
         
         
+		helpers: {
+			
+			formatAxisScale: function formatAxisScale(scale){
+				// With a million tasks it is possible that the min and max are more than O(3) different. In that case a logarithmic scale would be better!
+				
+				
+				var dom = scale.domain()
+				
+				var format = {
+					scale: scale,
+					exp: undefined,
+					fill: undefined
+				} // format
+				
+				// In cases where the exponent of hte min and the exponent of the max are very different, pick the one in between! We're likely only going to be able to handle 1e6 tasks, in which case the most extreme case is minExp = 0, and maxExp = 6. In that case pick the middle value of 3.
+				var maxExp = helpers.calculateExponent(dom[1])
+				var minExp = helpers.calculateExponent(dom[0])
+				format.exp = (maxExp - minExp) > 3 ? 3 : minExp
+				
+				if (format.exp > 0){
+					format.scale = d3.scaleLinear()
+						.domain( dom.map(d=>d/10**format.exp) )
+						.range( scale.range() )
+						
+					format.fill = "currentColor"
+				} else {
+					format.fill = "none"
+					format.exp = ""
+				} // if
+				
+				return format
+				
+			}, // formatExponent
+			
+			
+		}
         	
 		
 	} // plotHelpers
@@ -7979,7 +8724,7 @@ var dbslice = (function (exports) {
 	} // crossPlotHighlighting 
 		
 
-	
+	// REMOVE DATA CONTROLS STILL USES JQUERY SOMEHOW!!
 
 	// App interactivity
     var addMenu = {
@@ -8031,76 +8776,113 @@ var dbslice = (function (exports) {
                 
             },
                             
-            make: function make(containerDOM, containerCtrl){
+            make: function make(ownerButton, containerCtrl){
                 
-                // The container is expected to be the plot row title.
-                var plotRowTitle = d3.select( containerDOM )
+				// Container ctrl is required bcause the plot needs to be pushed into it!!
                 
 				
 				// Create the config element with all required data.
-                var config = addMenu.addPlotControls.createConfig(containerDOM, containerCtrl);
+                var config = addMenu.addPlotControls.createConfig(ownerButton, containerCtrl);
 			
-				// Make the button.
-                addMenu.addPlotControls.makeButton(config)
-
-                // First create the ids of the required inputs
-                addMenu.helpers.makeMenuContainer(config);
+                // Make the corresponding dialog.
+                addMenu.helpers.makeDialog(config);
                 
                 // Update the menus with appropriate options
                 addMenu.helpers.updateMenus(config);
-                
-                // Add the on click event: show menu
-                addMenu.helpers.addButtonClickEvent(config);
+				
+				// Add the buttons
+				addMenu.helpers.addDialogButtons(config)
+
+				// Add the on click event to the dialog owner button
+				config.ownerButton.on("click", function(){
+					addMenu.helpers.showDialog(config)
+				}) // on
 
                         
                 
             }, // make
             
-            createConfig: function createConfig(containerDOM, containerCtrl){
+			// Config handling
+            createConfig: function createConfig(ownerButton, containerCtrl){
                 // ownerButton    - the button that prompts the menu
 				// ownerContainer - container to add the menu and button to
 				// ownerCtrl      - plot row ctrl to update with user selection
                 
-                var a = addMenu.addPlotControls;
                 var config = {
-					h                        : a,
-                    ok                       : a.submitNewPlot,
-                    cancel                   : a.clearMenu,
-                    userSelectedVariables    : ["xProperty", "yProperty", "slice"],
-					menuContainer            : undefined,
-                    menuItems                : [
+					
+					f: addMenu.addPlotControls,
+					
+					position: {
+						left: undefined, 
+						 top: undefined, 
+					   delta: undefined
+					},
+					
+					buttons: [
+						{text: "ok"    , onclick: ok    , class: "btn btn-success"},
+						{text: "cancel", onclick: cancel, class: "btn btn-danger"}
+					],
+					
+                    userSelectedVariables: ["xProperty", "yProperty", "slice"],
+                    
+					menuItems: [
 						{ variable : "plottype",
-						  options  : a.elementOptionsArray(containerCtrl.type),
+						  options  : addMenu.addPlotControls.elementOptionsArray(containerCtrl.type),
                           label    : "Select plot type",
-						  event    : a.onPlotTypeChangeEvent}
-						],
-                    newCtrl                  : [],
-					ownerButton              : undefined,
-					ownerContainer           : d3.select( containerDOM ),
-					ownerCtrl	             : containerCtrl
+						  event    : addMenu.addPlotControls.onPlotTypeChangeEvent
+						}
+					],
+						
+                    newCtrl: {
+						plottype  : undefined,
+						xProperty : undefined, 
+						yProperty : undefined,
+						slice     : undefined
+					},
+
+					ownerButton: ownerButton,
+					ownerCtrl: containerCtrl
                 };
+				
+				// MOVE THESE OUTSIDE
+				function ok(dialogConfig){
+					
+				
+					// Hide the dialog
+					addMenu.helpers.hideDialog(dialogConfig)
+
+					// Add the plot row.
+					addMenu.addPlotControls.submitNewPlot(dialogConfig)
+					
+					// Clear the dialog selection
+					addMenu.addPlotControls.clearNewPlot(dialogConfig)
+					
+					
+					// Clear newPlot to be ready for the next addition.
+					addMenu.addPlotControls.clearMenu(config);
+					
+					 // Redraw the screen.
+					render();
+					
+					
+					
+				} // ok
+
+				function cancel(dialogConfig){
+					
+					addMenu.addPlotControls.clearNewPlot(dialogConfig)
+				
+					addMenu.helpers.hideDialog(dialogConfig)
+					
+					// Clear newPlot to be ready for the next addition.
+					addMenu.addPlotControls.clearMenu(config);
+					
+				} // ok
                 
-                
-                
-                
-                // Create the appropriate newPlot object in the config.
-                addMenu.addPlotControls.createNewPlot(config);
-                
-                
+
                 return config;
                 
             }, // createConfig
-            
-            createNewPlot: function createNewPlot(config){
-                
-				config.newCtrl =  {
-					plottype  : undefined,
-					xProperty : undefined, 
-					yProperty : undefined,
-					slice     : undefined
-				}
-
-            }, // createNewPlot
             
             copyNewPlot:   function copyNewPlot(config){
                 // Based on the type of plot selected a config ready to be submitted to the plotting functions is assembled.
@@ -8190,23 +8972,129 @@ var dbslice = (function (exports) {
 
             }, // clearNewPlot
 			
-			clearOptionalMenus: function clearOptionalMenus(config){
-				
-				var h = addMenu.helpers;
-				
-				h.resetVariableMenuSelections(config, "xProperty");
-				h.resetVariableMenuSelections(config, "yProperty");
-				h.resetVariableMenuSelections(config, "slice");
-				
-				config.newCtrl.xProperty = undefined;
-				config.newCtrl.yProperty = undefined;
-				config.newCtrl.slice = undefined;
-				
-			}, // clearOptionalMenus
-            
-            enableDisableSubmitButton: function enableDisableSubmitButton(config){
-        
+			submitNewPlot: function submitNewPlot(config){
                 
+                // IMPORTANT! A PHYSICAL COPY OF NEWPLOT MUST BE MADE!! If newPlot is pushed straight into the plots every time newPlot is updated all the plots created using it will be updated too.
+                
+				var plotToPush = addMenu.addPlotControls.copyNewPlot(config);
+				var plotRow = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
+					return plotRowCtrl == config.ownerCtrl
+				})[0]
+				
+				// Position the new plot row in hte plot container.
+				positioning.newPlot(plotRow, plotToPush)
+				
+				
+				plotRow.plots.push(plotToPush)
+                
+                
+            }, // submitNewPlot
+			
+			// Menu functionality
+            onPlotTypeChangeEvent: function onPlotTypeChangeEvent(config, selectDOM, variable){
+                
+				// Update the config.
+				config.newCtrl.plottype = selectDOM.value;
+				
+				// Based on the selection control the other required inputs.
+                var a = addMenu.addPlotControls;
+                var h = addMenu.helpers;
+                
+				switch( config.newCtrl.plottype ){
+					case "undefined":
+					  
+					  // Remove all variable options.
+					  h.removeMenuItemObject( config, "xProperty" );
+					  h.removeMenuItemObject( config, "yProperty" );
+					  h.removeMenuItemObject( config, "slice" );
+
+					  break;
+					  
+					// METADATA PLOTS
+					  
+					case "cfD3BarChart":
+					
+					  // yProperty required.
+					  h.addUpdateMenuItemObject( config, 'yProperty' , dbsliceData.data.metaDataProperties, "Select y variable");
+					  
+					  // xProperty must not be present.
+					  h.removeMenuItemObject( config, "xProperty" );
+					  
+					  break;
+					  
+					case "cfD3Histogram":
+					  
+					  
+					  // xProperty required.
+					  h.addUpdateMenuItemObject( config, "xProperty" , dbsliceData.data.dataProperties, "Select x variable");
+					  
+					  // yProperty must not be present.
+					  h.removeMenuItemObject( config, "yProperty" );
+					  
+					  break;
+					  
+					case "cfD3Scatter":
+					  
+					  
+					  // xProperty and yProperty required.
+					  h.addUpdateMenuItemObject( config, "xProperty", dbsliceData.data.dataProperties, "Select x variable");
+					  h.addUpdateMenuItemObject( config, "yProperty", dbsliceData.data.dataProperties, "Select y variable");
+					  break;
+					  
+					  
+					// 2D/3D PLOTS
+					case "cfD3Line":
+					  
+					  
+					  // slice is required.
+					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.line2dProperties, "Select slice");
+					  break;
+					  
+					case "cfD3Contour2d":
+					  
+					  
+					  // slice is required.
+					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.contour2dProperties, "Select 2d contour");
+					  break;
+					  
+					
+					  
+					default :
+					 
+					
+					  // Remove all variable options.
+					  h.removeMenuItemObject( config, "xProperty" );
+					  h.removeMenuItemObject( config, "yProperty" );
+					  h.removeMenuItemObject( config, "slice" );
+												
+					  console.log("Unexpected plot type selected:", config.newCtrl.plottype);
+					  break;
+				}; // switch
+				
+				
+				
+				// Since there was a change in the plot type reset the variable selection menus. Also reset the config object selections.
+				a.clearOptionalMenus(config)
+				
+				
+				// Update.
+				h.updateMenus(config);
+                    
+
+                
+            }, // onPlotTypeChangeEvent
+            
+			onVariableChangeEvent: function onVariableChangeEvent(config, selectDOM, variable){
+				
+				// Selected value is updated in the corresponding config.
+				config.newCtrl[variable] = selectDOM.value;
+						  
+				// Check if menu buttons need to be active.
+				addMenu.addPlotControls.enableDisableSubmitButton(config)
+				
+			}, // onVariableChangeEvent
+			
+			enableDisableSubmitButton: function enableDisableSubmitButton(config){
         
 				var disabledFlag = true
                 switch( config.newCtrl.plottype ){
@@ -8264,8 +9152,8 @@ var dbslice = (function (exports) {
 
 
 				// Set button enabled or disabled. Note that from the menu container we need to go one step up to reach the button, as the custom menu container is simply docked into the dialog.
-                d3.select(config.menuContainer.node().parentElement)
-				  .selectAll("button[type='submit']")
+                config.dialogWrapper
+				  .select("button.btn-success")
 				  .each(function(){
 					  this.disabled = disabledFlag
 				  });
@@ -8273,138 +9161,21 @@ var dbslice = (function (exports) {
 
             }, // enableDisableSubmitButton
             
-            onPlotTypeChangeEvent: function onPlotTypeChangeEvent(config, selectDOM, variable){
-                
-				// Update the config.
-				config.newCtrl.plottype = selectDOM.value;
-				
-				// Based on the selection control the other required inputs.
-                var a = addMenu.addPlotControls;
-                var h = addMenu.helpers;
-                
-				switch( config.newCtrl.plottype ){
-					case "undefined":
-					  
-					  // Remove all variable options.
-					  h.removeMenuItemObject( config, "xProperty" );
-					  h.removeMenuItemObject( config, "yProperty" );
-					  h.removeMenuItemObject( config, "slice" );
-
-					  break;
-					  
-					// METADATA PLOTS
-					  
-					case "cfD3BarChart":
-					
-					  // yProperty required.
-					  h.addUpdateMenuItemObject( config, 'yProperty' , dbsliceData.data.metaDataProperties, "Select variable");
-					  
-					  // xProperty must not be present.
-					  h.removeMenuItemObject( config, "xProperty" );
-					  
-					  break;
-					  
-					case "cfD3Histogram":
-					  
-					  
-					  // xProperty required.
-					  h.addUpdateMenuItemObject( config, "xProperty" , dbsliceData.data.dataProperties, "Select variable");
-					  
-					  // yProperty must not be present.
-					  h.removeMenuItemObject( config, "yProperty" );
-					  
-					  break;
-					  
-					case "cfD3Scatter":
-					  
-					  
-					  // xProperty and yProperty required.
-					  h.addUpdateMenuItemObject( config, "xProperty", dbsliceData.data.dataProperties, "Select variable");
-					  h.addUpdateMenuItemObject( config, "yProperty", dbsliceData.data.dataProperties, "Select variable");
-					  break;
-					  
-					  
-					// 2D/3D PLOTS
-					case "cfD3Line":
-					  
-					  
-					  // slice is required.
-					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.line2dProperties, "Select variable");
-					  break;
-					  
-					case "cfD3Contour2d":
-					  
-					  
-					  // slice is required.
-					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.contour2dProperties, "Select variable");
-					  break;
-					  
-					
-					  
-					default :
-					 
-					
-					  // Remove all variable options.
-					  h.removeMenuItemObject( config, "xProperty" );
-					  h.removeMenuItemObject( config, "yProperty" );
-					  h.removeMenuItemObject( config, "slice" );
-												
-					  console.log("Unexpected plot type selected:", config.newCtrl.plottype);
-					  break;
-				}; // switch
-				
-				
-				
-				// Since there was a change in the plot type reset the variable selection menus. Also reset the config object selections.
-				a.clearOptionalMenus(config)
-				
-				
-				// Update.
-				h.updateMenus(config);
-                    
-
-                
-            }, // onPlotTypeChangeEvent
             
-			onVariableChangeEvent: function onVariableChangeEvent(config, selectDOM, variable){
+			// Shorthands
+			clearOptionalMenus: function clearOptionalMenus(config){
 				
-				// Selected value is updated in the corresponding config.
-				config.newCtrl[variable] = selectDOM.value;
-						  
-				// Check if menu buttons need to be active.
-				addMenu.addPlotControls.enableDisableSubmitButton(config)
+				var h = addMenu.helpers;
 				
-			}, // onVariableChangeEvent
-			
-            submitNewPlot: function submitNewPlot(config){
-                
-                // IMPORTANT! A PHYSICAL COPY OF NEWPLOT MUST BE MADE!! If newPlot is pushed straight into the plots every time newPlot is updated all the plots created using it will be updated too.
-                
-				var plotToPush = addMenu.addPlotControls.copyNewPlot(config);
-				var plotRow = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
-					return plotRowCtrl == config.ownerCtrl
-				})[0]
+				h.resetVariableMenuSelections(config, "xProperty");
+				h.resetVariableMenuSelections(config, "yProperty");
+				h.resetVariableMenuSelections(config, "slice");
 				
-				// Position the new plot row in hte plot container.
-				positioning.newPlot(plotRow, plotToPush)
+				config.newCtrl.xProperty = undefined;
+				config.newCtrl.yProperty = undefined;
+				config.newCtrl.slice = undefined;
 				
-				
-				plotRow.plots.push(plotToPush)
-                
-                
-                // Add the new plot to the session object. How does this know which section to add to? Get it from the parent of the button!! Button is not this!
-                // var plotRowIndex = d3.select(this).attr("plot-row-index")
-                
-                
-                // Redraw the screen.
-                render();
-                
-                // Clear newPlot to be ready for the next addition.
-                addMenu.addPlotControls.clearMenu(config);
-                
-                
-                
-            }, // submitNewPlot
+			}, // clearOptionalMenus
             
             clearMenu: function clearMenu(config){
                 
@@ -8427,33 +9198,13 @@ var dbslice = (function (exports) {
                 
             }, // clearMenu
             
-			makeButton: function makeButton(config){
-				
-				// Make the button that will prompt the dialogue.
-                switch( config.ownerCtrl.type ){
-                    case "metadata":
-                        var buttonLabel = "Add plot";
-                      break;
-                    case "plotter":
-                        var buttonLabel = "Configure plot";
-                }; // switch
-                
-
-				config.ownerButton = config.ownerContainer.append("button")
-					.attr("style","display:inline")
-					.attr("class", "btn btn-success float-right")
-					.html(buttonLabel);
-				
-				
-			}, // makeButton
-            
 			makeMenuItem: function makeMenuItem(config, variable, options, label){
 				// 'makeMenuItem' creates the menu item option in order to allow different functionalities to add their own events to the menus without having to declare them specifically in otehr functions.
 				return {
 						  variable: variable,
 						  options : options, 
 						  label: label,
-						  event: config.h.onVariableChangeEvent
+						  event: config.f.onVariableChangeEvent
 					  }
 				
 			}, // makeMenuItem
@@ -8492,7 +9243,6 @@ var dbslice = (function (exports) {
 
 			
 		}, // removePlotRowControls
-		
 
         addPlotRowControls: { 
         
@@ -8502,49 +9252,96 @@ var dbslice = (function (exports) {
                     {val: "plotter", text: 'Flow field plots'}
                 ],
         
-            make : function make(containerId, buttonId){
+            make : function make(ownerButton){
 
                 // Create the config element with all required data.
-                var config = addMenu.addPlotRowControls.createConfig(containerId, buttonId);
-				
-				// Add or move the actual button.
-				addMenu.addPlotRowControls.makeButton(config)
+                var config = addMenu.addPlotRowControls.createConfig(ownerButton);
                 
                 // First create the ids of the required inputs
-                addMenu.helpers.makeMenuContainer(config);
+                addMenu.helpers.makeDialog(config);
             
                 // Update the menus with appropriate options
                 addMenu.helpers.updateMenus(config);
+				
+				// Add the buttons
+				addMenu.helpers.addDialogButtons(config)
 
-
+				// Add the on click event to the dialog owner button
+				config.ownerButton.on("click", function(){
+				
+					addMenu.helpers.showDialog(config)
+					
+				}) // on
                 
             }, // make
             
-            createConfig: function createConfig(containerId, buttonId){
+            createConfig: function createConfig(ownerButton){
                 
-                var a = addMenu.addPlotRowControls;
                 var config = {
-					h                       : a,
-					ok                      : a.submitNewPlotRow,
-                    cancel                  : a.clearNewPlotRow,
-                    menuContainer           : undefined,
-                    menuItems               : [{
-						variable: "type",
-						options : a.elementOptionsArray,
-                        label   : "Select plot row type",
-						event   : a.onPlotRowTypeChangeEvent,
-                        }],
+					f: addMenu.addPlotRowControls,
+					
+					position: {
+						left: undefined, 
+						 top: undefined, 
+					   delta: undefined
+					},
+					
+					buttons: [
+						{text: "ok"    , onclick: ok    , class: "btn btn-success"},
+						{text: "cancel", onclick: cancel, class: "btn btn-danger"}
+					],
                     
-                    newCtrl                  : {title: "New row", 
-                                                plots: [],
-												grid: {nx: 12, ny: undefined},
-                                                 type: "undefined",
-                              addPlotButton: {label : "Add plot"}},
-                    ownerButtonId             : buttonId,
-					ownerContainerId          : containerId,
-					ownerContainer            : d3.select("#" + containerId)
+                    menuItems: [
+						{
+							variable: "type",
+							options : addMenu.addPlotRowControls.elementOptionsArray,
+							label   : "Select plot row type",
+							event   : addMenu.addPlotRowControls.onPlotRowTypeChangeEvent,
+                        }
+					],
+                    
+                    newCtrl: {title: "New row", 
+                              plots: [],
+							   grid: {nx: 12, ny: undefined},
+                               type: "undefined",
+                      addPlotButton: {label : "Add plot"}},
+					  
+					ownerButton: ownerButton,
+                    
+					ownerCtrl: {addPlotButton: {}}
                 };
-                
+				
+				
+				function ok(dialogConfig){
+					
+				
+					// Hide the dialog
+					addMenu.helpers.hideDialog(dialogConfig)
+
+					// Add the plot row.
+					addMenu.addPlotRowControls.submitNewPlotRow(dialogConfig)
+					
+					// Reset the menu DOM elements.
+					addMenu.helpers.resetVariableMenuSelections(config, "type");
+				
+					// Redraw to show changes.
+					render();				
+					
+				} // ok
+
+				function cancel(dialogConfig){
+					
+					addMenu.addPlotRowControls.clearNewPlotRow(dialogConfig)
+				
+					addMenu.helpers.hideDialog(dialogConfig)
+					
+					// ALSO READJUST THE MENUS!!
+				
+					console.log("Cancel")
+				} // ok
+
+
+				
                 // The addPlotButton id needs to be updated when the row is submitted!
                 
                 return config;
@@ -8554,11 +9351,16 @@ var dbslice = (function (exports) {
                 config.newCtrl.title = "New row";
                 config.newCtrl.plots = [];
                 config.newCtrl.type  = "undefined";
-                config.newCtrl.addPlotButton = {id : "undefined", label : "Add plot"};
+                config.newCtrl.addPlotButton = {label : "Add plot"};
+				
+				// Here also readjust the menu.
+				config.dialogWrapper.selectAll("select").each(function(){
+					this.value = "undefined"
+				})
             }, // clearNewPlotRow
             
             submitNewPlotRow: function submitNewPlotRow(config){
-                
+                // Submits the dialog selections to dbsliceData, and clears the dialog object selections.
                 
                 var plotRowToPush = {title: config.newCtrl.title, 
                                       type: config.newCtrl.type,
@@ -8567,20 +9369,10 @@ var dbslice = (function (exports) {
                             addPlotButton : config.newCtrl.addPlotButton
                 };
                 
-                
-                
 
-                
-                
                 // Push and plot the new row.
                 dbsliceData.session.plotRows.push( plotRowToPush );
 				
-				//
-                render();
-                
-                // Reset the plot row type menu selection.
-                addMenu.helpers.resetVariableMenuSelections(config, "type");
-                
                 // Clear the config
                 addMenu.addPlotRowControls.clearNewPlotRow(config);
                 
@@ -8598,10 +9390,10 @@ var dbslice = (function (exports) {
                       break;
                 }; // switch
 				
-				
-                var submitButtonDOM = d3.select( config.menuContainer.node().parentElement )
-				  .select("button[type='submit']")
-				  .each(function(){
+				// Why would thi sremove the data??
+                config.dialogWrapper
+				  .select(".btn-success")
+				  .each(function(d){
 					  this.disabled = disabledFlag
 				  })
 				
@@ -8618,65 +9410,47 @@ var dbslice = (function (exports) {
                 
             }, // onPlotRowTypeChangeEvent
             
-			// NEW!!!
-			makeButton: function makeButton(config){
-				
-				var addPlotRowButton   = d3.select("#" + config.ownerButtonId);
-				if (addPlotRowButton.empty()){
-					// Add the button.
-					config.ownerButton = config.ownerContainer
-					  .append("button")
-						.attr("id", config.ownerButtonId)
-						.attr("class", "btn btn-info btn-block")
-						.html("+");
-					  
-					// Add the interactivity
-					addMenu.helpers.addButtonClickEvent(config);
-				} else {
-					// Move the button down
-					var b = addPlotRowButton.node()
-					b.parentNode.appendChild(b);
-				}; // if
-				
-				
-				
-				
-			}, // makeButton
 			
-			makeMenuItem: function makeMenuItem(config, variable, options, label){
-				// addPlotRowControls does not expect any items to be created.
-				
-				
-			}, // makeMenuItem
+			
 			
 			
         }, // addPlotRowControls
 
 		removePlotRowControls: {
 			
-			make: function make(containerDOM, clickedPlotRowCtrl){
+			make: function make(removePlotRowButton, clickedPlotRowCtrl){
 				
 				
-				d3.select(containerDOM).append("button")
-				  .attr("class", "btn btn-danger float-right removePlotButton")
-				  .html("x")
+				removePlotRowButton
 				  .on("click", function(){
 					  
+					  // button -> plotrowTitle -> plotRow
+					  var plotRowDOM = this.parentElement.parentElement
+					  
+					  // Remove the dialog corresponding to the 'add plot' button in this plot row.
+					  d3.select(plotRowDOM)
+					    .select("div.plotRowTitle")
+						.select("button.btn-success")
+						.each(function(d){
+							d.addPlotButton.dialogWrapper.node().remove()
+						})
 					  
 					  // Remove row from object
 					  dbsliceData.session.plotRows = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
 						  return plotRowCtrl != clickedPlotRowCtrl
 					  }) // filter  
 					  
-					  // button -> plotrowTitle -> plotRow
-					  this.parentElement.parentElement.remove()
+					  // Remove the plot row from view.
+					  plotRowDOM.remove()
 					  
 					  // Remove any filters that have been removed.
 					  filter.remove()
 					  filter.apply()
 
-					  // Re-render the view
+					  // Re-render the to update the filter
 					  render()
+					  
+					  
 					  
 				  }); // on
 				
@@ -8687,166 +9461,265 @@ var dbslice = (function (exports) {
 
 		removeDataControls: {
 			
-			make: function make(elementId){
+			make: function make(ownerButton){
 			
 				// Create the container required
-				addMenu.removeDataControls.createRemoveDataContainer(elementId);
+				var config = addMenu.removeDataControls.createConfig(ownerButton);
+				
+				// Make the dialog
+				addMenu.helpers.makeDialog(config);
+				
+				// Add the buttons
+				addMenu.helpers.addDialogButtons(config)
 			  
 			  
 				// Add teh functonaliy to the option in the "sesson options" menu.
-				d3.select("#" + elementId)
-					.on("click", function(){
+				config.ownerButton.on("click", function(){
 						
-						// Get the options required
-						var options = dbsliceData.data.fileDim.group().all()
+					// Get the options required
+					var options = dbsliceData.data.fileDim.group().all()
 
-						
-						// Create the appropriate checkboxes.
-						addMenu.removeDataControls.addCheckboxesToTheForm(elementId, options);
-							  
-
-						// Bring up the prompt
-						addMenu.removeDataControls.createDialog(elementId);
-						
-					   
-					   })
+					
+					// Create the appropriate checkboxes.
+					addMenu.removeDataControls.addCheckboxesToTheForm(config, options);
+						  
+				   
+				   // Show the dialog:
+				   addMenu.helpers.showDialog(config)
+				   
+				})
+				
+				
 			}, // make
 			
-			createRemoveDataContainer: function createRemoveDataContainer(elementId){
-				
-				var removeDataMenuId = elementId + "Menu"
-				var removeDataMenu = d3.select("#" + removeDataMenuId)
-				if (removeDataMenu.empty()){
+			createConfig: function createConfig(ownerButton){
+                // ownerButton    - the button that prompts the menu
+				// ownerContainer - container to add the menu and button to
+				// ownerCtrl      - plot row ctrl to update with user selection
+                
+                var config = {
 					
-					removeDataMenu = d3.select( ".sessionHeader" )
-							  .append("div")
-								.attr("id", removeDataMenuId )
-								.attr("class", "card ui-draggable-handle")
-							  .append("form")
-								.attr("id", removeDataMenuId + "Form")
-
-							$("#" + removeDataMenuId ).hide();
-				} // if
-				
-			}, // createRemoveDataContainer
-			
-			addCheckboxesToTheForm: function addCheckboxesToTheForm(elementId, options){
-				
-				// Create teh expected target for the checkboxes.
-				var checkboxFormId = elementId + "MenuForm"
-				
-				// Create the checkboxes
-				var checkboxes = d3.select("#" + checkboxFormId).selectAll(".checkbox").data(options)
-				checkboxes.enter()
-					.append("div")
-					  .attr("class", "checkbox")
-					.append("input")
-					  .attr("type", "checkbox")
-					  .attr("name", function(d, i){ return "dataset"+i })
-					  .attr("value", function(d){ return d.key })
-					  .attr("checked", true)
-				
-				// Append the labels after it
-				checkboxes = d3.select("#" + checkboxFormId).selectAll(".checkbox")
-        		checkboxes.selectAll("label").remove()
-				checkboxes
-					.append("label")
-					  .html(function(d){ return d.key })
-				
-			}, // addCheckboxesToTheForm
-			
-			createDialog: function createDialog(elementId){
-				
-				// Create the dialog box, and it's functionality.
-				$("#" + elementId + "Menu" )
-					.dialog({
-						draggable: false,
-						autoOpen: true,
-						modal: true,
-						show: {effect: "fade",duration: 50},
-						hide: {effect: "fade", duration: 50},
-						buttons: {  "Ok"    :{text: "Submit",
-											  id: "submitRemoveData",
-											  disabled: false,
-											  click: onSubmitClick
-											 }, // ok
-									"Cancel":{text: "Cancel",
-											  id: "cancelRemoveData",
-											  disabled: false,
-											  click: onCancelClick
-											 } // cancel
-								 }  })
-					.parent()
-					.draggable();
-			   
-			   
-				$(".ui-dialog-titlebar").remove();
-				$(".ui-dialog-buttonpane").attr("class", "card");
-				
-				function onSubmitClick(){
-					// Figure out which options are unchecked.
-					var checkboxInputs = d3.select(this).selectAll(".checkbox").selectAll("input")
+					f: addMenu.removeDataControls,
 					
-					var uncheckedInputs = checkboxInputs.nodes().filter(function(d){return !d.checked})
+					position: {
+						left: undefined, 
+						 top: undefined, 
+					   delta: undefined
+					},
 					
+					buttons: [
+						{text: "ok"    , onclick: ok    , class: "btn btn-success"},
+						{text: "cancel", onclick: cancel, class: "btn btn-danger"}
+					],
 					
-					var uncheckedDataFiles = uncheckedInputs.map(function(d){return d.value})
+                    
+					ownerButton: ownerButton,
+					ownerCtrl: {addPlotButton: {}}
+                };
+				
+				// MOVE THESE OUTSIDE
+				function ok(dialogConfig){
 					
+					var checkboxInputs = dialogConfig.gMenu
+					  .selectAll("g.checkbox")
+					  .selectAll("input")
+					var uncheckedDataFiles = checkboxInputs.nodes()
+					  .filter(function(d){return !d.checked})
+					  .map(function(d){return d.value})
 					
 					// Pass these to the data remover.
 					cfDataManagement.cfRemove(uncheckedDataFiles)
 					
+					// Hide the dialog
+					addMenu.helpers.hideDialog(dialogConfig)
 					
-					// Close the dialog.
-					$( this ).dialog( "close" )
+					// Update the session due to data change.
+					importExportFunctionality.helpers.onDataAndSessionChangeResolve()
 					
 					// Redraw the view.
 					render();
 					
-				} // onSubmitClick
-				
-				function onCancelClick(){
-					// Just close the dialog.
-					$( this ).dialog( "close" )
+				} // ok
+
+				function cancel(dialogConfig){
 					
-				} // onSubmitClick
+					// Remove all the checkboxes.
+					dialogConfig.gMenu
+					  .selectAll("g.checkbox")
+					  .remove()
+					
+					// Hide the dialog
+					addMenu.helpers.hideDialog(dialogConfig)
+					
+				} // ok
+                
+
+                return config;
+                
+            }, // createConfig
+            
+
+			addCheckboxesToTheForm: function addCheckboxesToTheForm(config, options){
 				
-			} // createDialog
+				
+				
+				options.forEach(function(o){
+					var gCheckBox = config.gMenu
+					  .append("g")
+					    .attr("class", "checkbox")
+						
+					gCheckBox.append("input")
+					  .attr("type", "checkbox")
+					  .attr("name", o.key)
+					  .attr("value", o.key)
+					  .attr("checked", true)
+					  .attr("class", "dialogContent")
+					  
+					gCheckBox.append("label")
+					  .attr("class", "dialogContent")
+					  .html(o.key)
+				}) // forEach	
+				
+			}, // addCheckboxesToTheForm
+			
+			enableDisableSubmitButton: function enableDisableSubmitButton(config){
+				// The submit button is always available.
+			}, // enableDisableSubmitButton
+			
 			
 		}, // removeDataControls
 
         helpers: {
             
-            
-        
-            makeMenuContainer: function makeMenuContainer(config){
-            
-                // CREATE THE CONTAINER FOR THE MENU IN THE BUTTONS CONTAINER.
-                // But do this only if it does not already exist.
-                if ( config.menuContainer == undefined ){
-                
-                    config.menuContainer = config.ownerContainer
-                      .append("div")
-                      .attr("class", "card ui-draggable-handle");
+            makeDialog: function makeDialog(config){
+	
+				var drag = d3.drag()
+				.on("start", function(d){
+					let mousePos = d3.mouse(this)
+					d.position.delta = {x: mousePos[0], y: mousePos[1]}
+				})
+				.on("drag", function(d){ 
+					
+					d3.select(this)
+					  .style("left", (d3.event.sourceEvent.clientX - d.position.delta.x) + "px")
+					  .style("top", (d3.event.sourceEvent.clientY - d.position.delta.y ) + "px")
 
-                    config.menuContainer.node().style.display = "none";
-                }//
-            
-            }, // makeMenuContainer
+				})
+				.on("end", function(d){
+					d.position.delta = undefined
+				})
+				
+
+			
+				// Place the dialog directly into the body! Position it off screen
+				// position: fixed is used to position the dialog relative to the view as opposed to absolute which positions relative to the document.
+				config.dialogWrapper = d3.select("body")
+				  .append("div")
+					.datum( config )
+					.style("position", "fixed")
+					.style("height", "auto")
+					.style("width", "auto")
+					.style("top", -window.innerWidth +"px")
+					.style("left",  -window.innerHeight +"px")
+					.style("display", "none")
+					.call( drag )
+					
+				config.dialogCard = config.dialogWrapper
+				  .append("div")
+					.attr("class", "card border-dark")
+					.style("width", "auto")
+					.style("height", "auto")
+					.style("min-height", 94 + "px")
+					
+				config.gMenu = config.dialogCard.append("g")
+			
+				// Assign the dialog wrapper to the container config too.
+				config.ownerCtrl.addPlotButton.dialogWrapper = config.dialogWrapper
+			
+			}, // makeDialog
         
+			addDialogButtons: function addDialogButtons(config){
+	
+				var buttonsDiv = config.dialogCard
+				  .append("div")
+				  .style("margin-left", "10px")
+				  .style("margin-bottom", "10px")
+				
+				
+				config.buttons.forEach(function(b){
+					buttonsDiv
+					  .append("button")
+						.html(b.text)
+						.attr("class", b.class)
+						.on("click", b.onclick )
+				})
+			
+			}, // addDialogButtons
+		
+			hideDialog: function hideDialog(config){
+	
+				// By default the dialog is not visible, and is completely off screen.
+				// 1 - make it visible
+				// 2 - move it to the right position
+				var dialogDOM = config.dialogWrapper.node() 
+				
+				dialogDOM.style.display = "none"
+				
+				
+				// Move it to the middle of the screen
+				dialogDOM.style.left = - window.innerWidth + "px"
+				dialogDOM.style.top =  - window.innerHeight + "px"
+			
+			}, // hideDialog
+
+			showDialog: function showDialog(config){
+			
+				// By default the dialog is not visible, and is completely off screen.
+				// 1 - make it visible
+				// 2 - move it to the right position
+				var dialogDOM = config.dialogWrapper.node()
+				
+				// Make dialoge visible
+				dialogDOM.style.display = ""
+				
+				// To get the appropriate position first get the size:
+				var dialogRect = dialogDOM.getBoundingClientRect()
+				
+				
+				
+				// Move it to the middle of the screen
+				dialogDOM.style.left = ( window.innerWidth - dialogRect.width ) /2 + "px"
+				dialogDOM.style.top =  ( window.innerHeight - dialogRect.height ) /2 + "px"
+			
+			
+				// Check which buttons should be on.
+				config.f.enableDisableSubmitButton(config)
+			
+			}, // showDialog
+
+		
+		
             updateMenus: function updateMenus(config){
 				// Handles all selection menus, including the plot selection!
 				// A 'label' acts as a wrapper and contains html text, and the 'select'.
 
                 // This function updates the menu of the pop-up window.
-                var menus = config.menuContainer.selectAll("label").data(config.menuItems);
+                var menus = config.gMenu.selectAll("g").data(config.menuItems);
                 
                 // Handle the entering menus. These require a new 'select' element and its 'option' to be appended/updated/removed.
                 menus.enter()
-                  .append("label")
-				    .text(function(d){return d.label})
-                  .append("select")
-                    .attr("type", function(d){return d.variable})
+				  .append("g")
+				  .each(function(d){
+					  d3.select(this)
+					    .append("label")
+						  .attr("class", "dialogContent unselectable")
+				           .text(d.label)
+						.append("select")
+						  .attr("type", d.variable)
+					      .style("margin-left", "10px")
+					  d3.select(this).append("br")
+				  })
+                  
 					
                     
                 // Remove exiting menus.
@@ -8855,7 +9728,7 @@ var dbslice = (function (exports) {
 				
                 
                 // Update all the menu elements.
-                config.menuContainer.selectAll("label")   
+                config.gMenu.selectAll("label")   
                   .each( function(menuItem){
                       // This function handles the updating of the menu options for each 'select' element.
 					  
@@ -8895,6 +9768,16 @@ var dbslice = (function (exports) {
 
             }, // updateMenus
 
+			resetVariableMenuSelections: function resetVariableMenuSelections(config, variable){
+				// Needs to only reset the appropriate select!!
+				config.dialogWrapper
+				  .selectAll("select[type='" + variable + "']")
+				  .each(function(){
+					  this.value = "undefined"
+				  })
+
+            }, // resetVariableMenuSelections
+			
             addUpdateMenuItemObject: function addUpdateMenuItemObject(config, variable, options, label){
 
 				// Transform the options into a form expected by the select updating functionality. Also introduce an empty option.
@@ -8902,7 +9785,7 @@ var dbslice = (function (exports) {
 				options.unshift({val: "undefined", text: " "})
 
                 // First remove any warnings. If they are needed they are added later on.
-                config.ownerContainer.selectAll(".warning").remove();
+                config.dialogWrapper.selectAll(".warning").remove();
 
                 // Only add or update the menu item if some selection variables exist.
                 // >1 is used as the default option "undefined" is added to all menus.
@@ -8923,7 +9806,7 @@ var dbslice = (function (exports) {
 
                     } else {
                       // If it doesn't, create a new one.
-                      requiredItem = config.h.makeMenuItem(config, variable, options, label)
+                      requiredItem = config.f.makeMenuItem(config, variable, options, label)
                       
                       config.menuItems.push(requiredItem);
                     };      
@@ -8933,16 +9816,6 @@ var dbslice = (function (exports) {
                       // There are no variables. No point in having an empty menu.
                       addMenu.helpers.removeMenuItemObject(config, variable);
                       
-                      
-                      // Tell the user that the data is empty.
-                      var warning = config.ownerContainer.selectAll(".warning");
-                      if (warning.empty()){
-                          config.ownerContainer
-                            .append("div")
-                              .attr("class", "warning")
-                              .html("No data has been loaded!")
-                              .attr("style", "background-color:pink;font-size:25px;color:white")  
-                      }; // if
                         
                 }; // if
                 
@@ -8956,77 +9829,6 @@ var dbslice = (function (exports) {
                 
             }, // removeMenuItemObject
 
-            resetVariableMenuSelections: function resetVariableMenuSelections(config, variable){
-
-				config.menuContainer
-				  .selectAll("select[type='" + variable + "']")
-				  .each(function(){
-					  this.value = undefined
-				  })
-
-            }, // resetVariableMenuSelections
-
-            addButtonClickEvent: function addButtonClickEvent(config){
-                // The dialogue is only created when the button is clicked!
-				
-                // JQUERY!!!
-                
-                config.ownerButton.on("click",function(){
-                    
-                        // Disable all buttons:
-                        d3.selectAll("button").each(function(){ this.disabled = true});
-                      
-                        // Make the dialog
-                        $( config.menuContainer.node() ).dialog({
-                        draggable: false,
-                        autoOpen: true,
-                        modal: true,
-                        buttons: {  "Ok"    :{text: "Ok",
-						                      type: "submit",
-                                              disabled: true,
-                                              click: function(){
-                                                  // Add the plot row to the session.
-                                                  config.ok(config);
-                                              
-                                                  // Close the dialogue.
-                                                  $( this ).dialog( "close" )
-                                                  
-                                                  // Enable all relevant buttons.
-                                                  addMenu.helpers.enableDisableAllButtons();
-                                                          
-                                                  // Delete the warning if present.
-                                                  d3.select(this).selectAll(".warning").remove();
-                                                  } // click
-                                             }, // ok
-                                    "Cancel":{text: "Cancel",
-									          type: "cancel",
-                                              disabled: false,
-                                              click: function() { 
-                                                  // Clearup the internal config objects
-                                                  config.cancel(config)
-                                            
-                                                  $( this ).dialog( "close" ) 
-                                                  
-                                                  // Enable all buttons.
-                                                  addMenu.helpers.enableDisableAllButtons();
-                                                  
-                                                  // Delete the warning if present.
-                                                  d3.select(this).selectAll(".warning").remove();
-                                                  } // click
-                                             } // cancel
-                                 }, // buttons
-                        show: {effect: "fade",duration: 50},
-                        hide: {effect: "fade", duration: 50}
-                        }).parent().draggable();
-                        
-                        $(".ui-dialog-titlebar").remove();
-                        $(".ui-dialog-buttonpane").attr("class", "card");
-                    }
-                ); // on click
-            
-            
-            }, // addButtonClickEvent
-                
             enableDisableAllButtons: function enableDisableAllButtons(){
                 // This functionality decides which buttons should be enabled.
 				var metadata = dbsliceData.data.taskDim.top(Infinity)
@@ -9127,7 +9929,7 @@ var dbslice = (function (exports) {
         } // helpers
 
     }; // addMenu
-    
+ 
     // Building the app.
 	var builder = {
 		
@@ -9154,10 +9956,18 @@ var dbslice = (function (exports) {
 			
 			sessionTitle
 			  .append("h1")
+			    .attr("class", "sessionTitle")
 				.attr("style", "display:inline")
 				.attr("spellcheck", "false")
 				.html(dbsliceData.session.title)
-				.attr("contenteditable", true);
+				.attr("contenteditable", true)
+				.each(function(){
+					this.addEventListener("input", function(){
+						dbsliceData.session.title = this.innerHTML
+					})
+				})
+			
+		  
 		  
 			if (dbsliceData.session.plotTasksButton) {
 				sessionTitle
@@ -9226,13 +10036,13 @@ var dbslice = (function (exports) {
 				.html("Add data")
 				.on("click", function(){dataInput.click()})
 				
-			sessionMenu
+			var removeDataItem = sessionMenu
 			  .append("a")
 			    .attr("class", "dropdown-item")
 				.attr("href", "#")
 				.attr("id", "removeData")
 				.html("Remove data")
-			addMenu.removeDataControls.make("removeData")
+			addMenu.removeDataControls.make(removeDataItem)
 				
 			var sessionInput = createFileInputElement( importExportFunctionality.importing.session )
 			sessionMenu
@@ -9277,7 +10087,38 @@ var dbslice = (function (exports) {
 			  .append("br")
 			  
 
-		  
+			
+			
+			// Add a callback for when hte window is resized.
+			window.addEventListener("resize", function(){
+				
+				// All the plotrows should be resized to the width of the screen. The plots will need to be repositioned.
+				let session = d3.select( "#" + dbsliceData.elementId )
+				
+				// Calculate the width so that the plots will still actually fit.
+				var width = session.node().offsetWidth - 45
+				
+				let plotRows = session.selectAll("div.plotRow")
+				  .style("width", width + "px")
+				  
+				  
+				// Because teh width changed the internal positions of the plots must be readjusted. Maybe just reposition them?
+				
+				
+				let plots = plotRows.selectAll("div.plotWrapper")
+				
+				// First redo the widths and heights of all plots.
+				plots.each(function(plotCtrl){
+					positioning.helpers.readjustPlotSize(plotCtrl)
+					
+					positioning.helpers.readjustPlotPosition(plotCtrl)
+				})
+				
+				// For now just keep the positions, but redraw. Adequate for now.
+				
+				
+				
+			})
 
 			// HELPER FUNCTIONS:
 			function createFileInputElement(loadFunction, dataAction){
@@ -9313,6 +10154,12 @@ var dbslice = (function (exports) {
 				element.select(".filteredTaskCount").select("p")
 				  .html("<p> Number of Tasks in Filter = All </p>");
 			}; // if
+			
+			// Update the session title.
+			element
+			  .select("div.sessionTitle")
+			  .select("h1.sessionTitle")
+			    .html(dbsliceData.session.title)
 			
 		}, // updateSessionHeader
 		
@@ -9359,8 +10206,21 @@ var dbslice = (function (exports) {
 			  
 			// Buttons
 			newPlotRowsHeader.each(function(plotRowCtrl){
-				addMenu.addPlotControls.make( this, plotRowCtrl );
-				addMenu.removePlotRowControls.make( this, plotRowCtrl );
+				
+				var removePlotRowButton = d3.select(this)
+				  .append("button")
+					.attr("class", "btn btn-danger float-right removePlotButton")
+					.html("x")
+				addMenu.removePlotRowControls.make( removePlotRowButton, plotRowCtrl );
+				
+				// Make the 'add plot' button
+				var addPlotButton = d3.select(this)
+				  .append("button")
+					.attr("style","display:inline")
+					.attr("class", "btn btn-success float-right")
+					.html("Add plot");
+				addMenu.addPlotControls.make( addPlotButton, plotRowCtrl );
+				
 			}); // each
 			
 			
@@ -9408,7 +10268,18 @@ var dbslice = (function (exports) {
 		
 		makeAddPlotRowButton: function makeAddPlotRowButton(){
 			
-			addMenu.addPlotRowControls.make(dbsliceData.elementId, "addPlotRowButton")
+			var addPlotRowButton = d3.select("#addPlotRowButton")
+			
+			if(addPlotRowButton.empty()){
+			    
+				addPlotRowButton = d3.select("#" + dbsliceData.elementId)
+			      .append("button")
+			        .attr("id", "addPlotRowButton")
+				    .attr("class", "btn btn-info btn-block")
+				    .html("+");
+			
+			    addMenu.addPlotRowControls.make(addPlotRowButton)
+			} // if
 			
 		}, // makeAddPlotRowButton
 		
@@ -9493,8 +10364,11 @@ var dbslice = (function (exports) {
       
         
  
-
-		
+		// Add plot button must always be at the bottom
+		var buttonDOM = document.getElementById("addPlotRowButton")
+		var buttonParentDOM = buttonDOM.parentElement
+		buttonDOM.remove()
+		buttonParentDOM.appendChild(buttonDOM)
 		
 		
 		
@@ -9870,7 +10744,13 @@ var dbslice = (function (exports) {
 					  break
 					  
 					case "replace":
-						var actionOnInternalStorage = cfDataManagement.cfInit
+						var actionOnInternalStorage = function(d){
+							// cfInit will totally override the internal data.
+							cfDataManagement.cfInit(d)
+							
+							// Update the session.
+							importExportFunctionality.helpers.onDataAndSessionChangeResolve()
+						} 
 					  break
 					  
 					default:
@@ -9953,7 +10833,7 @@ var dbslice = (function (exports) {
 				
 				// DONE: Must load in metadata plots
 
-				// WIP: Must be able to load in data automatically. If the data is already loaded the loading of additional data must be ignored. Or the user should be asked if they want to add it on top.
+				// DONE: Must be able to load in data automatically. If the data is already loaded the loading of additional data must be ignored. Or the user should be asked if they want to add it on top.
 				
 				// WIP: Must be able to load without data.
 				
@@ -10041,18 +10921,7 @@ var dbslice = (function (exports) {
 						
 						   file.promise = d3.json(file.url).then(function(data){
 								file.data = i.json2contour2d( data )
-							}).catch(function(d){
-								console.log("Loading of a file failed.")
-							}) // d3.csv 
-						
-						  break;
-						  
-						  
-						case "csv":
-						    // Each row is a point, and can have multiple attributes. 
-						
-							file.promise = d3.csv(file.url).then(function(data){
-								file.data = i.csv2contour2d( data )
+								// file.data = i.json2contour2dBin( data )
 							}).catch(function(d){
 								console.log("Loading of a file failed.")
 							}) // d3.csv 
@@ -10261,7 +11130,7 @@ var dbslice = (function (exports) {
 											 plots: [], 
 											  type: plotRowData.type,
 											  grid: {nx: 12, ny: undefined},
-									 addPlotButton: true    }
+									 addPlotButton: {label : "Add plot"}   }
 									
 						// Assemble hte plots 
 						plotRowToPush = h.assemblePlots(plotRowData.plots, plotRowToPush)
@@ -10392,6 +11261,10 @@ var dbslice = (function (exports) {
 						// 'properties' is an array of strings. The output is an array of objects that will be the backbone of the file's data structure.
 					
 						return properties.map(function(p){
+							
+							// trim the preceding or trailing blank spaces off.
+							
+							// Name handling is going to work poorly if all variables share a part, but it actually doesn't mean anything...
 							return {val: p,
 							_parts: p.split("_")}
 						})
@@ -10404,11 +11277,18 @@ var dbslice = (function (exports) {
 						// The initial sample of possible tokens are the parts of the first name. Tokens MUST be in all the names, therefore loop through all of them, and retain only the ones that are in the following ones.
 						
 						var tokens = properties_[0]._parts
-						properties_.forEach(function(p){
+						if(tokens.length > 1){
+							// If the first name has more than 1 part, there may be tokens available.
+							properties_.forEach(function(p){
 							tokens = tokens.filter(function(candidate){ 
 								return p._parts.includes(candidate)
+								}) // forEach
 							}) // forEach
-						}) // forEach
+						} else {
+							// No tokens available
+							tokens = []
+						} // if
+						
 						
 						// There may be some tokens in there that are comment tokens. For now this is implemented to hande the decimal part of the height identifiers, which are '0%'.
 						
@@ -10533,7 +11413,12 @@ var dbslice = (function (exports) {
 					} // handleCommonTokens
 					
 					function handleFlowPropertyName(p){
-						// Whatever is left of the parts is the variable name.
+						// Whatever is left of the parts is the variable name. What about when it is empty? Just leave it empty?
+						
+						// What to do with possible blank spaces in the name?
+						
+						
+						
 						p.varName = p._parts.join("_") == "" ? p.axis : p._parts.join("_")
 					
 					} // getFlowPropertyName
@@ -10589,14 +11474,55 @@ var dbslice = (function (exports) {
 				json2line: function json2line(data){
 					// json are assumed to have only one series, with several properties possible per series.
 					
-					
+					let h = importExportFunctionality.importing.helpers
 					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
-					var info = importExportFunctionality.importing.helpers.handlePropertyNames( Object.getOwnPropertyNames(data.data[0]) )
+					
+					// Collect the json variable names differently? 
+					// The json file can also contain both implicit and explicit type of data.
+					
+					// 1 - fully curated json file - load straight in as is
+					// 2 - 'csv' json file - parse as csv file. For this there must be a variables property in the file.
+					let isJsonCsvFormatted = data.variableNames != undefined
+					if( isJsonCsvFormatted ){
+						// In this case parse the variable names, and then handle the data.
+						var info = h.handlePropertyNames( data.variableNames )
+						info.properties = h.formatLineData(info, data.data)
+					} else {
+						
+						// Filter out anything that does not have an array attached!!!
+						let propertyNames = Object.getOwnPropertyNames(data)
+						propertyNames = propertyNames.filter(function(name){
+							return Array.isArray(data[name])
+						})
+						
+						// Must be an appropriately formatted json file.
+						var info = h.handlePropertyNames( propertyNames )
+						// Clear the common options:
+						info.commonOptions = []
+						info.type = "explicit"
+						info.properties.forEach(function(p){
+							p.vals = data[p.varName]
+						})
+						
+						var dummyOption = {
+							name: "x",
+							options: ["x"]
+						}
+						info.varOptions.x = dummyOption
+						
+						// Now data is supposed to be an array of properties!!
+					} // if
 					
 					
+					
+					// ALREADY HERE CREATE THE ROW DATA THAT CAN BE PASSED INTO PLOTTING.
+					// The data should be in rows. But what happens in cases where there cannot be rows? In the case of explicit variables create the series here already.
+					
+					// If there are no common options
 				
 					// Keep the data in rows - this is a more natural storage considering that d3.line requests points as separate objects.
-					info.vals = data.data
+					
+					
 					
 					return info
 					
@@ -10604,13 +11530,15 @@ var dbslice = (function (exports) {
 				
 				csv2line: function csv2line(data){
 					
+					let h = importExportFunctionality.importing.helpers
 					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
-					var info = importExportFunctionality.importing.helpers.handlePropertyNames( data.columns )
+					var info = h.handlePropertyNames( data.columns )
 					
 					
 				
 					// Keep the data in rows - this is a more natural storage considering that d3.line requests points as separate objects.
-					info.vals = data
+					info.properties = h.formatLineData(info, data)
+					
 					
 					
 
@@ -10622,6 +11550,164 @@ var dbslice = (function (exports) {
 				
 				}, // csv2line
 				
+				formatLineData: function formatLineData(info, data){
+					// This is still a bit of a mess. Write a library that is capable of handling all sorts of mixes of variables.
+					
+					
+					// Create the series.
+					var series
+					switch( info.type ){
+						case "explicit":
+							// Explicit means that there is a separation between x and y properties in the variable names.
+							
+							
+							
+							var f = helpers.findObjectByAttribute
+
+							// Available properties after applying all the options.
+							// Retrieve the properties
+							var properties = info.properties
+							
+							
+
+							// Get all combinations of user options and flow variable options
+							var combinations = getAllOptionCombinations([].concat(info.userOptions, info.varOptions.y))
+							
+							// Loop over all the combinations
+							combinations.forEach(function(c){
+						
+								// Merge the properties for this combination to eliminate the axis or side options.
+								mergeProperties(data, info, c)
+
+							}) // forEach
+							
+							
+							// Remove any properties that do not exist.
+							series = combinations.filter(function(d){
+								return d.vals != undefined
+							})
+
+							
+						
+							
+							
+
+						
+						  break;
+						  
+						case "implicit":
+							// Data cannot be expressed in x-y pairs, as that would require creating all possible combinations of the parameters. Instead all the variables are stored, and the accessor to the data can be changed.
+							series = data
+						
+					} // if
+					
+					
+					return series
+					
+					
+					function getAllOptionCombinations(options){
+						
+						var n = 1
+						options.forEach(function(option){
+							n *= option.options.length
+						})
+						
+						// Repetition frequencies.
+						var nn = []
+						options.forEach(function(option, j){
+							nn[j] = j==0 ? n / option.options.length : nn[j-1] / option.options.length
+						})
+						
+						
+						// Create all possible combinations of these options.
+						var combinations = []
+						// var ind = options.map(d=>0)
+						for(let i=0; i<n; i++){
+							var c = {}
+							
+							var i_ = i
+							
+							// Move from the other direction.
+							options.forEach(function(option, j){
+								let m = Math.floor( i_ / nn[j] )
+								i_ -= m*nn[j]
+								// ind[j] =  m
+								
+								c[option.name] = option.options[m]
+							})
+							
+							combinations.push(c)
+						
+							
+						} // for
+						
+						return combinations
+						
+						
+					} // getAllOptionCombinations
+					
+					function mergeProperties(data, info, c){
+						// Handle cases where there is x and y separation, but no ps and ss separation, and vice versa.
+						
+						// if there's no x and y separation the data is implicitly defined.
+						
+						var properties = info.properties
+						Object.getOwnPropertyNames(c).forEach(function(cOptName){
+							properties = f( properties, cOptName, c[cOptName], false)
+						}) // forEach
+						
+						// Assign the data to the properties first, and then merge them as needed.
+						properties.map(function(property){
+							property.vals = data.map(function(d){ return Number( d[property.val] ) })
+						})
+						
+						// At this point the only differences can be x/y and ps/ss.
+						switch(properties.length){
+							case 4:
+							
+								var xProperties = f(properties,"axis","x",false)
+								var yProperties = f(properties,"axis","y",false)
+							
+								var xSS = f(xProperties,"side", ["ss"], true)
+								var xPS = f(xProperties,"side", ["ps"], true)
+								var ySS = f(yProperties,"side", ["ss"], true)
+								var yPS = f(yProperties,"side", ["ps"], true)
+								
+								var ss = data.map(function(d){
+									return {x: Number( d[xSS.val] ), 
+											y: Number( d[ySS.val] )} })
+								var ps = data.map(function(d){
+									return {x: Number( d[xPS.val] ), 
+											y: Number( d[yPS.val] )}  })
+								
+								c.vals = ss.concat(ps.reverse())
+							
+							  break;
+							  
+							case 2:
+								// Type = 'explicit' means that the separation is done by axis.
+								
+									// Combine x and y properties
+									var x = f(properties,"axis","x",true)
+									var y = f(properties,"axis","y",true)
+									
+									c.vals = data.map(function(d){
+										return {x: Number( d[x.val] ), 
+												y: Number( d[y.val] )} })
+								
+							  break;
+							  
+							default: 
+							  // This combination does not exist, or is mis-defined.
+							  c.vals = undefined
+						} // switch
+						
+					} // mergeVariables
+					
+
+					
+				}, // formatLineData
+	
 				// CFD3CONTOUR2D
 				json2contour2d: function json2contour2d(data){
 					
@@ -10634,12 +11720,66 @@ var dbslice = (function (exports) {
 					}
 					
 				}, // json2contour2d
-				
-				csv2contour2d: function csv2contour2d(data){
 					
-					console.log("implement csv2contour2d!")
+				json2contour2dBin: function json2contour2dBin(json){
 					
-				} // csv2contour2d
+					let x = json.surfaces.x
+					let y = json.surfaces.y
+					let size = json.surfaces.size
+					let values = json.surfaces.v
+					
+
+					// Create values, indices, vertices.
+					
+					
+					let vertices = []
+					for(let i=0; i<x.length; i++){
+						vertices.push( x[i] )
+						vertices.push( y[i] )
+					} // for
+					
+					// It's a structured mesh in this case, but in principle it could be unstructured. The vertices are declared in rows.
+					let nx = size[0]
+					let ny = size[1]
+					
+					function grid2vec(row, col){ return row*nx + col }
+		
+					let indices = []
+					let ne, nw, sw, se
+					// Create indices into the `vertices' array
+					for(let row=0; row<ny-1; row++){
+						for(let col=0; col<nx-1; col++){
+							// For every row and column combination there are 4 vertices, which make two triangles - the `upper' and `lower' triangles. 
+							
+							// Corners on a grid. Just the sequential number of the vertex.
+							nw = grid2vec( row    , col     )
+							ne = grid2vec( row    , col + 1 )
+							sw = grid2vec( row + 1, col     )
+							se = grid2vec( row + 1, col + 1 )
+							
+							// `upper'
+							indices.push(sw, nw, ne)
+
+							// `lower'
+							indices.push(sw, se, ne)
+						
+						} // for
+					} // for
+					
+					
+					
+					return {
+						vertices: new Float32Array(vertices),
+						  values: new Float32Array(values),
+						 indices: new Uint32Array(indices),
+						 domain: {x: d3.extent(x),
+								  y: d3.extent(y),
+								  v: d3.extent(values)}
+					}
+					
+					
+					
+				}, // json2contour2dBin
 				
 			} // helpers
 			
@@ -10759,87 +11899,65 @@ var dbslice = (function (exports) {
 				// Functionality that allows the user to resolve any issues between datasets with different names that hold th esame quantities.
 			}, // variableMatching
 			
-			collectPlotProperties : function collectPlotProperties(){
-				// Collect all the variables in the current plots (by type!), the variables in the current data, and return them.
-				// If there is a variable in th eplot, but not in hthe new data it must either be given, or the plot needs to be removed.
-				
-		
-				
-				
-				// First go through all the metadata plots and getthe variables. This is probably more conveniently done through the dbsliceData object.
-				var metadataPlotRows = dbsliceData.session.plotRows.filter(function(plotRow){
-					return plotRow.type == "metadata"
-				}) // filter
+			collectPlotProperties: function collectPlotProperties(plot){
 				
 				var plotProperties = []
-				metadataPlotRows.forEach(function(metadataPlotRow){
-					metadataPlotRow.plots.forEach(function(metadataPlot){
-						
-						plotProperties.push( metadataPlot.view.xVarOption.val )
-						if(metadataPlot.view.yVarOption !== undefined){
-							plotProperties.push( metadataPlot.view.yVarOption.val )
-						} // if
-					}) // forEach
-				}) // forEach
 				
+										
+				if( plot.view.xVarOption !== undefined ){
+					plotProperties.push( plot.view.xVarOption.val )
+				} // if
 				
-				// Remove any duplicates: 
-				plotProperties = helpers.unique( plotProperties )
-
+				if( plot.view.yVarOption !== undefined ){
+					plotProperties.push( plot.view.yVarOption.val )
+				} // if
 				
-			  return plotProperties
+				if( plot.view.sliceId !== undefined ){
+					plotProperties.push( plot.view.sliceId )
+				} // if
 				
-
+				return plotProperties
 				
 			}, // collectPlotProperties
+			
+			isPlotCompatible : function isPlotCompatible(plot){
+				// Collect all the variables in the current plots (by type!), the variables in the current data, and return them.
+				// If there is a variable in th eplot, but not in hthe new data it must either be given, or the plot needs to be removed.
+		
+				var plotProperties = importExportFunctionality.helpers.collectPlotProperties(plot)
+				
+				var arePropertiesAvailable = plotProperties.map(function(p){
+					return cfDataManagement.helpers.isPropertyInDbsliceData(p)
+				}) // map
+				
+				// All properties need to be available
+			  return arePropertiesAvailable.every(d=>d)				
+			}, // isPlotCompatible
 			
 
 			onDataAndSessionChangeResolve : function onDataAndSessionChangeResolve(){
 				// The data dominates what can be plotted. Perform a check between the session and data to see which properties are available, and if the plots want properties that are not in the data they are removed.
-				
-				// Resolve any issues between existing plots and data by removing any plots with variables that are not in the data.
-				var plotProperties = importExportFunctionality.helpers.collectPlotProperties()
-				
-				
-				// Find the variables that are on hte plots, but not in the data.
-				var incompatibleProperties = plotProperties.filter(function(property){
-					var isInMetadata = dbsliceData.data.metaDataProperties.includes(property)
-					var isInData     = dbsliceData.data.dataProperties.includes(property)
-				  return !(isInMetadata || isInData)
-				}) // filter
-				
-				// Furthermore it is possible that the user has removed all data. In this case just remove all the plots, by specifying all plot properties as incompatible.
-				if(dbsliceData.data !== undefined){
-					if(dbsliceData.data.fileDim.top(Infinity).length < 1){
-					incompatibleProperties = plotProperties
-					} // if					
-				} // if
-				
-				
-				
+
 				
 				// Loop through all incompatible properties, and remove the plots that are not needed.
 				dbsliceData.session.plotRows.forEach(function(plotRow){
-					if(plotRow.type == "metadata"){
-						var removeIndex = plotRow.plots.map(function(plot){
-							// If the plot features an incompatible metadata or data property return true.	
-							
-						  return incompatibleProperties.includes( plot.view.xVarOption.val )  ||   incompatibleProperties.includes( plot.data.yVarOption.val )
-							
-						}) // map
+					plotRow.plots = plotRow.plots.filter(function(plot){
 						
 						
-						for(var i = removeIndex.length-1; i>=0; i--){
-							// Negative loop facilitates the use of splice. Otherwise the indexes get messed up by splice as it reindexes the array upon removal.
-							if(removeIndex[i]){
-								plotRow.plots.splice(i,1)
-							} // if
-						} // for
+						var isPlotCompatible = importExportFunctionality.helpers.isPlotCompatible(plot)
+			
+						// Render doesn't remove the plots anymore, so they need to be removed here!
+						if( !isPlotCompatible ){
+							plot.format.wrapper.remove()
+						} // if
 						
-					} // if
+			
+					  return isPlotCompatible
+						
+					}) // map
 				}) // forEach
 				
-				
+
 			} // onDataChangeResolve
 
 			

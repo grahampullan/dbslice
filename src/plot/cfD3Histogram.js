@@ -11,11 +11,6 @@ var cfD3Histogram = {
         
         make: function make(ctrl) {
 			
-			
-         
-            // Update the controls as required
-			// MISSING FOR NOW. IN THE END PLOTHELPERS SHOULD HAVE A VERTEILER FUNCTION
-			// cfD3Histogram.interactivity.updatePlotTitleControls(element)
           
             // Setup the object that will internally handle all parts of the chart.
 			plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
@@ -27,7 +22,7 @@ var cfD3Histogram = {
 				  .append("g")
 				    .attr("class", "extent")
 			
-			// cfD3Histogram.setupPlot.appendHorizonalSelection(ctrl.figure.select(".bottomAxisControlGroup"), ctrl)
+			
 			var i= cfD3Histogram.interactivity.onSelectChange
 			plotHelpers.setupPlot.general.appendHorizontalSelection(ctrl.figure.select(".bottomAxisControlGroup"), i.horizontal(ctrl))
 			plotHelpers.setupPlot.general.updateHorizontalSelection(ctrl)
@@ -39,7 +34,8 @@ var cfD3Histogram = {
 			cfD3Histogram.interactivity.addBrush.make(ctrl)
 			cfD3Histogram.interactivity.addBinNumberControls.make(ctrl)
 			
-			
+			// Add the y label to the y axis.
+			cfD3Histogram.helpers.axes.addYLabel(ctrl)
 			
 			cfD3Histogram.update(ctrl)
           
@@ -221,7 +217,7 @@ var cfD3Histogram = {
 				
 				
 				// Handle the axes.
-				cfD3Histogram.helpers.createAxes(ctrl);
+				cfD3Histogram.helpers.axes.update(ctrl);
 				
 				
 				
@@ -897,6 +893,83 @@ var cfD3Histogram = {
 		
 		helpers: {
 			
+			axes: {
+				
+				update: function update(ctrl){
+					
+					cfD3Scatter.helpers.axes.formatAxesY(ctrl)
+					cfD3Scatter.helpers.axes.formatAxesX(ctrl)
+					
+					
+					
+				}, // update
+				
+				formatAxesY: function formatAxesY(ctrl){
+				
+					var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.yscale)
+
+					var gExponent = ctrl.figure.select(".axis--y")
+						.selectAll("g.exponent")
+							.select("text")
+							  .attr("fill", format.fill)
+							.select("tspan.exp")
+							  .html(format.exp)
+					  
+					// The y axis shows a number of items, which is always an integer. However, integers in scientific notation can have decimal spaces. Therefore pick integers from the original scale, and then transform them into the new scale.
+					var yAxisTicks = ctrl.tools.yscale.ticks()
+					  .filter(d=>Number.isInteger(d) )
+					  .map(d=>Number.isInteger(format.exp) ? d/10**format.exp : d )
+					
+						
+					ctrl.figure.select(".axis--y").call( 
+						d3.axisLeft( format.scale )
+							.tickValues(yAxisTicks)
+							.tickFormat(d3.format("d")) 
+					)
+							  
+					
+				}, // formatAxesY
+				
+				formatAxesX: function formatAxesX(ctrl){
+			
+					var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.xscale)
+
+					var gExponent = ctrl.figure.select(".axis--x")
+						.selectAll("g.exponent")
+						
+					gExponent.select("tspan.exp")
+					  .html(format.exp)
+						  
+					gExponent.select("text")
+					  .attr("fill", format.fill)
+						
+						
+					ctrl.figure.select(".axis--x").call( d3.axisBottom( format.scale ).ticks(5) )
+						  
+				
+				}, // formatAxesY
+				
+				addYLabel: function addYLabel(ctrl){
+					
+					ctrl.figure
+					  .select("g.axis--y")
+					  .selectAll("text.yAxisLabel")
+					  .data( ["Number of tasks"] ).enter()
+					  .append("text")
+						.attr("class", "yAxisLabel")
+						.attr("fill", "#000")
+						.attr("transform", "rotate(-90)")
+						.attr("x", 0)
+						.attr("y", -25)
+						.attr("text-anchor", "end")
+						.style("font-weight", "bold")
+						.style("font-size", 12)
+						.text(function(d){return d});
+					
+				}, // addYLabel
+				
+			}, // axes
+			
 			createAxes: function createAxes(ctrl){
 				
 				var svg = ctrl.figure.select("svg.plotArea")
@@ -906,21 +979,7 @@ var cfD3Histogram = {
 				  .call( d3.axisBottom(ctrl.tools.xscale) );
 				
 				
-				/*
-				var xLabelD3 = ctrl.svg.select("g.axis--x").selectAll("text.xAxisLabel")
 				
-				xLabelD3.data( [ctrl.view.xVar] ).enter()
-					.append("text")
-					  .attr("class", "xAxisLabel")
-					  .attr("fill", "#000")
-					  .attr("x", ctrl.svg.attr("plotWidth"))
-					  .attr("y", 30)
-					  .attr("text-anchor", "end")
-					  .style("font-weight", "bold")
-					  .text(function(d){return d});
-				  
-				xLabelD3.text(function(d){return d});
-				*/
 				
 				// Y AXIS
 				
@@ -938,21 +997,7 @@ var cfD3Histogram = {
 					  .tickFormat(d3.format("d")) 
 				);
 			
-				var yLabelD3 = svg.select("g.axis--y").selectAll("text.yAxisLabel")
 				
-				yLabelD3.data( ["Number of tasks"] ).enter()
-					.append("text")
-					  .attr("class", "yAxisLabel")
-					  .attr("fill", "#000")
-					  .attr("transform", "rotate(-90)")
-					  .attr("x", 0)
-					  .attr("y", -25)
-					  .attr("text-anchor", "end")
-					  .style("font-weight", "bold")
-					  .style("font-size", 12)
-					  .text(function(d){return d});
-				  
-				yLabelD3.text(function(d){return d});
 
 				
 
@@ -1039,7 +1084,9 @@ var cfD3Histogram = {
 						ctrl.view.xVarOption.val = plotData.xProperty
 						ctrl.view.gVar =           plotData.xProperty
 					} // if						
-				} // if				
+				} // if	
+
+				ctrl.format.title = plotData.title
 											
 				return ctrl
 				

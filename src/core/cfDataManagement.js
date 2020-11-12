@@ -63,8 +63,7 @@ var cfDataManagement = {
 		
 			
 		}, // cfInit
-		
-		
+				
 		cfAdd: function cfAdd(metadata){
 			// This function attempts to add data to the already existing dataset. It allows a compromise between searching for all available data and loading it in, and personally creating additional combinations of the metadata in csv files.
 			// The ideal solution would be for each individual task to have it's own small metadata file, which could then by parsed by a search engine. This is unpractical for a localised application - this functionality is usable however.
@@ -97,8 +96,7 @@ var cfDataManagement = {
 			
 			
 		}, // cfAdd
-		
-		
+			
 		cfRemove: function cfRemove(dataFilesToRemove){
 			// This function will remove the data from the crossfilter.
 			
@@ -118,9 +116,12 @@ var cfDataManagement = {
 			// Remove the temporary filter.
 			dbsliceData.data.fileDim.filterAll()
 			
+			
+			// Refresh the data info
+			cfDataManagement.helpers.refreshMetadataInfo()
+			
 			// Reinstate user specified data filters.
 			filter.apply()
-			
 			
 			
 		}, // cfRemove
@@ -430,7 +431,7 @@ var cfDataManagement = {
 			// Make a distinction between accessing explicit and implicit data files.
 			
 			
-			// THIS SHOULD RETURN ALL DATA AT ONCE. IT IS IN THE MEMORY ALREADY ANYWAY. FIX
+			// Fix for accessing the json files.
 			
 			// Assemble the names of the properties to plot.
 			var plotData
@@ -438,14 +439,18 @@ var cfDataManagement = {
 				case "implicit":
 					// The options in the ctrl cannot be associated with the actual variable names in the files. The same menu options may correspond to different file variables if the sub-part of the file selected changes.
 
-				
-					plotData = file.data.vals.map(function(d){
+					// IS IT POSSIBLE TO REPLACE THIS WITH ACCESSORS??
+					// No - it is possible that the user is trying to combine data from different file specification types.
+					
+					plotData = file.data.properties.map(function(d){
 						return {x: Number(d[ctrl.view.xVarOption.val]), 
 						        y: Number(d[ctrl.view.yVarOption.val])}
 					})
 					break;
 					
 				case "explicit":
+				
+					// json files also resolve to here, in which case they should just
 				
 					var f = helpers.findObjectByAttribute
 			
@@ -458,29 +463,11 @@ var cfDataManagement = {
 						properties = f( properties, option.name, [option.val], false)
 					})
 					
-					// Find onle the properties that correspond to the selected flow variable. In explicitly stated variables the flow variable is stored on hte y-axis, and the x-axis is a dummy option.
-					var flowProperties = f(properties,"varName",ctrl.view.yVarOption.val,false)
+					// Pick the appropriate flow variable
+					let flowProperty = f( properties, "varName", ctrl.view.yVarOption.val, true)
 					
 					
-					// Apply the separation by axis
-					var xProperties = f(flowProperties,"axis","x",false)
-					var yProperties = f(flowProperties,"axis","y",false)
-				
-					// Handle the combination of ps/ss, and x/y.
-					// NOTE THAT SS PS IS OPTIONAL! HANDLE THIS SEPARATELY AS WELL!!
-					var xSS = f(xProperties,"side", ["ss"], true)
-					var xPS = f(xProperties,"side", ["ps"], true)
-					var ySS = f(yProperties,"side", ["ss"], true)
-					var yPS = f(yProperties,"side", ["ps"], true)
-				
-					var ss = file.data.vals.map(function(d){
-						return {x: Number( d[xSS.val] ), y: Number( d[ySS.val] )}
-					})
-					var ps = file.data.vals.map(function(d){
-						return {x: Number( d[xPS.val] ), y: Number( d[yPS.val] )}
-					})
-					
-					plotData = ss.concat(ps.reverse())
+					plotData = flowProperty.vals
 					
 					break;
 			
@@ -495,11 +482,7 @@ var cfDataManagement = {
 			
 		}, // getLineDataVals
 		
-		getContour2dDataVals: function getContour2dDataVals(file, ctrl){
-			// This is supposed to handle the cases where the files have different formats etc, or more data etc. Also, how to make the options available.
-			console.log("Implement getContour2dDataVals")
-			
-		}, // getContour2dDataVals
+		
 		
 		// HELPERS
 		helpers : {
@@ -546,7 +529,91 @@ var cfDataManagement = {
 					return false
 				} // if
 				
-			} // checkProperties
+			}, // checkProperties
+			
+			refreshMetadataInfo: function refreshMetadataInfo(){
+				
+				// IMPORTANT!!!!!!!!!!!!
+				// The metadata properties need to be refershed whn the data changes!!!
+				
+				// Just check if the dim returns any data!!
+				var d_ = dbsliceData.data
+				
+				// First check if there is still any data left.
+				var data = d_.fileDim.top(Infinity)
+				if(data.length < 1){
+					// No data available,  remove all dims and associate info.
+					
+					d_.metaDataProperties = [];
+					d_.dataProperties = [];
+					d_.line2dProperties = [];
+					d_.contour2dProperties = [];
+					
+					d_.metaDims = [];
+					d_.dataDims = [];
+				
+					d_.metaDataUniqueValues = {};
+					d_.histogramSelectedRanges = [];
+				} else {
+					
+					// Some data is available. Find which properties are still available.
+					var task = data[0]
+					var properties = Object.getOwnPropertyNames( task )
+					
+					// Check if the dbsliceData properties are in the example task properties.
+					
+					// CLEAN THIS UP!!!!!!
+					d_.metaDataProperties = d_.metaDataProperties.filter(function(metaDataProperty){
+						var isMetaDataAvailable = properties.includes(metaDataProperty)
+						if( !properties.includes(metaDataProperty) ){
+							// Remove the property that corresponds to no data properties.
+							delete d_.metaDims[metaDataProperty]
+							delete d_.metaDataUniqueValues[metaDataProperty]
+						} else {
+							d_.metaDataUniqueValues[metaDataProperty] = helpers.unique( data.map(
+						function (d){return d[metaDataProperty]} ))
+						} // if
+						return isMetaDataAvailable
+					}) // filter
+					
+					d_.dataProperties = d_.dataProperties.filter(function(dataProperty){
+						var isDataAvailable = properties.includes(dataProperty)
+						if( !properties.includes(dataProperty) ){
+							// Remove the property that corresponds to no data properties.
+							delete d_.dataDims[dataProperty]
+							delete d_.histogramSelectedRanges[dataProperty]
+						} // if
+						return isDataAvailable
+					}) // filter
+					
+					
+					d_.line2dProperties = d_.line2dProperties.filter(function(sliceId){
+						return properties.includes(sliceId)
+					});
+					
+					d_.contour2dProperties = d_.contour2dProperties.filter(function(sliceId){
+						return properties.includes(sliceId)
+					});
+					
+				} // if
+				
+
+				
+			}, // refreshMetadataInfo
+			
+			isPropertyInDbsliceData: function isPropertyInDbsliceData(property){
+				
+					var isInData = [ 
+						dbsliceData.data.metaDataProperties.includes(property),
+						dbsliceData.data.dataProperties.includes(property),
+						dbsliceData.data.line2dProperties.includes(property),
+						dbsliceData.data.contour2dProperties.includes(property)
+					]
+					
+				
+				return isInData.some(d=>d)
+				
+			}, // isPropertyInDbsliceData
 			
 		} // helpers
 		

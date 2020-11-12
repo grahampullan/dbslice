@@ -22,24 +22,23 @@ const cfD3Contour2d = {
 			
 			// Scale the card appropriately so that it occupies some area. Needs to be adjusted for hte title height
 			cfD3Contour2d.setupPlot.dimension(ctrl)
-			let p = ctrl.format.position
 			
-			// Add another div to hold the colorbar on the right hand side. The colorbar needs to be side by side with the plot. To position it correctly another div level needs to be present. Therefore both the contours and the colorbar have to go into div.card. An additional 5px margin is introduced to make sure the plot div and teh colorbar are in hte same row.
+			
 			
 			
 			// `cfD3Contour2d' has a different structure than the other plots, therefore the `ctrl.figure' attribute needs to be updated.
-			ctrl.figure = ctrl.figure.append("div")
-			  .attr("class", "data")
-			  .style("width",  p.plotWidth + "px" )
-			  .style("height", p.plotHeight + "px" )
+			cfD3Contour2d.setupPlot.setupPlottingArea(ctrl)
+			
+			// Add the lassoing.
+			cfD3Contour2d.interactivity.lassoing(ctrl)
 			
 			
-			cfD3Contour2d.setupPlot.setupRightControlDOM(ctrl)
+			
 			
 			// The plotBody must be reassigned here so that the rightcontrolgroup svgs are appended appropriately.
 			
 			
-			cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+			cfD3Contour2d.resizing.plotOnExternalChange(ctrl)
 			
 			// NOTES:
 			// How to configure the contour plot on the go? For now the positional variables will be just assumed.
@@ -63,7 +62,7 @@ const cfD3Contour2d = {
 			// How to handle contour data? The user should be expected to select the position variables once, and then just change the flow variable if needed. For now this is manually selected here, but the user should be able to select their varioable based on hte name. Implement that later. Maybe a focus out to adjust the contours, and then a focus in to show change. However, in json formats the user should just name the variables correctly!! How should it happen in csv?
 			
 			// Only use the first 6 files for now.
-			ctrl.data.available = ctrl.data.available.splice(0,6)
+			// ctrl.data.available = ctrl.data.available.splice(0,6)
 			
 
 			// Calculate the extent of hte data and the thresholds
@@ -80,10 +79,9 @@ const cfD3Contour2d = {
 			
 			
 			// Resize the plot cotnainers
-			cfD3Contour2d.interactivity.resizeOnInternalChange(ctrl)
+			cfD3Contour2d.resizing.plotOnInternalChange(ctrl)
 			
 			  
-			// ONE COLORBAR FOR ALL!! AT THE SIDE! The colorbar should only occupy the visible space, and should move with the view as the user scrolls down.
 			
 			// When panning over the levels markers on the colorbar highlight those on hte contours somehow.
 			
@@ -91,62 +89,143 @@ const cfD3Contour2d = {
 			
 			// A special tool to order the cards roughly? This is the grouping sort-of?
 			
-			// DRAW THE CONTOURS USING WEBGL
-			
 		}, // updateData
 		
-	
+		// MOVE ALL RESCALING TO A SINGLE OBJECT?
 		rescale: function rescale(ctrl){
 			
 			// Should rescale the whole plot and the individual contours in it.
 			
 			console.log("Rescaling cfD3Contour2d")
 			
+			// Make sure the overlay is the right size
+			
 		}, // rescale
 		
-		rescaleContourCard: function rescaleContourCard(contourCtrl){
+		
+		resizing: {
 			
-			// Retrieve the data AR from the plot ctrl.
-			let card = contourCtrl.format.wrapper
-			let p = contourCtrl.format.position
-			let plotCtrl = d3.select(contourCtrl.format.parent).data()[0]
+			contourCard: function contourCard(contourCtrl){
 			
-			let dy = positioning.dy(plotCtrl.figure)
-			let dx = positioning.dx(plotCtrl.figure)
-			
-	
-			// Update the position based on the new ih and iw.
-			let position_ = cfD3Contour2d.draw.dimension(p.iw, p.ih, dx, dy, plotCtrl.data.domain.ar)
-			
-			p.w = position_.w
-			p.h = position_.h
-			p.sw = position_.sw
-			p.sh = position_.sh
-			p.minW = position_.minW
-			p.minH = position_.minH
-			p.ar = position_.ar
-			
-			// Update the relevant DOM elements.
+				// Retrieve the data AR from the plot ctrl.
+				let card = contourCtrl.format.wrapper
+				let p = contourCtrl.format.position
+				let plotCtrl = d3.select(contourCtrl.format.parent).data()[0]
+				
+				let dy = positioning.dy(plotCtrl.figure)
+				let dx = positioning.dx(plotCtrl.figure)
+				
+		
+				// Update the position based on the new ih and iw.
+				let position_ = cfD3Contour2d.draw.dimension(p.iw, p.ih, dx, dy, plotCtrl.data.domain.ar)
+				
+				p.w = position_.w
+				p.h = position_.h
+				p.sw = position_.sw
+				p.sh = position_.sh
+				p.minW = position_.minW
+				p.minH = position_.minH
+				p.ar = position_.ar
+				
+				// Update the relevant DOM elements.
 
-			// Update the title div. Enforce a 24px height for this div.
-			let title = card
-			  .select("div.title")
-			  .select("p")
-				.style("text-align", "center")
-				.style("margin-left", "5px")
-				.style("margin-right", "5px")
-				.style("margin-bottom", "8px")
-			  
-			  
-			helpers.fitTextToBox(title, title, "height", 24)
-	
-			// Update the plot svg
-			card.select("svg.plotArea")
-			  .attr("width",  p.sw)
-			  .attr("height", p.sh )
+				// Update the title div. Enforce a 24px height for this div.
+				let title = card
+				  .select("div.title")
+				  .select("p")
+					.style("text-align", "center")
+					.style("margin-left", "5px")
+					.style("margin-right", "5px")
+					.style("margin-bottom", "8px")
+				  
+				  
+				helpers.fitTextToBox(title, title, "height", 24)
+		
+				// Update the plot svg
+				card.select("svg.plotArea")
+				  .attr("width",  p.sw)
+				  .attr("height", p.sh )
+				
+				
+			}, // contourCard
+			
+			plotOnInternalChange: function plotOnInternalChange(ctrl){
+				// An internal change has occured that prompted the plot to be resized (contours were added, moved, or resized).
+				
+				// Update the plot, AND the plot row. When updating the plot row also the other plots need to be repositioned on the grid.
+				
+				// Needs to update:
+  				// 1 plot (div.plot holding the contours), 
+				// 2 plotWrapper (containing hte whole plot)
+				// 3 plotRowBody (containing the plot). 
+				// 4 other plots of hte plot row need to be repositioned.
+				
+				// First update the size of the contour plotting area. Based on this size update the plot wrapper. Based on the new plot wrapper size update the plot row.
+				
+				
+				let h = positioning.helpers
+				let f = ctrl.format
+				let w = ctrl.format.wrapper
+				
+				let dx = positioning.dx( d3.select( f.parent ) )
+				let dy = positioning.dy( d3.select( f.parent ) )
+				
+				
+				
+				let rightControlSize = w.select("svg.rightControlSVG").node().getBoundingClientRect()
+				let rightControlY = f.rightControls.format.position.iy * positioning.dy( d3.select(f.rightControls.format.parent) )
+				
+				
+				// Heights of components
+				let titleHeight = w.select("div.plotTitle").node().offsetHeight
+				let plotHeight = h.findContainerSize(ctrl.figure, ".contourWrapper")
+				let colorbarHeight = rightControlY + rightControlSize.height
+				let figureHeight = colorbarHeight > plotHeight ? colorbarHeight : plotHeight
+				
+				// Size the plotWrapper appropriately.
+				let ih = Math.ceil( (figureHeight + titleHeight) / dy) 
+				f.position.ih = ih < 4 ? 4 : ih
+				
+				
+				// Update the heights of the wrapper, hte plot body, and the svg overlay.
+				let wrapperHeight = f.position.ih*dy
+				let plotAreaHeight= wrapperHeight - titleHeight
+				
+				w.style("height", wrapperHeight + "px" )
+				ctrl.figure.style("height", plotAreaHeight + "px" )
+				
+				w.select("svg.overlay").style("height", plotAreaHeight + "px")
+				
+				
+				// Reposition other on-demand plots and size the plot row accordingly.
+				cfD3Contour2d.resizing.plotOnExternalChange(ctrl)
+				
+				
+				
+				
+			}, // plotOnInternalChange
+			
+			plotOnExternalChange: function plotOnExternalChange(plotCtrl){
+				// An external change occured - the plot was moved or resized.
+				
+				// The contour plot is not allowed to clash with other plots. Once an appropriate sizing logic will be selected and implemented this can be relaxed. Therefore when it is moved or resized other plots in the same plot row need to be repositioned.
+				
+				// If the body of the plot moves, then hte other plots must also move.
+				positioning.helpers.repositionSiblingPlots(plotCtrl)
+				
+				// Update the plot row height itself.
+				let plotRowBody = d3.select(plotCtrl.format.parent)
+				builder.refreshPlotRowHeight(plotRowBody)
+				
+				
+			}, // plotOnExternalChange
 			
 			
-		}, // rescaleContourCard
+			
+			
+		}, // resizing
+		
+
 	
 			
 		// Rename setupPlot -> setup
@@ -170,6 +249,60 @@ const cfD3Contour2d = {
 				
 				
 			}, // dimension
+			
+			setupPlottingArea: function setupPlottingArea(ctrl){
+				
+				let p = ctrl.format.position
+				
+				// `cfD3Contour2d' has a different structure than the other plots, therefore the `ctrl.figure' attribute needs to be updated.
+				let dataDiv = ctrl.figure.append("div")
+				  .attr("class", "data")
+				  .style("width",  p.plotWidth + "px" )
+				  .style("height", p.plotHeight + "px" )
+				  
+				// MOST OF BELOW IS DUE TO LASSOING. MOVE!!
+				var overlaySvg = ctrl.figure.append("svg")
+					.attr("class", "overlay")
+					.style("width",  p.plotWidth + "px" )
+					.style("height", p.plotHeight + "px" )
+					.style("position", "absolute")
+					.style("top", p.titleHeight + "px")
+					.style("display", "none")
+					
+				
+				  
+				dataDiv.on("mousemove", function(){
+					  if (event.shiftKey) {
+						  overlaySvg.style("display", "")
+					  } else {
+						  overlaySvg.style("display", "none")
+					  } // if
+				})
+				
+				overlaySvg.on("mousemove", function(){
+					if (event.shiftKey) {
+						  
+						  
+					} else {
+						// If shift is released, hide overlay
+						overlaySvg.style("display", "none")
+					} // if
+				})
+				
+				
+				// Add in hte tooltip that hosts the tools operating on lasso selection.
+				cfD3Contour2d.interactivity.tooltip.add(ctrl)
+				
+				
+				
+				// Reassing hte figure to support drag-move.
+				ctrl.figure = dataDiv
+				
+				
+				// Also setup the right hand side controls
+				cfD3Contour2d.setupPlot.setupRightControlDOM(ctrl)
+				
+			}, // setupPlottingArea
 			
 			// Right colorbar control group
 			
@@ -274,6 +407,7 @@ const cfD3Contour2d = {
 				  
 				
 			}, // setupHistogramTools
+			
 			
 			sizeRightControlGroup: function sizeRightControlGroup(ctrl){
 				
@@ -418,6 +552,8 @@ const cfD3Contour2d = {
 				
 			}, // setupRightControlDOM
 			
+			
+			// The plotting tools
 			setupPlotTools: function setupPlotTools(ctrl){
 				
 				// Setup the colorbar tools. This is in a separate function to allow it to be updated later if needed. Maybe create individual functions for all three? Contour, Colorbar, Histogram?
@@ -460,7 +596,6 @@ const cfD3Contour2d = {
 			}, // getDomain
 			
 			// Contour cards
-			
 			design: function design(ctrl, file){
 				// This is the initial dimensioning of the size of the contour cards.
 				  
@@ -507,6 +642,7 @@ const cfD3Contour2d = {
 	
 		draw: {
 			
+			// Making the presentation blocks.
 			cards: function cards(ctrl){
 				// This should handle the enter/update/exit parts.
   
@@ -630,7 +766,6 @@ const cfD3Contour2d = {
 			}, // contourBackbone
 			
 			// Actual drawing
-			
 			contours: function contours(d){
 				
 				// The projection should be updated here to cover the case when the user resizes the plot.
@@ -652,7 +787,7 @@ const cfD3Contour2d = {
 				// By this point everything external to the contour has been rescaled. Here the internal parts still need to be rescaled, and the contour levels redrawn.
 				
 				// Readjust the card DOM
-				cfD3Contour2d.rescaleContourCard(d)
+				cfD3Contour2d.resizing.contourCard(d)
 				
 				
 				// The projection should be updated here to cover the case when the user resizes the plot.
@@ -680,8 +815,8 @@ const cfD3Contour2d = {
 				
 			}, // updateContour
 			
-			// The control group - can remain svg.
 			
+			// The control group
 			rightControlGroup: function rightControlGroup(ctrl){
 				
 			    
@@ -730,8 +865,6 @@ const cfD3Contour2d = {
 				// Make the colorbar interactive!!
 				
 			}, // rightControlGroup
-			
-			
 			
 			colorbar: function colorbar(ctrl){
 				// The colorbar must have it's own axis, because the user may want to change the color extents to play with the data more. 
@@ -978,7 +1111,9 @@ const cfD3Contour2d = {
 	
 		interactivity: {
 			
+			// POTENTIALLY MOVE FOR ALL PLOTS?
 			refreshContainerSize: function refreshContainerSize(ctrl){
+				// This is used in other plots too, so must remain here.
 				
 				// There are 4 events that may prompt resisizing.
 				// 1: Moving plots
@@ -987,8 +1122,8 @@ const cfD3Contour2d = {
 				// 4: Resizing contours
 				
 				if(ctrl.format.title !=undefined){
-					// Plot
-					cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
+					// Plot. These don't have a title attribute.
+					cfD3Contour2d.resizing.plotOnExternalChange(ctrl)
 					
 				} else {
 					// Contour
@@ -996,7 +1131,7 @@ const cfD3Contour2d = {
 					let contourPlot = d3.select(ctrl.format.parent)
 					let contourPlotCtrl = contourPlot.data()[0]
 					
-					cfD3Contour2d.interactivity.resizeOnInternalChange(contourPlotCtrl)
+					cfD3Contour2d.resizing.plotOnInternalChange(contourPlotCtrl)
 					
 				} // if
 				
@@ -1004,70 +1139,7 @@ const cfD3Contour2d = {
 				
 			}, // refreshContainerSize
 
-			resizeOnInternalChange: function (ctrl){
-				// An internal change has occured that prompted the plot to be resized (contours were added, moved, or resized).
-				
-				let h = positioning.helpers
-				let f = ctrl.format
-				
-				let titleDOM = f.wrapper.select("div.plotTitle").node()
-				let rightControlSize = f.wrapper.select("svg.rightControlSVG").node().getBoundingClientRect()
-				let rightControlY = f.rightControls.format.position.iy * positioning.dy( d3.select(f.rightControls.format.parent) )
-				
-				// Update the plot, AND the plot row. When updating the plot row also the other plots need to be repositioned on the grid.
-				
-				// Needs to update:
-  				// 1 plot (div.plot holding the contours), 
-				// 2 plotWrapper (containing hte whole plot)
-				// 3 plotRowBody (containing the plot). 
-				// 4 other plots of hte plot row need to be repositioned.
-				
-				// First update the size of the contour plotting area. Based on this size update the plot wrapper. Based on the new plot wrapper size update the plot row.
-				
-
-				
-				// Get the required height for the contour plot area.
-				let titleHeight = titleDOM.offsetHeight
-				let plotHeight = h.findContainerSize(ctrl.figure, ".contourWrapper")
-				let colorbarHeight = rightControlY + rightControlSize.height
-				let figureHeight = colorbarHeight > plotHeight ? colorbarHeight : plotHeight
-				
-				// Size the plotWrapper appropriately.
-				let dx = positioning.dx( d3.select( f.parent ) )
-				let dy = positioning.dy( d3.select( f.parent ) )
-				let ih = Math.ceil( (figureHeight + titleHeight) / dy) 
-				ih = ih < 4 ? 4 : ih
-				
-				f.position.ih = ih 
-				f.wrapper.style("height", ih*dy + "px" )
-				ctrl.figure.style("height", (ih*dy - titleHeight) + "px" )
-				
-
-				
-				
-				// Reposition other on-demand plots and size the plot row accordingly.
-				cfD3Contour2d.interactivity.resizeOnExternalChange(ctrl)
-				
-				
-				
-				
-			}, // resizeOnInternalChange
-			
-			resizeOnExternalChange: function resizeOnExternalChange(plotCtrl){
-				// An external change occured - the plot was moved or resized.
-				
-				// The contour plot is not allowed to clash with other plots. Once an appropriate sizing logic will be selected and implemented this can be relaxed. Therefore when it is moved or resized other plots in the same plot row need to be repositioned.
-				
-				// If the body of the plot moves, then hte other plots must also move.
-				positioning.helpers.repositionSiblingPlots(plotCtrl)
-				
-				// Update the plot row height itself.
-				let plotRowBody = d3.select(plotCtrl.format.parent)
-				builder.refreshPlotRowHeight(plotRowBody)
-				
-				
-			}, // resizeOnExternalChange
-			
+			// Colorbar group
 			rightControls: {
 				// Move everything related to the right controls here!!
 				update: function update(ctrl){
@@ -1123,7 +1195,7 @@ const cfD3Contour2d = {
 						let plotCtrl = rightControlCtrl.format.wrapper.data()[0]
 						
 						// Resize the plot.
-						cfD3Contour2d.interactivity.resizeOnInternalChange(plotCtrl)
+						cfD3Contour2d.resizing.plotOnInternalChange(plotCtrl)
 						
 						
 						// Resize the plot row.
@@ -1139,7 +1211,142 @@ const cfD3Contour2d = {
 				
 			}, // rightControls
 
-			
+			// Lasso
+			lassoing: function lassoing(ctrl){
+				
+				var svgOverlay = ctrl.format.wrapper.select("svg.overlay")
+				
+				var lassoInstance = {
+					element: {
+						// 'owner': element to attach the lasso to.
+						// 'svg'  : where to draw the lasso to
+						// 'ref'  : reference for position retrieval
+						owner: svgOverlay,
+						svg: svgOverlay,
+						ref: ctrl.figure
+					},
+					data: {
+						boundary: [],
+						getBasisData: function(){ return ctrl.data.plotted; }
+					},		
+					accessor: {
+						// Here the data that is searched after is the position of the card on the screen.
+						x: function(d){
+							let dx = positioning.dx(ctrl.figure)
+							let imx = d.format.position.ix + 
+									  d.format.position.iw/2
+							return imx*dx
+						},
+						y: function(d){
+							let dy = positioning.dy(ctrl.figure)
+							let imy = d.format.position.iy + 
+									  d.format.position.ih/2
+							return imy*dy 
+						},
+					},
+					scales: {
+						x: function(x){return x},
+						y: function(y){return y}
+					},
+					preemptive: function(){
+						cfD3Contour2d.interactivity.tooltip.tipOff(ctrl)
+					},
+					response: function(allDataPoints){
+						// Highlight the selection
+						cfD3Contour2d.helpers.highlight(ctrl, allDataPoints.map(d=>d.task))
+						
+						// Display the tooltip.
+						cfD3Contour2d.interactivity.tooltip.tipOn(ctrl)
+					},
+				} // lassoInstance
+				
+				ctrl.tools.lasso = lassoInstance;
+				
+				lasso.add(lassoInstance)
+				
+				
+			}, // lassoing
+
+			// Use selection
+			tooltip: {
+		
+				add: function add(ctrl){
+					// Needs to know where to place the tooltip, and where to store the reference. How should the tooltip be triggered? Only on lasso selection! In that case just tipOn and tipOff must be presented, and should run given a selection of data. The data can them be used to calculate the appropriate position of hte tooltip.
+					var f = cfD3Contour2d.interactivity.tooltip.functionality
+					var tooltip = ctrl.figure.append("div")
+						.attr("class", "contourTooltip")
+						.style("display", "none")
+						
+					addButton("stack-overflow", f.pileAndSummarise)
+					addButton("search", f.highlight)
+					addButton("tags", f.tag)
+					addButton("close", function(){
+						cfD3Contour2d.interactivity.tooltip.tipOff(ctrl)
+					})
+					
+					
+					ctrl.tools.tooltip = tooltip
+					
+					function addButton(icon, event){
+						tooltip.append("button")
+						.attr("class", "btn")
+						.on("click", event)
+					  .append("i")
+						.attr("class", "fa fa-" + icon)
+						.style("cursor", "pointer")
+					} // addButton
+				
+				}, // add
+				
+				tipOn: function tipOn(ctrl){
+					
+					// Position hte tooltip appropriately. Use the lasso boundary to calculate a mean. Crude, but ok.
+					
+					var n = ctrl.tools.lasso.data.boundary.length
+					var position = ctrl.tools.lasso.data.boundary.reduce(function(total, item){
+						total.x += item.cx / n
+						total.y += item.cy / n
+						return total
+					},
+					{
+						x: 0,
+						y: 0
+					})
+					
+					// Offset by the expected tooltip size. How to calculate that when display:none?
+					ctrl.tools.tooltip
+					  .style("display", "")
+					  .style("left", (position.x-100) + "px")
+					  .style("top",  (position.y-30) + "px")
+					  
+				}, // tipOn
+						
+				tipOff: function tipOff(ctrl){
+					ctrl.tools.tooltip.style("display", "none")
+				}, // tipOff
+						
+				functionality: {
+				
+					highlight: function highlight(){
+						console.log("Run cross plot highlighting")
+					}, // highlight
+					
+					pileAndSummarise: function pileAndSummarise(){
+					
+						console.log("Pile and calculate standard deviation plot")
+					}, // pileAndSummarise
+					
+					tag: function tag(){
+						console.log("Run tagging interface")
+					}, // tag
+				
+				} // functionality
+				
+			}, // tooltip
+
+			// Introduce piling
+			piling: {}, // piling
+
 		}, // interactivity
 		
 		helpers: {
@@ -1202,7 +1409,12 @@ const cfD3Contour2d = {
 								val2px: undefined,
 								val2px_: undefined,
 								bin2px: undefined
-							}
+							},
+							lasso: {
+								points: [],
+								tasks: []
+							},
+							tooltip: undefined,
 						},
 					format: {
 						title: "Edit title",
@@ -1342,25 +1554,51 @@ const cfD3Contour2d = {
 			// Functions supporting cross plot highlighting
 			unhighlight: function unhighlight(ctrl){
 				
-				
+				ctrl.figure
+				  .selectAll("div.contourWrapper")
+				  .style("border-width", "")
+				  .style("border-style", "")
+				  .style("border-color", "")
 				
 			}, // unhighlight
 			
 			highlight: function highlight(ctrl, allDataPoints){
 				
+				// Udate the boundary.
+				var allCards = ctrl.figure
+				  .selectAll("div.contourWrapper")
+				  
+				var selectedCards = allCards.filter(function(d){
+					  return allDataPoints.includes(d.task)
+				})
+				
+				var others = allCards.filter(function(d){
+					  return !allDataPoints.includes(d.task)
+				})
 				
 				
+				selectedCards
+				  .style("border-width", "4px")
+				  .style("border-style", "dashed")
+				  .style("border-color", "black")
 				
+				others
+				  .style("border-width", "")
+				  .style("border-style", "")
+				  .style("border-color", "")
 				
 			}, // highlight
 			
 			defaultStyle: function defaultStyle(ctrl){
 					
-				
+				ctrl.figure
+				  .selectAll("div.contourWrapper")
+				  .style("border-width", "")
+				  .style("border-style", "")
+				  .style("border-color", "")
 				
 			}, // defaultStyle
 		
-			
 			
 		
 		} // helpers

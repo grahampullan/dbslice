@@ -53,8 +53,11 @@ function render() {
       
         
  
-
-		
+		// Add plot button must always be at the bottom
+		var buttonDOM = document.getElementById("addPlotRowButton")
+		var buttonParentDOM = buttonDOM.parentElement
+		buttonDOM.remove()
+		buttonParentDOM.appendChild(buttonDOM)
 		
 		
 		

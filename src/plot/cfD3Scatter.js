@@ -94,7 +94,7 @@ var cfD3Scatter = {
 					
 					
 					// Get the data to draw.
-					var pointData = cfD3Scatter.helpers.getUnfilteredPointData(ctrl)
+					var pointData = cfD3Scatter.helpers.getPointData(ctrl)
 						
 					// Deal with the points
 					var points = ctrl.figure.select("svg.plotArea")
@@ -128,29 +128,18 @@ var cfD3Scatter = {
 					// Get the data to draw.
 					var accessor = cfD3Scatter.helpers.getAccessors(ctrl)
 					var pointData = cfD3Scatter.helpers.getPointData(ctrl)
+					var taskIds = pointData.map(d=>d.taskId)
 					
-					
+					// Weird... right now all data should still be drawn...
 					
 					var gData = ctrl.figure
 						  .select("svg.plotArea")
 						  .select("g.data")
 						  
 					gData.selectAll("circle")
-						.each(function(d){
-							if(pointData.includes(d)){
-								// Attach and detach the point, then trigger the change.
-								this.remove()
-								gData.node().appendChild(this)
-								
-								// For some reason transitions break the change of color.
-								d3.select(this)
-									.style("fill", d=> accessor.c(d) )
-								
-							} else {
-								d3.select(this)
-									.style("fill", "Gainsboro" )
-							}// if
-						})
+					    .filter(function(d_){return taskIds.includes(d_.taskId)})
+						.style("fill", d=> accessor.c(d) )
+						.raise()
 					
 					// If drawing was needed, then also the lines need to be updated. Drawing should only be updated if the variable is actiually selected.
 					ctrl.view.gVarOption.action = ctrl.view.gVarOption.val ? "draw" : undefined
@@ -908,7 +897,7 @@ var cfD3Scatter = {
 						} // if						
 					} // if
 					
-					
+					ctrl.format.title = plotData.title
 												
 					return ctrl
 					
@@ -959,15 +948,45 @@ var cfD3Scatter = {
 					
 					update: function update(ctrl){
 					
-						var xAxis = d3.axisBottom( ctrl.tools.xscale ).ticks(5);
-						var yAxis = d3.axisLeft( ctrl.tools.yscale );
+						cfD3Scatter.helpers.axes.formatAxesY(ctrl)
+						cfD3Scatter.helpers.axes.formatAxesX(ctrl)
 					
-						ctrl.figure.select("svg.plotArea").select(".axis--x").call( xAxis )
-						ctrl.figure.select("svg.plotArea").select(".axis--y").call( yAxis )
-						
 						cfD3Scatter.helpers.axes.updateTicks(ctrl)
 					
 					}, // update
+					
+					
+					formatAxesY: function formatAxesY(ctrl){
+				
+						var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.yscale)
+
+						ctrl.figure.select(".axis--y")
+							.selectAll("g.exponent")
+							.select("text")
+							  .attr("fill", format.fill)
+							.select("tspan.exp")
+							  .html(format.exp)
+							
+						ctrl.figure.select(".axis--y").call( d3.axisLeft( format.scale ) )
+							  
+					
+					}, // formatAxesY
+					
+					formatAxesX: function formatAxesX(ctrl){
+				
+						var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.xscale)
+
+						ctrl.figure.select(".axis--x")
+							.selectAll("g.exponent")
+							.select("text")
+							  .attr("fill", format.fill)
+							.select("tspan.exp")
+							  .html(format.exp)
+				
+						ctrl.figure.select(".axis--x").call( d3.axisBottom( format.scale ).ticks(5) )
+							  
+					
+					}, // formatAxesX
 					
 					updateTicks: function updateTicks(ctrl){
 					  
@@ -1012,7 +1031,7 @@ var cfD3Scatter = {
 					} // animated
 				}, // transitions
 			
-			
+				// Data handling
 				getAccessors: function getAccessors(ctrl){
 				
 				return {
@@ -1049,6 +1068,8 @@ var cfD3Scatter = {
 					
 				}, // getUnfilteredPointData
 			
+			
+				
 				// Functions for cross plot highlighting:
 				unhighlight: function unhighlight(ctrl){
 					
@@ -1056,37 +1077,39 @@ var cfD3Scatter = {
 					  .select("svg.plotArea")
 					  .select("g.data")
 					  .selectAll("circle")
-						  .style("opacity", 0.2);
+					    .style("fill", "Gainsboro");
+						 // .style("opacity", 0.2);
 					
 				}, // unhighlight
 				
 				highlight: function highlight(ctrl, allDataPoints){
 					
-					allDataPoints.forEach(function(d){
-						
-						// Find the circle corresponding to the data point. Look for it by taskId.
-						ctrl.figure
-						  .select("svg.plotArea")
-						  .select("g.data")
-							.selectAll("circle")
-							.filter(function(d_){return d_.taskId == d.taskId})
-							  .style("opacity", 1.0)
-							  .attr("r", 7);
-						
-					}) // forEach
+					var taskIds = allDataPoints.map(d=>d.taskId)
 					
-					
+					ctrl.figure
+					  .select("svg.plotArea")
+					  .select("g.data")
+					  .selectAll("circle")
+						.filter(function(d_){return taskIds.includes(d_.taskId)})
+						  .style("fill", "cornflowerblue")
+						  .attr("r", 7);
 					
 				}, // highlight
 				
 				defaultStyle: function defaultStyle(ctrl){
 					
-					// Find all the circles, style them appropriately.
+					// Use crossfilter to do these loops? How to speed this all up?
+					
+					var filteredItems = cfD3Scatter.helpers.getPointData(ctrl)
+					var taskIds = filteredItems.map(d=>d.taskId)
+					
+					// This should only color the filtered items in blue.
 					ctrl.figure
 					  .select("svg.plotArea")
 					  .select("g.data")
 					  .selectAll("circle")
-					    .style("opacity", 1)
+					    .filter(function(d_){return taskIds.includes(d_.taskId)})
+					    .style("fill", "cornflowerblue")
 					    .attr("r", 5);
 						
 					

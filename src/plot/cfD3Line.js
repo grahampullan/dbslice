@@ -247,7 +247,12 @@ var cfD3Line = {
 			plotHelpers.setupPlot.general.rescaleSvg(ctrl)
 			
 			// 2.) The plot tools need to be updated
-			cfD3Line.setupPlot.setupPlotTools(ctrl)
+			if(ctrl.data.compatible != undefined){
+				cfD3Line.setupPlot.setupLineSeries(ctrl)
+				plotHelpers.setupTools.go(ctrl)
+				cfD3Line.setupPlot.setupLineTools(ctrl)
+			} // if
+			
 			
 			
 				
@@ -788,7 +793,9 @@ var cfD3Line = {
 				} // if
 				
 				// When the session is loaded all previously existing plots would have been removed, and with them all on demand loaded data. Therefore the variables for this plot cannot be loaded, as they will depend on the data.
-											
+				
+				ctrl.format.title = plotData.title
+				
 				return ctrl
 				
 				

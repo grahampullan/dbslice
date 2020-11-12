@@ -35,6 +35,9 @@ var cfD3BarChart = {
 			
 			
 			cfD3BarChart.setupPlot.setupPlotTools(ctrl)
+			
+			cfD3BarChart.helpers.axes.addXLabel(ctrl)
+			
         
             cfD3BarChart.update(ctrl);
         }, // make
@@ -259,7 +262,7 @@ var cfD3BarChart = {
 				
 				
 				// Handle the axes.
-				draw.axes(ctrl);
+				h.axes.update(ctrl);
 				
 				// Add interactivity:
 				cfD3BarChart.interactivity.addOnMouseOver(ctrl);
@@ -267,38 +270,7 @@ var cfD3BarChart = {
 				
 			}, // update
 			
-			axes: function axes(ctrl){
-				
-				var svg = ctrl.figure.select("svg.plotArea")
-				var divBACG = ctrl.figure.select("div.bottomAxisControlGroup")
-				
-				var xAxis = svg.select("g.axis--x");
-				var yAxis = svg.select("g.axis--y");
-
-				// Add the text into hte bottomAxisControlGroup
-				if (divBACG.select("text").empty()){
-					divBACG
-					  .append("text")
-					    .attr("class", "txt-horizontal-axis")
-						.style("float", "right")
-						.style("margin-right", "15px")
-						.text("Number of Tasks");
-				}; // if
-				
-				// Control the tick values, and make sure they only display integeers.
-				var xAxisTicks = ctrl.tools.xscale.ticks()
-					.filter(function(d){ return Number.isInteger(d) });
-				
-				xAxis
-				  .call( d3.axisBottom(ctrl.tools.xscale)
-					.tickValues(xAxisTicks)
-					.tickFormat(d3.format("d")) );
-				
-
-				yAxis
-				  .call(d3.axisLeft(ctrl.tools.yscale).tickValues([]));
-				
-			} // axes
+			
 			
 		}, // draw
 		
@@ -345,7 +317,7 @@ var cfD3BarChart = {
 				// 'align' controls how the outer padding is distributed between both ends of the band range.
 				ctrl.tools.yscale = d3.scaleBand()
 				    .range([0, height])
-				    .domain(  items.map(function (d) {return d.val;})  )
+				    .domain(  items.map(function (d) {return d.val;}).sort()  )
 				    .padding([0.2])
 				    .align([0.5]);
 					
@@ -512,7 +484,10 @@ var cfD3BarChart = {
 						ctrl.view.gVar =           plotData.yProperty
 					} // if						
 				} // if				
-											
+							
+
+				ctrl.format.title = plotData.title
+							
 				return ctrl
 				
 				
@@ -558,6 +533,54 @@ var cfD3BarChart = {
 			
 			
 			// Functions supporting interactivity
+			axes: {
+				
+				update: function update(ctrl){
+					
+					
+
+					cfD3BarChart.helpers.axes.formatAxesX(ctrl)
+					
+					// Empty y-axis as the labels are drawn.
+					ctrl.figure
+					  .select("svg.plotArea")
+					  .select("g.axis--y")
+					  .call(d3.axisLeft(ctrl.tools.yscale).tickValues([]));
+					
+				}, // update
+				
+				formatAxesX: function formatAxesX(ctrl){
+				
+					var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.xscale)
+
+					ctrl.figure.select(".axis--x")
+						.selectAll("g.exponent")
+						.select("text")
+						  .attr("fill", format.fill)
+						.select("tspan.exp")
+						  .html(format.exp)
+			
+					ctrl.figure.select(".axis--x").call( d3.axisBottom( format.scale ).ticks(5) )
+						  
+				
+				}, // formatAxesY
+				
+				addXLabel: function addXLabel(ctrl){
+					
+					ctrl.figure
+					  .select("div.bottomAxisControlGroup")
+					  .append("text")
+						.attr("class", "txt-horizontal-axis")
+						.style("float", "right")
+						.style("margin-right", "15px")
+						.text("Number of Tasks");
+					
+				}, // addXLabel
+				
+				
+			}, // axes
+			
+			
 			transitions: {
 				instantaneous: function instantaneous(){
 					// For 'cfD3BarChart' animated transitions handles filter changes.

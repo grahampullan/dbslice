@@ -49,15 +49,11 @@ var plotHelpers = {
 
 					
 					// Add the actual title
-					plotHeader
+					var titleBox = plotHeader
 					  .append("div")
 					    .attr("class", "title")
-						.attr("style","display:inline")
-						.html(plotCtrl.format.title)
-						.attr("spellcheck", "false")
-						.attr("contenteditable", true)
-						.style("cursor", "text")
-						.on("mousedown", function() { d3.event.stopPropagation(); })
+						.style("display","inline")
+						
 						
 						
 						
@@ -72,6 +68,20 @@ var plotHelpers = {
 						.on("mousedown", function() { d3.event.stopPropagation(); })
 						.on("click", addMenu.removePlotControls )
 					
+					  
+					// Now add the text - this had to wait for hte button to be added first, as it takes up some space.
+					titleBox.html(plotCtrl.format.title)
+					  .attr("spellcheck", false)
+					  .attr("contenteditable", true)
+					  .style("cursor", "text")
+					  .on("mousedown", function() { d3.event.stopPropagation(); })
+					  .each(function(ctrl){
+						  this.addEventListener("input", function(){
+							  ctrl.format.title = this.innerHTML
+						  })
+					  })
+					  
+					  
 					  
 					var plotBody = plot
 					  .append("div")
@@ -194,11 +204,32 @@ var plotHelpers = {
 					// Group for the x axis
 					svg.append("g")
 						.attr( "class", "axis--x")
+					  .append("g")
+					    .attr("class", "exponent")
+					  .append("text")
+					    .attr("fill", "none")
+						.attr("y", "-0.32em")
+					  .append("tspan")
+					    .html("x10")
+					  .append("tspan")
+					    .attr("class","exp")
+					    .attr("dy", -5)
 						
 					// Group for the y axis
 					svg.append("g")
 						.attr( "class", "axis--y")
-					
+					  .append("g")
+					    .attr("class", "exponent")
+					  .append("text")
+					    .attr("fill", "none")
+						.attr("x", -8)
+					  .append("tspan")
+					    .html("x10")
+					  .append("tspan")
+					    .attr("class","exp")
+					    .attr("dy", -5)
+					  
+						
 				}, // setupPlotContainerBackbone
 				
 				
@@ -275,11 +306,15 @@ var plotHelpers = {
 					// Group for the x axis
 					svg.select("g.axis--x")
 						.attr( "transform", makeTranslate(axesMargin.left, plotHeight + axesMargin.top) )
-						
+					  .select("g.exponent")
+					  .select("text")
+					    .attr("x", plotWidth - 12)
 						
 					// Group for the y axis
 					svg.select("g.axis--y")
 						.attr( "transform", axesTranslate )
+						.attr("x", -12)
+						.attr("y", 5)
 				
 						
 					function makeTranslate(x,y){
@@ -328,6 +363,7 @@ var plotHelpers = {
 						.append("option")
 						   .attr("class","dropdown-item")
 						   .html(function(d){return d})
+						   .attr("value", function(d){return d})
 						   
 					options.html(function(d){return d})
 					
@@ -792,6 +828,7 @@ var plotHelpers = {
 						
 						return function(){
 									
+							// `this' is the vertical select! 
 							var selectedVar = this.value
 							
 							// Perform the regular task for y-select.
@@ -1101,6 +1138,42 @@ var plotHelpers = {
 		}, // setupTools
         
         
+		helpers: {
+			
+			formatAxisScale: function formatAxisScale(scale){
+				// With a million tasks it is possible that the min and max are more than O(3) different. In that case a logarithmic scale would be better!
+				
+				
+				var dom = scale.domain()
+				
+				var format = {
+					scale: scale,
+					exp: undefined,
+					fill: undefined
+				} // format
+				
+				// In cases where the exponent of hte min and the exponent of the max are very different, pick the one in between! We're likely only going to be able to handle 1e6 tasks, in which case the most extreme case is minExp = 0, and maxExp = 6. In that case pick the middle value of 3.
+				var maxExp = helpers.calculateExponent(dom[1])
+				var minExp = helpers.calculateExponent(dom[0])
+				format.exp = (maxExp - minExp) > 3 ? 3 : minExp
+				
+				if (format.exp > 0){
+					format.scale = d3.scaleLinear()
+						.domain( dom.map(d=>d/10**format.exp) )
+						.range( scale.range() )
+						
+					format.fill = "currentColor"
+				} else {
+					format.fill = "none"
+					format.exp = ""
+				} // if
+				
+				return format
+				
+			}, // formatExponent
+			
+			
+		}
         	
 		
 	} // plotHelpers

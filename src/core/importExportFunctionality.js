@@ -51,7 +51,13 @@ var importExportFunctionality = {
 					  break
 					  
 					case "replace":
-						var actionOnInternalStorage = cfDataManagement.cfInit
+						var actionOnInternalStorage = function(d){
+							// cfInit will totally override the internal data.
+							cfDataManagement.cfInit(d)
+							
+							// Update the session.
+							importExportFunctionality.helpers.onDataAndSessionChangeResolve()
+						} 
 					  break
 					  
 					default:
@@ -134,7 +140,7 @@ var importExportFunctionality = {
 				
 				// DONE: Must load in metadata plots
 
-				// WIP: Must be able to load in data automatically. If the data is already loaded the loading of additional data must be ignored. Or the user should be asked if they want to add it on top.
+				// DONE: Must be able to load in data automatically. If the data is already loaded the loading of additional data must be ignored. Or the user should be asked if they want to add it on top.
 				
 				// WIP: Must be able to load without data.
 				
@@ -222,18 +228,7 @@ var importExportFunctionality = {
 						
 						   file.promise = d3.json(file.url).then(function(data){
 								file.data = i.json2contour2d( data )
-							}).catch(function(d){
-								console.log("Loading of a file failed.")
-							}) // d3.csv 
-						
-						  break;
-						  
-						  
-						case "csv":
-						    // Each row is a point, and can have multiple attributes. 
-						
-							file.promise = d3.csv(file.url).then(function(data){
-								file.data = i.csv2contour2d( data )
+								// file.data = i.json2contour2dBin( data )
 							}).catch(function(d){
 								console.log("Loading of a file failed.")
 							}) // d3.csv 
@@ -442,7 +437,7 @@ var importExportFunctionality = {
 											 plots: [], 
 											  type: plotRowData.type,
 											  grid: {nx: 12, ny: undefined},
-									 addPlotButton: true    }
+									 addPlotButton: {label : "Add plot"}   }
 									
 						// Assemble hte plots 
 						plotRowToPush = h.assemblePlots(plotRowData.plots, plotRowToPush)
@@ -573,6 +568,10 @@ var importExportFunctionality = {
 						// 'properties' is an array of strings. The output is an array of objects that will be the backbone of the file's data structure.
 					
 						return properties.map(function(p){
+							
+							// trim the preceding or trailing blank spaces off.
+							
+							// Name handling is going to work poorly if all variables share a part, but it actually doesn't mean anything...
 							return {val: p,
 							_parts: p.split("_")}
 						})
@@ -585,11 +584,18 @@ var importExportFunctionality = {
 						// The initial sample of possible tokens are the parts of the first name. Tokens MUST be in all the names, therefore loop through all of them, and retain only the ones that are in the following ones.
 						
 						var tokens = properties_[0]._parts
-						properties_.forEach(function(p){
+						if(tokens.length > 1){
+							// If the first name has more than 1 part, there may be tokens available.
+							properties_.forEach(function(p){
 							tokens = tokens.filter(function(candidate){ 
 								return p._parts.includes(candidate)
+								}) // forEach
 							}) // forEach
-						}) // forEach
+						} else {
+							// No tokens available
+							tokens = []
+						} // if
+						
 						
 						// There may be some tokens in there that are comment tokens. For now this is implemented to hande the decimal part of the height identifiers, which are '0%'.
 						
@@ -714,7 +720,12 @@ var importExportFunctionality = {
 					} // handleCommonTokens
 					
 					function handleFlowPropertyName(p){
-						// Whatever is left of the parts is the variable name.
+						// Whatever is left of the parts is the variable name. What about when it is empty? Just leave it empty?
+						
+						// What to do with possible blank spaces in the name?
+						
+						
+						
 						p.varName = p._parts.join("_") == "" ? p.axis : p._parts.join("_")
 					
 					} // getFlowPropertyName
@@ -770,14 +781,55 @@ var importExportFunctionality = {
 				json2line: function json2line(data){
 					// json are assumed to have only one series, with several properties possible per series.
 					
-					
+					let h = importExportFunctionality.importing.helpers
 					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
-					var info = importExportFunctionality.importing.helpers.handlePropertyNames( Object.getOwnPropertyNames(data.data[0]) )
+					
+					// Collect the json variable names differently? 
+					// The json file can also contain both implicit and explicit type of data.
+					
+					// 1 - fully curated json file - load straight in as is
+					// 2 - 'csv' json file - parse as csv file. For this there must be a variables property in the file.
+					let isJsonCsvFormatted = data.variableNames != undefined
+					if( isJsonCsvFormatted ){
+						// In this case parse the variable names, and then handle the data.
+						var info = h.handlePropertyNames( data.variableNames )
+						info.properties = h.formatLineData(info, data.data)
+					} else {
+						
+						// Filter out anything that does not have an array attached!!!
+						let propertyNames = Object.getOwnPropertyNames(data)
+						propertyNames = propertyNames.filter(function(name){
+							return Array.isArray(data[name])
+						})
+						
+						// Must be an appropriately formatted json file.
+						var info = h.handlePropertyNames( propertyNames )
+						// Clear the common options:
+						info.commonOptions = []
+						info.type = "explicit"
+						info.properties.forEach(function(p){
+							p.vals = data[p.varName]
+						})
+						
+						var dummyOption = {
+							name: "x",
+							options: ["x"]
+						}
+						info.varOptions.x = dummyOption
+						
+						// Now data is supposed to be an array of properties!!
+					} // if
 					
 					
+					
+					// ALREADY HERE CREATE THE ROW DATA THAT CAN BE PASSED INTO PLOTTING.
+					// The data should be in rows. But what happens in cases where there cannot be rows? In the case of explicit variables create the series here already.
+					
+					// If there are no common options
 				
 					// Keep the data in rows - this is a more natural storage considering that d3.line requests points as separate objects.
-					info.vals = data.data
+					
+					
 					
 					return info
 					
@@ -785,13 +837,15 @@ var importExportFunctionality = {
 				
 				csv2line: function csv2line(data){
 					
+					let h = importExportFunctionality.importing.helpers
 					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
-					var info = importExportFunctionality.importing.helpers.handlePropertyNames( data.columns )
+					var info = h.handlePropertyNames( data.columns )
 					
 					
 				
 					// Keep the data in rows - this is a more natural storage considering that d3.line requests points as separate objects.
-					info.vals = data
+					info.properties = h.formatLineData(info, data)
+					
 					
 					
 
@@ -803,6 +857,164 @@ var importExportFunctionality = {
 				
 				}, // csv2line
 				
+				formatLineData: function formatLineData(info, data){
+					// This is still a bit of a mess. Write a library that is capable of handling all sorts of mixes of variables.
+					
+					
+					// Create the series.
+					var series
+					switch( info.type ){
+						case "explicit":
+							// Explicit means that there is a separation between x and y properties in the variable names.
+							
+							
+							
+							var f = helpers.findObjectByAttribute
+
+							// Available properties after applying all the options.
+							// Retrieve the properties
+							var properties = info.properties
+							
+							
+
+							// Get all combinations of user options and flow variable options
+							var combinations = getAllOptionCombinations([].concat(info.userOptions, info.varOptions.y))
+							
+							// Loop over all the combinations
+							combinations.forEach(function(c){
+						
+								// Merge the properties for this combination to eliminate the axis or side options.
+								mergeProperties(data, info, c)
+
+							}) // forEach
+							
+							
+							// Remove any properties that do not exist.
+							series = combinations.filter(function(d){
+								return d.vals != undefined
+							})
+
+							
+						
+							
+							
+
+						
+						  break;
+						  
+						case "implicit":
+							// Data cannot be expressed in x-y pairs, as that would require creating all possible combinations of the parameters. Instead all the variables are stored, and the accessor to the data can be changed.
+							series = data
+						
+					} // if
+					
+					
+					return series
+					
+					
+					function getAllOptionCombinations(options){
+						
+						var n = 1
+						options.forEach(function(option){
+							n *= option.options.length
+						})
+						
+						// Repetition frequencies.
+						var nn = []
+						options.forEach(function(option, j){
+							nn[j] = j==0 ? n / option.options.length : nn[j-1] / option.options.length
+						})
+						
+						
+						// Create all possible combinations of these options.
+						var combinations = []
+						// var ind = options.map(d=>0)
+						for(let i=0; i<n; i++){
+							var c = {}
+							
+							var i_ = i
+							
+							// Move from the other direction.
+							options.forEach(function(option, j){
+								let m = Math.floor( i_ / nn[j] )
+								i_ -= m*nn[j]
+								// ind[j] =  m
+								
+								c[option.name] = option.options[m]
+							})
+							
+							combinations.push(c)
+						
+							
+						} // for
+						
+						return combinations
+						
+						
+					} // getAllOptionCombinations
+					
+					function mergeProperties(data, info, c){
+						// Handle cases where there is x and y separation, but no ps and ss separation, and vice versa.
+						
+						// if there's no x and y separation the data is implicitly defined.
+						
+						var properties = info.properties
+						Object.getOwnPropertyNames(c).forEach(function(cOptName){
+							properties = f( properties, cOptName, c[cOptName], false)
+						}) // forEach
+						
+						// Assign the data to the properties first, and then merge them as needed.
+						properties.map(function(property){
+							property.vals = data.map(function(d){ return Number( d[property.val] ) })
+						})
+						
+						// At this point the only differences can be x/y and ps/ss.
+						switch(properties.length){
+							case 4:
+							
+								var xProperties = f(properties,"axis","x",false)
+								var yProperties = f(properties,"axis","y",false)
+							
+								var xSS = f(xProperties,"side", ["ss"], true)
+								var xPS = f(xProperties,"side", ["ps"], true)
+								var ySS = f(yProperties,"side", ["ss"], true)
+								var yPS = f(yProperties,"side", ["ps"], true)
+								
+								var ss = data.map(function(d){
+									return {x: Number( d[xSS.val] ), 
+											y: Number( d[ySS.val] )} })
+								var ps = data.map(function(d){
+									return {x: Number( d[xPS.val] ), 
+											y: Number( d[yPS.val] )}  })
+								
+								c.vals = ss.concat(ps.reverse())
+							
+							  break;
+							  
+							case 2:
+								// Type = 'explicit' means that the separation is done by axis.
+								
+									// Combine x and y properties
+									var x = f(properties,"axis","x",true)
+									var y = f(properties,"axis","y",true)
+									
+									c.vals = data.map(function(d){
+										return {x: Number( d[x.val] ), 
+												y: Number( d[y.val] )} })
+								
+							  break;
+							  
+							default: 
+							  // This combination does not exist, or is mis-defined.
+							  c.vals = undefined
+						} // switch
+						
+					} // mergeVariables
+					
+
+					
+				}, // formatLineData
+	
 				// CFD3CONTOUR2D
 				json2contour2d: function json2contour2d(data){
 					
@@ -815,12 +1027,66 @@ var importExportFunctionality = {
 					}
 					
 				}, // json2contour2d
-				
-				csv2contour2d: function csv2contour2d(data){
 					
-					console.log("implement csv2contour2d!")
+				json2contour2dBin: function json2contour2dBin(json){
 					
-				} // csv2contour2d
+					let x = json.surfaces.x
+					let y = json.surfaces.y
+					let size = json.surfaces.size
+					let values = json.surfaces.v
+					
+
+					// Create values, indices, vertices.
+					
+					
+					let vertices = []
+					for(let i=0; i<x.length; i++){
+						vertices.push( x[i] )
+						vertices.push( y[i] )
+					} // for
+					
+					// It's a structured mesh in this case, but in principle it could be unstructured. The vertices are declared in rows.
+					let nx = size[0]
+					let ny = size[1]
+					
+					function grid2vec(row, col){ return row*nx + col }
+		
+					let indices = []
+					let ne, nw, sw, se
+					// Create indices into the `vertices' array
+					for(let row=0; row<ny-1; row++){
+						for(let col=0; col<nx-1; col++){
+							// For every row and column combination there are 4 vertices, which make two triangles - the `upper' and `lower' triangles. 
+							
+							// Corners on a grid. Just the sequential number of the vertex.
+							nw = grid2vec( row    , col     )
+							ne = grid2vec( row    , col + 1 )
+							sw = grid2vec( row + 1, col     )
+							se = grid2vec( row + 1, col + 1 )
+							
+							// `upper'
+							indices.push(sw, nw, ne)
+
+							// `lower'
+							indices.push(sw, se, ne)
+						
+						} // for
+					} // for
+					
+					
+					
+					return {
+						vertices: new Float32Array(vertices),
+						  values: new Float32Array(values),
+						 indices: new Uint32Array(indices),
+						 domain: {x: d3.extent(x),
+								  y: d3.extent(y),
+								  v: d3.extent(values)}
+					}
+					
+					
+					
+				}, // json2contour2dBin
 				
 			} // helpers
 			
@@ -940,87 +1206,65 @@ var importExportFunctionality = {
 				// Functionality that allows the user to resolve any issues between datasets with different names that hold th esame quantities.
 			}, // variableMatching
 			
-			collectPlotProperties : function collectPlotProperties(){
-				// Collect all the variables in the current plots (by type!), the variables in the current data, and return them.
-				// If there is a variable in th eplot, but not in hthe new data it must either be given, or the plot needs to be removed.
-				
-		
-				
-				
-				// First go through all the metadata plots and getthe variables. This is probably more conveniently done through the dbsliceData object.
-				var metadataPlotRows = dbsliceData.session.plotRows.filter(function(plotRow){
-					return plotRow.type == "metadata"
-				}) // filter
+			collectPlotProperties: function collectPlotProperties(plot){
 				
 				var plotProperties = []
-				metadataPlotRows.forEach(function(metadataPlotRow){
-					metadataPlotRow.plots.forEach(function(metadataPlot){
-						
-						plotProperties.push( metadataPlot.view.xVarOption.val )
-						if(metadataPlot.view.yVarOption !== undefined){
-							plotProperties.push( metadataPlot.view.yVarOption.val )
-						} // if
-					}) // forEach
-				}) // forEach
 				
+										
+				if( plot.view.xVarOption !== undefined ){
+					plotProperties.push( plot.view.xVarOption.val )
+				} // if
 				
-				// Remove any duplicates: 
-				plotProperties = helpers.unique( plotProperties )
-
+				if( plot.view.yVarOption !== undefined ){
+					plotProperties.push( plot.view.yVarOption.val )
+				} // if
 				
-			  return plotProperties
+				if( plot.view.sliceId !== undefined ){
+					plotProperties.push( plot.view.sliceId )
+				} // if
 				
-
+				return plotProperties
 				
 			}, // collectPlotProperties
+			
+			isPlotCompatible : function isPlotCompatible(plot){
+				// Collect all the variables in the current plots (by type!), the variables in the current data, and return them.
+				// If there is a variable in th eplot, but not in hthe new data it must either be given, or the plot needs to be removed.
+		
+				var plotProperties = importExportFunctionality.helpers.collectPlotProperties(plot)
+				
+				var arePropertiesAvailable = plotProperties.map(function(p){
+					return cfDataManagement.helpers.isPropertyInDbsliceData(p)
+				}) // map
+				
+				// All properties need to be available
+			  return arePropertiesAvailable.every(d=>d)				
+			}, // isPlotCompatible
 			
 
 			onDataAndSessionChangeResolve : function onDataAndSessionChangeResolve(){
 				// The data dominates what can be plotted. Perform a check between the session and data to see which properties are available, and if the plots want properties that are not in the data they are removed.
-				
-				// Resolve any issues between existing plots and data by removing any plots with variables that are not in the data.
-				var plotProperties = importExportFunctionality.helpers.collectPlotProperties()
-				
-				
-				// Find the variables that are on hte plots, but not in the data.
-				var incompatibleProperties = plotProperties.filter(function(property){
-					var isInMetadata = dbsliceData.data.metaDataProperties.includes(property)
-					var isInData     = dbsliceData.data.dataProperties.includes(property)
-				  return !(isInMetadata || isInData)
-				}) // filter
-				
-				// Furthermore it is possible that the user has removed all data. In this case just remove all the plots, by specifying all plot properties as incompatible.
-				if(dbsliceData.data !== undefined){
-					if(dbsliceData.data.fileDim.top(Infinity).length < 1){
-					incompatibleProperties = plotProperties
-					} // if					
-				} // if
-				
-				
-				
+
 				
 				// Loop through all incompatible properties, and remove the plots that are not needed.
 				dbsliceData.session.plotRows.forEach(function(plotRow){
-					if(plotRow.type == "metadata"){
-						var removeIndex = plotRow.plots.map(function(plot){
-							// If the plot features an incompatible metadata or data property return true.	
-							
-						  return incompatibleProperties.includes( plot.view.xVarOption.val )  ||   incompatibleProperties.includes( plot.data.yVarOption.val )
-							
-						}) // map
+					plotRow.plots = plotRow.plots.filter(function(plot){
 						
 						
-						for(var i = removeIndex.length-1; i>=0; i--){
-							// Negative loop facilitates the use of splice. Otherwise the indexes get messed up by splice as it reindexes the array upon removal.
-							if(removeIndex[i]){
-								plotRow.plots.splice(i,1)
-							} // if
-						} // for
+						var isPlotCompatible = importExportFunctionality.helpers.isPlotCompatible(plot)
+			
+						// Render doesn't remove the plots anymore, so they need to be removed here!
+						if( !isPlotCompatible ){
+							plot.format.wrapper.remove()
+						} // if
 						
-					} // if
+			
+					  return isPlotCompatible
+						
+					}) // map
 				}) // forEach
 				
-				
+
 			} // onDataChangeResolve
 
 			
