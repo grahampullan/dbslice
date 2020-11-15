@@ -7204,8 +7204,11 @@ var dbslice = (function (exports) {
 	        };
 	        var bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
 
-	        var view = { xMin: -1., xMax: 1.0, yMin: -1., yMax: 1. };
-	        var vScale = [0., 1.];
+	        var viewDefault = { xMin: -1., xMax: 1., yMin: -1., yMax: 1 };
+	        var view = layout.view === undefined ? viewDefault : layout.view;
+
+	        var vScaleDefault = [0., 1.];
+	        var vScale = layout.vScale === undefined ? vScaleDefault : layout.Scale;
 
 	        var projectionMatrix = glMatrix.mat4.create();
 	        glMatrix.mat4.ortho(projectionMatrix, view.xMin, view.xMax, view.yMin, view.yMax, 0, 1.);

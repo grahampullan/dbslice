@@ -54,9 +54,12 @@ const triMesh2dRender = {
      		indices: {numComponents: 3, data: tm.indices}
   		};
   		const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+
+  		const viewDefault = {xMin: -1., xMax: 1., yMin: -1., yMax: 1};
+  		const view = ( layout.view === undefined ) ? viewDefault : layout.view;
   
-  		const view = {xMin:-1.,xMax:1.0,yMin:-1.,yMax:1.}
-  		const vScale=[0.,1.];
+  		const vScaleDefault = [0.,1.];
+  		const vScale = ( layout.vScale === undefined ) ? vScaleDefault : layout.Scale;
 
   		const projectionMatrix = glMatrix.mat4.create();
   		glMatrix.mat4.ortho(projectionMatrix, view.xMin, view.xMax, view.yMin, view.yMax, 0, 1.);
