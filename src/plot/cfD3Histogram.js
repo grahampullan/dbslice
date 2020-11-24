@@ -126,6 +126,29 @@ const cfD3Histogram = {
         var cf = data.cfData.cf;
         var property = data.property;
 
+        var bars = plotArea.selectAll("rect");
+
+        if ( layout.highlightTasks == true ) {
+
+            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+                bars.style( "stroke-width", "0px" );
+                      
+            } else {
+
+                bars
+                    .style( "stroke-width", "0px" )
+                    .style( "stroke", "red" ); 
+                dbsliceData.highlightTasks.forEach( function (taskId) {
+                    let valueNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][data.property];
+                    bars.filter( (d,i) => (d.x0 <= valueNow && d.x1 > valueNow) )
+                        .style( "stroke-width", "4px" )
+                });
+
+            }
+
+        } 
+
         var formatCount = d3.format( ",.0f" );
 
         var items = dim.top( Infinity );
@@ -147,7 +170,7 @@ const cfD3Histogram = {
             .domain( [ 0, d3.max( bins, d => d.length ) ] )
             .range( [ height, 0 ] );
 
-        var bars = plotArea.selectAll( "rect" )
+        bars = plotArea.selectAll( "rect" )
             .data( bins );
 
         var colour = ( layout.colour === undefined ) ? "cornflowerblue" : layout.colour;

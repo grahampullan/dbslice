@@ -6531,6 +6531,7 @@ var dbslice = (function (exports) {
 	        var bars = plotArea.selectAll("rect");
 
 	        if (layout.highlightTasks == true) {
+
 	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
 
 	                bars.style("stroke-width", "0px");
@@ -6761,6 +6762,27 @@ var dbslice = (function (exports) {
 	        var cf = data.cfData.cf;
 	        var property = data.property;
 
+	        var bars = plotArea.selectAll("rect");
+
+	        if (layout.highlightTasks == true) {
+
+	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+	                bars.style("stroke-width", "0px");
+	            } else {
+
+	                bars.style("stroke-width", "0px").style("stroke", "red");
+	                dbsliceData.highlightTasks.forEach(function (taskId) {
+	                    var valueNow = dim.top(Infinity).filter(function (d) {
+	                        return d.taskId == taskId;
+	                    })[0][data.property];
+	                    bars.filter(function (d, i) {
+	                        return d.x0 <= valueNow && d.x1 > valueNow;
+	                    }).style("stroke-width", "4px");
+	                });
+	            }
+	        }
+
 	        var formatCount = d3.format(",.0f");
 
 	        var items = dim.top(Infinity);
@@ -6779,7 +6801,7 @@ var dbslice = (function (exports) {
 	            return d.length;
 	        })]).range([height, 0]);
 
-	        var bars = plotArea.selectAll("rect").data(bins);
+	        bars = plotArea.selectAll("rect").data(bins);
 
 	        var colour = layout.colour === undefined ? "cornflowerblue" : layout.colour;
 

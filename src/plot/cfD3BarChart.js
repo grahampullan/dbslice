@@ -53,6 +53,7 @@ const cfD3BarChart = {
         var bars = plotArea.selectAll("rect");
 
         if ( layout.highlightTasks == true ) {
+        	
             if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
 
                 bars.style( "stroke-width", "0px" );
