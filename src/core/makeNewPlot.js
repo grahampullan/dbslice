@@ -8,8 +8,11 @@ function makeNewPlot( plotData, index ) {
     	.append( "div" ).attr( "class", "col-md-"+plotData.layout.colWidth+" plotWrapper" )
     	.append( "div" ).attr( "class", "card" );
 
-    var plotHeader = plot.append( "div" ).attr( "class", "card-header plotTitle")
-    	 .html( plotData.layout.title );
+    var plotHeader = plot.append( "div" )
+        .attr( "class", "card-header plotTitle")
+        .style("padding","2px")
+        .style("padding-left","5px")
+    	.html( plotData.layout.title );
 
     var plotBody = plot.append( "div" )
     	.attr( "class", "plot")
