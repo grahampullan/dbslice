@@ -6526,11 +6526,32 @@ var dbslice = (function (exports) {
 
 	        var plotArea = svg.select(".plotArea");
 	        var dimId = plotArea.attr("dimId");
+	        var dim = data.cfData.metaDims[dimId];
+
+	        var bars = plotArea.selectAll("rect");
+
+	        if (layout.highlightTasks == true) {
+	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+	                bars.style("stroke-width", "0px");
+	            } else {
+
+	                bars.style("stroke-width", "0px").style("stroke", "red");
+	                dbsliceData.highlightTasks.forEach(function (taskId) {
+	                    var keyNow = dim.top(Infinity).filter(function (d) {
+	                        return d.taskId == taskId;
+	                    })[0][data.property];
+	                    bars.filter(function (d, i) {
+	                        return d.key == keyNow;
+	                    }).style("stroke-width", "4px");
+	                });
+	            }
+	        }
 
 	        var cf = data.cfData.cf;
 	        var property = data.property;
 
-	        var dim = data.cfData.metaDims[dimId];
+	        //var dim = data.cfData.metaDims[ dimId ];
 	        var group = dim.group();
 
 	        //var items = group.top( Infinity );
@@ -6552,7 +6573,7 @@ var dbslice = (function (exports) {
 	        var colour = layout.colourMap === undefined ? d3.scaleOrdinal().range(["cornflowerblue"]) : d3.scaleOrdinal(layout.colourMap);
 	        colour.domain(data.cfData.metaDataUniqueValues[property]);
 
-	        var bars = plotArea.selectAll("rect").data(items, function (v) {
+	        bars = plotArea.selectAll("rect").data(items, function (v) {
 	            return v.key;
 	        });
 
@@ -7193,13 +7214,32 @@ var dbslice = (function (exports) {
 
 	        var tm = data.triMesh;
 
-	        var ntris = tm.indices.length / 3;
+	        var nTris = tm.indices.length / 3;
+	        console.log(nTris);
 
-	        console.log(tm);
+	        //console.log(tm);
+
+	        var values = void 0;
+
+	        // tmp
+	        var nVerts = 50 * 50;
+
+	        if (layout.highlightTasks == true) {
+
+	            if (!Array.isArray(dbsliceData.highlightTasks)) {
+	                values = new Float32Array(tm.values.buffer, 0, nVerts);
+	            } else if (dbsliceData.highlightTasks.length != 0) {
+
+	                values = new Float32Array(tm.values.buffer, 4 * dbsliceData.highlightTasks[0] * nVerts, nVerts);
+	            } else {
+
+	                return;
+	            }
+	        }
 
 	        var arrays = {
 	            a_position: { numComponents: 2, data: tm.vertices },
-	            a_val: { numComponents: 1, data: tm.values },
+	            a_val: { numComponents: 1, data: values },
 	            indices: { numComponents: 3, data: tm.indices }
 	        };
 	        var bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
@@ -7208,7 +7248,7 @@ var dbslice = (function (exports) {
 	        var view = layout.view === undefined ? viewDefault : layout.view;
 
 	        var vScaleDefault = [0., 1.];
-	        var vScale = layout.vScale === undefined ? vScaleDefault : layout.Scale;
+	        var vScale = layout.vScale === undefined ? vScaleDefault : layout.vScale;
 
 	        var projectionMatrix = glMatrix.mat4.create();
 	        glMatrix.mat4.ortho(projectionMatrix, view.xMin, view.xMax, view.yMin, view.yMax, 0, 1.);
@@ -7220,10 +7260,10 @@ var dbslice = (function (exports) {
 	        gl.useProgram(programInfo.program);
 	        twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
 	        twgl.setUniforms(programInfo, uniforms);
-	        gl.drawElements(gl.TRIANGLES, ntris * 3, gl.UNSIGNED_INT, 0);
+	        gl.drawElements(gl.TRIANGLES, nTris * 3, gl.UNSIGNED_INT, 0);
 
 	        var overlay = container.select(".svg-overlay");
-	        var scaleMargin = { "left": width - 60, "top": height / 2 - 50 };
+	        var scaleMargin = { "left": width - 50, "top": height / 2 - 50 };
 	        overlay.select(".scaleArea").remove();
 	        var scaleArea = overlay.append("g").attr("class", "scaleArea").attr("transform", "translate(" + scaleMargin.left + "," + scaleMargin.top + ")");
 

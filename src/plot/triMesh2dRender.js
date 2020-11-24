@@ -1,3 +1,5 @@
+import { dbsliceData } from '../core/dbsliceData.js';
+
 const triMesh2dRender = {
 
 	make : function ( element, data, layout ) {
@@ -44,13 +46,34 @@ const triMesh2dRender = {
 
 		const tm = data.triMesh;
 
-		const ntris = tm.indices.length/3;
+		const nTris = tm.indices.length/3;
+		console.log(nTris);
 
-		console.log(tm);
+		//console.log(tm);
+
+		let values, vertices;
+
+		// tmp
+		const nVerts = 50*50
+
+		if ( layout.highlightTasks == true ) {
+   
+            if (!Array.isArray(dbsliceData.highlightTasks)) {
+            	values = new Float32Array(tm.values.buffer,0,nVerts);
+            
+
+            } else if (dbsliceData.highlightTasks.length != 0) {
+     
+            	values = new Float32Array(tm.values.buffer,4*dbsliceData.highlightTasks[0]*nVerts,nVerts);
+            } else {
+
+            	return;
+            }
+        }
 
 		const arrays = {
      		a_position: {numComponents: 2, data: tm.vertices},
-     		a_val: {numComponents: 1, data: tm.values},
+     		a_val: {numComponents: 1, data: values},
      		indices: {numComponents: 3, data: tm.indices}
   		};
   		const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
@@ -59,7 +82,7 @@ const triMesh2dRender = {
   		const view = ( layout.view === undefined ) ? viewDefault : layout.view;
   
   		const vScaleDefault = [0.,1.];
-  		const vScale = ( layout.vScale === undefined ) ? vScaleDefault : layout.Scale;
+  		const vScale = ( layout.vScale === undefined ) ? vScaleDefault : layout.vScale;
 
   		const projectionMatrix = glMatrix.mat4.create();
   		glMatrix.mat4.ortho(projectionMatrix, view.xMin, view.xMax, view.yMin, view.yMax, 0, 1.);
@@ -71,10 +94,10 @@ const triMesh2dRender = {
   		gl.useProgram(programInfo.program);
   		twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
   		twgl.setUniforms(programInfo, uniforms);
-  		gl.drawElements(gl.TRIANGLES, ntris*3, gl.UNSIGNED_INT, 0);
+  		gl.drawElements(gl.TRIANGLES, nTris*3, gl.UNSIGNED_INT, 0);
 
   		const overlay = container.select(".svg-overlay");
-  		const scaleMargin = { "left" : width - 60, "top" : height/2 - 50};
+  		const scaleMargin = { "left" : width - 50, "top" : height/2 - 50};
   		overlay.select(".scaleArea").remove();
   		const scaleArea = overlay.append("g")
     		.attr("class","scaleArea")

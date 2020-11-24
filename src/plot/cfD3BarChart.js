@@ -48,11 +48,34 @@ const cfD3BarChart = {
 
         var plotArea = svg.select(".plotArea");
         var dimId = plotArea.attr("dimId");
+        var dim = data.cfData.metaDims[ dimId ];
+
+        var bars = plotArea.selectAll("rect");
+
+        if ( layout.highlightTasks == true ) {
+            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+                bars.style( "stroke-width", "0px" );
+                      
+            } else {
+
+                bars
+                    .style( "stroke-width", "0px" )
+                    .style( "stroke", "red" ); 
+                dbsliceData.highlightTasks.forEach( function (taskId) {
+                	let keyNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][data.property];
+                	bars.filter( (d,i) => d.key == keyNow)
+                        .style( "stroke-width", "4px" )
+                });
+
+            }
+
+        } 
 
         var cf = data.cfData.cf;
         var property = data.property;
 
-        var dim = data.cfData.metaDims[ dimId ];
+        //var dim = data.cfData.metaDims[ dimId ];
         var group = dim.group();
         
         //var items = group.top( Infinity );
@@ -74,7 +97,7 @@ const cfD3BarChart = {
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal().range( ["cornflowerblue"] ) : d3.scaleOrdinal( layout.colourMap );
         colour.domain( data.cfData.metaDataUniqueValues[ property ] );
 
-        var bars = plotArea.selectAll( "rect" )
+        bars = plotArea.selectAll( "rect" )
             .data( items, v => v.key );
 
         bars.enter()
