@@ -168,7 +168,7 @@ const cfD3BarChart = {
                 .append("text")
                     .attr("fill", "#000")
                     .attr("x", width)
-                    .attr("y", margin.bottom)
+                    .attr("y", margin.bottom-2)
                     .attr("text-anchor", "end")
                     .text("Number of Cases");
         } else {

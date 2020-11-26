@@ -6630,7 +6630,7 @@ var dbslice = (function (exports) {
 
 	        var xAxis = plotArea.select(".xAxis");
 	        if (xAxis.empty()) {
-	            plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "xAxis").call(d3.axisBottom(x)).append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text("Number of Cases");
+	            plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "xAxis").call(d3.axisBottom(x)).append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom - 2).attr("text-anchor", "end").text("Number of Cases");
 	        } else {
 	            xAxis.attr("transform", "translate(0," + height + ")").transition().call(d3.axisBottom(x));
 	        }
@@ -6837,7 +6837,7 @@ var dbslice = (function (exports) {
 
 	        var xAxisLabel = plotArea.select(".yAxis").select(".xAxisLabel");
 	        if (xAxisLabel.empty()) {
-	            plotArea.select(".yAxis").append("text").attr("class", "xAxisLabel").attr("fill", "#000").attr("x", width).attr("y", height + margin.bottom).attr("text-anchor", "end").text(property);
+	            plotArea.select(".yAxis").append("text").attr("class", "xAxisLabel").attr("fill", "#000").attr("x", width).attr("y", height + margin.bottom - 2).attr("text-anchor", "end").text(property);
 	        }
 	    }
 

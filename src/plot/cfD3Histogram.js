@@ -220,7 +220,7 @@ const cfD3Histogram = {
                 .attr("class", "xAxisLabel")
                 .attr("fill", "#000")
                 .attr("x", width)
-                .attr("y", height+margin.bottom)
+                .attr("y", height+margin.bottom-2)
                 .attr("text-anchor", "end")
                 .text(property);
         }
