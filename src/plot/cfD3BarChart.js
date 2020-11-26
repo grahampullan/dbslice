@@ -80,7 +80,7 @@ const cfD3BarChart = {
         var group = dim.group();
         
         //var items = group.top( Infinity );
-        var items = group.all()
+        var items = group.all();
 
         var removeZeroBar = ( layout.removeZeroBar === undefined ) ? false : layout.removeZeroBar;
         if ( removeZeroBar ) items = items.filter( item => item.value > 0);

@@ -1,3 +1,5 @@
+import { dbsliceData } from '../core/dbsliceData.js';
+
 const d3ContourStruct2d = {
 
     make : function ( element, data, layout ) {
@@ -8,6 +10,36 @@ const d3ContourStruct2d = {
 
     update : function ( element, data, layout ) {
 
+        var container = d3.select(element);
+
+        if ( layout.highlightTasks == true ) {
+
+            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+                container.style("outline-width","0px")
+ 
+            } else {
+
+                container.style("outline-width","0px")
+
+                dbsliceData.highlightTasks.forEach( function (taskId) {
+
+                    if ( taskId == layout.taskId ) {
+                    
+                        container
+                            .style("outline-style","solid")
+                            .style("outline-color","red")
+                            .style("outline-width","4px")
+                            .style("outline-offset","-4px")
+                            .raise();
+
+                    }
+
+                });
+            }
+        }
+
+
         if (data.newData == false) {
             return
         }
@@ -16,8 +48,6 @@ const d3ContourStruct2d = {
 
         var marginDefault = {top: 20, right: 65, bottom: 20, left: 10};
         var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
-
-        var container = d3.select(element);
 
         var svgWidth = container.node().offsetWidth,
 		    svgHeight = layout.height;
@@ -30,6 +60,7 @@ const d3ContourStruct2d = {
         var svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight);
+            //.style("stroke-width","0px");
 
         var plotArea = svg.append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")")

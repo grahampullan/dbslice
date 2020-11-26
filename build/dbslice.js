@@ -5600,6 +5600,14 @@ var dbslice = (function (exports) {
 	  return geometry;
 	}
 
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var DbsliceData = function DbsliceData() {
+	  _classCallCheck(this, DbsliceData);
+	};
+
+	var dbsliceData = new DbsliceData();
+
 	var d3ContourStruct2d = {
 
 	    make: function make(element, data, layout) {
@@ -5608,6 +5616,30 @@ var dbslice = (function (exports) {
 	    },
 
 	    update: function update(element, data, layout) {
+
+	        var container = d3.select(element);
+
+	        if (layout.highlightTasks == true) {
+
+	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+	                container.style("outline-width", "0px");
+	            } else {
+
+	                container.style("outline-width", "0px");
+
+	                dbsliceData.highlightTasks.forEach(function (taskId) {
+
+	                    if (taskId == layout.taskId) {
+
+	                        container.style("outline-style", "solid").style("outline-color", "red").style("outline-width", "4px").style("outline-offset", "-4px").raise();
+
+	                        //d3.select(container.node().parentNode).raise();
+	                        //d3.select(container.node().parentNode.parentNode).raise();
+	                    }
+	                });
+	            }
+	        }
 
 	        if (data.newData == false) {
 	            return;
@@ -5618,8 +5650,6 @@ var dbslice = (function (exports) {
 	        var marginDefault = { top: 20, right: 65, bottom: 20, left: 10 };
 	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
 
-	        var container = d3.select(element);
-
 	        var svgWidth = container.node().offsetWidth,
 	            svgHeight = layout.height;
 
@@ -5629,6 +5659,7 @@ var dbslice = (function (exports) {
 	        container.select("svg").remove();
 
 	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight);
+	        //.style("stroke-width","0px");
 
 	        var plotArea = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").append("g").attr("class", "plotArea");
 
@@ -5767,14 +5798,6 @@ var dbslice = (function (exports) {
 	        data.newData = false;
 	    }
 	};
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var DbsliceData = function DbsliceData() {
-	  _classCallCheck(this, DbsliceData);
-	};
-
-	var dbsliceData = new DbsliceData();
 
 	function makeNewPlot(plotData, index) {
 
@@ -5930,6 +5953,8 @@ var dbslice = (function (exports) {
 
 	        plot.layout.title = title;
 
+	        plot.layout.taskId = taskId;
+
 	        plot.data.newData = true;
 
 	        return plot;
@@ -6010,6 +6035,22 @@ var dbslice = (function (exports) {
 	            if (ctrl.layout.yRange[1].length !== undefined) {
 
 	                plot.layout.yRange = ctrl.layout.yRange[sliceIndex];
+	            }
+	        }
+
+	        if (ctrl.layout.xAxisLabel !== undefined) {
+
+	            if (Array.isArray(ctrl.layout.xAxisLabel)) {
+
+	                plot.layout.xAxisLabel = ctrl.layout.xAxisLabel[sliceIndex];
+	            }
+	        }
+
+	        if (ctrl.layout.yAxisLabel !== undefined) {
+
+	            if (Array.isArray(ctrl.layout.yAxisLabel) !== undefined) {
+
+	                plot.layout.yAxisLabel = ctrl.layout.yAxisLabel[sliceIndex];
 	            }
 	        }
 
@@ -6302,7 +6343,7 @@ var dbslice = (function (exports) {
 	        var gX = plotArea.select(".axis--x");
 	        if (gX.empty()) {
 	            gX = plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "axis--x").call(xAxis);
-	            gX.append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text(layout.xAxisLabel);
+	            gX.append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom - 2).attr("text-anchor", "end").text(layout.xAxisLabel);
 	        } else {
 	            gX.transition().call(xAxis);
 	        }

@@ -92,6 +92,8 @@ function makePromiseTaskPlot( ctrl, url, title, taskId ) {
 
         plot.layout.title = title;
 
+        plot.layout.taskId = taskId;
+
         plot.data.newData = true;
 
         return plot;
@@ -175,7 +177,7 @@ function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
 
             if (ctrl.layout.xRange[1].length !== undefined) {
 
-                plot.layout.xRange = ctrl.layout.xRange[sliceIndex]
+                plot.layout.xRange = ctrl.layout.xRange[sliceIndex];
 
             }
 
@@ -185,7 +187,27 @@ function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
 
             if (ctrl.layout.yRange[1].length !== undefined) {
 
-                plot.layout.yRange = ctrl.layout.yRange[sliceIndex]
+                plot.layout.yRange = ctrl.layout.yRange[sliceIndex];
+
+            }
+
+        }
+
+        if (ctrl.layout.xAxisLabel !== undefined) {
+
+            if ( Array.isArray(ctrl.layout.xAxisLabel) ) {
+
+                plot.layout.xAxisLabel = ctrl.layout.xAxisLabel[sliceIndex];
+
+            }
+
+        }
+
+        if (ctrl.layout.yAxisLabel !== undefined) {
+
+            if ( Array.isArray(ctrl.layout.yAxisLabel) !== undefined) {
+
+                plot.layout.yAxisLabel = ctrl.layout.yAxisLabel[sliceIndex];
 
             }
 
