@@ -173,6 +173,8 @@ function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
 
     	plot.layout = Object.assign({}, ctrl.layout);
 
+        plot.layout.title = sliceId;
+
         if (ctrl.layout.xRange !== undefined) {
 
             if (ctrl.layout.xRange[1].length !== undefined) {
@@ -205,7 +207,7 @@ function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
 
         if (ctrl.layout.yAxisLabel !== undefined) {
 
-            if ( Array.isArray(ctrl.layout.yAxisLabel) !== undefined) {
+            if ( Array.isArray(ctrl.layout.yAxisLabel) ) {
 
                 plot.layout.yAxisLabel = ctrl.layout.yAxisLabel[sliceIndex];
 
@@ -213,9 +215,17 @@ function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
 
         }
 
-    	plot.plotFunc = ctrl.plotFunc;
+        if (ctrl.layout.title !== undefined) {
 
-    	plot.layout.title = sliceId;
+            if ( Array.isArray(ctrl.layout.title) ) {
+
+                plot.layout.title = ctrl.layout.title[sliceIndex];
+
+            }
+
+        }
+
+    	plot.plotFunc = ctrl.plotFunc;
 
     	plot.data.newData = true;
 
