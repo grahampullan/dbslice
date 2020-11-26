@@ -53,7 +53,7 @@ const cfD3BarChart = {
         var bars = plotArea.selectAll("rect");
 
         if ( layout.highlightTasks == true ) {
-        	
+
             if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
 
                 bars.style( "stroke-width", "0px" );
@@ -170,7 +170,7 @@ const cfD3BarChart = {
                     .attr("x", width)
                     .attr("y", margin.bottom)
                     .attr("text-anchor", "end")
-                    .text("Number of Tasks");
+                    .text("Number of Cases");
         } else {
             xAxis.attr( "transform", "translate(0," + height + ")" ).transition().call( d3.axisBottom( x ) );
         }

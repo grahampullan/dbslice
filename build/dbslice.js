@@ -6630,7 +6630,7 @@ var dbslice = (function (exports) {
 
 	        var xAxis = plotArea.select(".xAxis");
 	        if (xAxis.empty()) {
-	            plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "xAxis").call(d3.axisBottom(x)).append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text("Number of Tasks");
+	            plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "xAxis").call(d3.axisBottom(x)).append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom).attr("text-anchor", "end").text("Number of Cases");
 	        } else {
 	            xAxis.attr("transform", "translate(0," + height + ")").transition().call(d3.axisBottom(x));
 	        }
