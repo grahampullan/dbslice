@@ -5390,216 +5390,6 @@ var dbslice = (function (exports) {
 	  self.fetch.polyfill = true;
 	})(typeof self !== 'undefined' ? self : undefined);
 
-	var threeSurf3d = {
-
-		make: function make(element, geometry, layout) {
-
-			threeSurf3d.update(element, geometry, layout);
-		},
-
-		update: function update(element, geometry, layout) {
-
-			if (geometry.newData == false) {
-				return;
-			}
-
-			if (layout.vScale === undefined) {
-				var vScale = geometry.vScale;
-			} else {
-				var vScale = layout.vScale;
-			}
-
-			var color = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap);
-			color.domain(vScale);
-
-			geometry.faces.forEach(function (face, index) {
-				face.vertexColors[0] = new THREE.Color(color(geometry.faceValues[index][0]));
-				face.vertexColors[1] = new THREE.Color(color(geometry.faceValues[index][1]));
-				face.vertexColors[2] = new THREE.Color(color(geometry.faceValues[index][2]));
-			});
-
-			var container = d3.select(element);
-
-			container.select(".plotArea").remove();
-
-			var div = container.append("div").attr("class", "plotArea");
-
-			var width = container.node().offsetWidth,
-			    height = layout.height;
-
-			// Compute normals for shading
-			geometry.computeFaceNormals();
-			geometry.computeVertexNormals();
-
-			// Use MeshPhongMaterial for a reflective surface
-			var material = new THREE.MeshPhongMaterial({
-				side: THREE.DoubleSide,
-				color: 0xffffff,
-				vertexColors: THREE.VertexColors,
-				specular: 0x0,
-				shininess: 100.,
-				emissive: 0x0
-			});
-
-			// Initialise threejs scene
-			var scene = new THREE.Scene();
-
-			// Add background colour
-			scene.background = new THREE.Color(0xefefef);
-
-			// Add Mesh to scene
-			scene.add(new THREE.Mesh(geometry, material));
-
-			// Create renderer
-			var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-			renderer.setPixelRatio(window.devicePixelRatio);
-			renderer.setSize(width, height);
-
-			// Set target DIV for rendering
-			//var container = document.getElementById( elementId );
-			div.node().appendChild(renderer.domElement);
-
-			// Define the camera
-			var camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10);
-			camera.position.z = 2;
-
-			// Add controls 
-			var controls = new THREE.OrbitControls(camera, renderer.domElement);
-			controls.addEventListener('change', function () {
-				renderer.render(scene, camera); // re-render if controls move/zoom 
-			});
-			controls.enableZoom = true;
-
-			var ambientLight = new THREE.AmbientLight(0xaaaaaa);
-			scene.add(ambientLight);
-
-			var lights = [];
-			lights[0] = new THREE.PointLight(0xffffff, 1, 3);
-			lights[1] = new THREE.PointLight(0xffffff, 1, 3);
-			lights[2] = new THREE.PointLight(0xffffff, 1, 3);
-			lights[3] = new THREE.PointLight(0xffffff, 1, 3);
-			lights[4] = new THREE.PointLight(0xffffff, 1, 3);
-			lights[5] = new THREE.PointLight(0xffffff, 1, 3);
-
-			lights[0].position.set(0, 2, 0);
-			lights[1].position.set(1, 2, 1);
-			lights[2].position.set(-1, -2, -1);
-			lights[3].position.set(0, 0, 2);
-			lights[4].position.set(0, 0, -2);
-			lights[5].position.set(0, -2, 0);
-
-			lights.forEach(function (light) {
-				scene.add(light);
-			});
-
-			// Make initial call to render scene
-			renderer.render(scene, camera);
-
-			geometry.newData = false;
-		}
-
-	};
-
-	function threeMeshFromStruct(data) {
-	  var x, y, z, v, n, m;
-
-	  var xMinAll = d3.min(data.surfaces[0].x);
-	  var yMinAll = d3.min(data.surfaces[0].y);
-	  var zMinAll = d3.min(data.surfaces[0].z);
-	  var vMinAll = d3.min(data.surfaces[0].v);
-
-	  var xMaxAll = d3.max(data.surfaces[0].x);
-	  var yMaxAll = d3.max(data.surfaces[0].y);
-	  var zMaxAll = d3.max(data.surfaces[0].z);
-	  var vMaxAll = d3.max(data.surfaces[0].v);
-
-	  var nDataSets = data.surfaces.length;
-
-	  for (var nds = 1; nds < nDataSets; ++nds) {
-	    xMinAll = d3.min(data.surfaces[nds].x) < xMinAll ? d3.min(data.surfaces[nds].x) : xMinAll;
-	    yMinAll = d3.min(data.surfaces[nds].y) < yMinAll ? d3.min(data.surfaces[nds].y) : yMinAll;
-	    zMinAll = d3.min(data.surfaces[nds].z) < zMinAll ? d3.min(data.surfaces[nds].z) : zMinAll;
-	    vMinAll = d3.min(data.surfaces[nds].v) < vMinAll ? d3.min(data.surfaces[nds].v) : vMinAll;
-	    xMaxAll = d3.max(data.surfaces[nds].x) > xMaxAll ? d3.max(data.surfaces[nds].x) : xMaxAll;
-	    yMaxAll = d3.max(data.surfaces[nds].y) > yMaxAll ? d3.max(data.surfaces[nds].y) : yMaxAll;
-	    zMaxAll = d3.max(data.surfaces[nds].z) > zMaxAll ? d3.max(data.surfaces[nds].z) : zMaxAll;
-	    vMaxAll = d3.max(data.surfaces[nds].v) > vMaxAll ? d3.max(data.surfaces[nds].v) : vMaxAll;
-	  }
-
-	  var xrange = xMaxAll - xMinAll;
-	  var yrange = yMaxAll - yMinAll;
-	  var zrange = zMaxAll - zMinAll;
-
-	  var xmid = 0.5 * (xMinAll + xMaxAll);
-	  var ymid = 0.5 * (yMinAll + yMaxAll);
-	  var zmid = 0.5 * (zMinAll + zMaxAll);
-
-	  var scalefac = 1. / d3.max([xrange, yrange, zrange]);
-
-	  // Use d3 for color scale 
-	  // vMinAll=0.4;
-	  // vMaxAll=1.1;
-	  // var color = d3.scaleLinear()
-	  //	.domain( [ vMinAll, vMaxAll ] )
-	  //	.interpolate(function() { return d3.interpolateRdBu; });
-
-	  // Initialise threejs geometry
-	  var geometry = new THREE.Geometry();
-	  geometry.faceValues = [];
-	  geometry.vScale = [vMinAll, vMaxAll];
-
-	  var noffset = 0;
-	  for (nds = 0; nds < nDataSets; ++nds) {
-	    x = data.surfaces[nds].x;
-	    y = data.surfaces[nds].y;
-	    z = data.surfaces[nds].z;
-	    v = data.surfaces[nds].v;
-	    m = data.surfaces[nds].size[0];
-	    n = data.surfaces[nds].size[1];
-
-	    var nverts = n * m;
-
-	    // Add grid vertices to geometry
-	    for (var k = 0; k < nverts; ++k) {
-	      var newvert = new THREE.Vector3((x[k] - xmid) * scalefac, (y[k] - ymid) * scalefac, (z[k] - zmid) * scalefac);
-	      geometry.vertices.push(newvert);
-	    }
-
-	    // Add cell faces (2 traingles per cell) to geometry
-	    for (var j = 0; j < m - 1; j++) {
-	      for (var i = 0; i < n - 1; i++) {
-	        var n0 = j * n + i;
-	        var n1 = n0 + 1;
-	        var n2 = (j + 1) * n + i + 1;
-	        var n3 = n2 - 1;
-	        var face1 = new THREE.Face3(n0 + noffset, n1 + noffset, n2 + noffset);
-	        var face2 = new THREE.Face3(n2 + noffset, n3 + noffset, n0 + noffset);
-	        // face1.vertexColors[0] = new THREE.Color( color( v[n0] ) );
-	        // face1.vertexColors[1] = new THREE.Color( color( v[n1] ) );
-	        // face1.vertexColors[2] = new THREE.Color( color( v[n2] ) );
-	        // face2.vertexColors[0] = new THREE.Color( color( v[n2] ) );
-	        // face2.vertexColors[1] = new THREE.Color( color( v[n3] ) );
-	        // face2.vertexColors[2] = new THREE.Color( color( v[n0] ) );
-	        geometry.faces.push(face1);
-	        geometry.faces.push(face2);
-	        var faceValue1 = [];
-	        var faceValue2 = [];
-	        faceValue1.push(v[n0]);
-	        faceValue1.push(v[n1]);
-	        faceValue1.push(v[n2]);
-	        faceValue2.push(v[n2]);
-	        faceValue2.push(v[n3]);
-	        faceValue2.push(v[n0]);
-	        geometry.faceValues.push(faceValue1);
-	        geometry.faceValues.push(faceValue2);
-	      }
-	    }
-	    noffset = noffset + nverts;
-	  }
-
-	  return geometry;
-	}
-
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var DbsliceData = function DbsliceData() {
@@ -5607,197 +5397,6 @@ var dbslice = (function (exports) {
 	};
 
 	var dbsliceData = new DbsliceData();
-
-	var d3ContourStruct2d = {
-
-	    make: function make(element, data, layout) {
-
-	        d3ContourStruct2d.update(element, data, layout);
-	    },
-
-	    update: function update(element, data, layout) {
-
-	        var container = d3.select(element);
-
-	        if (layout.highlightTasks == true) {
-
-	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-
-	                container.style("outline-width", "0px");
-	            } else {
-
-	                container.style("outline-width", "0px");
-
-	                dbsliceData.highlightTasks.forEach(function (taskId) {
-
-	                    if (taskId == layout.taskId) {
-
-	                        container.style("outline-style", "solid").style("outline-color", "red").style("outline-width", "4px").style("outline-offset", "-4px").raise();
-
-	                        //d3.select(container.node().parentNode).raise();
-	                        //d3.select(container.node().parentNode.parentNode).raise();
-	                    }
-	                });
-	            }
-	        }
-
-	        if (data.newData == false) {
-	            return;
-	        }
-
-	        var x, y, v, n, m;
-
-	        var marginDefault = { top: 20, right: 65, bottom: 20, left: 10 };
-	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
-
-	        var svgWidth = container.node().offsetWidth,
-	            svgHeight = layout.height;
-
-	        var width = svgWidth - margin.left - margin.right;
-	        var height = svgHeight - margin.top - margin.bottom;
-
-	        container.select("svg").remove();
-
-	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight);
-	        //.style("stroke-width","0px");
-
-	        var plotArea = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").append("g").attr("class", "plotArea");
-
-	        var scaleMargin = { "left": svgWidth - 60, "top": margin.top };
-
-	        var scaleArea = svg.append("g").attr("class", "scaleArea").attr("transform", "translate(" + scaleMargin.left + "," + scaleMargin.top + ")");
-
-	        var xMinAll = d3.min(data.surfaces[0].x);
-	        var yMinAll = d3.min(data.surfaces[0].y);
-	        var vMinAll = d3.min(data.surfaces[0].v);
-
-	        var xMaxAll = d3.max(data.surfaces[0].x);
-	        var yMaxAll = d3.max(data.surfaces[0].y);
-	        var vMaxAll = d3.max(data.surfaces[0].v);
-
-	        var nDataSets = data.surfaces.length;
-
-	        for (var nds = 1; nds < nDataSets; ++nds) {
-	            xMinAll = d3.min(data.surfaces[nds].x) < xMinAll ? d3.min(data.surfaces[nds].x) : xMinAll;
-	            yMinAll = d3.min(data.surfaces[nds].y) < yMinAll ? d3.min(data.surfaces[nds].y) : yMinAll;
-	            vMinAll = d3.min(data.surfaces[nds].v) < vMinAll ? d3.min(data.surfaces[nds].v) : vMinAll;
-	            xMaxAll = d3.max(data.surfaces[nds].x) > xMaxAll ? d3.max(data.surfaces[nds].x) : xMaxAll;
-	            yMaxAll = d3.max(data.surfaces[nds].y) > yMaxAll ? d3.max(data.surfaces[nds].y) : yMaxAll;
-	            vMaxAll = d3.max(data.surfaces[nds].v) > vMaxAll ? d3.max(data.surfaces[nds].v) : vMaxAll;
-	        }
-
-	        var xRange = xMaxAll - xMinAll;
-	        var yRange = yMaxAll - yMinAll;
-
-	        // set x and y scale to maintain 1:1 aspect ratio  
-	        var domainAspectRatio = yRange / xRange;
-	        var rangeAspectRatio = height / width;
-
-	        if (rangeAspectRatio > domainAspectRatio) {
-	            var xscale = d3.scaleLinear().domain([xMinAll, xMaxAll]).range([0, width]);
-	            var yscale = d3.scaleLinear().domain([yMinAll, yMaxAll]).range([domainAspectRatio * width, 0]);
-	        } else {
-	            var xscale = d3.scaleLinear().domain([xMinAll, xMaxAll]).range([0, height / domainAspectRatio]);
-	            var yscale = d3.scaleLinear().domain([yMinAll, yMaxAll]).range([height, 0]);
-	        }
-
-	        if (layout.vScale !== undefined) {
-	            vMinAll = layout.vScale[0];
-	            vMaxAll = layout.vScale[1];
-	        }
-
-	        // array of threshold values 
-	        var thresholds = d3.range(vMinAll, vMaxAll, (vMaxAll - vMinAll) / 21);
-
-	        // colour scale 
-	        var colour = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap);
-	        colour.domain(d3.extent(thresholds));
-
-	        var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
-
-	        svg.transition().call(zoom.transform, d3.zoomIdentity);
-	        svg.call(zoom);
-
-	        for (var nds = 0; nds < nDataSets; ++nds) {
-	            x = data.surfaces[nds].x;
-	            y = data.surfaces[nds].y;
-	            v = data.surfaces[nds].v;
-	            m = data.surfaces[nds].size[0];
-	            n = data.surfaces[nds].size[1];
-
-	            // configure a projection to map the contour coordinates returned by
-	            // d3.contours (px,py) to the input data (xgrid,ygrid)
-	            var projection = d3.geoTransform({
-	                point: function point(px, py) {
-	                    var xfrac, yfrac, xnow, ynow;
-	                    var xidx, yidx, idx0, idx1, idx2, idx3;
-	                    // remove the 0.5 offset that comes from d3-contour
-	                    px = px - 0.5;
-	                    py = py - 0.5;
-	                    // clamp to the limits of the xgrid and ygrid arrays (removes "bevelling" from outer perimeter of contours)
-	                    px < 0 ? px = 0 : px;
-	                    py < 0 ? py = 0 : py;
-	                    px > n - 1 ? px = n - 1 : px;
-	                    py > m - 1 ? py = m - 1 : py;
-	                    // xidx and yidx are the array indices of the "bottom left" corner
-	                    // of the cell in which the point (px,py) resides
-	                    xidx = Math.floor(px);
-	                    yidx = Math.floor(py);
-	                    xidx == n - 1 ? xidx = n - 2 : xidx;
-	                    yidx == m - 1 ? yidx = m - 2 : yidx;
-	                    // xfrac and yfrac give the coordinates, between 0 and 1,
-	                    // of the point within the cell 
-	                    xfrac = px - xidx;
-	                    yfrac = py - yidx;
-	                    // indices of the 4 corners of the cell
-	                    idx0 = xidx + yidx * n;
-	                    idx1 = idx0 + 1;
-	                    idx2 = idx0 + n;
-	                    idx3 = idx2 + 1;
-	                    // bilinear interpolation to find projected coordinates (xnow,ynow)
-	                    // of the current contour coordinate
-	                    xnow = (1 - xfrac) * (1 - yfrac) * x[idx0] + xfrac * (1 - yfrac) * x[idx1] + yfrac * (1 - xfrac) * x[idx2] + xfrac * yfrac * x[idx3];
-	                    ynow = (1 - xfrac) * (1 - yfrac) * y[idx0] + xfrac * (1 - yfrac) * y[idx1] + yfrac * (1 - xfrac) * y[idx2] + xfrac * yfrac * y[idx3];
-	                    this.stream.point(xscale(xnow), yscale(ynow));
-	                }
-	            });
-
-	            // initialise contours
-	            var contours = d3.contours().size([n, m]).smooth(true).thresholds(thresholds);
-
-	            // make and project the contours
-	            plotArea.selectAll("path").data(contours(v)).enter().append("path").attr("d", d3.geoPath(projection)).attr("fill", function (d) {
-	                return colour(d.value);
-	            });
-	        }
-
-	        // colour scale 
-	        var scaleHeight = svgHeight / 2;
-	        var colourScale = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap);
-	        colourScale.domain([0, scaleHeight]);
-
-	        var scaleBars = scaleArea.selectAll(".scaleBar").data(d3.range(scaleHeight), function (d) {
-	            return d;
-	        }).enter().append("rect").attr("class", "scaleBar").attr("x", 0).attr("y", function (d, i) {
-	            return scaleHeight - i;
-	        }).attr("height", 1).attr("width", 20).style("fill", function (d, i) {
-	            return colourScale(d);
-	        });
-
-	        var cscale = d3.scaleLinear().domain(d3.extent(thresholds)).range([scaleHeight, 0]);
-
-	        var cAxis = d3.axisRight(cscale).ticks(5);
-
-	        scaleArea.append("g").attr("transform", "translate(20,0)").call(cAxis);
-
-	        function zoomed() {
-	            var t = d3.event.transform;
-	            plotArea.attr("transform", t);
-	        }
-
-	        data.newData = false;
-	    }
-	};
 
 	function makeNewPlot(plotData, index) {
 
@@ -6150,6 +5749,456 @@ var dbslice = (function (exports) {
 
 		update(elementId, session);
 	}
+
+	var threeSurf3d = {
+
+	    make: function make(element, geometry, layout) {
+
+	        threeSurf3d.update(element, geometry, layout);
+	    },
+
+	    update: function update(element, geometry, layout) {
+
+	        var container = d3.select(element);
+
+	        if (layout.highlightTasks == true) {
+
+	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+	                container.style("outline-width", "0px");
+	            } else {
+
+	                container.style("outline-width", "0px");
+
+	                dbsliceData.highlightTasks.forEach(function (taskId) {
+
+	                    console.log(layout.taskId);
+
+	                    if (taskId == layout.taskId) {
+
+	                        container.style("outline-style", "solid").style("outline-color", "red").style("outline-width", "4px").style("outline-offset", "4px").raise();
+	                    }
+	                });
+	            }
+	        }
+
+	        if (geometry.newData == false) {
+	            return;
+	        }
+
+	        if (layout.vScale === undefined) {
+	            var vScale = geometry.vScale;
+	        } else {
+	            var vScale = layout.vScale;
+	        }
+
+	        var color = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap);
+	        color.domain(vScale);
+
+	        geometry.faces.forEach(function (face, index) {
+	            face.vertexColors[0] = new THREE.Color(color(geometry.faceValues[index][0]));
+	            face.vertexColors[1] = new THREE.Color(color(geometry.faceValues[index][1]));
+	            face.vertexColors[2] = new THREE.Color(color(geometry.faceValues[index][2]));
+	        });
+
+	        container.select(".plotArea").remove();
+
+	        var div = container.append("div").attr("class", "plotArea").on("mouseover", tipOn).on("mouseout", tipOff);
+
+	        var width = container.node().offsetWidth,
+	            height = layout.height;
+
+	        // Compute normals for shading
+	        geometry.computeFaceNormals();
+	        geometry.computeVertexNormals();
+
+	        // Use MeshPhongMaterial for a reflective surface
+	        var material = new THREE.MeshPhongMaterial({
+	            side: THREE.DoubleSide,
+	            color: 0xffffff,
+	            vertexColors: THREE.VertexColors,
+	            specular: 0x0,
+	            shininess: 100.,
+	            emissive: 0x0
+	        });
+
+	        // Initialise threejs scene
+	        var scene = new THREE.Scene();
+
+	        // Add background colour
+	        scene.background = new THREE.Color(0xefefef);
+
+	        // Add Mesh to scene
+	        scene.add(new THREE.Mesh(geometry, material));
+
+	        // Create renderer
+	        var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+	        renderer.setPixelRatio(window.devicePixelRatio);
+	        renderer.setSize(width, height);
+
+	        // Set target DIV for rendering
+	        //var container = document.getElementById( elementId );
+	        div.node().appendChild(renderer.domElement);
+
+	        // Define the camera
+	        var camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10);
+	        camera.position.z = 2;
+
+	        // Add controls 
+	        var controls = new THREE.OrbitControls(camera, renderer.domElement);
+	        controls.addEventListener('change', function () {
+	            renderer.render(scene, camera); // re-render if controls move/zoom 
+	        });
+	        controls.enableZoom = true;
+
+	        var ambientLight = new THREE.AmbientLight(0xaaaaaa);
+	        scene.add(ambientLight);
+
+	        var lights = [];
+	        lights[0] = new THREE.PointLight(0xffffff, 1, 3);
+	        lights[1] = new THREE.PointLight(0xffffff, 1, 3);
+	        lights[2] = new THREE.PointLight(0xffffff, 1, 3);
+	        lights[3] = new THREE.PointLight(0xffffff, 1, 3);
+	        lights[4] = new THREE.PointLight(0xffffff, 1, 3);
+	        lights[5] = new THREE.PointLight(0xffffff, 1, 3);
+
+	        lights[0].position.set(0, 2, 0);
+	        lights[1].position.set(1, 2, 1);
+	        lights[2].position.set(-1, -2, -1);
+	        lights[3].position.set(0, 0, 2);
+	        lights[4].position.set(0, 0, -2);
+	        lights[5].position.set(0, -2, 0);
+
+	        lights.forEach(function (light) {
+	            scene.add(light);
+	        });
+
+	        // Make initial call to render scene
+	        renderer.render(scene, camera);
+
+	        function tipOn() {
+	            if (layout.highlightTasks == true) {
+	                container.style("outline-style", "solid").style("outline-color", "red").style("outline-width", "4px").style("outline-offset", "-4px").raise();
+	                dbsliceData.highlightTasks = [layout.taskId];
+	                render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+	            }
+	        }
+
+	        function tipOff() {
+	            if (layout.highlightTasks == true) {
+	                container.style("outline-width", "0px");
+	                dbsliceData.highlightTasks = [];
+	                render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+	            }
+	        }
+
+	        geometry.newData = false;
+	    }
+
+	};
+
+	function threeMeshFromStruct(data) {
+	  var x, y, z, v, n, m;
+
+	  var xMinAll = d3.min(data.surfaces[0].x);
+	  var yMinAll = d3.min(data.surfaces[0].y);
+	  var zMinAll = d3.min(data.surfaces[0].z);
+	  var vMinAll = d3.min(data.surfaces[0].v);
+
+	  var xMaxAll = d3.max(data.surfaces[0].x);
+	  var yMaxAll = d3.max(data.surfaces[0].y);
+	  var zMaxAll = d3.max(data.surfaces[0].z);
+	  var vMaxAll = d3.max(data.surfaces[0].v);
+
+	  var nDataSets = data.surfaces.length;
+
+	  for (var nds = 1; nds < nDataSets; ++nds) {
+	    xMinAll = d3.min(data.surfaces[nds].x) < xMinAll ? d3.min(data.surfaces[nds].x) : xMinAll;
+	    yMinAll = d3.min(data.surfaces[nds].y) < yMinAll ? d3.min(data.surfaces[nds].y) : yMinAll;
+	    zMinAll = d3.min(data.surfaces[nds].z) < zMinAll ? d3.min(data.surfaces[nds].z) : zMinAll;
+	    vMinAll = d3.min(data.surfaces[nds].v) < vMinAll ? d3.min(data.surfaces[nds].v) : vMinAll;
+	    xMaxAll = d3.max(data.surfaces[nds].x) > xMaxAll ? d3.max(data.surfaces[nds].x) : xMaxAll;
+	    yMaxAll = d3.max(data.surfaces[nds].y) > yMaxAll ? d3.max(data.surfaces[nds].y) : yMaxAll;
+	    zMaxAll = d3.max(data.surfaces[nds].z) > zMaxAll ? d3.max(data.surfaces[nds].z) : zMaxAll;
+	    vMaxAll = d3.max(data.surfaces[nds].v) > vMaxAll ? d3.max(data.surfaces[nds].v) : vMaxAll;
+	  }
+
+	  var xrange = xMaxAll - xMinAll;
+	  var yrange = yMaxAll - yMinAll;
+	  var zrange = zMaxAll - zMinAll;
+
+	  var xmid = 0.5 * (xMinAll + xMaxAll);
+	  var ymid = 0.5 * (yMinAll + yMaxAll);
+	  var zmid = 0.5 * (zMinAll + zMaxAll);
+
+	  var scalefac = 1. / d3.max([xrange, yrange, zrange]);
+
+	  // Use d3 for color scale 
+	  // vMinAll=0.4;
+	  // vMaxAll=1.1;
+	  // var color = d3.scaleLinear()
+	  //	.domain( [ vMinAll, vMaxAll ] )
+	  //	.interpolate(function() { return d3.interpolateRdBu; });
+
+	  // Initialise threejs geometry
+	  var geometry = new THREE.Geometry();
+	  geometry.faceValues = [];
+	  geometry.vScale = [vMinAll, vMaxAll];
+
+	  var noffset = 0;
+	  for (nds = 0; nds < nDataSets; ++nds) {
+	    x = data.surfaces[nds].x;
+	    y = data.surfaces[nds].y;
+	    z = data.surfaces[nds].z;
+	    v = data.surfaces[nds].v;
+	    m = data.surfaces[nds].size[0];
+	    n = data.surfaces[nds].size[1];
+
+	    var nverts = n * m;
+
+	    // Add grid vertices to geometry
+	    for (var k = 0; k < nverts; ++k) {
+	      var newvert = new THREE.Vector3((x[k] - xmid) * scalefac, (y[k] - ymid) * scalefac, (z[k] - zmid) * scalefac);
+	      geometry.vertices.push(newvert);
+	    }
+
+	    // Add cell faces (2 traingles per cell) to geometry
+	    for (var j = 0; j < m - 1; j++) {
+	      for (var i = 0; i < n - 1; i++) {
+	        var n0 = j * n + i;
+	        var n1 = n0 + 1;
+	        var n2 = (j + 1) * n + i + 1;
+	        var n3 = n2 - 1;
+	        var face1 = new THREE.Face3(n0 + noffset, n1 + noffset, n2 + noffset);
+	        var face2 = new THREE.Face3(n2 + noffset, n3 + noffset, n0 + noffset);
+	        // face1.vertexColors[0] = new THREE.Color( color( v[n0] ) );
+	        // face1.vertexColors[1] = new THREE.Color( color( v[n1] ) );
+	        // face1.vertexColors[2] = new THREE.Color( color( v[n2] ) );
+	        // face2.vertexColors[0] = new THREE.Color( color( v[n2] ) );
+	        // face2.vertexColors[1] = new THREE.Color( color( v[n3] ) );
+	        // face2.vertexColors[2] = new THREE.Color( color( v[n0] ) );
+	        geometry.faces.push(face1);
+	        geometry.faces.push(face2);
+	        var faceValue1 = [];
+	        var faceValue2 = [];
+	        faceValue1.push(v[n0]);
+	        faceValue1.push(v[n1]);
+	        faceValue1.push(v[n2]);
+	        faceValue2.push(v[n2]);
+	        faceValue2.push(v[n3]);
+	        faceValue2.push(v[n0]);
+	        geometry.faceValues.push(faceValue1);
+	        geometry.faceValues.push(faceValue2);
+	      }
+	    }
+	    noffset = noffset + nverts;
+	  }
+
+	  return geometry;
+	}
+
+	var d3ContourStruct2d = {
+
+	    make: function make(element, data, layout) {
+
+	        d3ContourStruct2d.update(element, data, layout);
+	    },
+
+	    update: function update(element, data, layout) {
+
+	        var container = d3.select(element);
+
+	        if (layout.highlightTasks == true) {
+
+	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+	                container.style("outline-width", "0px");
+	            } else {
+
+	                container.style("outline-width", "0px");
+
+	                dbsliceData.highlightTasks.forEach(function (taskId) {
+
+	                    if (taskId == layout.taskId) {
+
+	                        container.style("outline-style", "solid").style("outline-color", "red").style("outline-width", "4px").style("outline-offset", "-4px").raise();
+	                    }
+	                });
+	            }
+	        }
+
+	        if (data.newData == false) {
+	            return;
+	        }
+
+	        var x, y, v, n, m;
+
+	        var marginDefault = { top: 20, right: 65, bottom: 20, left: 10 };
+	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
+
+	        var svgWidth = container.node().offsetWidth,
+	            svgHeight = layout.height;
+
+	        var width = svgWidth - margin.left - margin.right;
+	        var height = svgHeight - margin.top - margin.bottom;
+
+	        container.select("svg").remove();
+
+	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).on("mouseover", tipOn).on("mouseout", tipOff);
+
+	        var plotArea = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").append("g").attr("class", "plotArea");
+
+	        var scaleMargin = { "left": svgWidth - 60, "top": margin.top };
+
+	        var scaleArea = svg.append("g").attr("class", "scaleArea").attr("transform", "translate(" + scaleMargin.left + "," + scaleMargin.top + ")");
+
+	        var xMinAll = d3.min(data.surfaces[0].x);
+	        var yMinAll = d3.min(data.surfaces[0].y);
+	        var vMinAll = d3.min(data.surfaces[0].v);
+
+	        var xMaxAll = d3.max(data.surfaces[0].x);
+	        var yMaxAll = d3.max(data.surfaces[0].y);
+	        var vMaxAll = d3.max(data.surfaces[0].v);
+
+	        var nDataSets = data.surfaces.length;
+
+	        for (var nds = 1; nds < nDataSets; ++nds) {
+	            xMinAll = d3.min(data.surfaces[nds].x) < xMinAll ? d3.min(data.surfaces[nds].x) : xMinAll;
+	            yMinAll = d3.min(data.surfaces[nds].y) < yMinAll ? d3.min(data.surfaces[nds].y) : yMinAll;
+	            vMinAll = d3.min(data.surfaces[nds].v) < vMinAll ? d3.min(data.surfaces[nds].v) : vMinAll;
+	            xMaxAll = d3.max(data.surfaces[nds].x) > xMaxAll ? d3.max(data.surfaces[nds].x) : xMaxAll;
+	            yMaxAll = d3.max(data.surfaces[nds].y) > yMaxAll ? d3.max(data.surfaces[nds].y) : yMaxAll;
+	            vMaxAll = d3.max(data.surfaces[nds].v) > vMaxAll ? d3.max(data.surfaces[nds].v) : vMaxAll;
+	        }
+
+	        var xRange = xMaxAll - xMinAll;
+	        var yRange = yMaxAll - yMinAll;
+
+	        // set x and y scale to maintain 1:1 aspect ratio  
+	        var domainAspectRatio = yRange / xRange;
+	        var rangeAspectRatio = height / width;
+
+	        if (rangeAspectRatio > domainAspectRatio) {
+	            var xscale = d3.scaleLinear().domain([xMinAll, xMaxAll]).range([0, width]);
+	            var yscale = d3.scaleLinear().domain([yMinAll, yMaxAll]).range([domainAspectRatio * width, 0]);
+	        } else {
+	            var xscale = d3.scaleLinear().domain([xMinAll, xMaxAll]).range([0, height / domainAspectRatio]);
+	            var yscale = d3.scaleLinear().domain([yMinAll, yMaxAll]).range([height, 0]);
+	        }
+
+	        if (layout.vScale !== undefined) {
+	            vMinAll = layout.vScale[0];
+	            vMaxAll = layout.vScale[1];
+	        }
+
+	        // array of threshold values 
+	        var thresholds = d3.range(vMinAll, vMaxAll, (vMaxAll - vMinAll) / 21);
+
+	        // colour scale 
+	        var colour = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap);
+	        colour.domain(d3.extent(thresholds));
+
+	        var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
+
+	        svg.transition().call(zoom.transform, d3.zoomIdentity);
+	        svg.call(zoom);
+
+	        for (var nds = 0; nds < nDataSets; ++nds) {
+	            x = data.surfaces[nds].x;
+	            y = data.surfaces[nds].y;
+	            v = data.surfaces[nds].v;
+	            m = data.surfaces[nds].size[0];
+	            n = data.surfaces[nds].size[1];
+
+	            // configure a projection to map the contour coordinates returned by
+	            // d3.contours (px,py) to the input data (xgrid,ygrid)
+	            var projection = d3.geoTransform({
+	                point: function point(px, py) {
+	                    var xfrac, yfrac, xnow, ynow;
+	                    var xidx, yidx, idx0, idx1, idx2, idx3;
+	                    // remove the 0.5 offset that comes from d3-contour
+	                    px = px - 0.5;
+	                    py = py - 0.5;
+	                    // clamp to the limits of the xgrid and ygrid arrays (removes "bevelling" from outer perimeter of contours)
+	                    px < 0 ? px = 0 : px;
+	                    py < 0 ? py = 0 : py;
+	                    px > n - 1 ? px = n - 1 : px;
+	                    py > m - 1 ? py = m - 1 : py;
+	                    // xidx and yidx are the array indices of the "bottom left" corner
+	                    // of the cell in which the point (px,py) resides
+	                    xidx = Math.floor(px);
+	                    yidx = Math.floor(py);
+	                    xidx == n - 1 ? xidx = n - 2 : xidx;
+	                    yidx == m - 1 ? yidx = m - 2 : yidx;
+	                    // xfrac and yfrac give the coordinates, between 0 and 1,
+	                    // of the point within the cell 
+	                    xfrac = px - xidx;
+	                    yfrac = py - yidx;
+	                    // indices of the 4 corners of the cell
+	                    idx0 = xidx + yidx * n;
+	                    idx1 = idx0 + 1;
+	                    idx2 = idx0 + n;
+	                    idx3 = idx2 + 1;
+	                    // bilinear interpolation to find projected coordinates (xnow,ynow)
+	                    // of the current contour coordinate
+	                    xnow = (1 - xfrac) * (1 - yfrac) * x[idx0] + xfrac * (1 - yfrac) * x[idx1] + yfrac * (1 - xfrac) * x[idx2] + xfrac * yfrac * x[idx3];
+	                    ynow = (1 - xfrac) * (1 - yfrac) * y[idx0] + xfrac * (1 - yfrac) * y[idx1] + yfrac * (1 - xfrac) * y[idx2] + xfrac * yfrac * y[idx3];
+	                    this.stream.point(xscale(xnow), yscale(ynow));
+	                }
+	            });
+
+	            // initialise contours
+	            var contours = d3.contours().size([n, m]).smooth(true).thresholds(thresholds);
+
+	            // make and project the contours
+	            plotArea.selectAll("path").data(contours(v)).enter().append("path").attr("d", d3.geoPath(projection)).attr("fill", function (d) {
+	                return colour(d.value);
+	            });
+	        }
+
+	        // colour scale 
+	        var scaleHeight = svgHeight / 2;
+	        var colourScale = layout.colourMap === undefined ? d3.scaleSequential(d3.interpolateSpectral) : d3.scaleSequential(layout.colourMap);
+	        colourScale.domain([0, scaleHeight]);
+
+	        var scaleBars = scaleArea.selectAll(".scaleBar").data(d3.range(scaleHeight), function (d) {
+	            return d;
+	        }).enter().append("rect").attr("class", "scaleBar").attr("x", 0).attr("y", function (d, i) {
+	            return scaleHeight - i;
+	        }).attr("height", 1).attr("width", 20).style("fill", function (d, i) {
+	            return colourScale(d);
+	        });
+
+	        var cscale = d3.scaleLinear().domain(d3.extent(thresholds)).range([scaleHeight, 0]);
+
+	        var cAxis = d3.axisRight(cscale).ticks(5);
+
+	        scaleArea.append("g").attr("transform", "translate(20,0)").call(cAxis);
+
+	        function zoomed() {
+	            var t = d3.event.transform;
+	            plotArea.attr("transform", t);
+	        }
+
+	        function tipOn() {
+	            if (layout.highlightTasks == true) {
+	                container.style("outline-style", "solid").style("outline-color", "red").style("outline-width", "4px").style("outline-offset", "-4px").raise();
+	                dbsliceData.highlightTasks = [layout.taskId];
+	                render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+	            }
+	        }
+
+	        function tipOff() {
+	            if (layout.highlightTasks == true) {
+	                container.style("outline-width", "0px");
+	                dbsliceData.highlightTasks = [];
+	                render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
+	            }
+	        }
+
+	        data.newData = false;
+	    }
+	};
 
 	var d3LineSeries = {
 

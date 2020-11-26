@@ -1,3 +1,6 @@
+import { dbsliceData } from '../core/dbsliceData.js';
+import { render } from '../core/render.js';
+
 const threeSurf3d = {
 
 	make : function ( element, geometry, layout ) {
@@ -7,6 +10,37 @@ const threeSurf3d = {
 	},
 
 	update : function (element, geometry, layout ) {
+
+		var container = d3.select(element);
+
+		if ( layout.highlightTasks == true ) {
+
+            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+                container.style("outline-width","0px")
+ 
+            } else {
+
+                container.style("outline-width","0px")
+
+                dbsliceData.highlightTasks.forEach( function (taskId) {
+
+                	console.log(layout.taskId);
+
+                    if ( taskId == layout.taskId ) {
+                    
+                        container
+                            .style("outline-style","solid")
+                            .style("outline-color","red")
+                            .style("outline-width","4px")
+                            .style("outline-offset","4px")
+                            .raise();
+
+                    }
+
+                });
+            }
+        }
 
 		if (geometry.newData == false) {
             return
@@ -28,12 +62,13 @@ const threeSurf3d = {
         	face.vertexColors[2] = new THREE.Color( color( geometry.faceValues[index][2] ) );
         })
 
-		var container = d3.select(element);
-
 		container.select(".plotArea").remove();
 
         var div = container.append("div")
-        	.attr("class", "plotArea");
+        	.attr("class", "plotArea")
+        	.on( "mouseover", tipOn )
+            .on( "mouseout", tipOff );
+
 
 		var width = container.node().offsetWidth,
 			height = layout.height;
@@ -105,6 +140,27 @@ const threeSurf3d = {
   
 		// Make initial call to render scene
 		renderer.render( scene, camera );
+
+		function tipOn() {
+            if ( layout.highlightTasks == true ) {
+                container
+                    .style("outline-style","solid")
+                    .style("outline-color","red")
+                    .style("outline-width","4px")
+                    .style("outline-offset","-4px")
+                    .raise();
+                dbsliceData.highlightTasks = [layout.taskId];
+                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+            }
+        }
+
+        function tipOff() {
+            if ( layout.highlightTasks == true ) {
+                container.style("outline-width","0px")
+                dbsliceData.highlightTasks = [];
+                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+            }
+        }
 
 		geometry.newData = false;
 

@@ -1,4 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
+import { render } from '../core/render.js';
 
 const d3ContourStruct2d = {
 
@@ -59,8 +60,9 @@ const d3ContourStruct2d = {
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
-            .attr("height", svgHeight);
-            //.style("stroke-width","0px");
+            .attr("height", svgHeight)
+            .on( "mouseover", tipOn )
+            .on( "mouseout", tipOff );
 
         var plotArea = svg.append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
@@ -222,6 +224,27 @@ const d3ContourStruct2d = {
         function zoomed() {
             var t = d3.event.transform;
             plotArea.attr( "transform", t );
+        }
+
+        function tipOn() {
+            if ( layout.highlightTasks == true ) {
+                container
+                    .style("outline-style","solid")
+                    .style("outline-color","red")
+                    .style("outline-width","4px")
+                    .style("outline-offset","-4px")
+                    .raise();
+                dbsliceData.highlightTasks = [layout.taskId];
+                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+            }
+        }
+
+        function tipOff() {
+            if ( layout.highlightTasks == true ) {
+                container.style("outline-width","0px")
+                dbsliceData.highlightTasks = [];
+                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+            }
         }
 
         data.newData = false;
