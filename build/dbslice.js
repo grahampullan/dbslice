@@ -6998,8 +6998,7 @@ var dbslice = (function (exports) {
 
 	        if (layout.highlightTasks == true) {
 	            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-	                points.style("opacity", opacity);
-	                points.style("fill", function (d) {
+	                points.style("opacity", opacity).style("stroke-width", "0px").style("fill", function (d) {
 	                    return colour(d[cProperty]);
 	                });
 	            } else {
@@ -7010,7 +7009,7 @@ var dbslice = (function (exports) {
 	                        return d.taskId == taskId;
 	                    }).style("fill", function (d) {
 	                        return colour(d[cProperty]);
-	                    }).style("opacity", opacity).raise();
+	                    }).style("opacity", opacity).style("stroke", "red").style("stroke-width", "2px").raise();
 	                });
 	            }
 	        }
@@ -7241,26 +7240,44 @@ var dbslice = (function (exports) {
 
 	        //console.log(tm);
 
-	        var values = void 0;
+	        var values = void 0,
+	            vertices = void 0;
 
 	        // tmp
-	        var nVerts = 50 * 50;
+	        var nVerts = data.nVerts === undefined ? tm.values.length : data.nVerts;
 
 	        if (layout.highlightTasks == true) {
 
 	            if (!Array.isArray(dbsliceData.highlightTasks)) {
+
 	                values = new Float32Array(tm.values.buffer, 0, nVerts);
+	                vertices = new Float32Array(tm.vertices.buffer, 0, 2 * nVerts);
 	            } else if (dbsliceData.highlightTasks.length != 0) {
 
-	                values = new Float32Array(tm.values.buffer, 4 * dbsliceData.highlightTasks[0] * nVerts, nVerts);
+	                var taskId = dbsliceData.highlightTasks[0];
+	                var nOffset = void 0;
+
+	                if (data.taskIdMap === undefined) {
+
+	                    nOffset = taskId;
+	                } else {
+
+	                    nOffset = data.taskIdMap[taskId];
+	                }
+
+	                values = new Float32Array(tm.values.buffer, 4 * nOffset * nVerts, nVerts);
+	                vertices = new Float32Array(tm.vertices.buffer, 4 * 2 * nOffset * nVerts, 2 * nVerts);
 	            } else {
 
 	                return;
 	            }
 	        }
 
+	        console.log(vertices);
+	        console.log(values);
+
 	        var arrays = {
-	            a_position: { numComponents: 2, data: tm.vertices },
+	            a_position: { numComponents: 2, data: vertices },
 	            a_val: { numComponents: 1, data: values },
 	            indices: { numComponents: 3, data: tm.indices }
 	        };

@@ -189,8 +189,10 @@ const cfD3Scatter = {
 
         if ( layout.highlightTasks == true ) {
             if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-                points.style( "opacity" , opacity );
-                points.style( "fill", function( d ) { return colour( d[ cProperty ] ); } );
+                points
+                    .style( "opacity" , opacity )
+                    .style( "stroke-width", "0px")
+                    .style( "fill", function( d ) { return colour( d[ cProperty ] ); } );
             } else {
                 //points.style( "opacity" , 0.2);
                 points.style( "fill" , "#d3d3d3");
@@ -198,6 +200,8 @@ const cfD3Scatter = {
                     points.filter( (d,i) => d.taskId == taskId)
                         .style( "fill", function( d ) { return colour( d[ cProperty ] ); } )
                         .style( "opacity" , opacity)
+                        .style( "stroke", "red")
+                        .style( "stroke-width", "2px")
                         .raise();
                 });
             }

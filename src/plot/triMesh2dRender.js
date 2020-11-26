@@ -54,25 +54,45 @@ const triMesh2dRender = {
 		let values, vertices;
 
 		// tmp
-		const nVerts = 50*50
+		const nVerts = ( data.nVerts === undefined ) ? tm.values.length : data.nVerts;
 
 		if ( layout.highlightTasks == true ) {
    
             if (!Array.isArray(dbsliceData.highlightTasks)) {
-            	values = new Float32Array(tm.values.buffer,0,nVerts);
-            
 
+            	values = new Float32Array(tm.values.buffer,0,nVerts);
+            	vertices = new Float32Array(tm.vertices.buffer,0,2*nVerts);
+            
             } else if (dbsliceData.highlightTasks.length != 0) {
      
-            	values = new Float32Array(tm.values.buffer,4*dbsliceData.highlightTasks[0]*nVerts,nVerts);
+     			let taskId = dbsliceData.highlightTasks[0];
+     			let nOffset;
+
+     			if ( data.taskIdMap === undefined) {
+
+     				nOffset = taskId;
+
+     			} else {
+
+     				nOffset = data.taskIdMap[taskId];
+
+     			}
+
+            	values = new Float32Array(tm.values.buffer,4*nOffset*nVerts,nVerts);
+            	vertices = new Float32Array(tm.vertices.buffer,4*2*nOffset*nVerts,2*nVerts);
+            	
             } else {
 
             	return;
             }
+
         }
 
+        console.log(vertices);
+        console.log(values);
+
 		const arrays = {
-     		a_position: {numComponents: 2, data: tm.vertices},
+     		a_position: {numComponents: 2, data: vertices},
      		a_val: {numComponents: 1, data: values},
      		indices: {numComponents: 3, data: tm.indices}
   		};
