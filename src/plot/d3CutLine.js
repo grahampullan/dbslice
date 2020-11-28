@@ -97,7 +97,6 @@ const d3CutLine = {
             .y( function( d ) { return yscale( d.y ); } );
 
         function segLine(lineSegs) {
-            console.log(lineSegs);
             let path="";
             lineSegs.forEach(d => {
                 let seg=[{x:d[0][0], y:d[0][1]},{x:d[1][0],y:d[1][1]}];

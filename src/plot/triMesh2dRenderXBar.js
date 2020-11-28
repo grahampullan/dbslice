@@ -38,6 +38,8 @@ const triMesh2dRenderXBar = {
 
 	update : function (element, data, layout ) {
 
+    console.log("in trimesh render")
+
 		const container = d3.select(element);
 		const width = container.node().offsetWidth;
         const height = width; // force square plots for now
@@ -102,8 +104,8 @@ const triMesh2dRenderXBar = {
 
         }
 
-      console.log(vertices);
-      console.log(values);
+      //console.log(vertices);
+      //console.log(values);
 
 		  const arrays = {
      		a_position: {numComponents: 2, data: vertices},
@@ -178,8 +180,8 @@ const triMesh2dRenderXBar = {
             .attr("class","bar")
             .attr("fill", "none")
             .attr("stroke", "Gray")
-            .attr("stroke-width", 4)
-            .style("opacity",0.5)
+            .attr("stroke-width", 5)
+            .style("opacity",0.8)
             //.style("cursor","move")
             .attr("d",d3.line()(barCoords));     
         } else {

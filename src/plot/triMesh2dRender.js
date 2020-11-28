@@ -98,8 +98,8 @@ const triMesh2dRender = {
 
         }
 
-        console.log(vertices);
-        console.log(values);
+        //console.log(vertices);
+        //console.log(values);
 
 		const arrays = {
      		a_position: {numComponents: 2, data: vertices},

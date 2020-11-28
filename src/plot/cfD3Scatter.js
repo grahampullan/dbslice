@@ -220,6 +220,7 @@ const cfD3Scatter = {
         }
 
         function tipOn( d ) {
+            console.log("mouse on")
             points.style( "opacity" , 0.2);
             //points.style( "fill" , "#d3d3d3");
             d3.select(this)

@@ -7126,6 +7126,7 @@ var dbslice = (function (exports) {
 	        }
 
 	        function tipOn(d) {
+	            console.log("mouse on");
 	            points.style("opacity", 0.2);
 	            //points.style( "fill" , "#d3d3d3");
 	            d3.select(this).style("opacity", 1.0).attr("r", 7);
@@ -7387,8 +7388,8 @@ var dbslice = (function (exports) {
 	            }
 	        }
 
-	        console.log(vertices);
-	        console.log(values);
+	        //console.log(vertices);
+	        //console.log(values);
 
 	        var arrays = {
 	            a_position: { numComponents: 2, data: vertices },
@@ -7468,6 +7469,8 @@ var dbslice = (function (exports) {
 
 	  update: function update(element, data, layout) {
 
+	    console.log("in trimesh render");
+
 	    var container = d3.select(element);
 	    var width = container.node().offsetWidth;
 	    var height = width; // force square plots for now
@@ -7525,8 +7528,8 @@ var dbslice = (function (exports) {
 	      }
 	    }
 
-	    console.log(vertices);
-	    console.log(values);
+	    //console.log(vertices);
+	    //console.log(values);
 
 	    var arrays = {
 	      a_position: { numComponents: 2, data: vertices },
@@ -7584,7 +7587,7 @@ var dbslice = (function (exports) {
 	    var barCoords = [[xScale(zpCut), 0], [xScale(zpCut), height]];
 	    var barPath = overlay.select(".bar");
 	    if (barPath.empty()) {
-	      overlay.append("path").attr("class", "bar").attr("fill", "none").attr("stroke", "Gray").attr("stroke-width", 4).style("opacity", 0.5)
+	      overlay.append("path").attr("class", "bar").attr("fill", "none").attr("stroke", "Gray").attr("stroke-width", 5).style("opacity", 0.8)
 	      //.style("cursor","move")
 	      .attr("d", d3.line()(barCoords));
 	    } else {
@@ -7783,7 +7786,6 @@ var dbslice = (function (exports) {
 	        });
 
 	        function segLine(lineSegs) {
-	            console.log(lineSegs);
 	            var path = "";
 	            lineSegs.forEach(function (d) {
 	                var seg = [{ x: d[0][0], y: d[0][1] }, { x: d[1][0], y: d[1][1] }];
