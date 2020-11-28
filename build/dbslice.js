@@ -7127,6 +7127,7 @@ var dbslice = (function (exports) {
 
 	        function tipOn(d) {
 	            points.style("opacity", 0.2);
+	            //points.style( "fill" , "#d3d3d3");
 	            d3.select(this).style("opacity", 1.0).attr("r", 7);
 	            tip.show(d);
 	            if (layout.highlightTasks == true) {
@@ -7264,6 +7265,10 @@ var dbslice = (function (exports) {
 	        })));
 	    });
 
+	    cfData.metaDims.forEach(function (dim) {
+	        return dim.filterAll();
+	    });
+
 	    cfData.dataDims = [];
 
 	    cfData.dataProperties.forEach(function (property, i) {
@@ -7271,6 +7276,10 @@ var dbslice = (function (exports) {
 	        cfData.dataDims.push(cfData.cf.dimension(function (d) {
 	            return d[property];
 	        }));
+	    });
+
+	    cfData.dataDims.forEach(function (dim) {
+	        return dim.filterAll();
 	    });
 
 	    cfData.filterSelected = [];
@@ -7364,7 +7373,14 @@ var dbslice = (function (exports) {
 	                }
 
 	                values = new Float32Array(tm.values.buffer, 4 * nOffset * nVerts, nVerts);
-	                vertices = new Float32Array(tm.vertices.buffer, 4 * 2 * nOffset * nVerts, 2 * nVerts);
+
+	                if (layout.updateVertices) {
+
+	                    vertices = new Float32Array(tm.vertices.buffer, 4 * 2 * nOffset * nVerts, 2 * nVerts);
+	                } else {
+
+	                    vertices = tm.vertices;
+	                }
 	            } else {
 
 	                return;
@@ -7428,6 +7444,409 @@ var dbslice = (function (exports) {
 
 	};
 
+	var triMesh2dRenderXBar = {
+
+	  make: function make(element, data, layout) {
+
+	    console.log("make");
+
+	    var container = d3.select(element);
+
+	    container.style("position", "relative");
+
+	    var width = container.node().offsetWidth;
+	    var height = width; // force square plots for now
+
+	    console.log(width);
+
+	    var canvas = container.append("canvas").attr("width", width).attr("height", height).style("width", width + "px").style("height", height + "px");
+
+	    var overlay = container.append("svg").attr("class", "svg-overlay").style("position", "absolute").style("z-index", 2).style("top", "0px").style("left", "0px").attr("width", width).attr("height", height);
+
+	    triMesh2dRenderXBar.update(element, data, layout);
+	  },
+
+	  update: function update(element, data, layout) {
+
+	    var container = d3.select(element);
+	    var width = container.node().offsetWidth;
+	    var height = width; // force square plots for now
+
+	    var canvas = container.select("canvas");
+
+	    var gl = canvas.node().getContext("webgl", { antialias: true, depth: false });
+	    twgl.addExtensionsToContext(gl);
+	    var programInfo = twgl.createProgramInfo(gl, [triMesh2dRenderXBar.vertShader, triMesh2dRenderXBar.fragShader]);
+
+	    var tm = data.triMesh;
+
+	    var nTris = tm.indices.length / 3;
+	    console.log(nTris);
+
+	    //console.log(tm);
+
+	    var values = void 0,
+	        vertices = void 0;
+
+	    // tmp
+	    var nVerts = data.nVerts === undefined ? tm.values.length : data.nVerts;
+
+	    if (layout.highlightTasks == true) {
+
+	      if (!Array.isArray(dbsliceData.highlightTasks)) {
+
+	        values = new Float32Array(tm.values.buffer, 0, nVerts);
+	        vertices = new Float32Array(tm.vertices.buffer, 0, 2 * nVerts);
+	      } else if (dbsliceData.highlightTasks.length != 0) {
+
+	        var taskId = dbsliceData.highlightTasks[0];
+	        var nOffset = void 0;
+
+	        if (data.taskIdMap === undefined) {
+
+	          nOffset = taskId;
+	        } else {
+
+	          nOffset = data.taskIdMap[taskId];
+	        }
+
+	        values = new Float32Array(tm.values.buffer, 4 * nOffset * nVerts, nVerts);
+
+	        if (layout.updateVertices) {
+
+	          vertices = new Float32Array(tm.vertices.buffer, 4 * 2 * nOffset * nVerts, 2 * nVerts);
+	        } else {
+
+	          vertices = tm.vertices;
+	        }
+	      } else {
+
+	        return;
+	      }
+	    }
+
+	    console.log(vertices);
+	    console.log(values);
+
+	    var arrays = {
+	      a_position: { numComponents: 2, data: vertices },
+	      a_val: { numComponents: 1, data: values },
+	      indices: { numComponents: 3, data: tm.indices }
+	    };
+	    var bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+
+	    var viewDefault = { xMin: -1., xMax: 1., yMin: -1., yMax: 1 };
+	    var view = layout.view === undefined ? viewDefault : layout.view;
+
+	    var vScaleDefault = [0., 1.];
+	    var vScale = layout.vScale === undefined ? vScaleDefault : layout.vScale;
+
+	    var projectionMatrix = glMatrix.mat4.create();
+	    glMatrix.mat4.ortho(projectionMatrix, view.xMin, view.xMax, view.yMin, view.yMax, 0, 1.);
+	    console.log(projectionMatrix);
+	    var cmap = new Uint8Array([158, 1, 66, 255, 185, 31, 72, 255, 209, 60, 75, 255, 228, 86, 73, 255, 240, 112, 74, 255, 248, 142, 83, 255, 252, 172, 99, 255, 253, 198, 118, 255, 254, 221, 141, 255, 254, 238, 163, 255, 251, 248, 176, 255, 241, 249, 171, 255, 224, 243, 160, 255, 200, 233, 159, 255, 169, 220, 162, 255, 137, 207, 165, 255, 105, 189, 169, 255, 78, 164, 176, 255, 66, 136, 181, 255, 74, 108, 174, 255, 94, 79, 162, 255]); //spectral
+	    var cmapTex = twgl.createTexture(gl, { mag: gl.LINEAR, min: gl.LINEAR, src: cmap, width: 21, height: 1 });
+	    var uniforms = { u_matrix: projectionMatrix, u_cmap: cmapTex, u_cmin: vScale[0], u_cmax: vScale[1] };
+
+	    gl.useProgram(programInfo.program);
+	    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
+	    twgl.setUniforms(programInfo, uniforms);
+	    gl.drawElements(gl.TRIANGLES, nTris * 3, gl.UNSIGNED_INT, 0);
+
+	    var overlay = container.select(".svg-overlay");
+	    var scaleMargin = { "left": width - 50, "top": height / 2 - 50 };
+	    overlay.select(".scaleArea").remove();
+	    var scaleArea = overlay.append("g").attr("class", "scaleArea").attr("transform", "translate(" + scaleMargin.left + "," + scaleMargin.top + ")");
+
+	    var scaleHeight = 100;
+	    var colourScale = d3.scaleSequential(d3.interpolateSpectral);
+	    colourScale.domain([0, scaleHeight]);
+	    var scaleBars = scaleArea.selectAll(".scaleBar").data(d3.range(scaleHeight), function (d) {
+	      return d;
+	    }).enter().append("rect").attr("class", "scaleBar").attr("x", 0).attr("y", function (d, i) {
+	      return scaleHeight - i;
+	    }).attr("height", 1).attr("width", 20).style("fill", function (d, i) {
+	      return colourScale(d);
+	    });
+
+	    var cscale = d3.scaleLinear().domain(vScale).range([scaleHeight, 0]);
+
+	    var cAxis = d3.axisRight(cscale).ticks(5);
+
+	    scaleArea.append("g").attr("transform", "translate(20,0)").call(cAxis);
+
+	    var zpCut = 0.1036;
+
+	    var xScale = d3.scaleLinear().domain([view.xMin, view.xMax]).range([0, width]);
+
+	    var yScale = d3.scaleLinear().domain([view.yMin, view.yMax]).range([height, 0]);
+
+	    var barCoords = [[xScale(zpCut), 0], [xScale(zpCut), height]];
+	    var barPath = overlay.select(".bar");
+	    if (barPath.empty()) {
+	      overlay.append("path").attr("class", "bar").attr("fill", "none").attr("stroke", "Gray").attr("stroke-width", 4).style("opacity", 0.5)
+	      //.style("cursor","move")
+	      .attr("d", d3.line()(barCoords));
+	    } else {
+	      barPath.attr("d", d3.line()(barCoords));
+	    }
+
+	    var zp = new Float32Array(nVerts);
+	    for (var i = 0; i < nVerts; i++) {
+	      zp[i] = vertices[2 * i]; // x values
+	    }
+
+	    console.log("requesting cut");
+	    var thisLine = getCut({ indices: tm.indices, vertices: vertices, values: values }, zp, zpCut);
+	    dbsliceData.xCut = thisLine.map(function (d) {
+	      return d.map(function (e) {
+	        return [e[1], e[2]];
+	      });
+	    });
+	    //console.log(thisLine);
+	    //render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+
+	    function getCut(tm, zp, zpCut) {
+	      var cutTris = findCutTrisLine(data.qTree, zpCut);
+	      var line = getLineFromCutTris(tm, zp, zpCut, cutTris);
+	      return line;
+	    }
+
+	    function findCutTrisLine(tree, zpCut) {
+	      var cutTris = [];
+	      tree.visit(function (node, x1, x2, y1, y2) {
+	        if (!node.length) {
+	          do {
+	            var d = node.data;
+	            var triIndx = d.i;
+	            var triCut = d.zpMin <= zpCut && d.zpMax >= zpCut;
+	            if (triCut) {
+	              cutTris.push(triIndx);
+	            }
+	          } while (node = node.next);
+	        }
+	        return x1 > zpCut || y2 < zpCut;
+	      });
+	      return cutTris;
+	    }
+
+	    function getLineFromCutTris(tm, zp, zpCut, cutTris) {
+
+	      var lineSegments = [];
+
+	      var cutEdgeCases = [[[0, 1], [0, 2]], [[0, 1], [0, 2]], [[0, 1], [1, 2]], [[0, 2], [1, 2]], [[0, 2], [1, 2]], [[0, 1], [1, 2]], [[0, 1], [0, 2]], [[0, 1], [0, 2]]];
+
+	      cutTris.forEach(function (itri) {
+	        var verts = getVerts(itri, tm, zp);
+	        var t0 = verts[0][0] <= zpCut;
+	        var t1 = verts[1][0] <= zpCut;
+	        var t2 = verts[2][0] <= zpCut;
+	        var caseIndx = t0 << 0 | t1 << 1 | t2 << 2;
+	        var cutEdges = cutEdgeCases[caseIndx];
+	        var vertA = cutEdge(verts, cutEdges[0], zpCut);
+	        var vertB = cutEdge(verts, cutEdges[1], zpCut);
+	        var lineSegment = [];
+	        vertA.shift();
+	        vertB.shift();
+	        lineSegment.push(vertA);
+	        lineSegment.push(vertB);
+	        lineSegments.push(lineSegment);
+	      });
+
+	      return lineSegments;
+	    }
+
+	    function getVerts(itri, tm, zp) {
+	      var verts = [];
+	      for (var _i = 0; _i < 3; _i++) {
+	        var ivert = tm.indices[itri * 3 + _i];
+	        var vert = [];
+	        vert.push(zp[ivert]);
+	        vert.push(tm.vertices[ivert * 2]);
+	        vert.push(tm.vertices[ivert * 2 + 1]);
+	        vert.push(tm.values[ivert]);
+	        verts.push(vert);
+	      }
+	      return verts;
+	    }
+
+	    function cutEdge(verts, edge, zpcut) {
+	      var i0 = edge[0];
+	      var i1 = edge[1];
+	      var zp0 = verts[i0][0];
+	      var zp1 = verts[i1][0];
+	      var frac = (zpcut - zp0) / (zp1 - zp0);
+	      var frac1 = 1. - frac;
+	      var vert = [];
+	      var nvals = verts[0].length;
+	      for (var n = 0; n < nvals; n++) {
+	        var cutVal = frac1 * verts[i0][n] + frac * verts[i1][n];
+	        vert.push(cutVal);
+	      }
+	      return vert;
+	    }
+	  },
+
+	  vertShader: 'attribute vec2 a_position;\nattribute float a_val;\nuniform mat4 u_matrix;\nvarying float v_val;\nvoid main() {\n  gl_Position = u_matrix*vec4(a_position,0,1);\n  v_val = a_val;\n}\n',
+
+	  fragShader: 'precision highp float;\nuniform sampler2D u_cmap;\nuniform float u_cmin, u_cmax;\nvarying float v_val;\nvoid main() {\n  gl_FragColor = texture2D(u_cmap, vec2( (v_val-u_cmin)/(u_cmax-u_cmin) ,0.5));\n}\n'
+
+	};
+
+	var d3CutLine = {
+
+	    make: function make(element, data, layout) {
+
+	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
+	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
+
+	        var container = d3.select(element);
+
+	        var svgWidth = container.node().offsetWidth,
+	            svgHeight = layout.height;
+
+	        var width = svgWidth - margin.left - margin.right;
+	        var height = svgHeight - margin.top - margin.bottom;
+
+	        var svg = container.append("svg").attr("width", svgWidth).attr("height", svgHeight).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")").attr("class", "plotArea");
+
+	        d3CutLine.update(element, data, layout);
+	    },
+
+	    update: function update(element, data, layout) {
+
+	        var container = d3.select(element);
+	        var svg = container.select("svg");
+	        var plotArea = svg.select(".plotArea");
+
+	        //if (data.newData == false) {
+	        //    return
+	        //}
+
+	        var marginDefault = { top: 20, right: 20, bottom: 30, left: 50 };
+	        var margin = layout.margin === undefined ? marginDefault : layout.margin;
+
+	        var plotRowIndex = container.attr("plot-row-index");
+	        var plotIndex = container.attr("plot-index");
+	        var clipId = "clip-" + plotRowIndex + "-" + plotIndex;
+
+	        var svgWidth = svg.attr("width");
+	        var svgHeight = svg.attr("height");
+
+	        var width = svgWidth - margin.left - margin.right;
+	        var height = svgHeight - margin.top - margin.bottom;
+
+	        var cutLine = dbsliceData.xCut;
+
+	        var xData = cutLine.map(function (d) {
+	            return d[0][0];
+	        });
+	        var yData = cutLine.map(function (d) {
+	            return d[0][1];
+	        });
+
+	        if (layout.xRange === undefined) {
+	            var xRange = d3.extent(xData);
+	        } else {
+	            var xRange = layout.xRange;
+	        }
+
+	        if (layout.yRange === undefined) {
+	            var yRange = d3.extent(yData);
+	        } else {
+	            var yRange = layout.yRange;
+	        }
+
+	        if (layout.xscale == "time") {
+	            var xscale = d3.scaleTime();
+	            var xscale0 = d3.scaleTime();
+	        } else {
+	            var xscale = d3.scaleLinear();
+	            var xscale0 = d3.scaleLinear();
+	        }
+
+	        xscale.range([0, width]).domain(xRange);
+
+	        xscale0.range([0, width]).domain(xRange);
+
+	        var yscale = d3.scaleLinear().range([height, 0]).domain(yRange);
+
+	        var yscale0 = d3.scaleLinear().range([height, 0]).domain(yRange);
+
+	        //var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+	        //if ( layout.cSet !== undefined) colour.domain( layout.cSet );
+
+	        var line = d3.line().x(function (d) {
+	            return xscale(d.x);
+	        }).y(function (d) {
+	            return yscale(d.y);
+	        });
+
+	        function segLine(lineSegs) {
+	            console.log(lineSegs);
+	            var path = "";
+	            lineSegs.forEach(function (d) {
+	                var seg = [{ x: d[0][0], y: d[0][1] }, { x: d[1][0], y: d[1][1] }];
+	                path += line(seg);
+	            });
+	            return path;
+	        }
+
+	        var clip = svg.append("defs").append("clipPath").attr("id", clipId).append("rect").attr("width", width).attr("height", height);
+
+	        var zoom = d3.zoom().scaleExtent([0.5, Infinity]).on("zoom", zoomed);
+
+	        svg.transition().call(zoom.transform, d3.zoomIdentity);
+	        svg.call(zoom);
+
+	        var tip = d3.tip().attr('class', 'd3-tip').offset([-10, 0]).html(function (d) {
+	            return "<span>" + d.label + "</span>";
+	        });
+
+	        svg.call(tip);
+
+	        var focus = plotArea.append("g").style("display", "none").append("circle").attr("r", 1);
+
+	        var linePath = plotArea.select(".line");
+	        if (linePath.empty()) {
+	            plotArea.append("path").attr("class", "line").datum(cutLine).attr("fill", "none").attr("stroke", "steelblue").attr("stroke-width", 2).attr("stroke-linejoin", "round").attr("stroke-linecap", "round").attr("d", segLine);
+	        } else {
+	            linePath.datum(cutLine).attr("d", segLine);
+	        }
+
+	        var xAxis = d3.axisBottom(xscale).ticks(5);
+	        var yAxis = d3.axisLeft(yscale);
+
+	        var gX = plotArea.select(".axis--x");
+	        if (gX.empty()) {
+	            gX = plotArea.append("g").attr("transform", "translate(0," + height + ")").attr("class", "axis--x").call(xAxis);
+	            gX.append("text").attr("fill", "#000").attr("x", width).attr("y", margin.bottom - 2).attr("text-anchor", "end").text(layout.xAxisLabel);
+	        } else {
+	            gX.transition().call(xAxis);
+	        }
+
+	        var gY = plotArea.select(".axis--y");
+	        if (gY.empty()) {
+	            gY = plotArea.append("g").attr("class", "axis--y").call(yAxis);
+	            gY.append("text").attr("fill", "#000").attr("transform", "rotate(-90)").attr("x", 0).attr("y", -margin.left + 15).attr("text-anchor", "end").text(layout.yAxisLabel);
+	        } else {
+	            gY.transition().call(yAxis);
+	        }
+
+	        function zoomed() {
+	            var t = d3.event.transform;
+	            xscale.domain(t.rescaleX(xscale0).domain());
+	            yscale.domain(t.rescaleY(yscale0).domain());
+	            gX.call(xAxis);
+	            gY.call(yAxis);
+	            //plotArea.selectAll(".line").attr( "d", function( d ) { return line( d.data ); } );
+	            plotArea.select(".line").datum(cutLine).attr("d", segLine);
+	        }
+
+	        data.newData = false;
+	    }
+	};
+
 	exports.threeSurf3d = threeSurf3d;
 	exports.threeMeshFromStruct = threeMeshFromStruct;
 	exports.d3ContourStruct2d = d3ContourStruct2d;
@@ -7450,6 +7869,8 @@ var dbslice = (function (exports) {
 	exports.getFilteredTaskIds = getFilteredTaskIds;
 	exports.getFilteredTaskLabels = getFilteredTaskLabels;
 	exports.triMesh2dRender = triMesh2dRender;
+	exports.triMesh2dRenderXBar = triMesh2dRenderXBar;
+	exports.d3CutLine = d3CutLine;
 
 	return exports;
 

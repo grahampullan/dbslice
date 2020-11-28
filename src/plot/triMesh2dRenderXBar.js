@@ -1,12 +1,16 @@
 import { dbsliceData } from '../core/dbsliceData.js';
+import { render } from '../core/render.js';
 
-const triMesh2dRender = {
+
+const triMesh2dRenderXBar = {
 
 	make : function ( element, data, layout ) {
 
 		console.log("make");
 
 		const container = d3.select(element);
+
+    container.style("position","relative")
 
         const width = container.node().offsetWidth;
         const height = width; // force square plots for now
@@ -28,7 +32,7 @@ const triMesh2dRender = {
     		.attr("width", width)
     		.attr("height", height);
   
-		triMesh2dRender.update ( element, data, layout );
+		triMesh2dRenderXBar.update ( element, data, layout );
 
 	},
 
@@ -42,7 +46,7 @@ const triMesh2dRender = {
 
 		const gl = canvas.node().getContext("webgl", {antialias: true, depth: false});
 		twgl.addExtensionsToContext(gl);
-		const programInfo = twgl.createProgramInfo(gl, [triMesh2dRender.vertShader, triMesh2dRender.fragShader]);
+		const programInfo = twgl.createProgramInfo(gl, [triMesh2dRenderXBar.vertShader, triMesh2dRenderXBar.fragShader]);
 
 		const tm = data.triMesh;
 
@@ -98,10 +102,10 @@ const triMesh2dRender = {
 
         }
 
-        console.log(vertices);
-        console.log(values);
+      console.log(vertices);
+      console.log(values);
 
-		const arrays = {
+		  const arrays = {
      		a_position: {numComponents: 2, data: vertices},
      		a_val: {numComponents: 1, data: values},
      		indices: {numComponents: 3, data: tm.indices}
@@ -155,6 +159,137 @@ const triMesh2dRender = {
         scaleArea.append("g")
             .attr("transform", "translate(20,0)")
             .call(cAxis);
+
+
+        let zpCut=0.1036;
+
+        let xScale = d3.scaleLinear()
+          .domain([view.xMin, view.xMax])
+          .range([0,width]);
+
+        let yScale = d3.scaleLinear()
+          .domain([view.yMin, view.yMax])
+          .range([height,0]); 
+
+        let barCoords = [[xScale(zpCut),0],[xScale(zpCut),height]];
+        let barPath = overlay.select(".bar");
+        if (barPath.empty()) {
+          overlay.append("path")
+            .attr("class","bar")
+            .attr("fill", "none")
+            .attr("stroke", "Gray")
+            .attr("stroke-width", 4)
+            .style("opacity",0.5)
+            //.style("cursor","move")
+            .attr("d",d3.line()(barCoords));     
+        } else {
+            barPath.attr("d",d3.line()(barCoords))
+        }
+
+
+        
+        const zp=new Float32Array(nVerts);
+        for (let i=0; i<nVerts; i++) {
+          zp[i]=vertices[2*i];  // x values
+        } 
+
+        console.log("requesting cut")
+        const thisLine = getCut ({indices:tm.indices, vertices, values}, zp, zpCut);
+        dbsliceData.xCut=thisLine.map(d=>d.map(e=>([e[1],e[2]])));
+        //console.log(thisLine);
+        //render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+
+        function getCut( tm, zp, zpCut) {
+          let cutTris = findCutTrisLine(data.qTree,zpCut);
+          let line = getLineFromCutTris(tm, zp, zpCut, cutTris);
+          return line;
+        }
+
+
+
+        function findCutTrisLine(tree, zpCut) {
+          const cutTris=[];
+          tree.visit(function(node,x1,x2,y1,y2) {
+            if (!node.length) {
+              do {
+                let d = node.data;
+                let triIndx = d.i;
+                let triCut = (d.zpMin <= zpCut) && (d.zpMax >= zpCut);
+                if ( triCut ) { cutTris.push(triIndx); }
+              } while (node = node.next);
+            }
+            return (x1 > zpCut || y2 < zpCut) ;
+          });
+          return cutTris;
+        }
+
+
+        function getLineFromCutTris(tm, zp, zpCut, cutTris) {
+  
+          let lineSegments = [];
+
+          const cutEdgeCases = [
+            [ [0,1] , [0,2] ],
+            [ [0,1] , [0,2] ],
+            [ [0,1] , [1,2] ],
+            [ [0,2] , [1,2] ],
+            [ [0,2] , [1,2] ],
+            [ [0,1] , [1,2] ],
+            [ [0,1] , [0,2] ],
+            [ [0,1] , [0,2] ]  
+          ];
+  
+          cutTris.forEach( itri => {
+            let verts = getVerts(itri, tm, zp);
+            let t0 = verts[0][0] <= zpCut;
+            let t1 = verts[1][0] <= zpCut;
+            let t2 = verts[2][0] <= zpCut;  
+            let caseIndx= t0<<0 | t1<<1 | t2<<2;
+            let cutEdges = cutEdgeCases[caseIndx];
+            let vertA = cutEdge(verts, cutEdges[0], zpCut);
+            let vertB = cutEdge(verts, cutEdges[1], zpCut);
+            let lineSegment = [];
+            vertA.shift();
+            vertB.shift();
+            lineSegment.push(vertA);
+            lineSegment.push(vertB);
+            lineSegments.push(lineSegment);
+          });
+
+          return lineSegments;
+        }
+
+        function getVerts(itri,tm,zp) {
+          let verts = [];
+          for (let i=0; i<3; i++) {
+            let ivert = tm.indices[itri*3 + i];
+            let vert = [];
+            vert.push(zp[ivert]);
+            vert.push(tm.vertices[ivert*2]);
+            vert.push(tm.vertices[ivert*2+1]);
+            vert.push(tm.values[ivert]);
+            verts.push(vert);
+          }
+        return verts;
+        }
+
+        function cutEdge(verts, edge, zpcut) {
+          let i0 = edge[0];
+          let i1 = edge[1];
+          let zp0 = verts[i0][0];
+          let zp1 = verts[i1][0];
+          let frac = (zpcut-zp0)/(zp1-zp0);
+          let frac1 = 1.-frac;
+          let vert = [];
+          let nvals = verts[0].length;
+          for (let n=0; n<nvals; n++) {
+            let cutVal = frac1*verts[i0][n] + frac*verts[i1][n];
+            vert.push(cutVal);
+          }
+          return vert;
+        }
+        
+
 	}, 
 
 	vertShader : `attribute vec2 a_position;
@@ -181,4 +316,4 @@ void main() {
 
 }
 
-export { triMesh2dRender };
+export { triMesh2dRenderXBar };

@@ -22,6 +22,8 @@ function cfInit( metaData ) {
 
     } );
 
+    cfData.metaDims.forEach( dim => dim.filterAll() );
+
     cfData.dataDims = [];
 
     cfData.dataProperties.forEach( ( property, i ) => {
@@ -29,6 +31,8 @@ function cfInit( metaData ) {
     	cfData.dataDims.push ( cfData.cf.dimension( d => d[ property ] ) );
 
     } );
+
+    cfData.dataDims.forEach( dim => dim.filterAll() );
 
     cfData.filterSelected = [];
 

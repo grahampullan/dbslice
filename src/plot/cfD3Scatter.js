@@ -221,6 +221,7 @@ const cfD3Scatter = {
 
         function tipOn( d ) {
             points.style( "opacity" , 0.2);
+            //points.style( "fill" , "#d3d3d3");
             d3.select(this)
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
