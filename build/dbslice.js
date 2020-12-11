@@ -125,6 +125,90 @@ var dbslice = (function (exports) {
         }, // dragEnd
         
 		
+		dragSmooth: function dragSmooth(ctrl){
+			
+			/*
+			ctrl = {
+				wrapper: card to move
+				container: bounding element
+				onstart: on-start event
+				onmove: on-move event
+				onend: on-end event
+				position: position accessor
+			}
+			*/
+			
+			function getMousePosition(containerDOM){
+					
+				let mousePosition = d3.mouse(containerDOM)
+				
+				return {
+					x: mousePosition[0],
+					y: mousePosition[1]
+				}
+			} // getMousePosition
+			
+			// Position: absolute is somehow crucial to make thedragging smooth at the start!
+			return d3.drag()
+				.on("start", function(d){
+					let position = ctrl.position(d)
+					position.mouse = getMousePosition(ctrl.container.node())
+					ctrl.onstart(d)		
+				})
+				.on("drag", function(d){
+					let position = ctrl.position(d)
+					let mp0 = position.mouse
+					let mp1 = getMousePosition(ctrl.container.node())
+					
+					
+					let movement = {
+						x: mp1.x - mp0.x,
+						y: mp1.y - mp0.y
+					}
+					
+					position.mouse = mp1
+					
+					
+					// Stop the movement exceeding the container bounds.
+					let rightBreach = position.w + position.x + movement.x > ctrl.container.node().offsetWidth
+					let leftBreach = position.x + movement.x < 0
+					if( rightBreach || leftBreach ){
+						movement.x = 0
+					} // if
+					
+					// Bottom breach should extend the plot!
+					if( position.y + movement.y < 0 ){
+						movement.y = 0
+					} // if
+					
+					position.x += movement.x
+					position.y += movement.y
+					
+					
+					
+				
+					ctrl.wrapper(d)
+					  .style("left", position.x + "px")
+					  .style("top", position.y + "px")
+					  
+					  
+					// Also update the ix and iy.
+					let dx = positioning.dx(ctrl.container)
+					let dy = positioning.dy(ctrl.container)
+					
+					position.ix = Math.floor( position.x / dx )
+					position.iy = Math.floor( position.y / dy )
+					  
+					// Move also all the members.
+					ctrl.onmove(d)
+				})
+				.on("end", function(d){
+					// Fix into grid positions?
+					ctrl.onend(d)
+				})
+			
+		}, // dragSmooth
+		
 		// Resizing plots
 		
 		resizeStart: function resizeStart(d){
@@ -281,7 +365,8 @@ var dbslice = (function (exports) {
 			
 			
 			// With all the occupied nodes known, start positioning the contours that are not positioned.
-			
+			let dx = positioning.dx(plotCtrl.figure)
+			let dy = positioning.dy(plotCtrl.figure)
 			
 			plotCtrl.data.plotted.forEach(function(d){
 				let pn = d.format.position
@@ -291,8 +376,12 @@ var dbslice = (function (exports) {
 				if( ( (pn.ix == undefined) || isNaN(pn.ix) ) && 
 				    ( (pn.iy == undefined) || isNaN(pn.iy) ) ){
 					
-					// Position the plot.
+					// Position the plot on hte grid.
 					positioning.onGrid(plotCtrl.grid.nx, occupiedNodes, pn)
+					
+					// Add position in absolute coordinates
+					pn.x = pn.ix*dx
+					pn.y = pn.iy*dy
 				
 					// Mark the nodes as occupied.
 					h.pushNodes(occupiedNodes, pn.ix, pn.iy, pn.iw, pn.ih)
@@ -710,11 +799,6 @@ var dbslice = (function (exports) {
 	} // lasso
 	
 	
-	
-	
-	
-	
-	
 	// Data management. Handles all internal data manipulation.
 	// MERGE WITH IMPORT/EXPORT?
 	var cfDataManagement = {
@@ -726,6 +810,7 @@ var dbslice = (function (exports) {
 			cfData.dataProperties = metadata.header.dataProperties;
 			cfData.line2dProperties = metadata.header.line2dProperties;
 			cfData.contour2dProperties = metadata.header.contour2dProperties;
+			
 			cfData.cf = crossfilter(metadata.data);
 			cfData.metaDims = [];
 			cfData.metaDataUniqueValues = {};
@@ -742,7 +827,7 @@ var dbslice = (function (exports) {
 				cfData.metaDims[property] = 
 					cfData.cf.dimension(function (d){return d[property];})
 				
-				// It's unique values
+				// Its unique values
 				cfData.metaDataUniqueValues[property] = helpers.unique( metadata.data.map(
 					function (d){return d[property]}
 				));
@@ -757,7 +842,7 @@ var dbslice = (function (exports) {
 			
 			
 
-			cfData.fileDim = cfData.cf.dimension(function (d){return d.file;})
+			cfData.fileDim = cfData.cf.dimension(function (d){return d.__file__;})
 			cfData.taskDim = cfData.cf.dimension(function (d){return d.taskId;})
 			
 
@@ -841,6 +926,115 @@ var dbslice = (function (exports) {
 			
 			
 		}, // cfRemove
+		
+		
+		// Variable handling
+		variableUseChange: function variableUseChange(newHeader){
+			
+			// Go through the new header. The changes require also the crossfilter dimensions to be adjusted.
+			
+			
+			
+			
+			Object.keys(newHeader).forEach(function(key){
+				let cfData = dbsliceData.data
+				
+				let diff = setDifference(cfData[key], newHeader[key])
+				
+				switch(key){
+					case "metaDataProperties":
+					  
+					  // Dimensions first
+					  resolveDimensions(cfData.metaDims, diff)
+					  
+					  // Handle the metadata unique values arrays.
+					  resolveUnique(cfData.metaDataUniqueValues, diff, function (varName){
+							return helpers.unique( 
+								  cfData.fileDim.top(Infinity).map(
+									function (d){return d[varName]}
+								  )
+								);
+						})
+						
+					  cfData[key] = newHeader[key]
+					  
+					  break;
+					
+					case "dataProperties":
+					
+					  // Dimensions first
+					  resolveDimensions(cfData.metaDims, diff)
+					  
+					  resolveUnique(cfData.histogramSelectedRanges, diff, function(){return undefined})
+					  
+					  cfData[key] = newHeader[key]
+					
+					  break;
+					  
+					case "line2dProperties":
+					case "contour2dProperties":
+					  // Just replace the options
+					  cfData[key] = newHeader[key]
+					  break;
+					
+				} // switch
+				
+			})
+			
+			// Update the color options.
+			color.settings.options = dbsliceData.data.metaDataProperties
+			
+			
+			// PLOTS NEED TO BE REFRESHED, AS WELL AS THE MENUS THAT HOLD THE VARIABLES!!!
+			importExport.helpers.onDataAndSessionChangeResolve()
+			
+			
+			function resolveUnique(vals, diff, populate){
+				
+				
+				diff.aMinusB.forEach(function(varName){
+					delete vals[varName]
+			    })
+				
+				
+				diff.bMinusA.forEach(function(varName){
+				    vals[varName] = populate(varName)
+			    })
+
+			} // resolveUnique
+			
+			
+			function resolveDimensions(dims, diff){
+				
+			    // Those in A, but not in B, must have their cf dimensions removed.
+			    diff.aMinusB.forEach(function(varName){
+					delete dims[varName]
+					
+			    })
+			  
+			    // Those in B, but not in A, must have cf dimensions created.
+			    diff.bMinusA.forEach(function(varName){
+				    let newDim = dbsliceData.data.cf.dimension(function (d){return d[varName];})
+				  
+				    dims[varName] = newDim
+			    })
+				
+			} // resolveDimensions
+			
+			
+			function setDifference(A, B){
+				
+				
+				let a = new Set(A);
+				let b = new Set(B);
+				
+				return { 
+				  aMinusB: new Set([...a].filter(x => !b.has(x))),
+				  bMinusA: new Set([...b].filter(x => !a.has(x)))
+				}
+			}
+			
+		}, // variableUseChange
 		
 		
 		// On-demand file library:
@@ -1213,20 +1407,19 @@ var dbslice = (function (exports) {
 			
 			crossCheckProperties: function crossCheckProperties(existingData, newData){
 				
-				
-				// oldData.header.dataProperties.filter(function(d){  return !newData.includes(d) })
 				var missingDataProperties = existingData.dataProperties.filter(function(d){  return !newData.header.dataProperties.includes(d) })
 				
 				var missingMetadataProperties = existingData.metaDataProperties.filter(function(d){  return !newData.header.metaDataProperties.includes(d) })
 				
 				var missingLine2dProperties = existingData.line2dProperties.filter(function(d){  return !newData.header.line2dProperties.includes(d) })
 					
-				var missingContour2dProperties = existingData.contour2dProperties.filter(function(d){  return !newData.header.contourProperties.includes(d) })
+				var missingContour2dProperties = existingData.contour2dProperties.filter(function(d){  return !newData.header.contour2dProperties.includes(d) })
 				
-				var allPropertiesIncluded =     (missingDataProperties.length == 0) && 
-										    (missingMetadataProperties.length == 0) &&
-										      (missingline2dProperties.length == 0) &&
-										   (missingContour2dProperties.length == 0)
+				var allPropertiesIncluded = 
+					(missingDataProperties.length == 0) && 
+					(missingMetadataProperties.length == 0) &&
+					(missingLine2dProperties.length == 0) &&
+					(missingContour2dProperties.length == 0)
 											 
 				
 				
@@ -1237,7 +1430,7 @@ var dbslice = (function (exports) {
 					var warningText = "Selected data has been rejected. It requires additional variables:\n" + 
 					"Data variables:     " +      missingDataProperties.join(", ") + "\n" +
 				    "Metadata variables: " +  missingMetadataProperties.join(", ") + "\n" +
-					"Slice variables:    " +    missingLine2dProperties.join(", ") + "\n" +
+					"Line variables:    " +    missingLine2dProperties.join(", ") + "\n" +
 					"Contour variables:  " + missingContour2dProperties.join(", ") + "\n"
 					
 					
@@ -5403,7 +5596,7 @@ var dbslice = (function (exports) {
 						   incompatible: [],
 						   intersect: [],
 						   series: [],
-						   processor: importExportFunctionality.importing.line
+						   processor: importExport.importing.line
 					       },
 					view: {sliceId: undefined,
 					       options: [],
@@ -5692,7 +5885,7 @@ var dbslice = (function (exports) {
 			cfD3Contour2d.setupPlot.dimension(ctrl)
 			
 			
-			
+			cfD3Contour2d.setupPlot.setupTrendingCtrlGroup(ctrl)
 			
 			// `cfD3Contour2d' has a different structure than the other plots, therefore the `ctrl.figure' attribute needs to be updated.
 			cfD3Contour2d.setupPlot.setupPlottingArea(ctrl)
@@ -5927,6 +6120,7 @@ var dbslice = (function (exports) {
 				  .attr("class", "data")
 				  .style("width",  p.plotWidth + "px" )
 				  .style("height", p.plotHeight + "px" )
+				  .style("position", "absolute")
 				  
 				// MOST OF BELOW IS DUE TO LASSOING. MOVE!!
 				var overlaySvg = ctrl.figure.append("svg")
@@ -5961,16 +6155,92 @@ var dbslice = (function (exports) {
 				// Add in hte tooltip that hosts the tools operating on lasso selection.
 				cfD3Contour2d.interactivity.tooltip.add(ctrl)
 				
-				
-				
 				// Reassing hte figure to support drag-move.
 				ctrl.figure = dataDiv
+				
+				
 				
 				
 				// Also setup the right hand side controls
 				cfD3Contour2d.setupPlot.setupRightControlDOM(ctrl)
 				
 			}, // setupPlottingArea
+			
+			setupTrendingCtrlGroup: function setupTrendingCtrlGroup(ctrl){
+				
+				let variables = dbsliceData.data.dataProperties
+				
+				let trendingCtrlGroup = ctrl.format.wrapper
+				  .select("div.plotTitle")
+				  .append("div")
+				    .attr("class", "trendingCtrlGroup float-right")
+					.style("display", "none")
+					.datum(ctrl)
+					
+				let p = cfD3Contour2d.interactivity.piling
+				p.addRoundButton(trendingCtrlGroup, p.minimise, "times")
+				
+					
+				let menu = trendingCtrlGroup
+				  .append("div")
+				    .attr("class", "trendTools")
+				    .style("position", "relative")
+				    .style("top", "5px")
+				    .style("display", "inline-block")
+					.style("float", "right")
+					.style("margin-right", "10px")
+				
+				menu.append("label")
+					.html("x:")
+					.style("margin-left", "10px")
+					.style("margin-right", "5px")
+				
+				menu.append("select")
+				    .attr("axis", "x")
+				    .style("margin-right", "10px")
+				  .selectAll("option")
+				  .data(variables)
+				  .enter()
+				  .append("option")
+					.attr("value", d=>d)
+					.html(d=>d)
+					
+				menu.append("label")
+					.html("y:")
+					.style("margin-left", "10px")
+					.style("margin-right", "5px")
+				
+				menu.append("select")
+				    .attr("axis", "y")
+				    .style("margin-right", "10px")
+				  .selectAll("option")
+				  .data(variables)
+				  .enter()
+				  .append("option")
+					.attr("value", d=>d)
+					.html(d=>d)
+					
+				// Add the functionalityto the dropdowns
+				menu.selectAll("select").on("change", function(){
+					
+					console.log("Arrange the contours by: " + this.value)
+					
+					// Find the axis:
+					let axis = d3.select(this).attr("axis")
+					
+					cfD3Contour2d.interactivity.sorting[axis](ctrl, this.value)
+				})
+				
+					
+				/* Buttons needed:
+						Minimise
+						Highlight
+				*/
+				
+				
+				p.addRoundButton(trendingCtrlGroup, p.highlight, "lightbulb-o")
+				
+			}, // setupTrendingCtrlGroup
 			
 			// Right colorbar control group
 			
@@ -6318,20 +6588,17 @@ var dbslice = (function (exports) {
 				let dx = positioning.dx(div)
 				let dy = positioning.dy(div)
 			  
-			    let drag = d3.drag()
-				  .on("start", positioning.dragStart)
-				  .on("drag", positioning.dragMove)
-				  .on("end", positioning.dragEnd)
+			    let drag = cfD3Contour2d.interactivity.dragging.make(ctrl)
 				  
 				function getPositionLeft(d){
 					return d.format.position.ix*dx + d.format.parent.offsetLeft + "px"
 				}
 				function getPositionTop(d){
-					return d.format.position.iy*dy + d.format.parent.offsetTop + "px"
+					return d.format.position.iy*dy + "px"
 				}
 			    
 				// The key function must output a string by which the old data and new data are compared.
-			    let cards = div.selectAll(".card")
+			    let cards = div.selectAll(".contourWrapper")
 				  .data(ctrl.data.plotted, d => d.task.taskId)
 			  
 			    // The update needed to be specified, otherwise errors occured.
@@ -6671,6 +6938,8 @@ var dbslice = (function (exports) {
 				positioning.newCard(ctrl)
 				
 				
+				
+				
 			}, // getContours
 			
 			json2contour: function json2contour(surface, thresholds){
@@ -6699,6 +6968,8 @@ var dbslice = (function (exports) {
 				
 				return {ix: undefined,
 						iy: undefined,
+						 x: undefined,
+						 y: undefined,
 						iw: iw, 
 						ih: ih, 
 						w: divWidth,
@@ -6707,7 +6978,8 @@ var dbslice = (function (exports) {
 						sh: innerHeight,
 						minW: dx,
 						minH: title + 30,
-						ar: innerHeight / innerWidth
+						ar: innerHeight / innerWidth,
+						mouse: {}
 				}
 				
 				
@@ -6901,15 +7173,13 @@ var dbslice = (function (exports) {
 						// Here the data that is searched after is the position of the card on the screen.
 						x: function(d){
 							let dx = positioning.dx(ctrl.figure)
-							let imx = d.format.position.ix + 
-									  d.format.position.iw/2
-							return imx*dx
+							return d.format.position.x + 
+								   d.format.position.iw*dx/2
 						},
 						y: function(d){
 							let dy = positioning.dy(ctrl.figure)
-							let imy = d.format.position.iy + 
-									  d.format.position.ih/2
-							return imy*dy 
+							return d.format.position.y + 
+								   d.format.position.ih*dy/2
 						},
 					},
 					scales: {
@@ -6944,16 +7214,41 @@ var dbslice = (function (exports) {
 					var tooltip = ctrl.figure.append("div")
 						.attr("class", "contourTooltip")
 						.style("display", "none")
+						.style("cursor", "pointer")
 						
-					addButton("stack-overflow", f.pileAndSummarise)
-					addButton("search", f.highlight)
-					addButton("tags", f.tag)
-					addButton("close", function(){
-						cfD3Contour2d.interactivity.tooltip.tipOff(ctrl)
-					})
+					addButton("stack-overflow", d=>f.pileAndSummarise(ctrl))
+					addButton("tags", d=>f.tag(ctrl))
+					addButton("close", d=>cfD3Contour2d.interactivity.tooltip.tipOff(ctrl))
 					
 					
 					ctrl.tools.tooltip = tooltip
+					
+					
+					tooltip.datum({
+						position: {
+							x0: undefined,
+							y0: undefined
+						}
+					})
+					
+					// Add dragging as well!
+					var drag = d3.drag()
+						.on("start", function(d){
+							let delta = d3.mouse(tooltip.node())
+							d.position.x0 = delta[0]
+							d.position.y0 = delta[1]
+						})
+						.on("drag", function(d){
+							tooltip
+							  .style("left", d3.event.x-d.position.x0 +"px")
+							  .style("top", d3.event.y+d.position.y0 +"px")
+						})
+						.on("end", function(d){
+							d.position.x0 = undefined
+							d.position.y0 = undefined
+						})
+					
+					tooltip.call(drag)
 					
 					function addButton(icon, event){
 						tooltip.append("button")
@@ -6994,17 +7289,24 @@ var dbslice = (function (exports) {
 				}, // tipOff
 						
 				functionality: {
-				
-					highlight: function highlight(){
-						console.log("Run cross plot highlighting")
-					}, // highlight
-					
-					pileAndSummarise: function pileAndSummarise(){
+							
+					pileAndSummarise: function pileAndSummarise(ctrl){
 					
 						console.log("Pile and calculate standard deviation plot")
+						
+						// Call to make the pile.
+						cfD3Contour2d.interactivity.piling.pile(ctrl)
+						
+						// Remove the tooltip? And add the functionality to highlight the members to the pile!
+						
+						
+						cfD3Contour2d.interactivity.tooltip.tipOff(ctrl)
+						
+						
+						
 					}, // pileAndSummarise
 					
-					tag: function tag(){
+					tag: function tag(ctrl){
 						console.log("Run tagging interface")
 					}, // tag
 				
@@ -7013,8 +7315,1080 @@ var dbslice = (function (exports) {
 			}, // tooltip
 
 			// Introduce piling
-			piling: {}, // piling
+			piling: {
+	
+				pile: function pile(ctrl){
+				
+					let p = cfD3Contour2d.interactivity.piling
+					
+					// Collect the contour plots from hte lasso, pile them up, and draw the piler.
+					var selectedCards = ctrl.tools.lasso.data.selection
+					
+					// These must be recognised by the lasso!
+					var selectedPiles = p.findPilesInLasso(ctrl)
+					
+					
+					if(selectedPiles.length > 1){
+						// There are several piles in the selection.
+						// Well, in this case combine them all in a new pile, which contains all the constituent elements. And remove the old piles.
+						
+						selectedPiles.remove()
+						
+						p.makePile(ctrl.figure, selectedCards)
+						
+					} else if(selectedPiles.length == 1){
+						// Exactly one pile selected -> add all the members to it, and consolidate in the existing pile.
+						
+						// The input to updatePile is a single d3.select(".pileWrapper")
+						p.updatePile(selectedPiles[0], selectedCards)
+					
+					} else {
+						// No piles in the selection. If there is more than one card selected, then create a pile for it.
+						if(selectedCards.length > 1){
+						
+							p.makePile(ctrl.figure, selectedCards)
+						
+						} // if
+						
+					} // if		
+				
+				
+				}, // pile
+				
+				unpile: function unpile(pileCtrl){
+					// Return the contours to where they're supposed to be. Maybe this should be an external function? So that I can pass in a cutom positioning...
+					console.log("Reposition cards.")
+					
+					// Remove the pile
+					pileCtrl.wrapper.remove()
+				}, // unpile
+				
+				makePile: function makePile(container, selectedCards){
+					
+					let i = cfD3Contour2d.interactivity
+					
+				
+					// Calculate the pile position.
+					var pileCtrl = i.piling.createPileObject(container, selectedCards)
+					
+					// Draw a pile over it.
+					i.piling.drawPile(pileCtrl)
+					
+					// Consolidate the constituent cards
+					i.piling.consolidatePile(pileCtrl)
+				
+					// Calculate the group statistics
+					i.piling.statisticsPlots(pileCtrl)
+					
+					// Draw the stat plots.
+					i.statistics.drawMu(pileCtrl)
+				
+				}, // makePile
+				
+				updatePile: function updatePile(selectedPile, selectedCards){
+					
+					let p = cfD3Contour2d.interactivity.piling
+				
+					var pileCtrl = selectedPile.datum()
+						
+					// Assign all the cards to the pile
+					pileCtrl.members = selectedCards
+						
+					// Move them all to a pile
+					p.consolidatePile(pileCtrl)
+						
+					// Raise the pile object.
+					pileCtrl.wrapper.raise()
+				
+				}, // updatePile
+			
+				drawPile: function drawPile(ctrl){
+					// Needs to have the position it draws to, and the cards it will contain.
+					let s = cfD3Contour2d.interactivity.statistics
+					let p = cfD3Contour2d.interactivity.piling
+					let dx = positioning.dx(ctrl.container)
+					let dy = positioning.dx(ctrl.container)
+					let dw = ctrl.iw*dx/ctrl.members.length
+					let width = 2*ctrl.iw*dx
+					let height = ctrl.ih*dy 
+					
+					// For now just draw a card and add dragging to it.
+					ctrl.wrapper = ctrl.container
+					  .append("div")
+					  .datum(ctrl)
+						.attr("class", "pileCard pileWrapper")
+						.style("position", "absolute")
+						.style("left", d=>d.x+"px")
+						.style("top", d=>d.y+"px")
+						
+					var pileTitle = ctrl.wrapper.append("div")
+						.attr("class", "pileTitle")
+						
 
+						
+					p.addRoundButton(pileTitle, p.unpile, "times")
+					p.addRoundButton(pileTitle, p.maximise, "arrows-alt")	
+					p.addRoundButton(pileTitle, p.highlight, "lightbulb-o")
+					p.addRoundButton(pileTitle, s.drawSigma, "&sigma;")	
+					p.addRoundButton(pileTitle, s.drawMu, "&mu;")
+						
+						
+				
+					var svg = ctrl.wrapper
+					  .append("div")
+					    .attr("class","pileBody")
+					  .append("svg")
+						.attr("class", "plotArea")
+						.attr("width", width)
+						.attr("height", height)
+						
+					// This is the sigma/mu plot
+					p.drawCard(ctrl.members[0], ctrl)
+					
+					
+					// Append a viewon element for each of the members. It should be 5px wide.
+					svg.selectAll("rect.preview")
+					  .data(ctrl.members)
+					  .enter()
+					  .append("rect")
+						.attr("class", "preview")
+						.attr("width", dw)
+						.attr("height", height)
+						.attr("x", (d,i)=>width/2+i*dw)
+						.attr("fill", "Gainsboro")
+						.on("mouseover", function(d){
+							// Raise.
+							d.format.wrapper.raise()
+						})
+						.on("mouseout", function(d){
+							// Raise the wrapper.
+							ctrl.wrapper.raise()
+						})
+						
+					// Position: absolute is somehow crucial to make thedragging smooth at the start!
+					let drag = d3.drag()
+						.on("start", function(d){
+							let position = d3.mouse(d.container.node())
+						
+							d.delta.x = position[0]
+							d.delta.y = position[1]
+							
+						})
+						.on("drag", function(d){
+							let position = d3.mouse(d.container.node())
+							
+							
+							d.x += position[0] - d.delta.x
+							d.y += position[1] - d.delta.y
+						
+							d.wrapper
+							  .style("left", d.x + "px")
+							  .style("top", d.y + "px")
+							  
+							d.delta.x = position[0]
+							d.delta.y = position[1]
+							  
+							// Move also all the members.
+							p.consolidatePile(d)
+						})
+						.on("end", function(d){
+							// Fix into grid positions?
+						})
+						
+					ctrl.wrapper.call(drag)
+					
+					
+				}, // drawPile
+				
+				addRoundButton: function addRoundButton(container, event, icon){
+						// Greek letters will contain a "&", so parse for it.
+						let class_ = "fa fa-" + icon
+						let html_ = ""
+						if(icon.search("&") > -1){
+							class_ = "text-greek-button"
+							html_ = icon
+						} // if
+						
+						container
+						  .append("button")
+							.attr("class", "btn btn-circle")
+							.on("click",event)
+						  .append("i")
+							.attr("class", class_)
+							.html(html_)
+							
+						
+				}, // addRoundButton
+				
+				drawCard: function drawCard(d, pileCtrl){
+					// Draws a card that will hold the statistics plots.
+					
+					let offset = cfD3Contour2d.interactivity.piling.calculateOffset(pileCtrl)
+					
+					let cards = pileCtrl.wrapper.select("div.pileBody").selectAll(".card")
+						.data([d])
+					
+					cards.join(
+					  enter => enter.append("div")
+						.attr("class", "card summaryWrapper")
+						.style("position", "absolute")
+						.style("background-color", "white")
+						.style("left", "0px" )
+						.style("top", offset.y + "px" )
+						.each(function(d){
+							
+							let card = d3.select(this)
+							
+			    
+							// Set the width of the plot, and of the containing elements.
+							card
+							  .style(     "width", d.format.position.w + "px" )
+							  .style( "max-width", d.format.position.w + "px" )
+							  .style(    "height", d.format.position.h + "px" )
+						  
+							// Append the title div. Enforce a 24px height for this div.
+							let title = card.append("div")
+							  .attr("class", "title")
+							  .append("p")
+							  .style("text-align", "center")
+							  .style("margin-left", "5px")
+							  .style("margin-right", "5px")
+							  .style("margin-bottom", "8px")
+							  .text( "Sigma" )
+							  
+							  
+							helpers.fitTextToBox(title, title, "height", 24)
+										  
+							// Append the svg
+							card.append("svg")
+								.attr("class", "plotArea")
+								.attr("width",  d.format.position.sw)
+								.attr("height", d.format.position.sh )
+								.style("fill", "smokewhite")
+								.style("display", "block")
+								.style("margin", "auto")
+							  .append("g")
+								.attr("class", "contour")
+								.attr("fill", "none")
+								.attr("stroke", "#fff")
+								.attr("stroke-opacity", "0.5")
+						}),
+					  update => update
+						.each( d => cfD3Contour2d.draw.contours(d) ),
+					  exit => exit.remove()
+					)
+					
+				}, // drawCard
+				
+				redrawPile: function redrawPile(ctrl){
+					// Needs to have the position it draws to, and the cards it will contain.
+					let dx = positioning.dx(ctrl.container)
+					let dy = positioning.dx(ctrl.container)
+					let h = ctrl.ih*dy
+					let w = ctrl.iw*dx
+					let dw = ctrl.iw*dx / ctrl.members.length
+					
+
+					var svg = ctrl.wrapper.select("svg.plotArea")
+						.attr("width", 2*w)
+						.attr("height", h)
+						
+						
+					// Append a viewon element for each of the members. It should be 5px wide.
+					svg.selectAll("rect.preview")
+					  .data(ctrl.members, d=>d.task.taskId)
+					  .enter()
+					  .append("rect")
+						.attr("class", "preview")
+						.attr("width", dw)
+						.attr("height", h)
+						.attr("x", (d,i)=>w + i*dw)
+						.attr("fill", "Gainsboro")
+						.on("mouseover", function(d){
+							// Raise.
+							d.format.wrapper.raise()
+						})
+						.on("mouseout", function(d){
+							// Raise the wrapper.
+							ctrl.wrapper.raise()
+						})
+					
+					
+					// Redo the statistics plot too.
+					let s = cfD3Contour2d.interactivity.statistics
+					switch(ctrl.statistics.plotted){
+						case "mu":
+							s.drawMu(ctrl)
+							break;
+							
+						case "sigma":
+							s.drawSigma(ctrl)
+							break;
+							
+						default:
+							break;
+							
+					} // switch
+					
+				}, // redrawPile
+							
+				consolidatePile: function consolidatePile(pileCtrl){
+				
+					// The card hosts the pile title
+					let offset = cfD3Contour2d.interactivity.piling.calculateOffset(pileCtrl)
+				
+					// Move the cards to the pile position.
+					pileCtrl.members.forEach(function(d, i){
+						// When doing this they should also be resized, and redrawn if necessary.
+						let position = d.format.position
+						// Stagger them a bit?
+						position.x = pileCtrl.x + offset.x
+						position.y = pileCtrl.y + offset.y
+						
+						// Move the wrapper
+						d.format.wrapper
+							.style("left", position.x + "px")
+							.style("top", position.y + "px")
+							.style("border-width", "")
+						    .style("border-style", "")
+						    .style("border-color", "")
+							.raise()
+							
+						// Resize the wrapper if needed.
+						if((position.iw != pileCtrl.iw) || 
+						   (position.ih != pileCtrl.ih)){
+							   
+							let dx = positioning.dx(pileCtrl.container)
+							let dy = positioning.dy(pileCtrl.container)
+							position.iw = pileCtrl.iw
+							position.ih = pileCtrl.ih
+							let width = position.iw*dx
+							let height = position.ih*dx
+							
+							d.format.wrapper
+							  .style("max-width", width + "px")
+							  .style("width"    , width + "px" )
+							  .style("height"   , height + "px" )
+							  
+							d.format.wrapper.select("div.card")
+							  .style("max-width", width + "px")
+							  .style("width"    , width + "px" )
+							  .style("height"   , height + "px" )
+							
+							
+							// UPDATE THE PLOT
+							cfD3Contour2d.resizing.contourCard(d)
+							cfD3Contour2d.draw.contours(d)
+						
+						} // if
+						
+					})
+					
+					pileCtrl.wrapper.raise()
+				
+				}, // consolidatePile
+				
+				createPileObject: function createPileObject(container, cardCtrls){
+			
+					let dx = positioning.dx(container)
+					let dy = positioning.dy(container)
+			
+					var pileCtrl = {
+						x: 0,
+						y: 0,
+						iw: Infinity,
+						ih: Infinity,
+						delta: {
+							x: undefined,
+							y: undefined
+						},
+						container: container,
+						wrapper: undefined,
+						members: cardCtrls,
+						statistics: {
+							  mu: undefined,
+						   sigma: undefined
+						}
+					}
+					
+				
+					var n = pileCtrl.members.length
+					var position = pileCtrl.members.reduce(function(total, item){
+						let pos = item.format.position
+						total.x += pos.ix*dx/n
+						total.y += pos.iy*dy/n
+						
+						if(total.iw*total.ih > pos.iw*pos.ih){
+							total.iw = pos.iw
+							total.ih = pos.ih
+						} // if
+						
+						return total
+					}, pileCtrl )
+				
+					return position
+				
+				}, // createPileObject
+				
+				calculateOffset: function calculateOffset(pileCtrl){
+					
+					var titleDom = pileCtrl.wrapper.select(".pileTitle").node()
+					var bodyDom = pileCtrl.wrapper.select(".pileBody").node()
+					let titleHeight = titleDom.offsetHeight
+					let titleMargin = 
+					parseInt(window.getComputedStyle(titleDom).marginBottom) + 
+					parseInt(window.getComputedStyle(titleDom).marginTop)
+					let bodyMargin = parseInt(window.getComputedStyle(bodyDom).padding)
+					
+					return {
+						x: bodyMargin,
+						y: titleHeight + titleMargin + bodyMargin
+					}
+				}, // calculateOffset
+				
+				addCardToPile: function addCardToPile(cardCtrl, pileCtrl){
+					let p = cfD3Contour2d.interactivity.piling
+					pileCtrl.members.push(cardCtrl)
+					p.consolidatePile(pileCtrl)
+					p.statisticsPlots(pileCtrl)
+					p.redrawPile(pileCtrl)
+					
+				}, // addCardToPile
+			
+				isCardOverPile: function isCardOverPile(cardCtrl, pileCtrl){
+					
+					let height = pileCtrl.wrapper.node().offsetHeight
+					let posy = cardCtrl.format.position.y - pileCtrl.y 
+					
+					let width = pileCtrl.wrapper.node().offsetWidth
+					let posx = cardCtrl.format.position.x - pileCtrl.x 
+ 
+					let isInsideWidth = ( posx > 0) &&
+								        ( posx < width)
+					
+					let isInsideHeight = ( posy > 0) &&
+								         ( posy < height)
+
+					
+					return (isInsideWidth && isInsideHeight) ? posx : false
+					
+				}, // isCardOverPile
+				
+				findAppropriatePile: function findAppropriatePile(cardCtrl, pileCtrls){
+					
+					let p = cfD3Contour2d.interactivity.piling
+					let pileCtrl = undefined
+					let dst = Infinity
+					
+					pileCtrls.forEach(function(pileCtrl_){
+						let dst_ = p.isCardOverPile(cardCtrl, pileCtrl_)
+						
+						if( (dst_ != false) && (dst_ < dst)){
+							pileCtrl = pileCtrl_
+							dst = dst_
+						} // if
+					}) // each
+					
+					if(pileCtrl != undefined){
+						p.addCardToPile(cardCtrl, pileCtrl)
+					} // if
+					
+				}, // findAppropriatePile
+				
+				findPilesInLasso: function findPilesInLasso(ctrl){
+					
+					var dx = positioning.dx(ctrl.figure)
+					var dy = positioning.dy(ctrl.figure)
+					
+					var pileCtrls = ctrl.figure.selectAll(".pileWrapper").data()
+					
+					var selectedPiles = pileCtrls.filter(function(pileCtrl){
+						
+						var pileMidpoint = {
+							x: pileCtrl.x + pileCtrl.iw*dx,
+							y: pileCtrl.y + pileCtrl.ih*dy
+						}
+						
+						return lasso.isPointInside( pileMidpoint, ctrl.tools.lasso.data.boundary )
+						
+					}) // forEach
+					
+					return selectedPiles
+					
+				}, // findPileInLasso
+				
+				statisticsPlots: function statisticsPlots(pileCtrl){
+					
+					let i = cfD3Contour2d.interactivity
+					
+
+					// Calculate the statistics.
+					i.statistics.mean(pileCtrl)
+					i.statistics.standardDeviation(pileCtrl)
+					
+
+				}, // statisticsPlots
+				
+				highlight: function highlight(pileCtrl){
+					
+					crossPlotHighlighting.on(pileCtrl.members.map(d=>d.task), "cfD3Contour2d")
+					
+				}, // highlight
+				
+				maximise: function maximise(pileCtrl){
+					
+					// Assign the pile for trending
+					let ctrl = pileCtrl.container.datum()
+					ctrl.tools.trending = pileCtrl
+					
+					
+					// Make the trending tools visible.
+					let trendingCtrlGroup = d3.select( ctrl.format.wrapper.node() )
+					  .select("div.plotTitle")
+					  .select("div.trendingCtrlGroup")
+					trendingCtrlGroup
+						.style("display", "inline-block")
+						
+						
+						
+					// The buttons also need access to the right pile
+					trendingCtrlGroup.selectAll("button")
+						.datum(pileCtrl)
+					
+					// Hide the piles
+					pileCtrl.container
+					  .selectAll("div.pileWrapper")
+					    .style("display", "none")
+					
+					
+					// Hide / Re-position the contours
+					var contourCtrls = pileCtrl.container.selectAll("div.contourWrapper").data()
+					
+					contourCtrls.forEach(function(d){
+						if(pileCtrl.members.includes(d)){
+							
+						} else {
+							d.format.wrapper.style("display", "none")
+						} // if
+					}) // forEach
+					
+				}, // maximise
+				
+				minimise: function minimise(pileCtrl){
+					
+					// Make the trending tools visible.
+					let trendingCtrlGroup = d3.select( pileCtrl.container.datum().format.wrapper.node() )
+					  .select("div.plotTitle")
+					  .select("div.trendingCtrlGroup")
+					
+					trendingCtrlGroup
+						.style("display", "none")
+						
+					pileCtrl.container
+					  .selectAll("div.contourWrapper")
+					  .style("display", "")
+					  
+					pileCtrl.container
+					  .selectAll("div.pileWrapper")
+					  .style("display", "")
+					  
+					pileCtrl.wrapper.style("display", "")
+					cfD3Contour2d.interactivity.piling.consolidatePile(pileCtrl)
+					
+				}, // minimise
+				
+			}, // piling
+	
+	
+			dragging: {
+				
+				make: function(ctrl){
+					// Makes the dragging ctrl required by positioning.dragSmooth
+					
+					
+					/*
+					ctrl = {
+						wrapper: accessor to the wrapper
+						container: bounding element
+						onstart: on-start event
+						onmove: on-move event
+						onend: on-end event
+						position: position accessor
+					}
+					*/
+					
+					let dragCtrl = {
+						
+						wrapper: function(d){
+							return d.format.wrapper
+						},
+						container: ctrl.figure,
+						onstart: function(d){
+							d.format.wrapper.raise()
+						},
+						onmove: function(d){
+							// Check if the container needs to be resized.
+							
+							cfD3Contour2d.resizing.plotOnInternalChange(ctrl)
+							
+						},
+						onend: function(d){
+							
+							let i = cfD3Contour2d.interactivity
+							
+							// Check if the card should be added to a pile.
+							i.piling.findAppropriatePile(d, ctrl.figure.selectAll(".pileWrapper").data())
+							
+							// Update the correlations if trending tools are  active.
+							let trendingCtrlGroup = ctrl.format.wrapper
+							  .select("div.plotTitle")
+							  .select("div.trendingCtrlGroup")
+							  
+							if( trendingCtrlGroup.style("display") != "none" ){
+								// Here we can actually pass the pileCtrl in!
+								i.statistics.drawCorrelation(trendingCtrlGroup)
+								
+							} // if
+						},
+						position: function(d){
+							return d.format.position
+						}
+					}	
+					
+					
+					
+					return positioning.dragSmooth(dragCtrl)	
+					
+					
+				} // add
+				
+			}, // dragging
+	
+			statistics: {
+				
+				draw: function draw(pileCtrl, statContour){
+					
+					pileCtrl.wrapper
+					  .select("div.pileBody")
+					  .select("div.summaryWrapper")
+					  .each(function(d){
+						  
+						  // Has to be designed to ensure units are kept.
+						  
+						  let svg = d.wrapper
+						    .select("div.pileBody")
+							.select("div.summaryWrapper")
+							.select("svg")
+							
+						  // The svg defineds the range, so change the domain.
+						  cfD3Contour2d.interactivity.statistics.design(svg, statContour)
+					      
+						  let projection = cfD3Contour2d.draw.projection(statContour)
+							
+						  svg
+						    .select("g.contour")
+						    .selectAll("path")
+						    .data(statContour.levels)
+						    .join(
+							  enter => enter
+							    .append("path")
+								  .attr("fill", statContour.format.color )
+								  .attr("d", projection ),
+							update => update
+								  .attr("fill", statContour.format.color )
+								  .attr("d", projection ),
+							exit => exit.remove()
+						  )
+						  
+					})
+					
+					
+				}, // draw
+				
+				
+				design: function design(svg, statContour){
+					
+					let f = statContour.format
+					
+					let xdiff = f.domain.x[1] - f.domain.x[0]
+					let ydiff = f.domain.y[1] - f.domain.y[0]
+					
+					let arX = (xdiff)/ f.position.sw
+					let arY = (ydiff)/ f.position.sh
+					
+					// Larges AR must prevail - otherwise the plot will overflow.
+					if(arX > arY){
+						let padding = arX*f.position.sh - ydiff
+						f.domain.y = [f.domain.y[0] - padding/2,
+									  f.domain.y[1] + padding/2]
+					} else {
+						let padding = arY*f.position.sw - xdiff
+						f.domain.x = [f.domain.x[0] - padding/2,
+									  f.domain.x[1] + padding/2]
+					} // if
+					
+					
+					
+				}, // design
+				
+				
+				drawMu: function drawMu(pileCtrl){
+					
+					pileCtrl.statistics.plotted = "mu"
+
+					// Change the title
+					pileCtrl.wrapper
+					  .select("div.summaryWrapper")
+					  .select("div.title")
+					  .select("p")
+					  .html("μ")
+					
+					// Change the contours
+					cfD3Contour2d.interactivity.statistics.draw(pileCtrl, pileCtrl.statistics.mu)
+					
+				}, // drawMu
+				
+				drawSigma: function drawSigma(pileCtrl){
+					
+					pileCtrl.statistics.plotted = "sigma"
+					
+					pileCtrl.wrapper
+					  .select("div.summaryWrapper")
+					  .select("div.title")
+					  .select("p")
+					  .html("σ")
+					
+					cfD3Contour2d.interactivity.statistics.draw(pileCtrl, pileCtrl.statistics.sigma)
+					
+				}, // drawSigma
+				
+				drawCorrelation: function drawCorrelation(trendingCtrlGroup){
+					
+					let i = cfD3Contour2d.interactivity
+					
+					// Get the scores
+					var scores = i.statistics.correlation(trendingCtrlGroup.datum().tools.trending )
+					
+					// Get a palette
+					var score2clr = d3.scaleLinear()
+						.domain([0,1])
+						.range([0, 0.75])
+					
+					 
+  
+
+					
+					trendingCtrlGroup.selectAll("select").each(function(){
+						
+						// Determine if it's x or y select
+						let axis = d3.select(this).attr("axis")
+						
+						var color = d=>d3.interpolateGreens(score2clr(Math.abs(d.score[axis])))
+						
+						d3.select(this)
+						  .selectAll("option")
+						  .data( scores )
+						  .join(
+						    enter => enter
+							  .append("option")
+							    .attr("value", d=>d.name)
+								.html(d=>d.label[axis])
+								.style("background-color", color),
+							update => update
+								.attr("value", d=>d.name)
+								.html(d=>d.label[axis])
+								.style("background-color", color),
+							exit => exit.remove()
+						  )
+					})
+					
+				}, // drawCorrelation
+				
+				
+				mean: function mean(pileCtrl){
+
+					let tasks = pileCtrl.members
+				    let mu, domain_
+				    let n = tasks.length
+				  
+				    // calculate mean
+				    tasks.forEach(function(task){
+					  let d= task.data.vals.surfaces
+					
+					  if(mu == undefined){
+					  
+					  mu = {x: d.x.map(function(x){ return x/n }), 
+							y: d.y.map(function(y){ return y/n }), 
+							v: d.v.map(function(v){ return v/n }), 
+							size:  d.size}
+					  
+					  } else {
+
+					    d.x.forEach((d_,i)=> mu.x[i] += d_/n)
+					    d.y.forEach((d_,i)=> mu.y[i] += d_/n)
+					    d.v.forEach((d_,i)=> mu.v[i] += d_/n)
+					  
+					  
+					  } // if
+					}) // forEach
+ 
+					
+							
+					let plotCtrl = d3.select(pileCtrl.wrapper.node().parentElement).datum()
+					let svg = pileCtrl.wrapper.select("div.pileBody").select("div.summaryWrapper").select("svg")
+					
+							
+					// Create a statistics output:
+				    pileCtrl.statistics.mu = {
+						filename: "mean@obs",
+					    data: {vals: {surfaces: mu}},
+						levels: cfD3Contour2d.draw.json2contour(mu, plotCtrl.data.domain.thresholds),
+					    task: {taskId: "μ"},
+					    format: {
+							wrapper: svg,
+							position: {
+								sh: parseFloat( svg.attr("height") ),
+								sw:  parseFloat( svg.attr("width") )
+							},
+							domain: {
+								x: [d3.min(mu.x), d3.max(mu.x)],
+							    y: [d3.min(mu.y), d3.max(mu.y)],
+							    v: [d3.min(mu.v), d3.max(mu.v)] 
+							},
+							color: function(d){
+								return plotCtrl.tools.scales.val2clr(d.value)
+							}
+						}
+					}
+				  
+
+				}, // mean
+				
+				standardDeviation: function(pileCtrl){
+				 
+					let tasks = pileCtrl.members
+					let mean = pileCtrl.statistics.mu
+					let mu = mean.data.vals.surfaces
+				    let sigma
+				    let n = tasks.length
+				  
+				    // calculate standard deviation based on the mean.
+				    tasks.forEach(function(task){
+					  let t = task.data.vals.surfaces
+					  if(sigma == undefined){
+					    sigma = {x: mu.x, 
+							     y: mu.y, 
+							     v: t.v.map( (d,i)=> 
+									1/(n-1)*(d - mu.v[i])**2 
+								 ), 
+							  size: mu.size}
+					  } else {
+					    t.v.forEach( (d,i)=> 
+						  sigma.v[i] += 1/(n-1)*(d - mu.v[i])**2 
+						)
+					  } // if
+					  
+				    }) // forEach
+					
+					
+					let svg = pileCtrl.wrapper.select("div.pileBody").select("div.summaryWrapper").select("svg")
+					
+					
+					// Use another way to calculate
+					let domain = d3.extent(sigma.v)
+					let thresholds = d3.range(domain[0], domain[1], (domain[1] - domain[0])/7)
+				
+
+				    // Create a statistics output:
+				    pileCtrl.statistics.sigma = {
+						filename: "stdev@obs",
+					    data: {vals: {surfaces: sigma}},
+						levels: cfD3Contour2d.draw.json2contour(sigma, thresholds),
+					    task: {taskId: "σ"},
+					    format: {
+							wrapper: svg,
+							position: {
+								sh: parseFloat( svg.attr("height") ),
+								sw:  parseFloat( svg.attr("width") )
+							},
+							domain: {
+							  x: mean.format.domain.x,
+							  y: mean.format.domain.y,
+							  v: d3.extent(sigma.v),
+							  size: mean.format.domain.size 
+						    },
+							color: function(d){
+								let val2clr = d3
+								  .scaleSequential(d3.interpolateViridis)
+								  .domain( d3.extent( thresholds ) )
+								
+								return val2clr(d.value)
+							}
+						}
+					}
+
+				}, // standardDeviation
+				
+				
+				correlation: function correlation(pileCtrl){
+				    // Given some on-screen order show the user which variables are most correlated with it.
+					let s = cfD3Contour2d.interactivity.statistics
+				  
+				    // Order is based given the left edge of the contour. The order on the screen is coordinated with the sequential order in contours.tasks in 'dragMove', and in 'ordering'.
+				    
+				  
+				    let scores = dbsliceData.data.dataProperties.map(function(variable){
+						// For each of the data variables calculate a correlation.
+						
+						
+						// Collect the data to calculate the correlation.
+						let d = pileCtrl.members.map(function(contour){
+						  return {x: contour.format.position.x,
+								  y: contour.format.position.y,
+								  var: contour.task[variable]
+								 }
+						}) // map
+						
+						// Get Spearman's rank correlation scores for the order in the x direction.
+						// (https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient)
+						
+						// The coefficient is
+						// covariance (x_rank, y_rank ) / ( sigma(rank_x) sigma(rank_y) )
+						
+						let cov = s.covariance(d)
+						let sigma_x   = d3.deviation(d, d=>d.x)
+						let sigma_y   = d3.deviation(d, d=>d.y)
+						let sigma_var = d3.deviation(d, d=>d.var)
+						
+						sigma_x = sigma_x == 0 ? Infinity : sigma_x
+						sigma_y = sigma_y == 0 ? Infinity : sigma_y
+						sigma_var = sigma_var == 0 ? Infinity : sigma_var
+						
+						let score = {
+							x: cov.x / ( sigma_x*sigma_var ),
+							y: cov.y / ( sigma_y*sigma_var )
+						}
+						
+						let label = {
+							x: score.x < 0 ? "- " + variable : "+ " + variable,
+							y: score.y < 0 ? "- " + variable : "+ " + variable,
+						}
+						
+						return {
+							name: variable, 
+							label: label,
+							score: score
+						}
+				    }) // map
+				  
+				  // Before returning the scores, order them.
+				  scores.sort(function(a,b){return a.score - b.score})
+				  
+				  return scores
+				  
+				}, // correlation
+				
+				
+				covariance: function covariance(d){
+
+				    // 'd' is an array of observations. Calculate the covariance between x and the metadata variable.
+				    let N = d.length
+				    let mu_x = d3.sum(d, d=>d.x) / N
+					let mu_y = d3.sum(d, d=>d.y) / N
+				    let mu_var = d3.sum(d, d=>d.var) / N
+				  
+				  
+				    var sumx = 0;
+					var sumy = 0;
+				    for(var i=0; i< N; i++) {
+						sumx += ( d[i].x - mu_x )*( d[i].var - mu_var );
+						sumy += ( d[i].y - mu_y )*( d[i].var - mu_var );
+				    }
+				  
+				    return {
+						x: 1/(N - 1)*sumx,
+						y: 1/(N - 1)*sumy
+					}
+
+				} // covariance
+				
+			}, // statistics
+	
+			sorting: {
+				
+				x: function x(ctrl, variable){
+					
+					let dx = positioning.dx(ctrl.figure)
+					let dy = positioning.dy(ctrl.figure)
+					
+					// Find the appropriate metadata, and the range to plot it to.
+					let vals = ctrl.tools.trending.members.map(d=>d.task[variable])
+					
+					let range = cfD3Contour2d.interactivity.sorting.getRange(ctrl)
+					
+					// Create a scale
+					let scale = d3.scaleLinear()
+					  .domain( d3.extent(vals) )
+					  .range( range.x )
+					  
+					// Position the contours.
+					ctrl.tools.trending.members.forEach(function(d){
+						
+						let x = scale( d.task[variable] )
+						
+						d.format.position.x = x
+						d.format.position.ix = Math.floor( x/dx )
+						
+						d.format.wrapper.style("left", x + "px")
+					})
+					
+				}, // x
+				
+				y: function y(ctrl, variable){
+					
+					let dx = positioning.dx(ctrl.figure)
+					let dy = positioning.dy(ctrl.figure)
+					
+					// Find the appropriate metadata, and the range to plot it to.
+					let vals = ctrl.tools.trending.members.map(d=>d.task[variable])
+					
+					let range = cfD3Contour2d.interactivity.sorting.getRange(ctrl)
+					
+					// Create a scale
+					let scale = d3.scaleLinear()
+					  .domain( d3.extent(vals) )
+					  .range( range.y )
+					  
+					// Position the contours.
+					ctrl.tools.trending.members.forEach(function(d){
+						
+						let y = scale( d.task[variable] )
+						
+						d.format.position.y = y
+						d.format.position.iy = Math.floor( y/dy )
+						
+						d.format.wrapper.style("top", y + "px")
+					})
+					
+				}, // y
+				
+				getRange: function getRange(ctrl){
+					
+					let height = ctrl.figure.node().offsetHeight
+					let width = ctrl.figure.node().offsetWidth
+					
+					let maxCardHeight = d3.max( ctrl.tools.trending.members.map(d=>d.format.position.h) )
+					let maxCardWidth = d3.max( ctrl.tools.trending.members.map(d=>d.format.position.w) )
+					
+					return {
+						x: [0, width - maxCardWidth],
+						y: [0, height - maxCardHeight]
+					}
+					
+				}, // getRange
+				
+			}, // sorting
+	
 		}, // interactivity
 		
 		helpers: {
@@ -7054,7 +8428,7 @@ var dbslice = (function (exports) {
 							   thresholds: undefined,
 							   nLevels: undefined,
 						   },
-						   processor: importExportFunctionality.importing.contour2d
+						   processor: importExport.importing.contour2d
 					       },
 					view: {sliceId: undefined,
 					       options: [],
@@ -7083,6 +8457,7 @@ var dbslice = (function (exports) {
 								tasks: []
 							},
 							tooltip: undefined,
+							trending: undefined
 						},
 					format: {
 						title: "Edit title",
@@ -7151,6 +8526,8 @@ var dbslice = (function (exports) {
 					} // if
 				} // if
 				
+				
+				ctrl.format.title = plotData.title
 				// When the session is loaded all previously existing plots would have been removed, and with them all on demand loaded data. Therefore the variables for this plot cannot be loaded, as they will depend on the data.
 											
 				return ctrl
@@ -8693,6 +10070,11 @@ var dbslice = (function (exports) {
 						
 					  break;
 					  
+					  
+					case "cfD3Contour2d":
+						// Tasks to be highlighted come directly from the pile.
+						allDataPoints = d;
+					  
 					  					  
 					default:
 					  break;
@@ -9534,7 +10916,7 @@ var dbslice = (function (exports) {
 					addMenu.helpers.hideDialog(dialogConfig)
 					
 					// Update the session due to data change.
-					importExportFunctionality.helpers.onDataAndSessionChangeResolve()
+					importExport.helpers.onDataAndSessionChangeResolve()
 					
 					// Redraw the view.
 					render();
@@ -9933,8 +11315,6 @@ var dbslice = (function (exports) {
     // Building the app.
 	var builder = {
 		
-
-		
 		makeSessionHeader: function makeSessionHeader() {
 		
 			// Check if there was a previous session header already existing. 
@@ -10017,8 +11397,8 @@ var dbslice = (function (exports) {
 			  .append("div")
 				.attr("class", "dropdown-menu")
 			  
-			  
-			var dataReplace = createFileInputElement( importExportFunctionality.importing.metadata, "replace")
+			
+			var dataReplace = createFileInputElement( importExport.importing.metadata.go, "replace")
 			sessionMenu
 			  .append("a")
 			    .attr("class", "dropdown-item")
@@ -10027,7 +11407,8 @@ var dbslice = (function (exports) {
 				.html("Replace data")
 				.on("click", function(){dataReplace.click()})
 				
-			var dataInput = createFileInputElement( importExportFunctionality.importing.metadata, "add")
+			
+			var dataInput = createFileInputElement( importExport.importing.metadata.go, "add")
 			sessionMenu
 			  .append("a")
 			    .attr("class", "dropdown-item")
@@ -10035,6 +11416,7 @@ var dbslice = (function (exports) {
 				.attr("id", "addData")
 				.html("Add data")
 				.on("click", function(){dataInput.click()})
+			
 				
 			var removeDataItem = sessionMenu
 			  .append("a")
@@ -10043,8 +11425,9 @@ var dbslice = (function (exports) {
 				.attr("id", "removeData")
 				.html("Remove data")
 			addMenu.removeDataControls.make(removeDataItem)
-				
-			var sessionInput = createFileInputElement( importExportFunctionality.importing.session )
+					
+			
+			var sessionInput = createFileInputElement( importExport.importing.session )
 			sessionMenu
 			  .append("a")
 			    .attr("class", "dropdown-item")
@@ -10061,10 +11444,10 @@ var dbslice = (function (exports) {
 				.html("Save session").on("click", function(){
 				
 					// Get the string to save
-					var s = importExportFunctionality.exporting.session.json()
+					var s = importExport.exporting.session.json()
 					
 					// Make the blob
-					var b = importExportFunctionality.exporting.session.makeTextFile(s)
+					var b = importExport.exporting.session.makeTextFile(s)
 					
 					
 					// Download the file.
@@ -10123,8 +11506,7 @@ var dbslice = (function (exports) {
 			// HELPER FUNCTIONS:
 			function createFileInputElement(loadFunction, dataAction){
 				
-				
-				
+				// ERROR! DATA INPUT ONCHANGE SHOULD BE CHANGED - THE USER SHOULD BE ALLOWED TO RELOAD A FILE STRAIGHT AFTER REMOVING IT. CHANGE THIS IN THE IMPORTING - STORE THE METADATA FILES IN HTE CENTRAL BOOKING TOO!
 				
 				// This button is already created. Just add the functionaity.
 				var dataInput = document.createElement('input');
@@ -10134,7 +11516,7 @@ var dbslice = (function (exports) {
 				dataInput.onchange = function(e){
 					// BE CAREFULT HERE: file.name IS JUST THE local name without any path!
 					var file = e.target.files[0]; 
-					// importExportFunctionality.importing.handler(file);
+					// importExport.importing.handler(file);
 					loadFunction(file, dataAction)
 				}; // onchange
 				
@@ -10698,8 +12080,1151 @@ var dbslice = (function (exports) {
     } // filter
 
     
+	var inputTesting = {
+	
+		getTestRow: function getTestRow(metadata){
+		
+		
+			
+			let rowInd = Math.floor( Math.random()*metadata.length )
+			let row = metadata[rowInd]
+			
+			// Find all variables to test. Exclude the artificially generated __file__.
+			let variablesToTest = Object.getOwnPropertyNames(row).filter(d=> d!="__file__") 
+			
+			
+			return variablesToTest.map(function(varName, colInd){
+				 return {
+					tag: "metadata",
+					parent: row.__file__,
+					rowInd: rowInd,
+					colInd: colInd,
+					colName: varName,
+					testVal: row[varName],
+					type: typeof(row[varName]),
+					category: undefined,
+					vals: metadata.map(d=>d[varName])
+				}
+
+			})
+		
+		}, // getTestRow
+	
+		classifyVariables: function(metadata, storeData){
+		
+			let vars = inputTesting.getTestRow(metadata)
+		
+			let promises = []
+			vars.forEach(function(varObj){
+				// Check this column.
+				promises.push( inputTesting.handleVariables(varObj) )
+				
+			})
+			
+			// Promises are tests- they cannot be rejected, they can only come
+			Promise.all(promises)
+			.then(function(variableClassification){
+				// Resolve - communicate the results onwards.
+				
+				inputTesting.displayResults(variableClassification)
+				
+				// When the classification is finished store the results.
+				storeData(variableClassification)
+				
+			})
+		
+		}, // classifyVariables
+	
+		displayResults: function displayResults(variableClassification){
+			
+			console.log("Hand variables on!")
+			console.log(variableClassification)
+			
+			// Maybe make the report in the same div as used for the variable handling? And have it as a two stage?
+			
+			// Make a report
+			inputTesting.report.make();
+			
+			// Make the variable handling
+			variableHandling.make(variableClassification)
+			
+		}, // displayResults
+		
+		handleVariables: function handleVariables(varObj){
+			// Split the testing as per the variable type received.
+			let promise
+			switch( varObj.type ){
+				case "string":
+					// String can be a file too.
+					promise = inputTesting.handleFiles(varObj)
+					
+				  break;
+				  
+				case "number":
+					varObj.category = "Ordinal"
+					promise = varObj
+					
+				  break;
+				  
+				default:
+					inputTesting.error.wrongVarType.instances.push(varObj)
+					
+					varObj.category = "Unused";
+					promise = varObj
+			} // switch
+				
+			return promise
+			
+		}, // handleVariables
+	
+		handleFiles: function handleFiles( stringVar ){
+	
+			let promise
+			let extension = stringVar.testVal.split(".").pop();
+			switch(extension){
+				case "json":
+					promise = inputTesting.test.json(stringVar)
+				  break;
+				case "csv":
+					promise = inputTesting.test.csv(stringVar)
+				  break;
+				default:
+					// Unsupported extension.
+					promise = inputTesting.test.dummy(stringVar)
+			} // switch
+			
+			return promise
+		
+		}, // handleString
+	
+		// MOVE TO HELPERS
+		getConvertedValues: function getConvertedValues(metadata){
+		
+			data = []
+			metadata.forEach(function(d){
+				data.push( inputTesting.convertNumbers(d) )
+			})
+
+					
+			return data
+			
+		}, // getConvertedValues
+		
+		convertNumbers: function convertNumbers(row) {
+				// Convert the values from strings to numbers.
+				
+				var r = {};
+				for (var k in row) {
+					r[k] = +row[k];
+					if (isNaN(r[k])) {
+						r[k] = row[k];
+					} // if
+				} // for
+			  return r;
+		}, // convertNumbers
+		
+		unique: function unique(d){		
+			// https://stackoverflow.com/questions/1960473/get-all-unique-values-in-a-javascript-array-remove-duplicates
+			function onlyUnique(value, index, self) { 
+				return self.indexOf(value) === index;
+			} // unique
+			
+			return d.filter( onlyUnique )
+		
+		}, // unique
+		
+	
+		// REPORT
+		report: {
+			
+			show: function show(){
+				
+					let fullscreenContainer = d3.select("div.report-container")
+				
+					fullscreenContainer.style("display", "")
+				
+				}, // show
+				
+			hide: function hide(){
+			
+					let fullscreenContainer = d3.select("div.report-container")
+				
+					// Hide the container. Bring up the variable handling.
+					fullscreenContainer.style("display", "none")
+					
+					variableHandling.show()
+			
+			}, // hide
+		
+			make: function make(){
+				
+				// Instead of opening this in a separate window draw it into a dedicated container.
+				
+				let parent = d3.select("div.report-container")
+				parent.selectAll("*").remove()
+				
+				inputTesting.metadata.report.make(parent)
+				
+				let menus = parent.node().querySelectorAll(".accordion")
+				
+				inputTesting.report.addFunctionality(menus)
+				
+			}, // make
+		
+			makeMenu: function makeMenu(parent, ctrl){
+				let r = inputTesting.report
+	
+				// Make the overhead menu item.
+				let content = r.makeMenuItemBackbone(parent, ctrl)
+				
+				// For each particular error type make a dedicated submenu.
+				ctrl.errorTypes.forEach(function(errorType){
+					r.makeSubMenu(content, errorType)
+				})
+			
+				// The report items should open. - This is done after it is printed to the new window. As it's printe as a string the new window creates new elements, without the functionality attached.
+				// r.addFunctionality(parent.node().querySelectorAll(".accordion"))
+				
+				
+			
+			}, // makeMenu
+				
+			makeSubMenu: function makeSubMenu(parent, ctrl){
+				let r = inputTesting.report
+
+				let content = r.makeMenuItemBackbone(parent, ctrl)
+				
+				content
+				  .append("p")
+					.attr("class", "description")
+					.html(ctrl.description)
+				content
+				  .append("div")
+					.attr("class", "panel-content")
+				  .append("ul")
+				  .selectAll("li")
+				  .data( ctrl.errors )
+				  .enter()
+				  .append("li")
+					.html(ctrl.printout)  
+			
+			}, // makeSubMenu
+			
+			makeMenuItemBackbone: function makeMenuItemBackbone(parent, ctrl){
+			
+				let button = parent
+				  .append("button")
+					.attr("class", "accordion")
+					.style("outline", "none")
+					
+				if(ctrl.titleEl != undefined){
+					button = button.append(ctrl.titleEl)
+				}
+				
+				button
+				  .append("strong")
+					.html(ctrl.title)
+				button
+				  .append("span")
+					.attr("class", "badge badge-pill badge-info")
+					.style("float", "right")
+					.html(ctrl.nErrors)
+					
+				let content = parent
+				  .append("div")
+					.attr("class", "panel")
+			
+				return content
+			
+			}, // makeMenuItemBackbone
+				
+			addFunctionality: function addFunctionality(menus){
+			
+				for (let i = 0; i < menus.length; i++) {
+				  menus[i].addEventListener("click", function() {
+					this.classList.toggle("active");
+					var panel = this.nextElementSibling;
+					if (panel.style.display === "block") {
+					  panel.style.display = "none";
+					} else {
+					  panel.style.display = "block";
+					}
+				  });
+				} // for
+			
+			
+			}, // addFunctionality
+			
+		}, // report
+		
+		
+		// WHEN COMBINING WITH IMPORTEXPORTFUNCTIONALITY Combine with metadata to keep all relevant functionality together.
+		metadata: {
+		
+			report: {
+
+				make: function make(parent){
+				
+				
+					// Have the fullscreen container in index.html
+					
+					let menuContainer = parent
+					  .append("div")
+						.attr("class", "card card-menu")
+						
+					menuContainer
+					  .append("div")
+						.attr("class", "card-header")
+					  .append("h1")
+						.html("Report:")
+
+					// Body
+					
+					// Collect the error data.
+					let allFilesWithErrors = inputTesting.metadata.report.generate()
+					
+					let varCategories = menuContainer
+					  .append("div")
+						.attr("class", "card-body")
+						.style("overflow-y", "auto")
+						.style("overflow-x", "auto")
+					  .selectAll("div")
+					  .data(allFilesWithErrors)
+					  .enter()
+					    .append("div")
+						.each(function(d){
+							inputTesting.report.makeMenu(d3.select(this), d)
+						})
+					  
+					// Footer
+					menuContainer
+					  .append("div")
+						.attr("class", "card-footer")
+					  .append("button")
+						.attr("class", "btn btn-success")
+						.html("Understood")
+						.on("click", inputTesting.report.hide)	
+				
+				
+				}, // make
+				
+				message: function message(d){
+					return d.colName + " (" + d.rowInd + ", " +d.colInd + "): " + d.testVal
+				}, // message
+			
+				generate: function generate(){
+					// Generate the appropriate data to draw the error report. For metadata the report is structured per metadata file type.
+					let error = inputTesting.error
+					let errorTypes = Object.getOwnPropertyNames(error)
+				
+				
+					// Metadata files have the tag 'metadata' and a property 'parent', which denotes the particular file. Collect all unique files with errors.
+					let filenames = []
+					errorTypes.forEach(function(errorName){
+						error[errorName].instances.forEach(function(varObj){
+							if(varObj.tag == "metadata"){
+								filenames.push(varObj.parent)
+							} // if
+						})
+					})
+					filenames = inputTesting.unique(filenames)
+					
+					
+					// Create the reports for all the files.
+					return filenames.map(function(filename){
+					
+						let fileReport = {
+							title: filename,
+							titleEl: "h2",
+							nErrors: undefined,
+							errorTypes: []
+						}
+						
+						errorTypes.forEach(function(errorName){
+						
+							// Get all the errors of a particular type for this file.
+							var fileErrors = error[errorName].instances.filter(function(varObj){
+								return varObj.parent == filename
+							})
+							
+							// Generate the error report object
+							if(fileErrors.length > 0){
+								fileReport.errorTypes.push(
+									new error[errorName].report(fileErrors)
+								)
+							} // if
+						
+						})
+						
+						// Sum up hte number of all errors.
+						fileReport.nErrors = fileReport.errorTypes.reduce(function(sum, errorType){return sum + errorType.errors.length},0)
+						
+						return fileReport
+					})
+					
+				
+				}, // generate
+				
+			}, // 
+		
+			
+		}, // metadata
+	
+		// All the tests.
+		test: {
+	
+			// File formats
+			json: function json(varObj){
+			
+				return new Promise(function(resolve, reject){
+
+					d3.json(varObj.testVal).then(function(content){
+						// json files can be lines or contours.
+						let test = inputTesting.test
+						
+						let isContour = test.contour.json(content)
+						let isLine = test.line.json(content)
+						
+						
+						// The contents are not in expected form - alert the user.
+						if(isContour){
+							varObj.category = "Contour"
+							varObj.type = "file-contour"
+						} else if(isLine){
+							varObj.category = "Line"
+							varObj.type = "file-line"
+						} else {
+							// Some other format. Don't allow the file to be loaded in by marking the column as categorical.
+							varObj.category = "Categorical"
+							
+							inputTesting.error.unsupportedFileStructure.instances.push(varObj)
+						}
+						
+						resolve(varObj)
+						
+					}).catch(function(){
+						varObj.category = "Categorical"
+						
+						inputTesting.error.fileNotFound.instances.push(varObj)
+						
+						resolve(varObj)
+					}) // then
+					
+				}) // Promise
+			
+			}, // json
+			
+			csv: function csv(varObj){
+			
+				return new Promise(function(resolve, reject){
+
+					// This promise CAN fail - e.g. no file.
+					d3.csv(varObj.testVal).then(function(content){
+						let test = inputTesting.test
+						// csv are always loaded in as strings. Need to convert what can be converted before testing.
+						let content_ = inputTesting.getConvertedValues(content)
+						
+						// Csv could be line.
+						let isLine = test.line.csv(content_)
+						
+						
+						// The contents are not in expected form - alert the user.
+						if(isLine){
+							varObj.category = "Line"
+							varObj.type = "file-line"
+						} else {
+							varObj.category = "Categorical"
+							
+							inputTesting.error.unsupportedFileStructure.instances.push(varObj)
+							
+							
+							
+						}
+						
+						resolve(varObj)
+						
+					}).catch(function(){
+						varObj.category = "Categorical"
+						
+						inputTesting.error.fileNotFound.instances.push(varObj)
+							
+						resolve(varObj)
+					}) // then
+					
+				}) // Promise
+			
+			}, // csv
+			
+			dummy: function dummy(varObj){
+				// All real categorical variables pass through here, alongside to any with extensions.
+			
+				return new Promise(function(resolve, reject){
+
+					varObj.category = "Categorical"
+					
+					// Add a report if there is an extension.
+					let extension = varObj.testVal.split(".").pop()
+					if(extension != varObj.testVal){
+						inputTesting.error.unsupportedFileExtension.instances.push(varObj)			
+					} // if
+					
+					
+					
+					// Directly pass the category to resolve.
+					resolve(varObj)
+					
+				}) // Promise
+			
+			}, // dummy
+			
+			// Data formats
+			contour: {
+			
+				json: function json(content){
+				
+					let isContour = false
+				
+					try {
+				
+						if(content.surfaces != undefined){
+							// surfaces must have an object with properties y, x, and v, and size
+							let s = content.surfaces
+							let hasRequiredProperties = 
+								Array.isArray(s.x) &&
+								Array.isArray(s.y) &&
+								Array.isArray(s.v) &&
+								Array.isArray(s.size);
+							if(hasRequiredProperties){
+								isContour = true
+							} // if
+						} // if
+						return isContour
+				
+					} catch (e){
+						return isContour
+					} // try
+				
+				}, // json
+			
+			}, // contour
+			
+			line: {
+			
+				json: function json(content){
+				
+					// Check if 'content.data' is an array containing only numbers in a random row.
+					return inputTesting.test.helpers.testArray(content.data)
+				
+				}, // json
+				
+				csv: function csv(content){
+				
+					// Check if 'content' is an array containing only numbers in a random row.
+					return inputTesting.test.helpers.testArray(content)
+				
+				}, // csv
+			
+			}, // line
+				
+			// Helpers
+			helpers: {
+			
+				testArray: function testArray(expectedArray){
+				
+					let isArray = false
+					
+					try { 
+					
+						if( Array.isArray(expectedArray) ){
+							// Pick a random row and test it. It can include only numbers.
+							let randomEl = expectedArray[Math.floor(Math.random()*(expectedArray.length-1))]
+							
+							
+							let allPropertiesAreNumber = inputTesting.test.helpers.areAllPropertiesNumeric(randomEl)
+							
+							if(allPropertiesAreNumber){
+								isArray = true
+							} // if
+						} // if
+						return isArray
+						
+					} catch (e){
+						return isArray
+					} // try
+				
+				}, // testArray
+				
+				areAllPropertiesNumeric: function areAllPropertiesNumeric(singleEl){
+				
+					let properties = Object.getOwnPropertyNames(singleEl)
+							
+					let areAllNumeric = properties.reduce(function(isNumber, property){
+						return isNumber && typeof(singleEl[property]) == "number"
+					}, true)
+					
+					return areAllNumeric
+				
+				}, // areAllPropertiesNumeric
+			
+			}
+			
+		}, // test
+	
+		// Maybe make the errors for each file separately?
+		error: {
+		
+			// UNEXPECTED METADATA DATA TYPE
+			wrongVarType: {
+				report: class wrongVarTypeReport {
+					constructor(items){
+						this.title = "Metadata variables: unsupported type";
+						this.description = "I only know how to support strings and numbers. The following variables have therefore been removed from the session.";
+						this.nErrors = items.length,
+						this.errors = items;
+					}
+					
+					printout(d){return inputTesting.metadata.report.message(d)} 
+				}, // wrongVarTypeReport
+				
+				
+				instances: []
+			}, // wrongVarType
+		
+		
+		// ON DEMAND FILES:
+		
+			// FILE NOT FOUND
+			fileNotFound: {
+				report: class fileNotFoundReport {
+					constructor(items){
+						this.title = "On-demand variables: Missing files";
+						this.description = "I thought the following were files that I am able to load. However, I could not find them. The columns containing the filenames are available as categorical variables.";
+						this.nErrors = items.length,
+						this.errors = items;
+					}
+					
+					printout(d){return inputTesting.metadata.report.message(d)} 
+				}, // fileNotFoundReport
+
+			
+				instances: []
+			}, // missingFile
+		
+		
+			// UNSUPPORTED FILE EXTENSION
+			unsupportedFileExtension: {
+			
+				report: class fileNotFoundReport {
+					constructor(items){
+						this.title = "On-demand variables: Unsupported file extensions";
+						this.description = "I thought the following are files that I am expected to load. However, Aljaz didn't teach me how to load anything but .csv and .json files with particular formats. Instead the columns containing the filenames are available as categorical variables.";
+						this.nErrors = items.length,
+						this.errors = items;
+					}
+					
+					printout(d){return inputTesting.metadata.report.message(d)} 
+				}, // fileNotFoundReport
+			
+				instances: []
+			}, // unsupportedFileExtension
+		
+			
+			// UNSUPPORTED FILE STRUCTURE
+			unsupportedFileStructure: {
+				report: class fileNotFoundReport {
+					constructor(items){
+						this.title = "On-demand variables: Unexpected data structure";
+						this.description = "I loaded the following files, however, I wasn't taught how to handle their particular formats. Instead the columns containing the filenames are available as categorical variables.";
+						this.nErrors = items.length,
+						this.errors = items;
+					}
+					
+					printout(d){return inputTesting.metadata.report.message(d)} 
+				}, // fileNotFoundReport
+				
+			
+				instances: []		
+			}, // wrongFileStructure
+		
+		} // errors
+	
+	} // inputTesting
+  
+	
+	var variableHandling = {
+	
+		show: function show(){
+		
+			let fullscreenContainer = d3.select("div.variable-container")
+		
+			fullscreenContainer.style("display", "")
+			
+			variableHandling.coordinateColumnStyles( fullscreenContainer.node() )
+		
+		}, // show
+		
+		hide: function hide(){
+			
+			d3.select("div.variable-container").style("display", "none")
+			
+		}, // hide
+		
+		submit: function submit(fullscreenContainer){
+		
+			return function(d){
+				// Collect the classification, and report it for use with dbslice.
+				
+				// For now change it so that it reports the name and the category.
+				let output = fullscreenContainer
+				  .select("div.card-body")
+				  .selectAll("button.shape-pill")
+				  .data()
+				  .map(function(d){
+					return d.variable
+				  })
+				
+				fullscreenContainer.style("display", "none")
+				
+				
+				// Form a new header.
+				let header = importExport.importing.helpers.assignVariables(output)
+				
+				cfDataManagement.variableUseChange(header)
+				
+			}	
+		
+		}, // submit
+
+		make: function make(variableClassification){
+			
+			// Create the particular config that can flow to all of the DOM elements.
+			
+			// Maybe merge these?
+			var categoryInfo = variableHandling.varData2CategoryData(variableClassification)
+		
+			// Have the fullscreen container in index.html
+			let fullscreenContainer = d3.select("div.variable-container")
+			let menuContainer = fullscreenContainer
+			  .append("div")
+				.attr("class", "card card-menu")
+				.datum(categoryInfo)
+				
+			// Header - add a legend?
+			menuContainer
+			  .append("div")
+				.attr("class", "card-header")
+				.each(variableHandling.makeHeader)
+
+			// Body
+			let varCategories = menuContainer
+			  .append("div")
+				.attr("class", "card-body")
+				.style("overflow-y", "auto")
+				.style("overflow-x", "auto")
+			  .append("div")
+				.style("display", "table-row")
+			  .selectAll("div")
+			  .data(d=>d.categories)
+			  
+			varCategories.enter()
+			  .append("div")
+				.style("display", "table-cell")
+			  .append("div")
+				.style("margin-right", "10px")
+				.each(variableHandling.makeVariableList)
+				
+			// Footer
+			menuContainer
+			  .append("div")
+				.attr("class", "card-footer")
+			  .append("button")
+				.attr("class", "btn btn-success")
+				.html("Submit")
+				.on("click", variableHandling.submit(fullscreenContainer))	
+
+
+			// Apply the dragging
+			var drag = variableHandling.drag.make()
+
+			menuContainer
+			  .select("div.card-body")
+			  .selectAll(".draggable")
+			  .call(drag)
+					
+		}, // make
+		
+		drag: {
+		
+			make: function make(){
+				let h = variableHandling.drag.helpers
+			
+				var drag = d3.drag()
+				  .on("start", function(d){
+					  this.classList.add('dragging')
+				  
+					  
+					  d.position.t0 = d3.mouse(this.parentElement)
+					  
+				  
+					  d3.select(this)
+						.style("position", "relative")
+						.style("left", 0 + "px")
+						.style("top", 0 + "px")
+					  
+					  // Ordinal plots do not support string values. Check if the variable type is compatible with the category.
+					  let parent = this.parentElement.parentElement.parentElement.parentElement
+					  d.dom = h.findAndSignalPosition(parent)
+					  
+				  })
+				  .on("drag", function(d){
+					  let position = d3.mouse(this.parentElement)
+				  
+					  
+					  d.position.x += position[0] - d.position.t0[0]
+					  d.position.y += position[1] - d.position.t0[1]
+					  
+					  d3.select(this)
+						.style("position", "relative")
+						.style("left", d.position.x + "px")
+						.style("top", d.position.y + "px")
+				  
+					  d.position.t0 = position
+					  
+					  // This should find the element to move the tag to, and the element to append it after, and store it into d. on end can then just perform the final assignment.
+					  // Make a gap as a preview.
+					  
+					  let parent = this.parentElement.parentElement.parentElement.parentElement
+					  let dom_ = h.findAndSignalPosition(parent)
+					  
+					  if(h.checkVariableCategoryCompatibility(d.variable.type, d3.select(dom_.container).datum().category )){
+						  d.dom = dom_
+					  } // if
+					  
+					  
+				  })
+				  .on("end", function(d){
+					  
+					  this.remove()
+					  d.dom.container.insertBefore(this, d.dom.afterElement)
+					  
+					  this.classList.remove('dragging')
+				  
+					  d3.select(this)
+						.style("position", "")
+						
+					  d.position.x = 0
+					  d.position.y = 0
+					  
+					  // Remove gaps, and adjust column heights.
+					  variableHandling.coordinateColumnStyles( d.dom.container.parentElement.parentElement.parentElement )
+					  
+					  // Change the category in the data.
+					  d.variable.category = d3.select( d.dom.container ).datum().category
+					  
+					  
+					  
+				  })
+				  
+				return drag
+			
+			}, // make
+		
+			helpers: {
+			
+				findAndSignalPosition: function findAndSignalPosition(parent){
+					let h = variableHandling.drag.helpers
+		
+					let pos = d3.mouse(document.body)
+					
+					let containers = parent.querySelectorAll('.variable-category')
+				
+					let currentContainer = h.getDragContainer(containers, pos[0])
+					
+					// Is it the gap making??
+					let afterElement = h.makeGapPreview(currentContainer, pos[1])
+				
+					return {
+						container: currentContainer,
+						afterElement: afterElement
+					}
+				}, // makeGapPreview
+				
+				makeGapPreview: function makeGapPreview(container, y){
+					// A gap should open up in the list to indicate the drop position. 
+					let h = variableHandling.drag.helpers
+				
+					
+					let all = [...container.querySelectorAll('.draggable:not(.dragging)')]
+					let below = h.getDragAfterElement(all, y)
+					
+					
+					
+					// Only add a gap if the closest element isn't the one right after the dragged element.
+					
+					let draggable = [...container.querySelectorAll(".draggable")];
+					let dragged = container.querySelector(".dragging");
+					let neighbour = draggable[draggable.indexOf(dragged) + 1]
+					
+					// Default margin = 2px
+					d3.selectAll(draggable).style("margin-top", "2px")
+					
+					if(neighbour != below.closest){
+						d3.select( below.closest ).style("margin-top", "20px")
+					} // if
+
+					
+					
+					
+					return below.closest
+				}, // makeGapPreview
+
+				getDragAfterElement: function getDragAfterElement(allElements, y) {
+				  
+
+				  return allElements.reduce((below, child) => {
+					const box = child.getBoundingClientRect()
+					const offset = y - box.top - box.height / 2
+					// Introduce a counter that also tracks all below. This will be used to offset them.
+					if(offset < 0){
+						below.elements.push(child)
+					} // if
+					
+					if (offset < 0 && offset > below.offset) {
+						below.offset = offset
+						below.closest = child
+					}
+					return below
+				  }, { offset: Number.NEGATIVE_INFINITY, elements: [] })
+				}, // getDragAfterElement
+				
+				getDragContainer: function getDragContainer(containers, x){
+					// Find the appropriate container, as the dragging was not particularly aesthetic.
+					return [...containers].reduce(function(closest, current){
+						
+						let pos_= closest.getBoundingClientRect()
+						let pos = current.getBoundingClientRect()
+						
+						let isLeft = (x - pos.x) > 0
+						let isCloser = (x - pos_.x) > (x - pos.x)
+						
+						if( isLeft && isCloser ){
+							closest = current
+						} // if
+						return closest
+					}, containers[0])
+					
+				}, // getDragContainer
+			
+			
+				// Move to input testing?
+				checkVariableCategoryCompatibility: function checkVariableCategoryCompatibility(varType, categoryType){
+					let compatibility
+					switch(categoryType){
+						case "Categorical":
+							compatibility = ["number", "string","file-line","file-contour","file-surface"].includes(varType)
+						  break;
+						case "Ordinal":
+							compatibility = ["number"].includes(varType)
+						  break;
+						case "Line":
+							compatibility = ["file-line"].includes(varType)
+						  break;
+						case "Contour":
+							compatibility = ["file-contour"].includes(varType)
+						  break;
+						case "Surface":
+							compatibility = ["file-surface"].includes(varType)
+						  break;
+						default:
+							compatibility = true
+					} // switch
+					return compatibility
+					
+				}, // checkVariableCategoryCompatibility
+			
+			} // helpers
+		
+		}, // drag
+		
+		makeHeader: function makeHeader(){
+			
+			let color = variableHandling.color(d=>d)
+			let types = variableHandling.availableTypes
+			
+			let header = d3.select(this)
+			
+			let title = header
+				.append("div")
+				
+			title
+			 .append("h4")
+				.html("Variable declaration:")
+			title
+			 .append("button")
+			 .attr("class", "btn report")
+			 .style("float", "right")
+			 .on("click", function(){
+				 variableHandling.hide()
+				 inputTesting.report.show()
+			 })
+			 .append("i")
+				.attr("class", "fa fa-exclamation-triangle")
+			
+			
+			header.append("div")
+			  .selectAll("button.shape-pill")
+			  .data(types)
+			  .enter()
+			  .append("button")
+				.attr("class", "shape-pill")
+				.style("background-color", color)
+			  .append("strong")
+				.html(d=>d)
+			
+		}, // makeHeader
+		
+		makeVariableList: function makeVariableList(d){
+		
+			let h = variableHandling
+			let color = h.color(d=>d.variable.type)
+			let category = d3.select(this)
+			function nUnique(vals){
+				
+				function onlyUnique(value, index, self) { 
+					return self.indexOf(value) === index;
+				} // unique
+				
+				return vals.filter(onlyUnique).length
+			} // nUnique
+			
+		
+			category
+			  .append("h6")
+				.html(d.category)
+				
+			let variableList = category
+			  .append("div")
+				.attr("class", "variable-category")
+			
+			let varObjects = h.makeVariableTagObjects(d.vars)
+			variableList
+			  .selectAll("button")
+			  .data(varObjects)
+			  .enter()
+			  .append("button")
+				.attr("class", "shape-pill draggable")
+				.style("background-color", color)
+				.html(d=>"<strong>"+d.variable.colName+"</strong>")
+			  .append("span")
+				.attr("class", "badge badge-pill badge-light")
+				.style("margin-left", "4px")
+				.html(d=>nUnique(d.variable.vals))
+				
+			
+		}, // makeVariableList
+		
+		makeVariableTagObjects: function makeVariableTagObjects(vars){
+			let data = []
+			vars.forEach(function(variable){
+				data.push({
+					variable: variable,
+					position: {
+						x: 0,
+						y: 0,
+						t0: undefined,
+					},
+					dom: {
+					  container: undefined,
+					  afterElement: undefined
+					}
+				})
+			})
+			return data
+		}, // makeVariableTagObjects
+		
+		coordinateColumnStyles: function coordinateColumnStyles(parent){
+			
+			// Remove any gaps: default margin = 2px
+			let menuBody = d3.select( parent )
+			menuBody
+			  .selectAll(".draggable")
+				.style("margin-top", "2px")
+			  
+			// Consolidate column sizes.
+			let divs = menuBody
+			  .selectAll("div.variable-category")
+			  .style("height", "100%")
+			  
+			let divHeight = 0
+			divs.each(function(d){
+				divHeight = this.offsetHeight > divHeight ? this.offsetHeight : divHeight
+			})
+			divs.style("height", divHeight + "px")
+			
+		}, // coordinateColumnStyles
+		
+		
+		color: function color(accessor){
+			
+			let scheme = d3.scaleOrdinal(d3.schemePastel2)
+			  .domain(variableHandling.availableTypes)
+			  
+			return function(d){
+				return scheme(accessor(d))
+				// return accessor(d) == "string" ? "aquamarine" : "gainsboro"
+			}
+		}, // color
+		
+		
+		varData2CategoryData: function varData2CategoryData(variableClassification){
+			
+			// Convert to category info.
+			let categoryObj = variableClassification.reduce(function(catObj, varObj){
+				if(catObj.categories[varObj.category] == undefined){
+					// This category has already been identified, therefore just add 
+					catObj.categories[varObj.category] = {
+						category: varObj.category,
+						vars: [varObj]
+					}
+				} else {
+					// Just add the variable to it.
+					catObj.categories[varObj.category].vars.push(varObj)
+				} // if
+				return catObj
+				
+			},{categories: {}}) // reduce
+			
+			
+			// Always provide an 'Unused' category too -> this is done here to enforce this is the last category.
+			if(categoryObj.categories.Unused == undefined){
+				categoryObj.categories.Unused = {category: "Unused", vars: []}
+			} // if
+			
+			
+			
+			// The output should be an array of object, whereas now it's a single object.
+			categoryObj.categories = Object.keys(categoryObj.categories).map(d=>categoryObj.categories[d])
+			
+			
+			
+			
+			return categoryObj
+			
+		}, // varData2CategoryData
+		
+		// Move to input testing
+		availableTypes: [
+			  "string",
+			  "number",
+			  "file-line",
+			  "file-contour"
+		],
+		
+	} // variableHandling
+	
+	
     // Handles all tasks connected to importing/exporting data.
-	var importExportFunctionality = {
+	var importExport = {
 		// This object controls all the behaviour exhibited when loading in data or session layouts, as well as all behaviour when saving the layout.
 		
 		// The loading of sessions and data must be available separately, and loading the session should include an option to load in a predefined dataset too.
@@ -10724,90 +13249,114 @@ var dbslice = (function (exports) {
 			
 			// DONE: Handle the case where the user attempts to load data, but selects a session json.
 			
-			metadata : function metadata(file, dataAction){
-				
-				// Create convenient handles.
-				var ld = importExportFunctionality.importing
-				
-				
-				// Split the name by the '.', then select the last part.
-				var extension = file.name.split(".").pop();
-				
-				// Create a url link to allow files to be loaded fromanywhere on the local machine.
-				var url = window.URL.createObjectURL(file)
-				
-				
-				// Determine if the input adds new data, or if it replaces the data.
-				switch(dataAction){
-					case "add":
-						var actionOnInternalStorage = cfDataManagement.cfAdd
-					  break
-					  
-					case "replace":
-						var actionOnInternalStorage = function(d){
-							// cfInit will totally override the internal data.
-							cfDataManagement.cfInit(d)
+			metadata : {
+			
+				go: function go(file, actionTag){
+					
+					// Create convenient handles.
+					var ld = importExport.importing
+					
+					
+					// This function will fire also when 'cancel' is pressed on the file input menu. In that case skip the following to avoid errors.
+					if(file != undefined){
+						
+					
+					
+						// Determine if the input adds new data, or if it replaces the data.
+						var actionOnInternalStorage = ld.metadata.load.action(actionTag)
+						
+						
+						// Handle the case based on the file type.
+						var extension = file.name.split(".").pop();
+						switch(extension){
 							
-							// Update the session.
-							importExportFunctionality.helpers.onDataAndSessionChangeResolve()
-						} 
-					  break
-					  
-					default:
-						var actionOnInternalStorage = cfDataManagement.cfInit
-					  break
+							case "csv":
+								ld.metadata.load.csv(file, actionOnInternalStorage)
+								break;
+								
+							case "json":
+								ld.metadata.load.json(file, actionOnInternalStorage)
+								break;
+								
+							default:
+								window.alert("Selected file must be either .csv or .json")
+								break;
+						}; // switch
 					
-				} // switch
-				
-				
-				// Handle the case based on the file type.
-				switch(extension){
+					} // if
 					
-					case "csv":
+				}, // go
+				
+				load: {
+					
+					csv: function csv(file, action){
+						var ld = importExport.importing
+						var url = window.URL.createObjectURL(file)
+						
 						d3.csv(url).then(function(metadata){
-							
+								
 							// All the numbers are read in as strings - convert them to strings straight away.
-							data = []
-							metadata.forEach(function(d){
-								data.push( ld.helpers.convertNumbers(d) )
-							})
+							let data = ld.helpers.getConvertedValues(metadata)
+							
 					
 									
-							// Add the source file to tha data
+							// Add the source file to tha data - this will also get tested if it's added here.
 							data.forEach(function(d){
-								d.file = file.name
+								d.__file__ = file.name
 							})
 							
 							
-							// Process the metadata read in the csv format.
-							var d = importExportFunctionality.importing.helpers.csv2json(data)
+							// Store the results of the classifying straight away, and then use the method that will be required to change the variables in hte session to make changes.
 							
-							// Perform the requested internal storage assignment.
-							actionOnInternalStorage(d);
 							
-										
-							render();
+							inputTesting.classifyVariables(data, function(variableClassification){
+								
+								// This could be csv2json?
+								let d = {
+									 data : data,
+									 header: ld.helpers.assignVariables(variableClassification),
+								}
+								
+								// Store the variables
+								action(d);
+								
+								// Redraw
+								render();
+								
+								// Show the reports.
+								if(dbsliceData.data != undefined){
+									var canMerge = cfDataManagement.helpers.crossCheckProperties(dbsliceData.data, d)
+									if(canMerge){
+										variableHandling.show()
+									} // if
+								} // if
+							})
 							
 						}) // d3.csv
-						break;
 						
-					case "json":
+						
+					}, // csv
+					
+					json: function json(file, action){
+						
+						var ld = importExport.importing
+						var url = window.URL.createObjectURL(file)
+						
 						d3.json(url).then(function(metadata){
-							
 							// ERROR HANDLING: The metadata must have a `data' attribute that is an iterable. Otherwise show a prompt to the user.
 							if(helpers.isIterable(metadata.data)){
 							
 								// Add the source file to tha data
-								metadata.data.forEach(function(d){d.file = file.name})
+								metadata.data.forEach(function(d){d.__file__ = file.name})
 								
 								
 								// Change any backslashes with forward slashes
 								metadata.data.forEach(function(d){
-									importExportFunctionality.importing.helpers.replaceSlashes(d, "taskId");
+									ld.helpers.replaceSlashes(d, "taskId");
 								}) // forEach
 								
 								// Store the data appropriately
-								actionOnInternalStorage(metadata)
+								action(metadata)
 								
 								render();
 							
@@ -10817,15 +13366,39 @@ var dbslice = (function (exports) {
 							} // if
 							
 						}) // d3.json
-						break;
 						
-					default:
-						window.alert("Selected file must be either .csv or .json")
-						break;
-				}; // switch
-				
-				
-				
+					}, // json
+					
+					action: function(actionTag){
+						
+						let action
+						switch(actionTag){
+							case "add":
+								action = cfDataManagement.cfAdd
+							  break
+							  
+							case "replace":
+								action = function(d){
+									// cfInit will totally override the internal data.
+									cfDataManagement.cfInit(d)
+									
+									// Update the session.
+									importExport.helpers.onDataAndSessionChangeResolve()
+								} 
+							  break
+							  
+							default:
+								action = cfDataManagement.cfInit
+							  break
+							
+						} // switch
+						
+						return action
+						
+					}, // action
+					
+				}, // load
+			
 			}, // metadata
 			
 			session : function session(file){
@@ -10843,7 +13416,7 @@ var dbslice = (function (exports) {
 				
 				
 
-				var h = importExportFunctionality.importing.helpers
+				var h = importExport.importing.helpers
 			
 				// Split the name by the '.', then select the last part.
 				var extension = file.name.split(".").pop();
@@ -10872,7 +13445,7 @@ var dbslice = (function (exports) {
 				
 				createFilePromise: function(file){
 					
-					var i = importExportFunctionality.importing.helpers
+					var i = importExport.importing.helpers
 					
 					// The extension must be either json or csv
 					var extension = file.url.split(".").pop()
@@ -10911,7 +13484,7 @@ var dbslice = (function (exports) {
 				
 				createFilePromise: function(file){
 					
-					var i = importExportFunctionality.importing.helpers
+					var i = importExport.importing.helpers
 					
 					// The extension must be either json or csv
 					var extension = file.url.split(".").pop()
@@ -10949,7 +13522,19 @@ var dbslice = (function (exports) {
 							delete data[j][oldVar];
 						}; // for
 				}, // renameVariable
-								
+				
+				getConvertedValues: function getConvertedValues(metadata){
+					let h = importExport.importing.helpers
+					data = []
+					metadata.forEach(function(d){
+						data.push( h.convertNumbers(d) )
+					})
+
+							
+					return data
+					
+				}, // getConvertedValues
+				
 				convertNumbers: function convertNumbers(row) {
 						// Convert the values from strings to numbers.
 						
@@ -10970,86 +13555,44 @@ var dbslice = (function (exports) {
 						
 				}, // replaceSlashes
 				
-				csv2json: function csv2json(metadata){
-					// FOR METADATA!!
+				assignVariables: function assignVariables(variableClassification){
 					
-					// Create a short handle to the helpers
-					var h = importExportFunctionality.importing.helpers
+					// each variable has a category assigned. Assign the variables to the appropriate plots by creating a distribution object.
 					
-					// Change this into the appropriate internal data format.
-					var headerNames = d3.keys(metadata[0])
-					
-					// Assemble dataProperties, and metadataProperties.
-					var dataProperties = [];
-					var metadataProperties = [];
-					var line2dProperties = [];
-					var contour2dProperties = [];
-					
-					for(var i=0; i<headerNames.length;i++){
-						
-						// Look for a designator. This is either "o_" or "c_" prefix.
-						var variable    = headerNames[i];
-						var prefix      = variable.split("_")[0];
-						var variableNew = variable.split("_").slice(1).join(" ");
-						
-						
-						switch(prefix){
-							case "o":
-								// Ordinal variables.
-								dataProperties.push( variableNew )
-								
-								h.renameVariables(metadata, variable, variableNew)
-								break;
-							case "c":
-								// Categorical variables
-								metadataProperties.push( variableNew )
-								
-								h.renameVariables(metadata, variable, variableNew)
-								break;
-							case "s":
-								// Slices
-								line2dProperties.push(variableNew);
-								
-								h.renameVariables(metadata, variable, variableNew)
-								break;
-								
-							case "c2d":
-								// Contours
-								contour2dProperties.push(variableNew);
-								
-								h.renameVariables(metadata, variable, variableNew)
-							  
-							  break;
-								
-							case "taskId":
-								// This is a special case, as it is advantageous that any '\' in the value of taskId be changed into '/'. It is intended that the taskId is the url to the location ofthe data, thus this can prove important.						
-								metadata.forEach(function(d){
-									h.replaceSlashes(d, "taskId");
-								}) // forEach
-								
-							  break;
-								
-							default:
-								
-								break;
-						
-						}; // switch
-						
-					}; // for
+					let h = {
+						dataProperties : [],
+					    metaDataProperties : [],
+						line2dProperties : [],
+					    contour2dProperties : []
+					}
 					
 					// Combine in an overall object.
-					var d = {
-						 data : metadata,
-						 header: {
-								  dataProperties :     dataProperties,
-							  metaDataProperties : metadataProperties,
-								 line2dProperties :    line2dProperties,
-							 contour2dProperties :  contour2dProperties,
-						 }
-					};
 					
-				  return d
-				}, // csv2json
+					
+					variableClassification.forEach(function(varObj){
+						switch(varObj.category){
+							case "Categorical":
+								h.metaDataProperties.push(varObj.colName)
+							  break;
+							case "Ordinal":
+								h.dataProperties.push(varObj.colName)
+							  break;
+							case "Line":
+								h.line2dProperties.push(varObj.colName)
+							  break;
+							case "Contour":
+								h.contour2dProperties.push(varObj.colName)
+							  break;
+							default:
+							  // These are not considered.
+							  break;
+						} // switch
+						
+					})
+					
+					return h
+					
+				}, // assignVariables
 				
 				// SESSION
 				
@@ -11088,7 +13631,7 @@ var dbslice = (function (exports) {
 				
 				assemblePlots: function assemblePlots(plotsData, plotRow){
 					
-					var h = importExportFunctionality.importing.helpers
+					var h = importExport.importing.helpers
 					
 					// Assemble the plots.
 					var plots = [];
@@ -11121,7 +13664,7 @@ var dbslice = (function (exports) {
 				
 				assemblePlotRows: function assemblePlotRows(plotRowsData){
 					
-					var h = importExportFunctionality.importing.helpers
+					var h = importExport.importing.helpers
 					
 					// Loop over all the plotRows.
 					var plotRows = [];
@@ -11144,7 +13687,7 @@ var dbslice = (function (exports) {
 				
 				assembleSession: function assembleSession(sessionData){
 					
-					var h = importExportFunctionality.importing.helpers
+					var h = importExport.importing.helpers
 				
 					// Check if it is a session file!
 					if (sessionData.isSessionObject === "true"){
@@ -11474,7 +14017,7 @@ var dbslice = (function (exports) {
 				json2line: function json2line(data){
 					// json are assumed to have only one series, with several properties possible per series.
 					
-					let h = importExportFunctionality.importing.helpers
+					let h = importExport.importing.helpers
 					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
 					
 					// Collect the json variable names differently? 
@@ -11530,7 +14073,7 @@ var dbslice = (function (exports) {
 				
 				csv2line: function csv2line(data){
 					
-					let h = importExportFunctionality.importing.helpers
+					let h = importExport.importing.helpers
 					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
 					var info = h.handlePropertyNames( data.columns )
 					
@@ -11714,6 +14257,8 @@ var dbslice = (function (exports) {
 					// For 2d contours the surfaces attribute has a single object. For 3d contours it has an array of surfaces. In `json2contour3d' the property names will have to be differentiated into options.
 					
 					// Don't check the property names. The data of the entire domain is too large to be loaded at once.
+					data.surfaces = data.surfaces[0]
+					
 					return {
 						properties: Object.getOwnPropertyNames(data.surfaces),
 						vals: data
@@ -11895,9 +14440,6 @@ var dbslice = (function (exports) {
 		
 		helpers : {
 			
-			variableMatching : function variableMatching(){
-				// Functionality that allows the user to resolve any issues between datasets with different names that hold th esame quantities.
-			}, // variableMatching
 			
 			collectPlotProperties: function collectPlotProperties(plot){
 				
@@ -11924,7 +14466,7 @@ var dbslice = (function (exports) {
 				// Collect all the variables in the current plots (by type!), the variables in the current data, and return them.
 				// If there is a variable in th eplot, but not in hthe new data it must either be given, or the plot needs to be removed.
 		
-				var plotProperties = importExportFunctionality.helpers.collectPlotProperties(plot)
+				var plotProperties = importExport.helpers.collectPlotProperties(plot)
 				
 				var arePropertiesAvailable = plotProperties.map(function(p){
 					return cfDataManagement.helpers.isPropertyInDbsliceData(p)
@@ -11944,11 +14486,15 @@ var dbslice = (function (exports) {
 					plotRow.plots = plotRow.plots.filter(function(plot){
 						
 						
-						var isPlotCompatible = importExportFunctionality.helpers.isPlotCompatible(plot)
+						var isPlotCompatible = importExport.helpers.isPlotCompatible(plot)
 			
 						// Render doesn't remove the plots anymore, so they need to be removed here!
 						if( !isPlotCompatible ){
 							plot.format.wrapper.remove()
+						} else {
+							
+							console.log("Update the select menus.")
+							
 						} // if
 						
 			
@@ -11965,7 +14511,7 @@ var dbslice = (function (exports) {
 			
 		} // helpers
 		
-	} // importExportFunctionality
+	} // importExport
 
 
     exports.initialise = initialise;

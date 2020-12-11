@@ -10,6 +10,7 @@ var cfDataManagement = {
 			cfData.dataProperties = metadata.header.dataProperties;
 			cfData.line2dProperties = metadata.header.line2dProperties;
 			cfData.contour2dProperties = metadata.header.contour2dProperties;
+			
 			cfData.cf = crossfilter(metadata.data);
 			cfData.metaDims = [];
 			cfData.metaDataUniqueValues = {};
@@ -26,7 +27,7 @@ var cfDataManagement = {
 				cfData.metaDims[property] = 
 					cfData.cf.dimension(function (d){return d[property];})
 				
-				// It's unique values
+				// Its unique values
 				cfData.metaDataUniqueValues[property] = helpers.unique( metadata.data.map(
 					function (d){return d[property]}
 				));
@@ -41,7 +42,7 @@ var cfDataManagement = {
 			
 			
 
-			cfData.fileDim = cfData.cf.dimension(function (d){return d.file;})
+			cfData.fileDim = cfData.cf.dimension(function (d){return d.__file__;})
 			cfData.taskDim = cfData.cf.dimension(function (d){return d.taskId;})
 			
 
@@ -125,6 +126,115 @@ var cfDataManagement = {
 			
 			
 		}, // cfRemove
+		
+		
+		// Variable handling
+		variableUseChange: function variableUseChange(newHeader){
+			
+			// Go through the new header. The changes require also the crossfilter dimensions to be adjusted.
+			
+			
+			
+			
+			Object.keys(newHeader).forEach(function(key){
+				let cfData = dbsliceData.data
+				
+				let diff = setDifference(cfData[key], newHeader[key])
+				
+				switch(key){
+					case "metaDataProperties":
+					  
+					  // Dimensions first
+					  resolveDimensions(cfData.metaDims, diff)
+					  
+					  // Handle the metadata unique values arrays.
+					  resolveUnique(cfData.metaDataUniqueValues, diff, function (varName){
+							return helpers.unique( 
+								  cfData.fileDim.top(Infinity).map(
+									function (d){return d[varName]}
+								  )
+								);
+						})
+						
+					  cfData[key] = newHeader[key]
+					  
+					  break;
+					
+					case "dataProperties":
+					
+					  // Dimensions first
+					  resolveDimensions(cfData.metaDims, diff)
+					  
+					  resolveUnique(cfData.histogramSelectedRanges, diff, function(){return undefined})
+					  
+					  cfData[key] = newHeader[key]
+					
+					  break;
+					  
+					case "line2dProperties":
+					case "contour2dProperties":
+					  // Just replace the options
+					  cfData[key] = newHeader[key]
+					  break;
+					
+				} // switch
+				
+			})
+			
+			// Update the color options.
+			color.settings.options = dbsliceData.data.metaDataProperties
+			
+			
+			// PLOTS NEED TO BE REFRESHED, AS WELL AS THE MENUS THAT HOLD THE VARIABLES!!!
+			importExport.helpers.onDataAndSessionChangeResolve()
+			
+			
+			function resolveUnique(vals, diff, populate){
+				
+				
+				diff.aMinusB.forEach(function(varName){
+					delete vals[varName]
+			    })
+				
+				
+				diff.bMinusA.forEach(function(varName){
+				    vals[varName] = populate(varName)
+			    })
+
+			} // resolveUnique
+			
+			
+			function resolveDimensions(dims, diff){
+				
+			    // Those in A, but not in B, must have their cf dimensions removed.
+			    diff.aMinusB.forEach(function(varName){
+					delete dims[varName]
+					
+			    })
+			  
+			    // Those in B, but not in A, must have cf dimensions created.
+			    diff.bMinusA.forEach(function(varName){
+				    let newDim = dbsliceData.data.cf.dimension(function (d){return d[varName];})
+				  
+				    dims[varName] = newDim
+			    })
+				
+			} // resolveDimensions
+			
+			
+			function setDifference(A, B){
+				
+				
+				let a = new Set(A);
+				let b = new Set(B);
+				
+				return { 
+				  aMinusB: new Set([...a].filter(x => !b.has(x))),
+				  bMinusA: new Set([...b].filter(x => !a.has(x)))
+				}
+			}
+			
+		}, // variableUseChange
 		
 		
 		// On-demand file library:
@@ -497,20 +607,19 @@ var cfDataManagement = {
 			
 			crossCheckProperties: function crossCheckProperties(existingData, newData){
 				
-				
-				// oldData.header.dataProperties.filter(function(d){  return !newData.includes(d) })
 				var missingDataProperties = existingData.dataProperties.filter(function(d){  return !newData.header.dataProperties.includes(d) })
 				
 				var missingMetadataProperties = existingData.metaDataProperties.filter(function(d){  return !newData.header.metaDataProperties.includes(d) })
 				
 				var missingLine2dProperties = existingData.line2dProperties.filter(function(d){  return !newData.header.line2dProperties.includes(d) })
 					
-				var missingContour2dProperties = existingData.contour2dProperties.filter(function(d){  return !newData.header.contourProperties.includes(d) })
+				var missingContour2dProperties = existingData.contour2dProperties.filter(function(d){  return !newData.header.contour2dProperties.includes(d) })
 				
-				var allPropertiesIncluded =     (missingDataProperties.length == 0) && 
-										    (missingMetadataProperties.length == 0) &&
-										      (missingline2dProperties.length == 0) &&
-										   (missingContour2dProperties.length == 0)
+				var allPropertiesIncluded = 
+					(missingDataProperties.length == 0) && 
+					(missingMetadataProperties.length == 0) &&
+					(missingLine2dProperties.length == 0) &&
+					(missingContour2dProperties.length == 0)
 											 
 				
 				
@@ -521,7 +630,7 @@ var cfDataManagement = {
 					var warningText = "Selected data has been rejected. It requires additional variables:\n" + 
 					"Data variables:     " +      missingDataProperties.join(", ") + "\n" +
 				    "Metadata variables: " +  missingMetadataProperties.join(", ") + "\n" +
-					"Slice variables:    " +    missingLine2dProperties.join(", ") + "\n" +
+					"Line variables:    " +    missingLine2dProperties.join(", ") + "\n" +
 					"Contour variables:  " + missingContour2dProperties.join(", ") + "\n"
 					
 					
@@ -618,7 +727,7 @@ var cfDataManagement = {
 		} // helpers
 		
 	} // cfDataManagement
-       
+      
 
 	
 

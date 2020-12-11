@@ -55,76 +55,113 @@ var addMenu = {
                 
             },
                             
-            make: function make(containerDOM, containerCtrl){
+            make: function make(ownerButton, containerCtrl){
                 
-                // The container is expected to be the plot row title.
-                var plotRowTitle = d3.select( containerDOM )
+				// Container ctrl is required bcause the plot needs to be pushed into it!!
                 
 				
 				// Create the config element with all required data.
-                var config = addMenu.addPlotControls.createConfig(containerDOM, containerCtrl);
+                var config = addMenu.addPlotControls.createConfig(ownerButton, containerCtrl);
 			
-				// Make the button.
-                addMenu.addPlotControls.makeButton(config)
-
-                // First create the ids of the required inputs
-                addMenu.helpers.makeMenuContainer(config);
+                // Make the corresponding dialog.
+                addMenu.helpers.makeDialog(config);
                 
                 // Update the menus with appropriate options
                 addMenu.helpers.updateMenus(config);
-                
-                // Add the on click event: show menu
-                addMenu.helpers.addButtonClickEvent(config);
+				
+				// Add the buttons
+				addMenu.helpers.addDialogButtons(config)
+
+				// Add the on click event to the dialog owner button
+				config.ownerButton.on("click", function(){
+					addMenu.helpers.showDialog(config)
+				}) // on
 
                         
                 
             }, // make
             
-            createConfig: function createConfig(containerDOM, containerCtrl){
+			// Config handling
+            createConfig: function createConfig(ownerButton, containerCtrl){
                 // ownerButton    - the button that prompts the menu
 				// ownerContainer - container to add the menu and button to
 				// ownerCtrl      - plot row ctrl to update with user selection
                 
-                var a = addMenu.addPlotControls;
                 var config = {
-					h                        : a,
-                    ok                       : a.submitNewPlot,
-                    cancel                   : a.clearMenu,
-                    userSelectedVariables    : ["xProperty", "yProperty", "slice"],
-					menuContainer            : undefined,
-                    menuItems                : [
+					
+					f: addMenu.addPlotControls,
+					
+					position: {
+						left: undefined, 
+						 top: undefined, 
+					   delta: undefined
+					},
+					
+					buttons: [
+						{text: "ok"    , onclick: ok    , class: "btn btn-success"},
+						{text: "cancel", onclick: cancel, class: "btn btn-danger"}
+					],
+					
+                    userSelectedVariables: ["xProperty", "yProperty", "slice"],
+                    
+					menuItems: [
 						{ variable : "plottype",
-						  options  : a.elementOptionsArray(containerCtrl.type),
+						  options  : addMenu.addPlotControls.elementOptionsArray(containerCtrl.type),
                           label    : "Select plot type",
-						  event    : a.onPlotTypeChangeEvent}
-						],
-                    newCtrl                  : [],
-					ownerButton              : undefined,
-					ownerContainer           : d3.select( containerDOM ),
-					ownerCtrl	             : containerCtrl
+						  event    : addMenu.addPlotControls.onPlotTypeChangeEvent
+						}
+					],
+						
+                    newCtrl: {
+						plottype  : undefined,
+						xProperty : undefined, 
+						yProperty : undefined,
+						slice     : undefined
+					},
+
+					ownerButton: ownerButton,
+					ownerCtrl: containerCtrl
                 };
+				
+				// MOVE THESE OUTSIDE
+				function ok(dialogConfig){
+					
+				
+					// Hide the dialog
+					addMenu.helpers.hideDialog(dialogConfig)
+
+					// Add the plot row.
+					addMenu.addPlotControls.submitNewPlot(dialogConfig)
+					
+					// Clear the dialog selection
+					addMenu.addPlotControls.clearNewPlot(dialogConfig)
+					
+					
+					// Clear newPlot to be ready for the next addition.
+					addMenu.addPlotControls.clearMenu(config);
+					
+					 // Redraw the screen.
+					render();
+					
+					
+					
+				} // ok
+
+				function cancel(dialogConfig){
+					
+					addMenu.addPlotControls.clearNewPlot(dialogConfig)
+				
+					addMenu.helpers.hideDialog(dialogConfig)
+					
+					// Clear newPlot to be ready for the next addition.
+					addMenu.addPlotControls.clearMenu(config);
+					
+				} // ok
                 
-                
-                
-                
-                // Create the appropriate newPlot object in the config.
-                addMenu.addPlotControls.createNewPlot(config);
-                
-                
+
                 return config;
                 
             }, // createConfig
-            
-            createNewPlot: function createNewPlot(config){
-                
-				config.newCtrl =  {
-					plottype  : undefined,
-					xProperty : undefined, 
-					yProperty : undefined,
-					slice     : undefined
-				}
-
-            }, // createNewPlot
             
             copyNewPlot:   function copyNewPlot(config){
                 // Based on the type of plot selected a config ready to be submitted to the plotting functions is assembled.
@@ -214,23 +251,129 @@ var addMenu = {
 
             }, // clearNewPlot
 			
-			clearOptionalMenus: function clearOptionalMenus(config){
-				
-				var h = addMenu.helpers;
-				
-				h.resetVariableMenuSelections(config, "xProperty");
-				h.resetVariableMenuSelections(config, "yProperty");
-				h.resetVariableMenuSelections(config, "slice");
-				
-				config.newCtrl.xProperty = undefined;
-				config.newCtrl.yProperty = undefined;
-				config.newCtrl.slice = undefined;
-				
-			}, // clearOptionalMenus
-            
-            enableDisableSubmitButton: function enableDisableSubmitButton(config){
-        
+			submitNewPlot: function submitNewPlot(config){
                 
+                // IMPORTANT! A PHYSICAL COPY OF NEWPLOT MUST BE MADE!! If newPlot is pushed straight into the plots every time newPlot is updated all the plots created using it will be updated too.
+                
+				var plotToPush = addMenu.addPlotControls.copyNewPlot(config);
+				var plotRow = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
+					return plotRowCtrl == config.ownerCtrl
+				})[0]
+				
+				// Position the new plot row in hte plot container.
+				positioning.newPlot(plotRow, plotToPush)
+				
+				
+				plotRow.plots.push(plotToPush)
+                
+                
+            }, // submitNewPlot
+			
+			// Menu functionality
+            onPlotTypeChangeEvent: function onPlotTypeChangeEvent(config, selectDOM, variable){
+                
+				// Update the config.
+				config.newCtrl.plottype = selectDOM.value;
+				
+				// Based on the selection control the other required inputs.
+                var a = addMenu.addPlotControls;
+                var h = addMenu.helpers;
+                
+				switch( config.newCtrl.plottype ){
+					case "undefined":
+					  
+					  // Remove all variable options.
+					  h.removeMenuItemObject( config, "xProperty" );
+					  h.removeMenuItemObject( config, "yProperty" );
+					  h.removeMenuItemObject( config, "slice" );
+
+					  break;
+					  
+					// METADATA PLOTS
+					  
+					case "cfD3BarChart":
+					
+					  // yProperty required.
+					  h.addUpdateMenuItemObject( config, 'yProperty' , dbsliceData.data.metaDataProperties, "Select y variable");
+					  
+					  // xProperty must not be present.
+					  h.removeMenuItemObject( config, "xProperty" );
+					  
+					  break;
+					  
+					case "cfD3Histogram":
+					  
+					  
+					  // xProperty required.
+					  h.addUpdateMenuItemObject( config, "xProperty" , dbsliceData.data.dataProperties, "Select x variable");
+					  
+					  // yProperty must not be present.
+					  h.removeMenuItemObject( config, "yProperty" );
+					  
+					  break;
+					  
+					case "cfD3Scatter":
+					  
+					  
+					  // xProperty and yProperty required.
+					  h.addUpdateMenuItemObject( config, "xProperty", dbsliceData.data.dataProperties, "Select x variable");
+					  h.addUpdateMenuItemObject( config, "yProperty", dbsliceData.data.dataProperties, "Select y variable");
+					  break;
+					  
+					  
+					// 2D/3D PLOTS
+					case "cfD3Line":
+					  
+					  
+					  // slice is required.
+					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.line2dProperties, "Select slice");
+					  break;
+					  
+					case "cfD3Contour2d":
+					  
+					  
+					  // slice is required.
+					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.contour2dProperties, "Select 2d contour");
+					  break;
+					  
+					
+					  
+					default :
+					 
+					
+					  // Remove all variable options.
+					  h.removeMenuItemObject( config, "xProperty" );
+					  h.removeMenuItemObject( config, "yProperty" );
+					  h.removeMenuItemObject( config, "slice" );
+												
+					  console.log("Unexpected plot type selected:", config.newCtrl.plottype);
+					  break;
+				}; // switch
+				
+				
+				
+				// Since there was a change in the plot type reset the variable selection menus. Also reset the config object selections.
+				a.clearOptionalMenus(config)
+				
+				
+				// Update.
+				h.updateMenus(config);
+                    
+
+                
+            }, // onPlotTypeChangeEvent
+            
+			onVariableChangeEvent: function onVariableChangeEvent(config, selectDOM, variable){
+				
+				// Selected value is updated in the corresponding config.
+				config.newCtrl[variable] = selectDOM.value;
+						  
+				// Check if menu buttons need to be active.
+				addMenu.addPlotControls.enableDisableSubmitButton(config)
+				
+			}, // onVariableChangeEvent
+			
+			enableDisableSubmitButton: function enableDisableSubmitButton(config){
         
 				var disabledFlag = true
                 switch( config.newCtrl.plottype ){
@@ -288,8 +431,8 @@ var addMenu = {
 
 
 				// Set button enabled or disabled. Note that from the menu container we need to go one step up to reach the button, as the custom menu container is simply docked into the dialog.
-                d3.select(config.menuContainer.node().parentElement)
-				  .selectAll("button[type='submit']")
+                config.dialogWrapper
+				  .select("button.btn-success")
 				  .each(function(){
 					  this.disabled = disabledFlag
 				  });
@@ -297,138 +440,21 @@ var addMenu = {
 
             }, // enableDisableSubmitButton
             
-            onPlotTypeChangeEvent: function onPlotTypeChangeEvent(config, selectDOM, variable){
-                
-				// Update the config.
-				config.newCtrl.plottype = selectDOM.value;
-				
-				// Based on the selection control the other required inputs.
-                var a = addMenu.addPlotControls;
-                var h = addMenu.helpers;
-                
-				switch( config.newCtrl.plottype ){
-					case "undefined":
-					  
-					  // Remove all variable options.
-					  h.removeMenuItemObject( config, "xProperty" );
-					  h.removeMenuItemObject( config, "yProperty" );
-					  h.removeMenuItemObject( config, "slice" );
-
-					  break;
-					  
-					// METADATA PLOTS
-					  
-					case "cfD3BarChart":
-					
-					  // yProperty required.
-					  h.addUpdateMenuItemObject( config, 'yProperty' , dbsliceData.data.metaDataProperties, "Select variable");
-					  
-					  // xProperty must not be present.
-					  h.removeMenuItemObject( config, "xProperty" );
-					  
-					  break;
-					  
-					case "cfD3Histogram":
-					  
-					  
-					  // xProperty required.
-					  h.addUpdateMenuItemObject( config, "xProperty" , dbsliceData.data.dataProperties, "Select variable");
-					  
-					  // yProperty must not be present.
-					  h.removeMenuItemObject( config, "yProperty" );
-					  
-					  break;
-					  
-					case "cfD3Scatter":
-					  
-					  
-					  // xProperty and yProperty required.
-					  h.addUpdateMenuItemObject( config, "xProperty", dbsliceData.data.dataProperties, "Select variable");
-					  h.addUpdateMenuItemObject( config, "yProperty", dbsliceData.data.dataProperties, "Select variable");
-					  break;
-					  
-					  
-					// 2D/3D PLOTS
-					case "cfD3Line":
-					  
-					  
-					  // slice is required.
-					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.line2dProperties, "Select variable");
-					  break;
-					  
-					case "cfD3Contour2d":
-					  
-					  
-					  // slice is required.
-					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.contour2dProperties, "Select variable");
-					  break;
-					  
-					
-					  
-					default :
-					 
-					
-					  // Remove all variable options.
-					  h.removeMenuItemObject( config, "xProperty" );
-					  h.removeMenuItemObject( config, "yProperty" );
-					  h.removeMenuItemObject( config, "slice" );
-												
-					  console.log("Unexpected plot type selected:", config.newCtrl.plottype);
-					  break;
-				}; // switch
-				
-				
-				
-				// Since there was a change in the plot type reset the variable selection menus. Also reset the config object selections.
-				a.clearOptionalMenus(config)
-				
-				
-				// Update.
-				h.updateMenus(config);
-                    
-
-                
-            }, // onPlotTypeChangeEvent
             
-			onVariableChangeEvent: function onVariableChangeEvent(config, selectDOM, variable){
+			// Shorthands
+			clearOptionalMenus: function clearOptionalMenus(config){
 				
-				// Selected value is updated in the corresponding config.
-				config.newCtrl[variable] = selectDOM.value;
-						  
-				// Check if menu buttons need to be active.
-				addMenu.addPlotControls.enableDisableSubmitButton(config)
+				var h = addMenu.helpers;
 				
-			}, // onVariableChangeEvent
-			
-            submitNewPlot: function submitNewPlot(config){
-                
-                // IMPORTANT! A PHYSICAL COPY OF NEWPLOT MUST BE MADE!! If newPlot is pushed straight into the plots every time newPlot is updated all the plots created using it will be updated too.
-                
-				var plotToPush = addMenu.addPlotControls.copyNewPlot(config);
-				var plotRow = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
-					return plotRowCtrl == config.ownerCtrl
-				})[0]
+				h.resetVariableMenuSelections(config, "xProperty");
+				h.resetVariableMenuSelections(config, "yProperty");
+				h.resetVariableMenuSelections(config, "slice");
 				
-				// Position the new plot row in hte plot container.
-				positioning.newPlot(plotRow, plotToPush)
+				config.newCtrl.xProperty = undefined;
+				config.newCtrl.yProperty = undefined;
+				config.newCtrl.slice = undefined;
 				
-				
-				plotRow.plots.push(plotToPush)
-                
-                
-                // Add the new plot to the session object. How does this know which section to add to? Get it from the parent of the button!! Button is not this!
-                // var plotRowIndex = d3.select(this).attr("plot-row-index")
-                
-                
-                // Redraw the screen.
-                render();
-                
-                // Clear newPlot to be ready for the next addition.
-                addMenu.addPlotControls.clearMenu(config);
-                
-                
-                
-            }, // submitNewPlot
+			}, // clearOptionalMenus
             
             clearMenu: function clearMenu(config){
                 
@@ -451,33 +477,13 @@ var addMenu = {
                 
             }, // clearMenu
             
-			makeButton: function makeButton(config){
-				
-				// Make the button that will prompt the dialogue.
-                switch( config.ownerCtrl.type ){
-                    case "metadata":
-                        var buttonLabel = "Add plot";
-                      break;
-                    case "plotter":
-                        var buttonLabel = "Configure plot";
-                }; // switch
-                
-
-				config.ownerButton = config.ownerContainer.append("button")
-					.attr("style","display:inline")
-					.attr("class", "btn btn-success float-right")
-					.html(buttonLabel);
-				
-				
-			}, // makeButton
-            
 			makeMenuItem: function makeMenuItem(config, variable, options, label){
 				// 'makeMenuItem' creates the menu item option in order to allow different functionalities to add their own events to the menus without having to declare them specifically in otehr functions.
 				return {
 						  variable: variable,
 						  options : options, 
 						  label: label,
-						  event: config.h.onVariableChangeEvent
+						  event: config.f.onVariableChangeEvent
 					  }
 				
 			}, // makeMenuItem
@@ -516,7 +522,6 @@ var addMenu = {
 
 			
 		}, // removePlotRowControls
-		
 
         addPlotRowControls: { 
         
@@ -526,49 +531,96 @@ var addMenu = {
                     {val: "plotter", text: 'Flow field plots'}
                 ],
         
-            make : function make(containerId, buttonId){
+            make : function make(ownerButton){
 
                 // Create the config element with all required data.
-                var config = addMenu.addPlotRowControls.createConfig(containerId, buttonId);
-				
-				// Add or move the actual button.
-				addMenu.addPlotRowControls.makeButton(config)
+                var config = addMenu.addPlotRowControls.createConfig(ownerButton);
                 
                 // First create the ids of the required inputs
-                addMenu.helpers.makeMenuContainer(config);
+                addMenu.helpers.makeDialog(config);
             
                 // Update the menus with appropriate options
                 addMenu.helpers.updateMenus(config);
+				
+				// Add the buttons
+				addMenu.helpers.addDialogButtons(config)
 
-
+				// Add the on click event to the dialog owner button
+				config.ownerButton.on("click", function(){
+				
+					addMenu.helpers.showDialog(config)
+					
+				}) // on
                 
             }, // make
             
-            createConfig: function createConfig(containerId, buttonId){
+            createConfig: function createConfig(ownerButton){
                 
-                var a = addMenu.addPlotRowControls;
                 var config = {
-					h                       : a,
-					ok                      : a.submitNewPlotRow,
-                    cancel                  : a.clearNewPlotRow,
-                    menuContainer           : undefined,
-                    menuItems               : [{
-						variable: "type",
-						options : a.elementOptionsArray,
-                        label   : "Select plot row type",
-						event   : a.onPlotRowTypeChangeEvent,
-                        }],
+					f: addMenu.addPlotRowControls,
+					
+					position: {
+						left: undefined, 
+						 top: undefined, 
+					   delta: undefined
+					},
+					
+					buttons: [
+						{text: "ok"    , onclick: ok    , class: "btn btn-success"},
+						{text: "cancel", onclick: cancel, class: "btn btn-danger"}
+					],
                     
-                    newCtrl                  : {title: "New row", 
-                                                plots: [],
-												grid: {nx: 12, ny: undefined},
-                                                 type: "undefined",
-                              addPlotButton: {label : "Add plot"}},
-                    ownerButtonId             : buttonId,
-					ownerContainerId          : containerId,
-					ownerContainer            : d3.select("#" + containerId)
+                    menuItems: [
+						{
+							variable: "type",
+							options : addMenu.addPlotRowControls.elementOptionsArray,
+							label   : "Select plot row type",
+							event   : addMenu.addPlotRowControls.onPlotRowTypeChangeEvent,
+                        }
+					],
+                    
+                    newCtrl: {title: "New row", 
+                              plots: [],
+							   grid: {nx: 12, ny: undefined},
+                               type: "undefined",
+                      addPlotButton: {label : "Add plot"}},
+					  
+					ownerButton: ownerButton,
+                    
+					ownerCtrl: {addPlotButton: {}}
                 };
-                
+				
+				
+				function ok(dialogConfig){
+					
+				
+					// Hide the dialog
+					addMenu.helpers.hideDialog(dialogConfig)
+
+					// Add the plot row.
+					addMenu.addPlotRowControls.submitNewPlotRow(dialogConfig)
+					
+					// Reset the menu DOM elements.
+					addMenu.helpers.resetVariableMenuSelections(config, "type");
+				
+					// Redraw to show changes.
+					render();				
+					
+				} // ok
+
+				function cancel(dialogConfig){
+					
+					addMenu.addPlotRowControls.clearNewPlotRow(dialogConfig)
+				
+					addMenu.helpers.hideDialog(dialogConfig)
+					
+					// ALSO READJUST THE MENUS!!
+				
+					console.log("Cancel")
+				} // ok
+
+
+				
                 // The addPlotButton id needs to be updated when the row is submitted!
                 
                 return config;
@@ -578,11 +630,16 @@ var addMenu = {
                 config.newCtrl.title = "New row";
                 config.newCtrl.plots = [];
                 config.newCtrl.type  = "undefined";
-                config.newCtrl.addPlotButton = {id : "undefined", label : "Add plot"};
+                config.newCtrl.addPlotButton = {label : "Add plot"};
+				
+				// Here also readjust the menu.
+				config.dialogWrapper.selectAll("select").each(function(){
+					this.value = "undefined"
+				})
             }, // clearNewPlotRow
             
             submitNewPlotRow: function submitNewPlotRow(config){
-                
+                // Submits the dialog selections to dbsliceData, and clears the dialog object selections.
                 
                 var plotRowToPush = {title: config.newCtrl.title, 
                                       type: config.newCtrl.type,
@@ -591,20 +648,10 @@ var addMenu = {
                             addPlotButton : config.newCtrl.addPlotButton
                 };
                 
-                
-                
 
-                
-                
                 // Push and plot the new row.
                 dbsliceData.session.plotRows.push( plotRowToPush );
 				
-				//
-                render();
-                
-                // Reset the plot row type menu selection.
-                addMenu.helpers.resetVariableMenuSelections(config, "type");
-                
                 // Clear the config
                 addMenu.addPlotRowControls.clearNewPlotRow(config);
                 
@@ -622,10 +669,10 @@ var addMenu = {
                       break;
                 }; // switch
 				
-				
-                var submitButtonDOM = d3.select( config.menuContainer.node().parentElement )
-				  .select("button[type='submit']")
-				  .each(function(){
+				// Why would thi sremove the data??
+                config.dialogWrapper
+				  .select(".btn-success")
+				  .each(function(d){
 					  this.disabled = disabledFlag
 				  })
 				
@@ -642,65 +689,47 @@ var addMenu = {
                 
             }, // onPlotRowTypeChangeEvent
             
-			// NEW!!!
-			makeButton: function makeButton(config){
-				
-				var addPlotRowButton   = d3.select("#" + config.ownerButtonId);
-				if (addPlotRowButton.empty()){
-					// Add the button.
-					config.ownerButton = config.ownerContainer
-					  .append("button")
-						.attr("id", config.ownerButtonId)
-						.attr("class", "btn btn-info btn-block")
-						.html("+");
-					  
-					// Add the interactivity
-					addMenu.helpers.addButtonClickEvent(config);
-				} else {
-					// Move the button down
-					var b = addPlotRowButton.node()
-					b.parentNode.appendChild(b);
-				}; // if
-				
-				
-				
-				
-			}, // makeButton
 			
-			makeMenuItem: function makeMenuItem(config, variable, options, label){
-				// addPlotRowControls does not expect any items to be created.
-				
-				
-			}, // makeMenuItem
+			
 			
 			
         }, // addPlotRowControls
 
 		removePlotRowControls: {
 			
-			make: function make(containerDOM, clickedPlotRowCtrl){
+			make: function make(removePlotRowButton, clickedPlotRowCtrl){
 				
 				
-				d3.select(containerDOM).append("button")
-				  .attr("class", "btn btn-danger float-right removePlotButton")
-				  .html("x")
+				removePlotRowButton
 				  .on("click", function(){
 					  
+					  // button -> plotrowTitle -> plotRow
+					  var plotRowDOM = this.parentElement.parentElement
+					  
+					  // Remove the dialog corresponding to the 'add plot' button in this plot row.
+					  d3.select(plotRowDOM)
+					    .select("div.plotRowTitle")
+						.select("button.btn-success")
+						.each(function(d){
+							d.addPlotButton.dialogWrapper.node().remove()
+						})
 					  
 					  // Remove row from object
 					  dbsliceData.session.plotRows = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
 						  return plotRowCtrl != clickedPlotRowCtrl
 					  }) // filter  
 					  
-					  // button -> plotrowTitle -> plotRow
-					  this.parentElement.parentElement.remove()
+					  // Remove the plot row from view.
+					  plotRowDOM.remove()
 					  
 					  // Remove any filters that have been removed.
 					  filter.remove()
 					  filter.apply()
 
-					  // Re-render the view
+					  // Re-render the to update the filter
 					  render()
+					  
+					  
 					  
 				  }); // on
 				
@@ -711,166 +740,265 @@ var addMenu = {
 
 		removeDataControls: {
 			
-			make: function make(elementId){
+			make: function make(ownerButton){
 			
 				// Create the container required
-				addMenu.removeDataControls.createRemoveDataContainer(elementId);
+				var config = addMenu.removeDataControls.createConfig(ownerButton);
+				
+				// Make the dialog
+				addMenu.helpers.makeDialog(config);
+				
+				// Add the buttons
+				addMenu.helpers.addDialogButtons(config)
 			  
 			  
 				// Add teh functonaliy to the option in the "sesson options" menu.
-				d3.select("#" + elementId)
-					.on("click", function(){
+				config.ownerButton.on("click", function(){
 						
-						// Get the options required
-						var options = dbsliceData.data.fileDim.group().all()
+					// Get the options required
+					var options = dbsliceData.data.fileDim.group().all()
 
-						
-						// Create the appropriate checkboxes.
-						addMenu.removeDataControls.addCheckboxesToTheForm(elementId, options);
-							  
-
-						// Bring up the prompt
-						addMenu.removeDataControls.createDialog(elementId);
-						
-					   
-					   })
+					
+					// Create the appropriate checkboxes.
+					addMenu.removeDataControls.addCheckboxesToTheForm(config, options);
+						  
+				   
+				   // Show the dialog:
+				   addMenu.helpers.showDialog(config)
+				   
+				})
+				
+				
 			}, // make
 			
-			createRemoveDataContainer: function createRemoveDataContainer(elementId){
-				
-				var removeDataMenuId = elementId + "Menu"
-				var removeDataMenu = d3.select("#" + removeDataMenuId)
-				if (removeDataMenu.empty()){
+			createConfig: function createConfig(ownerButton){
+                // ownerButton    - the button that prompts the menu
+				// ownerContainer - container to add the menu and button to
+				// ownerCtrl      - plot row ctrl to update with user selection
+                
+                var config = {
 					
-					removeDataMenu = d3.select( ".sessionHeader" )
-							  .append("div")
-								.attr("id", removeDataMenuId )
-								.attr("class", "card ui-draggable-handle")
-							  .append("form")
-								.attr("id", removeDataMenuId + "Form")
-
-							$("#" + removeDataMenuId ).hide();
-				} // if
-				
-			}, // createRemoveDataContainer
-			
-			addCheckboxesToTheForm: function addCheckboxesToTheForm(elementId, options){
-				
-				// Create teh expected target for the checkboxes.
-				var checkboxFormId = elementId + "MenuForm"
-				
-				// Create the checkboxes
-				var checkboxes = d3.select("#" + checkboxFormId).selectAll(".checkbox").data(options)
-				checkboxes.enter()
-					.append("div")
-					  .attr("class", "checkbox")
-					.append("input")
-					  .attr("type", "checkbox")
-					  .attr("name", function(d, i){ return "dataset"+i })
-					  .attr("value", function(d){ return d.key })
-					  .attr("checked", true)
-				
-				// Append the labels after it
-				checkboxes = d3.select("#" + checkboxFormId).selectAll(".checkbox")
-        		checkboxes.selectAll("label").remove()
-				checkboxes
-					.append("label")
-					  .html(function(d){ return d.key })
-				
-			}, // addCheckboxesToTheForm
-			
-			createDialog: function createDialog(elementId){
-				
-				// Create the dialog box, and it's functionality.
-				$("#" + elementId + "Menu" )
-					.dialog({
-						draggable: false,
-						autoOpen: true,
-						modal: true,
-						show: {effect: "fade",duration: 50},
-						hide: {effect: "fade", duration: 50},
-						buttons: {  "Ok"    :{text: "Submit",
-											  id: "submitRemoveData",
-											  disabled: false,
-											  click: onSubmitClick
-											 }, // ok
-									"Cancel":{text: "Cancel",
-											  id: "cancelRemoveData",
-											  disabled: false,
-											  click: onCancelClick
-											 } // cancel
-								 }  })
-					.parent()
-					.draggable();
-			   
-			   
-				$(".ui-dialog-titlebar").remove();
-				$(".ui-dialog-buttonpane").attr("class", "card");
-				
-				function onSubmitClick(){
-					// Figure out which options are unchecked.
-					var checkboxInputs = d3.select(this).selectAll(".checkbox").selectAll("input")
+					f: addMenu.removeDataControls,
 					
-					var uncheckedInputs = checkboxInputs.nodes().filter(function(d){return !d.checked})
+					position: {
+						left: undefined, 
+						 top: undefined, 
+					   delta: undefined
+					},
 					
+					buttons: [
+						{text: "ok"    , onclick: ok    , class: "btn btn-success"},
+						{text: "cancel", onclick: cancel, class: "btn btn-danger"}
+					],
 					
-					var uncheckedDataFiles = uncheckedInputs.map(function(d){return d.value})
+                    
+					ownerButton: ownerButton,
+					ownerCtrl: {addPlotButton: {}}
+                };
+				
+				// MOVE THESE OUTSIDE
+				function ok(dialogConfig){
 					
+					var checkboxInputs = dialogConfig.gMenu
+					  .selectAll("g.checkbox")
+					  .selectAll("input")
+					var uncheckedDataFiles = checkboxInputs.nodes()
+					  .filter(function(d){return !d.checked})
+					  .map(function(d){return d.value})
 					
 					// Pass these to the data remover.
 					cfDataManagement.cfRemove(uncheckedDataFiles)
 					
+					// Hide the dialog
+					addMenu.helpers.hideDialog(dialogConfig)
 					
-					// Close the dialog.
-					$( this ).dialog( "close" )
+					// Update the session due to data change.
+					importExport.helpers.onDataAndSessionChangeResolve()
 					
 					// Redraw the view.
 					render();
 					
-				} // onSubmitClick
-				
-				function onCancelClick(){
-					// Just close the dialog.
-					$( this ).dialog( "close" )
+				} // ok
+
+				function cancel(dialogConfig){
 					
-				} // onSubmitClick
+					// Remove all the checkboxes.
+					dialogConfig.gMenu
+					  .selectAll("g.checkbox")
+					  .remove()
+					
+					// Hide the dialog
+					addMenu.helpers.hideDialog(dialogConfig)
+					
+				} // ok
+                
+
+                return config;
+                
+            }, // createConfig
+            
+
+			addCheckboxesToTheForm: function addCheckboxesToTheForm(config, options){
 				
-			} // createDialog
+				
+				
+				options.forEach(function(o){
+					var gCheckBox = config.gMenu
+					  .append("g")
+					    .attr("class", "checkbox")
+						
+					gCheckBox.append("input")
+					  .attr("type", "checkbox")
+					  .attr("name", o.key)
+					  .attr("value", o.key)
+					  .attr("checked", true)
+					  .attr("class", "dialogContent")
+					  
+					gCheckBox.append("label")
+					  .attr("class", "dialogContent")
+					  .html(o.key)
+				}) // forEach	
+				
+			}, // addCheckboxesToTheForm
+			
+			enableDisableSubmitButton: function enableDisableSubmitButton(config){
+				// The submit button is always available.
+			}, // enableDisableSubmitButton
+			
 			
 		}, // removeDataControls
 
         helpers: {
             
-            
-        
-            makeMenuContainer: function makeMenuContainer(config){
-            
-                // CREATE THE CONTAINER FOR THE MENU IN THE BUTTONS CONTAINER.
-                // But do this only if it does not already exist.
-                if ( config.menuContainer == undefined ){
-                
-                    config.menuContainer = config.ownerContainer
-                      .append("div")
-                      .attr("class", "card ui-draggable-handle");
+            makeDialog: function makeDialog(config){
+	
+				var drag = d3.drag()
+				.on("start", function(d){
+					let mousePos = d3.mouse(this)
+					d.position.delta = {x: mousePos[0], y: mousePos[1]}
+				})
+				.on("drag", function(d){ 
+					
+					d3.select(this)
+					  .style("left", (d3.event.sourceEvent.clientX - d.position.delta.x) + "px")
+					  .style("top", (d3.event.sourceEvent.clientY - d.position.delta.y ) + "px")
 
-                    config.menuContainer.node().style.display = "none";
-                }//
-            
-            }, // makeMenuContainer
+				})
+				.on("end", function(d){
+					d.position.delta = undefined
+				})
+				
+
+			
+				// Place the dialog directly into the body! Position it off screen
+				// position: fixed is used to position the dialog relative to the view as opposed to absolute which positions relative to the document.
+				config.dialogWrapper = d3.select("body")
+				  .append("div")
+					.datum( config )
+					.style("position", "fixed")
+					.style("height", "auto")
+					.style("width", "auto")
+					.style("top", -window.innerWidth +"px")
+					.style("left",  -window.innerHeight +"px")
+					.style("display", "none")
+					.call( drag )
+					
+				config.dialogCard = config.dialogWrapper
+				  .append("div")
+					.attr("class", "card border-dark")
+					.style("width", "auto")
+					.style("height", "auto")
+					.style("min-height", 94 + "px")
+					
+				config.gMenu = config.dialogCard.append("g")
+			
+				// Assign the dialog wrapper to the container config too.
+				config.ownerCtrl.addPlotButton.dialogWrapper = config.dialogWrapper
+			
+			}, // makeDialog
         
+			addDialogButtons: function addDialogButtons(config){
+	
+				var buttonsDiv = config.dialogCard
+				  .append("div")
+				  .style("margin-left", "10px")
+				  .style("margin-bottom", "10px")
+				
+				
+				config.buttons.forEach(function(b){
+					buttonsDiv
+					  .append("button")
+						.html(b.text)
+						.attr("class", b.class)
+						.on("click", b.onclick )
+				})
+			
+			}, // addDialogButtons
+		
+			hideDialog: function hideDialog(config){
+	
+				// By default the dialog is not visible, and is completely off screen.
+				// 1 - make it visible
+				// 2 - move it to the right position
+				var dialogDOM = config.dialogWrapper.node() 
+				
+				dialogDOM.style.display = "none"
+				
+				
+				// Move it to the middle of the screen
+				dialogDOM.style.left = - window.innerWidth + "px"
+				dialogDOM.style.top =  - window.innerHeight + "px"
+			
+			}, // hideDialog
+
+			showDialog: function showDialog(config){
+			
+				// By default the dialog is not visible, and is completely off screen.
+				// 1 - make it visible
+				// 2 - move it to the right position
+				var dialogDOM = config.dialogWrapper.node()
+				
+				// Make dialoge visible
+				dialogDOM.style.display = ""
+				
+				// To get the appropriate position first get the size:
+				var dialogRect = dialogDOM.getBoundingClientRect()
+				
+				
+				
+				// Move it to the middle of the screen
+				dialogDOM.style.left = ( window.innerWidth - dialogRect.width ) /2 + "px"
+				dialogDOM.style.top =  ( window.innerHeight - dialogRect.height ) /2 + "px"
+			
+			
+				// Check which buttons should be on.
+				config.f.enableDisableSubmitButton(config)
+			
+			}, // showDialog
+
+		
+		
             updateMenus: function updateMenus(config){
 				// Handles all selection menus, including the plot selection!
 				// A 'label' acts as a wrapper and contains html text, and the 'select'.
 
                 // This function updates the menu of the pop-up window.
-                var menus = config.menuContainer.selectAll("label").data(config.menuItems);
+                var menus = config.gMenu.selectAll("g").data(config.menuItems);
                 
                 // Handle the entering menus. These require a new 'select' element and its 'option' to be appended/updated/removed.
                 menus.enter()
-                  .append("label")
-				    .text(function(d){return d.label})
-                  .append("select")
-                    .attr("type", function(d){return d.variable})
+				  .append("g")
+				  .each(function(d){
+					  d3.select(this)
+					    .append("label")
+						  .attr("class", "dialogContent unselectable")
+				           .text(d.label)
+						.append("select")
+						  .attr("type", d.variable)
+					      .style("margin-left", "10px")
+					  d3.select(this).append("br")
+				  })
+                  
 					
                     
                 // Remove exiting menus.
@@ -879,7 +1007,7 @@ var addMenu = {
 				
                 
                 // Update all the menu elements.
-                config.menuContainer.selectAll("label")   
+                config.gMenu.selectAll("label")   
                   .each( function(menuItem){
                       // This function handles the updating of the menu options for each 'select' element.
 					  
@@ -919,6 +1047,16 @@ var addMenu = {
 
             }, // updateMenus
 
+			resetVariableMenuSelections: function resetVariableMenuSelections(config, variable){
+				// Needs to only reset the appropriate select!!
+				config.dialogWrapper
+				  .selectAll("select[type='" + variable + "']")
+				  .each(function(){
+					  this.value = "undefined"
+				  })
+
+            }, // resetVariableMenuSelections
+			
             addUpdateMenuItemObject: function addUpdateMenuItemObject(config, variable, options, label){
 
 				// Transform the options into a form expected by the select updating functionality. Also introduce an empty option.
@@ -926,7 +1064,7 @@ var addMenu = {
 				options.unshift({val: "undefined", text: " "})
 
                 // First remove any warnings. If they are needed they are added later on.
-                config.ownerContainer.selectAll(".warning").remove();
+                config.dialogWrapper.selectAll(".warning").remove();
 
                 // Only add or update the menu item if some selection variables exist.
                 // >1 is used as the default option "undefined" is added to all menus.
@@ -947,7 +1085,7 @@ var addMenu = {
 
                     } else {
                       // If it doesn't, create a new one.
-                      requiredItem = config.h.makeMenuItem(config, variable, options, label)
+                      requiredItem = config.f.makeMenuItem(config, variable, options, label)
                       
                       config.menuItems.push(requiredItem);
                     };      
@@ -957,16 +1095,6 @@ var addMenu = {
                       // There are no variables. No point in having an empty menu.
                       addMenu.helpers.removeMenuItemObject(config, variable);
                       
-                      
-                      // Tell the user that the data is empty.
-                      var warning = config.ownerContainer.selectAll(".warning");
-                      if (warning.empty()){
-                          config.ownerContainer
-                            .append("div")
-                              .attr("class", "warning")
-                              .html("No data has been loaded!")
-                              .attr("style", "background-color:pink;font-size:25px;color:white")  
-                      }; // if
                         
                 }; // if
                 
@@ -980,77 +1108,6 @@ var addMenu = {
                 
             }, // removeMenuItemObject
 
-            resetVariableMenuSelections: function resetVariableMenuSelections(config, variable){
-
-				config.menuContainer
-				  .selectAll("select[type='" + variable + "']")
-				  .each(function(){
-					  this.value = undefined
-				  })
-
-            }, // resetVariableMenuSelections
-
-            addButtonClickEvent: function addButtonClickEvent(config){
-                // The dialogue is only created when the button is clicked!
-				
-                // JQUERY!!!
-                
-                config.ownerButton.on("click",function(){
-                    
-                        // Disable all buttons:
-                        d3.selectAll("button").each(function(){ this.disabled = true});
-                      
-                        // Make the dialog
-                        $( config.menuContainer.node() ).dialog({
-                        draggable: false,
-                        autoOpen: true,
-                        modal: true,
-                        buttons: {  "Ok"    :{text: "Ok",
-						                      type: "submit",
-                                              disabled: true,
-                                              click: function(){
-                                                  // Add the plot row to the session.
-                                                  config.ok(config);
-                                              
-                                                  // Close the dialogue.
-                                                  $( this ).dialog( "close" )
-                                                  
-                                                  // Enable all relevant buttons.
-                                                  addMenu.helpers.enableDisableAllButtons();
-                                                          
-                                                  // Delete the warning if present.
-                                                  d3.select(this).selectAll(".warning").remove();
-                                                  } // click
-                                             }, // ok
-                                    "Cancel":{text: "Cancel",
-									          type: "cancel",
-                                              disabled: false,
-                                              click: function() { 
-                                                  // Clearup the internal config objects
-                                                  config.cancel(config)
-                                            
-                                                  $( this ).dialog( "close" ) 
-                                                  
-                                                  // Enable all buttons.
-                                                  addMenu.helpers.enableDisableAllButtons();
-                                                  
-                                                  // Delete the warning if present.
-                                                  d3.select(this).selectAll(".warning").remove();
-                                                  } // click
-                                             } // cancel
-                                 }, // buttons
-                        show: {effect: "fade",duration: 50},
-                        hide: {effect: "fade", duration: 50}
-                        }).parent().draggable();
-                        
-                        $(".ui-dialog-titlebar").remove();
-                        $(".ui-dialog-buttonpane").attr("class", "card");
-                    }
-                ); // on click
-            
-            
-            }, // addButtonClickEvent
-                
             enableDisableAllButtons: function enableDisableAllButtons(){
                 // This functionality decides which buttons should be enabled.
 				var metadata = dbsliceData.data.taskDim.top(Infinity)
@@ -1151,6 +1208,6 @@ var addMenu = {
         } // helpers
 
     }; // addMenu
-      
+   
 
 export { addMenu };

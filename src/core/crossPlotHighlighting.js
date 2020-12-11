@@ -121,6 +121,11 @@ var crossPlotHighlighting = {
 						
 					  break;
 					  
+					  
+					case "cfD3Contour2d":
+						// Tasks to be highlighted come directly from the pile.
+						allDataPoints = d;
+					  
 					  					  
 					default:
 					  break;
@@ -150,6 +155,6 @@ var crossPlotHighlighting = {
 		}, // manuallySelectedTasks
 		
 	} // crossPlotHighlighting 
-						
+							
 
 export { crossPlotHighlighting };

@@ -115,6 +115,90 @@ var positioning = {
         }, // dragEnd
         
 		
+		dragSmooth: function dragSmooth(ctrl){
+			
+			/*
+			ctrl = {
+				wrapper: card to move
+				container: bounding element
+				onstart: on-start event
+				onmove: on-move event
+				onend: on-end event
+				position: position accessor
+			}
+			*/
+			
+			function getMousePosition(containerDOM){
+					
+				let mousePosition = d3.mouse(containerDOM)
+				
+				return {
+					x: mousePosition[0],
+					y: mousePosition[1]
+				}
+			} // getMousePosition
+			
+			// Position: absolute is somehow crucial to make thedragging smooth at the start!
+			return d3.drag()
+				.on("start", function(d){
+					let position = ctrl.position(d)
+					position.mouse = getMousePosition(ctrl.container.node())
+					ctrl.onstart(d)		
+				})
+				.on("drag", function(d){
+					let position = ctrl.position(d)
+					let mp0 = position.mouse
+					let mp1 = getMousePosition(ctrl.container.node())
+					
+					
+					let movement = {
+						x: mp1.x - mp0.x,
+						y: mp1.y - mp0.y
+					}
+					
+					position.mouse = mp1
+					
+					
+					// Stop the movement exceeding the container bounds.
+					let rightBreach = position.w + position.x + movement.x > ctrl.container.node().offsetWidth
+					let leftBreach = position.x + movement.x < 0
+					if( rightBreach || leftBreach ){
+						movement.x = 0
+					} // if
+					
+					// Bottom breach should extend the plot!
+					if( position.y + movement.y < 0 ){
+						movement.y = 0
+					} // if
+					
+					position.x += movement.x
+					position.y += movement.y
+					
+					
+					
+				
+					ctrl.wrapper(d)
+					  .style("left", position.x + "px")
+					  .style("top", position.y + "px")
+					  
+					  
+					// Also update the ix and iy.
+					let dx = positioning.dx(ctrl.container)
+					let dy = positioning.dy(ctrl.container)
+					
+					position.ix = Math.floor( position.x / dx )
+					position.iy = Math.floor( position.y / dy )
+					  
+					// Move also all the members.
+					ctrl.onmove(d)
+				})
+				.on("end", function(d){
+					// Fix into grid positions?
+					ctrl.onend(d)
+				})
+			
+		}, // dragSmooth
+		
 		// Resizing plots
 		
 		resizeStart: function resizeStart(d){
@@ -271,7 +355,8 @@ var positioning = {
 			
 			
 			// With all the occupied nodes known, start positioning the contours that are not positioned.
-			
+			let dx = positioning.dx(plotCtrl.figure)
+			let dy = positioning.dy(plotCtrl.figure)
 			
 			plotCtrl.data.plotted.forEach(function(d){
 				let pn = d.format.position
@@ -281,8 +366,12 @@ var positioning = {
 				if( ( (pn.ix == undefined) || isNaN(pn.ix) ) && 
 				    ( (pn.iy == undefined) || isNaN(pn.iy) ) ){
 					
-					// Position the plot.
+					// Position the plot on hte grid.
 					positioning.onGrid(plotCtrl.grid.nx, occupiedNodes, pn)
+					
+					// Add position in absolute coordinates
+					pn.x = pn.ix*dx
+					pn.y = pn.iy*dy
 				
 					// Mark the nodes as occupied.
 					h.pushNodes(occupiedNodes, pn.ix, pn.iy, pn.iw, pn.ih)

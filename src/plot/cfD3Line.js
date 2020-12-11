@@ -741,7 +741,7 @@ var cfD3Line = {
 						   incompatible: [],
 						   intersect: [],
 						   series: [],
-						   processor: importExportFunctionality.importing.line
+						   processor: importExport.importing.line
 					       },
 					view: {sliceId: undefined,
 					       options: [],

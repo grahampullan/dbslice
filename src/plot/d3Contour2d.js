@@ -24,7 +24,7 @@ const cfD3Contour2d = {
 			cfD3Contour2d.setupPlot.dimension(ctrl)
 			
 			
-			
+			cfD3Contour2d.setupPlot.setupTrendingCtrlGroup(ctrl)
 			
 			// `cfD3Contour2d' has a different structure than the other plots, therefore the `ctrl.figure' attribute needs to be updated.
 			cfD3Contour2d.setupPlot.setupPlottingArea(ctrl)
@@ -259,6 +259,7 @@ const cfD3Contour2d = {
 				  .attr("class", "data")
 				  .style("width",  p.plotWidth + "px" )
 				  .style("height", p.plotHeight + "px" )
+				  .style("position", "absolute")
 				  
 				// MOST OF BELOW IS DUE TO LASSOING. MOVE!!
 				var overlaySvg = ctrl.figure.append("svg")
@@ -293,16 +294,92 @@ const cfD3Contour2d = {
 				// Add in hte tooltip that hosts the tools operating on lasso selection.
 				cfD3Contour2d.interactivity.tooltip.add(ctrl)
 				
-				
-				
 				// Reassing hte figure to support drag-move.
 				ctrl.figure = dataDiv
+				
+				
 				
 				
 				// Also setup the right hand side controls
 				cfD3Contour2d.setupPlot.setupRightControlDOM(ctrl)
 				
 			}, // setupPlottingArea
+			
+			setupTrendingCtrlGroup: function setupTrendingCtrlGroup(ctrl){
+				
+				let variables = dbsliceData.data.dataProperties
+				
+				let trendingCtrlGroup = ctrl.format.wrapper
+				  .select("div.plotTitle")
+				  .append("div")
+				    .attr("class", "trendingCtrlGroup float-right")
+					.style("display", "none")
+					.datum(ctrl)
+					
+				let p = cfD3Contour2d.interactivity.piling
+				p.addRoundButton(trendingCtrlGroup, p.minimise, "times")
+				
+					
+				let menu = trendingCtrlGroup
+				  .append("div")
+				    .attr("class", "trendTools")
+				    .style("position", "relative")
+				    .style("top", "5px")
+				    .style("display", "inline-block")
+					.style("float", "right")
+					.style("margin-right", "10px")
+				
+				menu.append("label")
+					.html("x:")
+					.style("margin-left", "10px")
+					.style("margin-right", "5px")
+				
+				menu.append("select")
+				    .attr("axis", "x")
+				    .style("margin-right", "10px")
+				  .selectAll("option")
+				  .data(variables)
+				  .enter()
+				  .append("option")
+					.attr("value", d=>d)
+					.html(d=>d)
+					
+				menu.append("label")
+					.html("y:")
+					.style("margin-left", "10px")
+					.style("margin-right", "5px")
+				
+				menu.append("select")
+				    .attr("axis", "y")
+				    .style("margin-right", "10px")
+				  .selectAll("option")
+				  .data(variables)
+				  .enter()
+				  .append("option")
+					.attr("value", d=>d)
+					.html(d=>d)
+					
+				// Add the functionalityto the dropdowns
+				menu.selectAll("select").on("change", function(){
+					
+					console.log("Arrange the contours by: " + this.value)
+					
+					// Find the axis:
+					let axis = d3.select(this).attr("axis")
+					
+					cfD3Contour2d.interactivity.sorting[axis](ctrl, this.value)
+				})
+				
+					
+				/* Buttons needed:
+						Minimise
+						Highlight
+				*/
+				
+				
+				p.addRoundButton(trendingCtrlGroup, p.highlight, "lightbulb-o")
+				
+			}, // setupTrendingCtrlGroup
 			
 			// Right colorbar control group
 			
@@ -650,20 +727,17 @@ const cfD3Contour2d = {
 				let dx = positioning.dx(div)
 				let dy = positioning.dy(div)
 			  
-			    let drag = d3.drag()
-				  .on("start", positioning.dragStart)
-				  .on("drag", positioning.dragMove)
-				  .on("end", positioning.dragEnd)
+			    let drag = cfD3Contour2d.interactivity.dragging.make(ctrl)
 				  
 				function getPositionLeft(d){
 					return d.format.position.ix*dx + d.format.parent.offsetLeft + "px"
 				}
 				function getPositionTop(d){
-					return d.format.position.iy*dy + d.format.parent.offsetTop + "px"
+					return d.format.position.iy*dy + "px"
 				}
 			    
 				// The key function must output a string by which the old data and new data are compared.
-			    let cards = div.selectAll(".card")
+			    let cards = div.selectAll(".contourWrapper")
 				  .data(ctrl.data.plotted, d => d.task.taskId)
 			  
 			    // The update needed to be specified, otherwise errors occured.
@@ -1003,6 +1077,8 @@ const cfD3Contour2d = {
 				positioning.newCard(ctrl)
 				
 				
+				
+				
 			}, // getContours
 			
 			json2contour: function json2contour(surface, thresholds){
@@ -1031,6 +1107,8 @@ const cfD3Contour2d = {
 				
 				return {ix: undefined,
 						iy: undefined,
+						 x: undefined,
+						 y: undefined,
 						iw: iw, 
 						ih: ih, 
 						w: divWidth,
@@ -1039,7 +1117,8 @@ const cfD3Contour2d = {
 						sh: innerHeight,
 						minW: dx,
 						minH: title + 30,
-						ar: innerHeight / innerWidth
+						ar: innerHeight / innerWidth,
+						mouse: {}
 				}
 				
 				
@@ -1233,15 +1312,13 @@ const cfD3Contour2d = {
 						// Here the data that is searched after is the position of the card on the screen.
 						x: function(d){
 							let dx = positioning.dx(ctrl.figure)
-							let imx = d.format.position.ix + 
-									  d.format.position.iw/2
-							return imx*dx
+							return d.format.position.x + 
+								   d.format.position.iw*dx/2
 						},
 						y: function(d){
 							let dy = positioning.dy(ctrl.figure)
-							let imy = d.format.position.iy + 
-									  d.format.position.ih/2
-							return imy*dy 
+							return d.format.position.y + 
+								   d.format.position.ih*dy/2
 						},
 					},
 					scales: {
@@ -1276,16 +1353,41 @@ const cfD3Contour2d = {
 					var tooltip = ctrl.figure.append("div")
 						.attr("class", "contourTooltip")
 						.style("display", "none")
+						.style("cursor", "pointer")
 						
-					addButton("stack-overflow", f.pileAndSummarise)
-					addButton("search", f.highlight)
-					addButton("tags", f.tag)
-					addButton("close", function(){
-						cfD3Contour2d.interactivity.tooltip.tipOff(ctrl)
-					})
+					addButton("stack-overflow", d=>f.pileAndSummarise(ctrl))
+					addButton("tags", d=>f.tag(ctrl))
+					addButton("close", d=>cfD3Contour2d.interactivity.tooltip.tipOff(ctrl))
 					
 					
 					ctrl.tools.tooltip = tooltip
+					
+					
+					tooltip.datum({
+						position: {
+							x0: undefined,
+							y0: undefined
+						}
+					})
+					
+					// Add dragging as well!
+					var drag = d3.drag()
+						.on("start", function(d){
+							let delta = d3.mouse(tooltip.node())
+							d.position.x0 = delta[0]
+							d.position.y0 = delta[1]
+						})
+						.on("drag", function(d){
+							tooltip
+							  .style("left", d3.event.x-d.position.x0 +"px")
+							  .style("top", d3.event.y+d.position.y0 +"px")
+						})
+						.on("end", function(d){
+							d.position.x0 = undefined
+							d.position.y0 = undefined
+						})
+					
+					tooltip.call(drag)
 					
 					function addButton(icon, event){
 						tooltip.append("button")
@@ -1326,17 +1428,24 @@ const cfD3Contour2d = {
 				}, // tipOff
 						
 				functionality: {
-				
-					highlight: function highlight(){
-						console.log("Run cross plot highlighting")
-					}, // highlight
-					
-					pileAndSummarise: function pileAndSummarise(){
+							
+					pileAndSummarise: function pileAndSummarise(ctrl){
 					
 						console.log("Pile and calculate standard deviation plot")
+						
+						// Call to make the pile.
+						cfD3Contour2d.interactivity.piling.pile(ctrl)
+						
+						// Remove the tooltip? And add the functionality to highlight the members to the pile!
+						
+						
+						cfD3Contour2d.interactivity.tooltip.tipOff(ctrl)
+						
+						
+						
 					}, // pileAndSummarise
 					
-					tag: function tag(){
+					tag: function tag(ctrl){
 						console.log("Run tagging interface")
 					}, // tag
 				
@@ -1345,8 +1454,1080 @@ const cfD3Contour2d = {
 			}, // tooltip
 
 			// Introduce piling
-			piling: {}, // piling
+			piling: {
+	
+				pile: function pile(ctrl){
+				
+					let p = cfD3Contour2d.interactivity.piling
+					
+					// Collect the contour plots from hte lasso, pile them up, and draw the piler.
+					var selectedCards = ctrl.tools.lasso.data.selection
+					
+					// These must be recognised by the lasso!
+					var selectedPiles = p.findPilesInLasso(ctrl)
+					
+					
+					if(selectedPiles.length > 1){
+						// There are several piles in the selection.
+						// Well, in this case combine them all in a new pile, which contains all the constituent elements. And remove the old piles.
+						
+						selectedPiles.remove()
+						
+						p.makePile(ctrl.figure, selectedCards)
+						
+					} else if(selectedPiles.length == 1){
+						// Exactly one pile selected -> add all the members to it, and consolidate in the existing pile.
+						
+						// The input to updatePile is a single d3.select(".pileWrapper")
+						p.updatePile(selectedPiles[0], selectedCards)
+					
+					} else {
+						// No piles in the selection. If there is more than one card selected, then create a pile for it.
+						if(selectedCards.length > 1){
+						
+							p.makePile(ctrl.figure, selectedCards)
+						
+						} // if
+						
+					} // if		
+				
+				
+				}, // pile
+				
+				unpile: function unpile(pileCtrl){
+					// Return the contours to where they're supposed to be. Maybe this should be an external function? So that I can pass in a cutom positioning...
+					console.log("Reposition cards.")
+					
+					// Remove the pile
+					pileCtrl.wrapper.remove()
+				}, // unpile
+				
+				makePile: function makePile(container, selectedCards){
+					
+					let i = cfD3Contour2d.interactivity
+					
+				
+					// Calculate the pile position.
+					var pileCtrl = i.piling.createPileObject(container, selectedCards)
+					
+					// Draw a pile over it.
+					i.piling.drawPile(pileCtrl)
+					
+					// Consolidate the constituent cards
+					i.piling.consolidatePile(pileCtrl)
+				
+					// Calculate the group statistics
+					i.piling.statisticsPlots(pileCtrl)
+					
+					// Draw the stat plots.
+					i.statistics.drawMu(pileCtrl)
+				
+				}, // makePile
+				
+				updatePile: function updatePile(selectedPile, selectedCards){
+					
+					let p = cfD3Contour2d.interactivity.piling
+				
+					var pileCtrl = selectedPile.datum()
+						
+					// Assign all the cards to the pile
+					pileCtrl.members = selectedCards
+						
+					// Move them all to a pile
+					p.consolidatePile(pileCtrl)
+						
+					// Raise the pile object.
+					pileCtrl.wrapper.raise()
+				
+				}, // updatePile
+			
+				drawPile: function drawPile(ctrl){
+					// Needs to have the position it draws to, and the cards it will contain.
+					let s = cfD3Contour2d.interactivity.statistics
+					let p = cfD3Contour2d.interactivity.piling
+					let dx = positioning.dx(ctrl.container)
+					let dy = positioning.dx(ctrl.container)
+					let dw = ctrl.iw*dx/ctrl.members.length
+					let width = 2*ctrl.iw*dx
+					let height = ctrl.ih*dy 
+					
+					// For now just draw a card and add dragging to it.
+					ctrl.wrapper = ctrl.container
+					  .append("div")
+					  .datum(ctrl)
+						.attr("class", "pileCard pileWrapper")
+						.style("position", "absolute")
+						.style("left", d=>d.x+"px")
+						.style("top", d=>d.y+"px")
+						
+					var pileTitle = ctrl.wrapper.append("div")
+						.attr("class", "pileTitle")
+						
 
+						
+					p.addRoundButton(pileTitle, p.unpile, "times")
+					p.addRoundButton(pileTitle, p.maximise, "arrows-alt")	
+					p.addRoundButton(pileTitle, p.highlight, "lightbulb-o")
+					p.addRoundButton(pileTitle, s.drawSigma, "&sigma;")	
+					p.addRoundButton(pileTitle, s.drawMu, "&mu;")
+						
+						
+				
+					var svg = ctrl.wrapper
+					  .append("div")
+					    .attr("class","pileBody")
+					  .append("svg")
+						.attr("class", "plotArea")
+						.attr("width", width)
+						.attr("height", height)
+						
+					// This is the sigma/mu plot
+					p.drawCard(ctrl.members[0], ctrl)
+					
+					
+					// Append a viewon element for each of the members. It should be 5px wide.
+					svg.selectAll("rect.preview")
+					  .data(ctrl.members)
+					  .enter()
+					  .append("rect")
+						.attr("class", "preview")
+						.attr("width", dw)
+						.attr("height", height)
+						.attr("x", (d,i)=>width/2+i*dw)
+						.attr("fill", "Gainsboro")
+						.on("mouseover", function(d){
+							// Raise.
+							d.format.wrapper.raise()
+						})
+						.on("mouseout", function(d){
+							// Raise the wrapper.
+							ctrl.wrapper.raise()
+						})
+						
+					// Position: absolute is somehow crucial to make thedragging smooth at the start!
+					let drag = d3.drag()
+						.on("start", function(d){
+							let position = d3.mouse(d.container.node())
+						
+							d.delta.x = position[0]
+							d.delta.y = position[1]
+							
+						})
+						.on("drag", function(d){
+							let position = d3.mouse(d.container.node())
+							
+							
+							d.x += position[0] - d.delta.x
+							d.y += position[1] - d.delta.y
+						
+							d.wrapper
+							  .style("left", d.x + "px")
+							  .style("top", d.y + "px")
+							  
+							d.delta.x = position[0]
+							d.delta.y = position[1]
+							  
+							// Move also all the members.
+							p.consolidatePile(d)
+						})
+						.on("end", function(d){
+							// Fix into grid positions?
+						})
+						
+					ctrl.wrapper.call(drag)
+					
+					
+				}, // drawPile
+				
+				addRoundButton: function addRoundButton(container, event, icon){
+						// Greek letters will contain a "&", so parse for it.
+						let class_ = "fa fa-" + icon
+						let html_ = ""
+						if(icon.search("&") > -1){
+							class_ = "text-greek-button"
+							html_ = icon
+						} // if
+						
+						container
+						  .append("button")
+							.attr("class", "btn btn-circle")
+							.on("click",event)
+						  .append("i")
+							.attr("class", class_)
+							.html(html_)
+							
+						
+				}, // addRoundButton
+				
+				drawCard: function drawCard(d, pileCtrl){
+					// Draws a card that will hold the statistics plots.
+					
+					let offset = cfD3Contour2d.interactivity.piling.calculateOffset(pileCtrl)
+					
+					let cards = pileCtrl.wrapper.select("div.pileBody").selectAll(".card")
+						.data([d])
+					
+					cards.join(
+					  enter => enter.append("div")
+						.attr("class", "card summaryWrapper")
+						.style("position", "absolute")
+						.style("background-color", "white")
+						.style("left", "0px" )
+						.style("top", offset.y + "px" )
+						.each(function(d){
+							
+							let card = d3.select(this)
+							
+			    
+							// Set the width of the plot, and of the containing elements.
+							card
+							  .style(     "width", d.format.position.w + "px" )
+							  .style( "max-width", d.format.position.w + "px" )
+							  .style(    "height", d.format.position.h + "px" )
+						  
+							// Append the title div. Enforce a 24px height for this div.
+							let title = card.append("div")
+							  .attr("class", "title")
+							  .append("p")
+							  .style("text-align", "center")
+							  .style("margin-left", "5px")
+							  .style("margin-right", "5px")
+							  .style("margin-bottom", "8px")
+							  .text( "Sigma" )
+							  
+							  
+							helpers.fitTextToBox(title, title, "height", 24)
+										  
+							// Append the svg
+							card.append("svg")
+								.attr("class", "plotArea")
+								.attr("width",  d.format.position.sw)
+								.attr("height", d.format.position.sh )
+								.style("fill", "smokewhite")
+								.style("display", "block")
+								.style("margin", "auto")
+							  .append("g")
+								.attr("class", "contour")
+								.attr("fill", "none")
+								.attr("stroke", "#fff")
+								.attr("stroke-opacity", "0.5")
+						}),
+					  update => update
+						.each( d => cfD3Contour2d.draw.contours(d) ),
+					  exit => exit.remove()
+					)
+					
+				}, // drawCard
+				
+				redrawPile: function redrawPile(ctrl){
+					// Needs to have the position it draws to, and the cards it will contain.
+					let dx = positioning.dx(ctrl.container)
+					let dy = positioning.dx(ctrl.container)
+					let h = ctrl.ih*dy
+					let w = ctrl.iw*dx
+					let dw = ctrl.iw*dx / ctrl.members.length
+					
+
+					var svg = ctrl.wrapper.select("svg.plotArea")
+						.attr("width", 2*w)
+						.attr("height", h)
+						
+						
+					// Append a viewon element for each of the members. It should be 5px wide.
+					svg.selectAll("rect.preview")
+					  .data(ctrl.members, d=>d.task.taskId)
+					  .enter()
+					  .append("rect")
+						.attr("class", "preview")
+						.attr("width", dw)
+						.attr("height", h)
+						.attr("x", (d,i)=>w + i*dw)
+						.attr("fill", "Gainsboro")
+						.on("mouseover", function(d){
+							// Raise.
+							d.format.wrapper.raise()
+						})
+						.on("mouseout", function(d){
+							// Raise the wrapper.
+							ctrl.wrapper.raise()
+						})
+					
+					
+					// Redo the statistics plot too.
+					let s = cfD3Contour2d.interactivity.statistics
+					switch(ctrl.statistics.plotted){
+						case "mu":
+							s.drawMu(ctrl)
+							break;
+							
+						case "sigma":
+							s.drawSigma(ctrl)
+							break;
+							
+						default:
+							break;
+							
+					} // switch
+					
+				}, // redrawPile
+							
+				consolidatePile: function consolidatePile(pileCtrl){
+				
+					// The card hosts the pile title
+					let offset = cfD3Contour2d.interactivity.piling.calculateOffset(pileCtrl)
+				
+					// Move the cards to the pile position.
+					pileCtrl.members.forEach(function(d, i){
+						// When doing this they should also be resized, and redrawn if necessary.
+						let position = d.format.position
+						// Stagger them a bit?
+						position.x = pileCtrl.x + offset.x
+						position.y = pileCtrl.y + offset.y
+						
+						// Move the wrapper
+						d.format.wrapper
+							.style("left", position.x + "px")
+							.style("top", position.y + "px")
+							.style("border-width", "")
+						    .style("border-style", "")
+						    .style("border-color", "")
+							.raise()
+							
+						// Resize the wrapper if needed.
+						if((position.iw != pileCtrl.iw) || 
+						   (position.ih != pileCtrl.ih)){
+							   
+							let dx = positioning.dx(pileCtrl.container)
+							let dy = positioning.dy(pileCtrl.container)
+							position.iw = pileCtrl.iw
+							position.ih = pileCtrl.ih
+							let width = position.iw*dx
+							let height = position.ih*dx
+							
+							d.format.wrapper
+							  .style("max-width", width + "px")
+							  .style("width"    , width + "px" )
+							  .style("height"   , height + "px" )
+							  
+							d.format.wrapper.select("div.card")
+							  .style("max-width", width + "px")
+							  .style("width"    , width + "px" )
+							  .style("height"   , height + "px" )
+							
+							
+							// UPDATE THE PLOT
+							cfD3Contour2d.resizing.contourCard(d)
+							cfD3Contour2d.draw.contours(d)
+						
+						} // if
+						
+					})
+					
+					pileCtrl.wrapper.raise()
+				
+				}, // consolidatePile
+				
+				createPileObject: function createPileObject(container, cardCtrls){
+			
+					let dx = positioning.dx(container)
+					let dy = positioning.dy(container)
+			
+					var pileCtrl = {
+						x: 0,
+						y: 0,
+						iw: Infinity,
+						ih: Infinity,
+						delta: {
+							x: undefined,
+							y: undefined
+						},
+						container: container,
+						wrapper: undefined,
+						members: cardCtrls,
+						statistics: {
+							  mu: undefined,
+						   sigma: undefined
+						}
+					}
+					
+				
+					var n = pileCtrl.members.length
+					var position = pileCtrl.members.reduce(function(total, item){
+						let pos = item.format.position
+						total.x += pos.ix*dx/n
+						total.y += pos.iy*dy/n
+						
+						if(total.iw*total.ih > pos.iw*pos.ih){
+							total.iw = pos.iw
+							total.ih = pos.ih
+						} // if
+						
+						return total
+					}, pileCtrl )
+				
+					return position
+				
+				}, // createPileObject
+				
+				calculateOffset: function calculateOffset(pileCtrl){
+					
+					var titleDom = pileCtrl.wrapper.select(".pileTitle").node()
+					var bodyDom = pileCtrl.wrapper.select(".pileBody").node()
+					let titleHeight = titleDom.offsetHeight
+					let titleMargin = 
+					parseInt(window.getComputedStyle(titleDom).marginBottom) + 
+					parseInt(window.getComputedStyle(titleDom).marginTop)
+					let bodyMargin = parseInt(window.getComputedStyle(bodyDom).padding)
+					
+					return {
+						x: bodyMargin,
+						y: titleHeight + titleMargin + bodyMargin
+					}
+				}, // calculateOffset
+				
+				addCardToPile: function addCardToPile(cardCtrl, pileCtrl){
+					let p = cfD3Contour2d.interactivity.piling
+					pileCtrl.members.push(cardCtrl)
+					p.consolidatePile(pileCtrl)
+					p.statisticsPlots(pileCtrl)
+					p.redrawPile(pileCtrl)
+					
+				}, // addCardToPile
+			
+				isCardOverPile: function isCardOverPile(cardCtrl, pileCtrl){
+					
+					let height = pileCtrl.wrapper.node().offsetHeight
+					let posy = cardCtrl.format.position.y - pileCtrl.y 
+					
+					let width = pileCtrl.wrapper.node().offsetWidth
+					let posx = cardCtrl.format.position.x - pileCtrl.x 
+ 
+					let isInsideWidth = ( posx > 0) &&
+								        ( posx < width)
+					
+					let isInsideHeight = ( posy > 0) &&
+								         ( posy < height)
+
+					
+					return (isInsideWidth && isInsideHeight) ? posx : false
+					
+				}, // isCardOverPile
+				
+				findAppropriatePile: function findAppropriatePile(cardCtrl, pileCtrls){
+					
+					let p = cfD3Contour2d.interactivity.piling
+					let pileCtrl = undefined
+					let dst = Infinity
+					
+					pileCtrls.forEach(function(pileCtrl_){
+						let dst_ = p.isCardOverPile(cardCtrl, pileCtrl_)
+						
+						if( (dst_ != false) && (dst_ < dst)){
+							pileCtrl = pileCtrl_
+							dst = dst_
+						} // if
+					}) // each
+					
+					if(pileCtrl != undefined){
+						p.addCardToPile(cardCtrl, pileCtrl)
+					} // if
+					
+				}, // findAppropriatePile
+				
+				findPilesInLasso: function findPilesInLasso(ctrl){
+					
+					var dx = positioning.dx(ctrl.figure)
+					var dy = positioning.dy(ctrl.figure)
+					
+					var pileCtrls = ctrl.figure.selectAll(".pileWrapper").data()
+					
+					var selectedPiles = pileCtrls.filter(function(pileCtrl){
+						
+						var pileMidpoint = {
+							x: pileCtrl.x + pileCtrl.iw*dx,
+							y: pileCtrl.y + pileCtrl.ih*dy
+						}
+						
+						return lasso.isPointInside( pileMidpoint, ctrl.tools.lasso.data.boundary )
+						
+					}) // forEach
+					
+					return selectedPiles
+					
+				}, // findPileInLasso
+				
+				statisticsPlots: function statisticsPlots(pileCtrl){
+					
+					let i = cfD3Contour2d.interactivity
+					
+
+					// Calculate the statistics.
+					i.statistics.mean(pileCtrl)
+					i.statistics.standardDeviation(pileCtrl)
+					
+
+				}, // statisticsPlots
+				
+				highlight: function highlight(pileCtrl){
+					
+					crossPlotHighlighting.on(pileCtrl.members.map(d=>d.task), "cfD3Contour2d")
+					
+				}, // highlight
+				
+				maximise: function maximise(pileCtrl){
+					
+					// Assign the pile for trending
+					let ctrl = pileCtrl.container.datum()
+					ctrl.tools.trending = pileCtrl
+					
+					
+					// Make the trending tools visible.
+					let trendingCtrlGroup = d3.select( ctrl.format.wrapper.node() )
+					  .select("div.plotTitle")
+					  .select("div.trendingCtrlGroup")
+					trendingCtrlGroup
+						.style("display", "inline-block")
+						
+						
+						
+					// The buttons also need access to the right pile
+					trendingCtrlGroup.selectAll("button")
+						.datum(pileCtrl)
+					
+					// Hide the piles
+					pileCtrl.container
+					  .selectAll("div.pileWrapper")
+					    .style("display", "none")
+					
+					
+					// Hide / Re-position the contours
+					var contourCtrls = pileCtrl.container.selectAll("div.contourWrapper").data()
+					
+					contourCtrls.forEach(function(d){
+						if(pileCtrl.members.includes(d)){
+							
+						} else {
+							d.format.wrapper.style("display", "none")
+						} // if
+					}) // forEach
+					
+				}, // maximise
+				
+				minimise: function minimise(pileCtrl){
+					
+					// Make the trending tools visible.
+					let trendingCtrlGroup = d3.select( pileCtrl.container.datum().format.wrapper.node() )
+					  .select("div.plotTitle")
+					  .select("div.trendingCtrlGroup")
+					
+					trendingCtrlGroup
+						.style("display", "none")
+						
+					pileCtrl.container
+					  .selectAll("div.contourWrapper")
+					  .style("display", "")
+					  
+					pileCtrl.container
+					  .selectAll("div.pileWrapper")
+					  .style("display", "")
+					  
+					pileCtrl.wrapper.style("display", "")
+					cfD3Contour2d.interactivity.piling.consolidatePile(pileCtrl)
+					
+				}, // minimise
+				
+			}, // piling
+	
+	
+			dragging: {
+				
+				make: function(ctrl){
+					// Makes the dragging ctrl required by positioning.dragSmooth
+					
+					
+					/*
+					ctrl = {
+						wrapper: accessor to the wrapper
+						container: bounding element
+						onstart: on-start event
+						onmove: on-move event
+						onend: on-end event
+						position: position accessor
+					}
+					*/
+					
+					let dragCtrl = {
+						
+						wrapper: function(d){
+							return d.format.wrapper
+						},
+						container: ctrl.figure,
+						onstart: function(d){
+							d.format.wrapper.raise()
+						},
+						onmove: function(d){
+							// Check if the container needs to be resized.
+							
+							cfD3Contour2d.resizing.plotOnInternalChange(ctrl)
+							
+						},
+						onend: function(d){
+							
+							let i = cfD3Contour2d.interactivity
+							
+							// Check if the card should be added to a pile.
+							i.piling.findAppropriatePile(d, ctrl.figure.selectAll(".pileWrapper").data())
+							
+							// Update the correlations if trending tools are  active.
+							let trendingCtrlGroup = ctrl.format.wrapper
+							  .select("div.plotTitle")
+							  .select("div.trendingCtrlGroup")
+							  
+							if( trendingCtrlGroup.style("display") != "none" ){
+								// Here we can actually pass the pileCtrl in!
+								i.statistics.drawCorrelation(trendingCtrlGroup)
+								
+							} // if
+						},
+						position: function(d){
+							return d.format.position
+						}
+					}	
+					
+					
+					
+					return positioning.dragSmooth(dragCtrl)	
+					
+					
+				} // add
+				
+			}, // dragging
+	
+			statistics: {
+				
+				draw: function draw(pileCtrl, statContour){
+					
+					pileCtrl.wrapper
+					  .select("div.pileBody")
+					  .select("div.summaryWrapper")
+					  .each(function(d){
+						  
+						  // Has to be designed to ensure units are kept.
+						  
+						  let svg = d.wrapper
+						    .select("div.pileBody")
+							.select("div.summaryWrapper")
+							.select("svg")
+							
+						  // The svg defineds the range, so change the domain.
+						  cfD3Contour2d.interactivity.statistics.design(svg, statContour)
+					      
+						  let projection = cfD3Contour2d.draw.projection(statContour)
+							
+						  svg
+						    .select("g.contour")
+						    .selectAll("path")
+						    .data(statContour.levels)
+						    .join(
+							  enter => enter
+							    .append("path")
+								  .attr("fill", statContour.format.color )
+								  .attr("d", projection ),
+							update => update
+								  .attr("fill", statContour.format.color )
+								  .attr("d", projection ),
+							exit => exit.remove()
+						  )
+						  
+					})
+					
+					
+				}, // draw
+				
+				
+				design: function design(svg, statContour){
+					
+					let f = statContour.format
+					
+					let xdiff = f.domain.x[1] - f.domain.x[0]
+					let ydiff = f.domain.y[1] - f.domain.y[0]
+					
+					let arX = (xdiff)/ f.position.sw
+					let arY = (ydiff)/ f.position.sh
+					
+					// Larges AR must prevail - otherwise the plot will overflow.
+					if(arX > arY){
+						let padding = arX*f.position.sh - ydiff
+						f.domain.y = [f.domain.y[0] - padding/2,
+									  f.domain.y[1] + padding/2]
+					} else {
+						let padding = arY*f.position.sw - xdiff
+						f.domain.x = [f.domain.x[0] - padding/2,
+									  f.domain.x[1] + padding/2]
+					} // if
+					
+					
+					
+				}, // design
+				
+				
+				drawMu: function drawMu(pileCtrl){
+					
+					pileCtrl.statistics.plotted = "mu"
+
+					// Change the title
+					pileCtrl.wrapper
+					  .select("div.summaryWrapper")
+					  .select("div.title")
+					  .select("p")
+					  .html("μ")
+					
+					// Change the contours
+					cfD3Contour2d.interactivity.statistics.draw(pileCtrl, pileCtrl.statistics.mu)
+					
+				}, // drawMu
+				
+				drawSigma: function drawSigma(pileCtrl){
+					
+					pileCtrl.statistics.plotted = "sigma"
+					
+					pileCtrl.wrapper
+					  .select("div.summaryWrapper")
+					  .select("div.title")
+					  .select("p")
+					  .html("σ")
+					
+					cfD3Contour2d.interactivity.statistics.draw(pileCtrl, pileCtrl.statistics.sigma)
+					
+				}, // drawSigma
+				
+				drawCorrelation: function drawCorrelation(trendingCtrlGroup){
+					
+					let i = cfD3Contour2d.interactivity
+					
+					// Get the scores
+					var scores = i.statistics.correlation(trendingCtrlGroup.datum().tools.trending )
+					
+					// Get a palette
+					var score2clr = d3.scaleLinear()
+						.domain([0,1])
+						.range([0, 0.75])
+					
+					 
+  
+
+					
+					trendingCtrlGroup.selectAll("select").each(function(){
+						
+						// Determine if it's x or y select
+						let axis = d3.select(this).attr("axis")
+						
+						var color = d=>d3.interpolateGreens(score2clr(Math.abs(d.score[axis])))
+						
+						d3.select(this)
+						  .selectAll("option")
+						  .data( scores )
+						  .join(
+						    enter => enter
+							  .append("option")
+							    .attr("value", d=>d.name)
+								.html(d=>d.label[axis])
+								.style("background-color", color),
+							update => update
+								.attr("value", d=>d.name)
+								.html(d=>d.label[axis])
+								.style("background-color", color),
+							exit => exit.remove()
+						  )
+					})
+					
+				}, // drawCorrelation
+				
+				
+				mean: function mean(pileCtrl){
+
+					let tasks = pileCtrl.members
+				    let mu, domain_
+				    let n = tasks.length
+				  
+				    // calculate mean
+				    tasks.forEach(function(task){
+					  let d= task.data.vals.surfaces
+					
+					  if(mu == undefined){
+					  
+					  mu = {x: d.x.map(function(x){ return x/n }), 
+							y: d.y.map(function(y){ return y/n }), 
+							v: d.v.map(function(v){ return v/n }), 
+							size:  d.size}
+					  
+					  } else {
+
+					    d.x.forEach((d_,i)=> mu.x[i] += d_/n)
+					    d.y.forEach((d_,i)=> mu.y[i] += d_/n)
+					    d.v.forEach((d_,i)=> mu.v[i] += d_/n)
+					  
+					  
+					  } // if
+					}) // forEach
+ 
+					
+							
+					let plotCtrl = d3.select(pileCtrl.wrapper.node().parentElement).datum()
+					let svg = pileCtrl.wrapper.select("div.pileBody").select("div.summaryWrapper").select("svg")
+					
+							
+					// Create a statistics output:
+				    pileCtrl.statistics.mu = {
+						filename: "mean@obs",
+					    data: {vals: {surfaces: mu}},
+						levels: cfD3Contour2d.draw.json2contour(mu, plotCtrl.data.domain.thresholds),
+					    task: {taskId: "μ"},
+					    format: {
+							wrapper: svg,
+							position: {
+								sh: parseFloat( svg.attr("height") ),
+								sw:  parseFloat( svg.attr("width") )
+							},
+							domain: {
+								x: [d3.min(mu.x), d3.max(mu.x)],
+							    y: [d3.min(mu.y), d3.max(mu.y)],
+							    v: [d3.min(mu.v), d3.max(mu.v)] 
+							},
+							color: function(d){
+								return plotCtrl.tools.scales.val2clr(d.value)
+							}
+						}
+					}
+				  
+
+				}, // mean
+				
+				standardDeviation: function(pileCtrl){
+				 
+					let tasks = pileCtrl.members
+					let mean = pileCtrl.statistics.mu
+					let mu = mean.data.vals.surfaces
+				    let sigma
+				    let n = tasks.length
+				  
+				    // calculate standard deviation based on the mean.
+				    tasks.forEach(function(task){
+					  let t = task.data.vals.surfaces
+					  if(sigma == undefined){
+					    sigma = {x: mu.x, 
+							     y: mu.y, 
+							     v: t.v.map( (d,i)=> 
+									1/(n-1)*(d - mu.v[i])**2 
+								 ), 
+							  size: mu.size}
+					  } else {
+					    t.v.forEach( (d,i)=> 
+						  sigma.v[i] += 1/(n-1)*(d - mu.v[i])**2 
+						)
+					  } // if
+					  
+				    }) // forEach
+					
+					
+					let svg = pileCtrl.wrapper.select("div.pileBody").select("div.summaryWrapper").select("svg")
+					
+					
+					// Use another way to calculate
+					let domain = d3.extent(sigma.v)
+					let thresholds = d3.range(domain[0], domain[1], (domain[1] - domain[0])/7)
+				
+
+				    // Create a statistics output:
+				    pileCtrl.statistics.sigma = {
+						filename: "stdev@obs",
+					    data: {vals: {surfaces: sigma}},
+						levels: cfD3Contour2d.draw.json2contour(sigma, thresholds),
+					    task: {taskId: "σ"},
+					    format: {
+							wrapper: svg,
+							position: {
+								sh: parseFloat( svg.attr("height") ),
+								sw:  parseFloat( svg.attr("width") )
+							},
+							domain: {
+							  x: mean.format.domain.x,
+							  y: mean.format.domain.y,
+							  v: d3.extent(sigma.v),
+							  size: mean.format.domain.size 
+						    },
+							color: function(d){
+								let val2clr = d3
+								  .scaleSequential(d3.interpolateViridis)
+								  .domain( d3.extent( thresholds ) )
+								
+								return val2clr(d.value)
+							}
+						}
+					}
+
+				}, // standardDeviation
+				
+				
+				correlation: function correlation(pileCtrl){
+				    // Given some on-screen order show the user which variables are most correlated with it.
+					let s = cfD3Contour2d.interactivity.statistics
+				  
+				    // Order is based given the left edge of the contour. The order on the screen is coordinated with the sequential order in contours.tasks in 'dragMove', and in 'ordering'.
+				    
+				  
+				    let scores = dbsliceData.data.dataProperties.map(function(variable){
+						// For each of the data variables calculate a correlation.
+						
+						
+						// Collect the data to calculate the correlation.
+						let d = pileCtrl.members.map(function(contour){
+						  return {x: contour.format.position.x,
+								  y: contour.format.position.y,
+								  var: contour.task[variable]
+								 }
+						}) // map
+						
+						// Get Spearman's rank correlation scores for the order in the x direction.
+						// (https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient)
+						
+						// The coefficient is
+						// covariance (x_rank, y_rank ) / ( sigma(rank_x) sigma(rank_y) )
+						
+						let cov = s.covariance(d)
+						let sigma_x   = d3.deviation(d, d=>d.x)
+						let sigma_y   = d3.deviation(d, d=>d.y)
+						let sigma_var = d3.deviation(d, d=>d.var)
+						
+						sigma_x = sigma_x == 0 ? Infinity : sigma_x
+						sigma_y = sigma_y == 0 ? Infinity : sigma_y
+						sigma_var = sigma_var == 0 ? Infinity : sigma_var
+						
+						let score = {
+							x: cov.x / ( sigma_x*sigma_var ),
+							y: cov.y / ( sigma_y*sigma_var )
+						}
+						
+						let label = {
+							x: score.x < 0 ? "- " + variable : "+ " + variable,
+							y: score.y < 0 ? "- " + variable : "+ " + variable,
+						}
+						
+						return {
+							name: variable, 
+							label: label,
+							score: score
+						}
+				    }) // map
+				  
+				  // Before returning the scores, order them.
+				  scores.sort(function(a,b){return a.score - b.score})
+				  
+				  return scores
+				  
+				}, // correlation
+				
+				
+				covariance: function covariance(d){
+
+				    // 'd' is an array of observations. Calculate the covariance between x and the metadata variable.
+				    let N = d.length
+				    let mu_x = d3.sum(d, d=>d.x) / N
+					let mu_y = d3.sum(d, d=>d.y) / N
+				    let mu_var = d3.sum(d, d=>d.var) / N
+				  
+				  
+				    var sumx = 0;
+					var sumy = 0;
+				    for(var i=0; i< N; i++) {
+						sumx += ( d[i].x - mu_x )*( d[i].var - mu_var );
+						sumy += ( d[i].y - mu_y )*( d[i].var - mu_var );
+				    }
+				  
+				    return {
+						x: 1/(N - 1)*sumx,
+						y: 1/(N - 1)*sumy
+					}
+
+				} // covariance
+				
+			}, // statistics
+	
+			sorting: {
+				
+				x: function x(ctrl, variable){
+					
+					let dx = positioning.dx(ctrl.figure)
+					let dy = positioning.dy(ctrl.figure)
+					
+					// Find the appropriate metadata, and the range to plot it to.
+					let vals = ctrl.tools.trending.members.map(d=>d.task[variable])
+					
+					let range = cfD3Contour2d.interactivity.sorting.getRange(ctrl)
+					
+					// Create a scale
+					let scale = d3.scaleLinear()
+					  .domain( d3.extent(vals) )
+					  .range( range.x )
+					  
+					// Position the contours.
+					ctrl.tools.trending.members.forEach(function(d){
+						
+						let x = scale( d.task[variable] )
+						
+						d.format.position.x = x
+						d.format.position.ix = Math.floor( x/dx )
+						
+						d.format.wrapper.style("left", x + "px")
+					})
+					
+				}, // x
+				
+				y: function y(ctrl, variable){
+					
+					let dx = positioning.dx(ctrl.figure)
+					let dy = positioning.dy(ctrl.figure)
+					
+					// Find the appropriate metadata, and the range to plot it to.
+					let vals = ctrl.tools.trending.members.map(d=>d.task[variable])
+					
+					let range = cfD3Contour2d.interactivity.sorting.getRange(ctrl)
+					
+					// Create a scale
+					let scale = d3.scaleLinear()
+					  .domain( d3.extent(vals) )
+					  .range( range.y )
+					  
+					// Position the contours.
+					ctrl.tools.trending.members.forEach(function(d){
+						
+						let y = scale( d.task[variable] )
+						
+						d.format.position.y = y
+						d.format.position.iy = Math.floor( y/dy )
+						
+						d.format.wrapper.style("top", y + "px")
+					})
+					
+				}, // y
+				
+				getRange: function getRange(ctrl){
+					
+					let height = ctrl.figure.node().offsetHeight
+					let width = ctrl.figure.node().offsetWidth
+					
+					let maxCardHeight = d3.max( ctrl.tools.trending.members.map(d=>d.format.position.h) )
+					let maxCardWidth = d3.max( ctrl.tools.trending.members.map(d=>d.format.position.w) )
+					
+					return {
+						x: [0, width - maxCardWidth],
+						y: [0, height - maxCardHeight]
+					}
+					
+				}, // getRange
+				
+			}, // sorting
+	
 		}, // interactivity
 		
 		helpers: {
@@ -1386,7 +2567,7 @@ const cfD3Contour2d = {
 							   thresholds: undefined,
 							   nLevels: undefined,
 						   },
-						   processor: importExportFunctionality.importing.contour2d
+						   processor: importExport.importing.contour2d
 					       },
 					view: {sliceId: undefined,
 					       options: [],
@@ -1415,6 +2596,7 @@ const cfD3Contour2d = {
 								tasks: []
 							},
 							tooltip: undefined,
+							trending: undefined
 						},
 					format: {
 						title: "Edit title",
@@ -1483,6 +2665,8 @@ const cfD3Contour2d = {
 					} // if
 				} // if
 				
+				
+				ctrl.format.title = plotData.title
 				// When the session is loaded all previously existing plots would have been removed, and with them all on demand loaded data. Therefore the variables for this plot cannot be loaded, as they will depend on the data.
 											
 				return ctrl

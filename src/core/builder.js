@@ -9,8 +9,6 @@ import { positioning } from '../core/positioning.js';
 
 var builder = {
 		
-
-		
 		makeSessionHeader: function makeSessionHeader() {
 		
 			// Check if there was a previous session header already existing. 
@@ -93,8 +91,8 @@ var builder = {
 			  .append("div")
 				.attr("class", "dropdown-menu")
 			  
-			  
-			var dataReplace = createFileInputElement( importExportFunctionality.importing.metadata, "replace")
+			
+			var dataReplace = createFileInputElement( importExport.importing.metadata.go, "replace")
 			sessionMenu
 			  .append("a")
 			    .attr("class", "dropdown-item")
@@ -103,7 +101,8 @@ var builder = {
 				.html("Replace data")
 				.on("click", function(){dataReplace.click()})
 				
-			var dataInput = createFileInputElement( importExportFunctionality.importing.metadata, "add")
+			
+			var dataInput = createFileInputElement( importExport.importing.metadata.go, "add")
 			sessionMenu
 			  .append("a")
 			    .attr("class", "dropdown-item")
@@ -111,6 +110,7 @@ var builder = {
 				.attr("id", "addData")
 				.html("Add data")
 				.on("click", function(){dataInput.click()})
+			
 				
 			var removeDataItem = sessionMenu
 			  .append("a")
@@ -119,8 +119,9 @@ var builder = {
 				.attr("id", "removeData")
 				.html("Remove data")
 			addMenu.removeDataControls.make(removeDataItem)
-				
-			var sessionInput = createFileInputElement( importExportFunctionality.importing.session )
+					
+			
+			var sessionInput = createFileInputElement( importExport.importing.session )
 			sessionMenu
 			  .append("a")
 			    .attr("class", "dropdown-item")
@@ -137,10 +138,10 @@ var builder = {
 				.html("Save session").on("click", function(){
 				
 					// Get the string to save
-					var s = importExportFunctionality.exporting.session.json()
+					var s = importExport.exporting.session.json()
 					
 					// Make the blob
-					var b = importExportFunctionality.exporting.session.makeTextFile(s)
+					var b = importExport.exporting.session.makeTextFile(s)
 					
 					
 					// Download the file.
@@ -199,8 +200,7 @@ var builder = {
 			// HELPER FUNCTIONS:
 			function createFileInputElement(loadFunction, dataAction){
 				
-				
-				
+				// ERROR! DATA INPUT ONCHANGE SHOULD BE CHANGED - THE USER SHOULD BE ALLOWED TO RELOAD A FILE STRAIGHT AFTER REMOVING IT. CHANGE THIS IN THE IMPORTING - STORE THE METADATA FILES IN HTE CENTRAL BOOKING TOO!
 				
 				// This button is already created. Just add the functionaity.
 				var dataInput = document.createElement('input');
@@ -210,7 +210,7 @@ var builder = {
 				dataInput.onchange = function(e){
 					// BE CAREFULT HERE: file.name IS JUST THE local name without any path!
 					var file = e.target.files[0]; 
-					// importExportFunctionality.importing.handler(file);
+					// importExport.importing.handler(file);
 					loadFunction(file, dataAction)
 				}; // onchange
 				
@@ -387,6 +387,6 @@ var builder = {
 		
 		
 	} // builder
-					
+						
 
 export { builder };

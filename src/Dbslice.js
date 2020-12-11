@@ -18,4 +18,6 @@ export { render } from './core/render.js';
 export { initialise } from './core/initialise.js';
 export { refreshTasksInPlotRows } from './core/refreshTasksInPlotRows.js'; 
 export { filter } from './core/filter.js';
-export { importExportFunctionality } from './core/importExportFunctionality.js';
+export { importExport } from './core/importExport.js';
+export { inputTesting } from './core/inputTesting.js';
+export { variableHandling } from './core/variableHandling.js';
