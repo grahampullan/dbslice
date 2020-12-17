@@ -15,6 +15,11 @@
 
 <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
 
+
+<!-- Bootstrap requires jQuery! -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
 <!-- BOOTSTRAP REQUIRES JQUERY!! -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js"></script>
@@ -48,6 +53,9 @@
 
 <div class="container-fluid" id="target"> </div>
 
+<!-- Containers for variable handling and loading reports. -->
+<div class="fullscreen-container report-container" style="display: none;"></div>
+<div class="fullscreen-container variable-container" style="display: none;"></div>
 
 
 <script>
