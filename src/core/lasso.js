@@ -1,5 +1,3 @@
-
-
 var lasso = {
 		
 		/*
@@ -176,6 +174,3 @@ var lasso = {
 		
 	} // lasso
 	
-    	
-
-export { lasso };

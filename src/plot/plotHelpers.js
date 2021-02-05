@@ -1,8 +1,3 @@
-import { render } from '../core/render.js';
-import { filter } from '../core/filter.js';
-import { color } from '../core/color.js';
-import { dbsliceData } from '../core/dbsliceData.js';
-
 var plotHelpers = {
         
         setupPlot: {
@@ -12,11 +7,19 @@ var plotHelpers = {
 				// Making the plot DOM
 				makeNewPlot: function makeNewPlot( plotCtrl, index ) {
     
+					plotCtrl.format.parent = this._parent
+	
 					// Note that here `this' is a d3 object.
-					let f = plotCtrl.format
-					f.parent = this._parent
-					let dx = positioning.dx( d3.select(f.parent) )
-					let dy = positioning.dy( d3.select(f.parent) )
+					let p = plotCtrl.format.position
+					let container = plotCtrl.format.parent
+					
+					let dx = positioning.dx( d3.select(container) )
+					let dy = positioning.dy( d3.select(container) )
+					
+					let iw_min = Math.ceil(p.minW/dx)
+					let ih_min = Math.ceil(p.minH/dy)
+					p.iw = p.iw > iw_min ? p.iw : iw_min
+					p.ih = p.ih > ih_min ? p.ih : ih_min
 					
 	
 					var wrapper = d3.select(this)
@@ -24,10 +27,10 @@ var plotHelpers = {
 						.attr("class", "plotWrapper")
 						.attr("plottype", plotCtrl.plotFunc.name)
 						.style("position", "absolute")
-						.style("left"  , f.parent.offsetLeft + f.position.ix*dx + "px")
-						.style("top"   , f.parent.offsetTop + f.position.iy*dy + "px")
-						.style("width" , f.position.iw*dx + "px")
-						.style("height", f.position.ih*dy + "px")
+						.style("left",container.offsetLeft+p.ix*dx+"px")
+						.style("top",container.offsetTop+p.iy*dy+"px")
+						.style("width" , p.iw*dx + "px")
+						.style("height", p.ih*dy + "px")
 						
 					var plot = wrapper
 					  .append("div")
@@ -233,19 +236,24 @@ var plotHelpers = {
 				}, // setupPlotContainerBackbone
 				
 				
-				// Svg scaling
+				//Scaling
 				rescaleSvg: function rescaleSvg(ctrl){
+					
 					
 					// RESIZE ALL THE PLOT CONTAINERS AS NEEDED.
 					
+					// First enforce the size based on the size of the wrapper.
+					
+					
+					
+					// Now calculate the size of the svg.
 					var svg = ctrl.figure.select("svg.plotArea")
 					var cardDOM = ctrl.figure.node().parentElement
 					var wrapperDOM = cardDOM.parentElement
 					var headerDOM = d3.select(cardDOM).select(".plotTitle").node()
 					
-					// First enforce the size based on the size of the wrapper.
-					d3.select(cardDOM)
-					  .style("height", wrapperDOM.offsetHeight - headerDOM.offsetHeight)
+					
+					
 					
 					
 					
@@ -324,22 +332,24 @@ var plotHelpers = {
 				}, // rescaleSvg
 			
 				
+				
 				// Select menus
 				
-				appendVerticalSelection: function appendVerticalSelection(container, onChangeFunction){
+				appendVerticalSelection: function appendVerticalSelection(figure, onChangeFunction){
+			
+					let container = figure.select(".leftAxisControlGroup")
 		
-					// var container = ctrl.figure.select(".leftAxisControlGroup")
-		
-					var s = container
+					let s = container
 					  .append("select")
 						.attr("class", "select-vertical custom-select")
 					
 									
-					
-					container
+					// This is just the text label - it has no impact on the select functionality. Fit the text into a box here.
+					let txt = container
 					  .append("text")
 						.text( s.node().value )
 						.attr("class","txt-vertical-axis")
+					plotHelpers.helpers.adjustAxisSelect(figure)
 					
 					
 					s.on("change", onChangeFunction )
@@ -375,14 +385,15 @@ var plotHelpers = {
 					
 					// Update the text to show the same.
 					container.select("text").text(ctrl.view.yVarOption.val)
+					plotHelpers.helpers.adjustAxisSelect(ctrl.figure)
 				
 				}, // updateVerticalSelection
 				
-				appendHorizontalSelection: function appendHorizonalSelection(container, onChangeFunction){
+				appendHorizontalSelection: function appendHorizonalSelection(figure, onChangeFunction){
 				
-					// var container = ctrl.figure.select(".bottomAxisControlGroup")
+					let container = figure.select(".bottomAxisControlGroup")
 				
-					var s = container
+					let s = container
 					  .append("select")
 						.attr("class", "custom-select")
 						.attr("dir","rtl")
@@ -761,7 +772,7 @@ var plotHelpers = {
 						// Update filters
 						filter.apply()
 						
-						render()
+						sessionManager.render()
 					} // onClickEvent
 					  
 					plotHelpers.setupPlot.general.appendToggle( container, onClickEvent )
@@ -858,9 +869,6 @@ var plotHelpers = {
 						} // return
 						
 					}, // horizontal
-					
-					
-					
 					
 				}, // onSelectChange
 							
@@ -1172,11 +1180,88 @@ var plotHelpers = {
 				
 			}, // formatExponent
 			
+			fitTextToBox: function fitTextToBox(text, box, orientation){
+				// `text' is a d3 selection. `box' must have height and width attributes. `orientation' can be either `horizontal' or `vertical'.
+		
+				// So, when the text orientation is horizontal the font size will impact the height, otherwise it impacts the width.
+				
+				let d = {
+					fontDim: {
+						horizontal: "height",
+						vertical: "width"
+					},
+					lengthDim: {
+						horizontal: "width",
+						vertical: "height"
+					},
+				} // d
+				
+				
+				let fontSize = parseInt( window.getComputedStyle(text.node(), null).getPropertyValue('font-size') )
+				
+				// Font size.
+				while( exceedsDim(text, box, d.fontDim[orientation]) ){
+					// Reduce the font size
+					fontSize -= 1
+					text.style("font-size", fontSize + "px")
+					
+					// Safety break
+					if(fontSize<2){break}
+				} // while
+				
+				
+				
+				
+				// String length.
+				let s = text.html()
+				let j = Math.floor( s.length/2 )
+				while( exceedsDim(text, box, d.lengthDim[orientation]) ){
+					
+					let first = s.substr(0, j)
+					let last = s.substr(s.length-j, s.length)
+					
+					text.html(first + " ... " + last)
+					
+					j-=1
+					
+					if(j<3){break}
+				} // while
+				
+				function exceedsDim(text, box, dim){
+					return text.node().getBoundingClientRect()[dim] > box[dim]
+				} // exceedsDim
+				
+			}, // fitTextToBox
 			
-		}
+			getAxisBox: function(figure){
+				
+				let plot = figure.node().getBoundingClientRect()
+				let blcg = figure.select("div.bottomLeftControlGroup").node().getBoundingClientRect()
+				
+				return {
+					height: plot.height - blcg.height,
+					 width: plot.width - blcg.width,
+				}
+				
+			}, // getAxisBox
+			
+			adjustAxisSelect: function(figure){
+				// Horizontal axis doesn't use a separate text tag
+				
+				let group = figure
+				  .select("div.leftAxisControlGroup")
+				
+				if(group.select("select").node()){
+					let box = plotHelpers.helpers.getAxisBox(figure)
+					plotHelpers.helpers.fitTextToBox(group.select("text"), box, "vertical")
+				} // if
+					
+			
+
+			}, // adjustAxisSelect
+			
+			
+		}, // helpers
         	
 		
 	} // plotHelpers
-
-
-export { plotHelpers };

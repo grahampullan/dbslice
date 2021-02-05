@@ -1,10 +1,3 @@
-import { filter } from '../core/filter.js';
-import { color } from '../core/color.js';
-import { render } from '../core/render.js';
-import { dbsliceData } from '../core/dbsliceData.js';
-import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
-import { plotHelpers } from '../plot/plotHelpers.js';
-
 var cfD3Histogram = {
           
         name: "cfD3Histogram",
@@ -24,7 +17,7 @@ var cfD3Histogram = {
 			
 			
 			var i= cfD3Histogram.interactivity.onSelectChange
-			plotHelpers.setupPlot.general.appendHorizontalSelection(ctrl.figure.select(".bottomAxisControlGroup"), i.horizontal(ctrl))
+			plotHelpers.setupPlot.general.appendHorizontalSelection(ctrl.figure, i.horizontal(ctrl))
 			plotHelpers.setupPlot.general.updateHorizontalSelection(ctrl)
 			
 			
@@ -263,8 +256,8 @@ var cfD3Histogram = {
 				// Get the values on which the calculation is performed
 				var items = dbsliceData.data.cf.all()
 				var g = ctrl.figure.select("svg.plotArea").select("g.data")
-				var width = g.attr("width")
-				var height = g.attr("height")
+				var width = Number( g.attr("width") )
+				var height = Number( g.attr("height") )
 				function xAccessor(d){return d[ctrl.view.xVarOption.val]}
 				
 				// Create the domains and ranges that can be. The y domain is dependent on the binning of the data. Therefore it can only be specified after the histogram data has been created.
@@ -386,7 +379,7 @@ var cfD3Histogram = {
 						ctrl.view.transitions = cfD3Histogram.helpers.transitions.animated()
 
 						// Update the graphics. As the variable changed and the fitler is getting removed the other plots should be notified.
-						render()
+						sessionManager.render()
 						
 						
 						
@@ -409,7 +402,6 @@ var cfD3Histogram = {
 					
 					
 					// There should be an update brush here. It needs to read it's values, reinterpret them, and set tiself up again
-					// Why is there no brush here on redraw??
 					var brush = svg.select(".brush")
 					if(brush.empty()){
 						
@@ -446,13 +438,13 @@ var cfD3Histogram = {
 						
 					}// if
 					
-
-					var height = svg.select("g.data").attr("height")
+					var width = x(xMax) - x(xMin)
+					var height = Number( svg.select("g.data").attr("height") )
 					var rect = brush
 					  .append("rect")
 						.attr("class", "selection")
 						.attr("cursor", "move")
-						.attr("width", x(xMax) - x(xMin))
+						.attr("width", width)
 						.attr("height", height)
 						.attr("x", x(xMin))
 						.attr("y", 0)
@@ -680,7 +672,7 @@ var cfD3Histogram = {
 					// Only update other plots if the number of elements in the filter has changed.
 					var nTasks = dbsliceData.data.taskDim.top(Infinity).length
 					if(nTasks_ != nTasks){
-						render()
+						sessionManager.render()
 					} // if
 					
 				}, // updateSelection
@@ -1062,7 +1054,7 @@ var cfD3Histogram = {
 					}
 				} // ctrl
 				
-				var options = dbsliceData.data.dataProperties
+				var options = dbsliceData.data.ordinalProperties
 				ctrl.view.xVarOption = {name: "varName",
 					                     val: options[0],
 								     options: options}
@@ -1080,7 +1072,7 @@ var cfD3Histogram = {
 				
 				// If the x and y properties were stored, and if they agree with the currently loaded metadata, then initialise them.
 				if(plotData.xProperty != undefined){
-					if( dbsliceData.data.dataProperties.includes(plotData.xProperty) ){
+					if( dbsliceData.data.ordinalProperties.includes(plotData.xProperty) ){
 						ctrl.view.xVarOption.val = plotData.xProperty
 						ctrl.view.gVar =           plotData.xProperty
 					} // if						
@@ -1139,7 +1131,7 @@ var cfD3Histogram = {
 				
 				// Make the subgroup the graphic basis, and plot it directly. Then make sure that the grouping changes are handled properly!!
 				
-				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.metaDataUniqueValues[subgroupKey]
+				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.categoricalUniqueValues[subgroupKey]
 				
 				// Loop over them to create the rectangles.
 				var items = []
@@ -1239,6 +1231,3 @@ var cfD3Histogram = {
 		} // helpers
 		
     }; // cfD3Histogram
-
-
-export { cfD3Histogram };

@@ -1,11 +1,3 @@
-import { dbsliceData } from '../core/dbsliceData.js';
-import { render } from '../core/render.js';
-import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
-import { filter } from '../core/filter.js';
-import { color } from '../core/color.js';
-import { plotHelpers } from '../plot/plotHelpers.js';
-import { importExportFunctionality } from '../core/importExportFunctionality.js';
-
 var cfD3Line = {
 		// • report to the user info about the data (missing, duplicated, intersect clashes, maybe even the things that will yield the largest addition of data to the screen)
 	
@@ -22,7 +14,7 @@ var cfD3Line = {
 			var i = cfD3Line.interactivity
 			
 			// Add the manual selection toggle to its title.
-			hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
+			// hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
 			
 			// Create the backbone required for the plot. This is the division of the card into the divs that hold the controls and the plot.
 			hs.twoInteractiveAxes.setupPlotBackbone(ctrl)
@@ -34,12 +26,10 @@ var cfD3Line = {
 			
 			
 			// Add in the controls for the y axis.
-			hs.general.appendVerticalSelection( ctrl.figure.select(".leftAxisControlGroup"),
-                                       hi.onSelectChange.vertical(ctrl) )
+			hs.general.appendVerticalSelection( ctrl.figure, hi.onSelectChange.vertical(ctrl) )
 			
 			// Add in the controls for the x axis.
-			hs.general.appendHorizontalSelection( ctrl.figure.select(".bottomAxisControlGroup"),
-										 hi.onSelectChange.horizontal(ctrl) )
+			hs.general.appendHorizontalSelection( ctrl.figure, hi.onSelectChange.horizontal(ctrl) )
 			
 			
 			// General interactivity
@@ -66,6 +56,64 @@ var cfD3Line = {
 			
 		
 		}, // make
+		
+		getData: function(ctrl){
+			// Setup the appropriate connection between individual tasks and the loaded files.
+			
+			
+			// First establish for which tasks the files are available.
+			let tasks = dbsliceData.data.taskDim.top(Infinity)
+			let requiredUrls = tasks.map(d=>d[ctrl.view.sliceId])
+			
+			// Create an itnernal data object for tasks that have a loaded file, and log those that weren't loaded as missing.
+			ctrl.data = tasks.reduce(function(acc, t){
+				
+				// The library will retrieve at most 1 file!
+				let filename = t[ctrl.view.sliceId]
+				let f = fileManager.library.retrieve(line2dFile, filename)
+				
+				if(f){
+					// Exactly the right file was found. As on-demand filenames will have the same filename and url this should always happen when the file has been loaded. The series is still empty as the selection of the variables has not been made yet.
+					acc.available.push({
+						task: t,
+						file: f,
+						series: []
+					})
+				} else {
+					// File not found - log as missing
+					acc.missing.push({
+						task: t,
+						value: filename
+					})
+				} // if
+						
+				
+				return acc
+			}, {available: [], missing:[]}) // reduce
+			
+			
+			// Set the intersect of availbale variables.
+			ctrl.data.intersect = ctrl.data.available.length > 0 ?  cfD3Line.getIntersectOptions( ctrl.data.available ) : undefined
+			
+		}, // getData
+		
+		getIntersectOptions: function(dataobjs){
+			
+			// Find which variables appear in all the dataobj files. These are the variables that can be compared.
+			
+			
+			let commonvars = dataobjs.reduce(function(acc, d){
+				
+				acc = acc.filter(function(varname){
+					return d.file.content.variables.includes(varname)
+				})
+				
+				return acc
+			}, [...dataobjs[0].file.content.variables])
+			
+			return commonvars
+			
+		}, // getIntersectOptions
 		
 		update: function update(ctrl){
 			
@@ -97,7 +145,7 @@ var cfD3Line = {
 			
 			
 			// GETDATAINFO should be launched when new data is loaded for it via the 'refresh' button, and when a different height is selected for it. Otherwise it is just hte data that gets loaded again.
-			cfDataManagement.getLineFileDataInfo(ctrl)
+			let data = cfD3Line.getData(ctrl)
 			
 			
 			
@@ -143,7 +191,7 @@ var cfD3Line = {
 			// This function re-intialises the plots based on the data change that was initiated by the user.
 
 			// RELOCATE TO DRAW??
-			if(ctrl.data.compatible.length > 0){
+			if(ctrl.data.available.length > 0){
 			
 				// Update the axes
 				cfD3Line.helpers.axes.update(ctrl)
@@ -151,40 +199,33 @@ var cfD3Line = {
 				// CHANGE TO JOIN!!
 				
 				 // Assign the data
-				var allSeries = ctrl.figure.select("svg.plotArea")
+				var allSeries = ctrl.figure
+				  .select("svg.plotArea")
 				  .select("g.data")
 				  .selectAll("path.line")
-				  .data( ctrl.data.series );
+				  .data( ctrl.data.available, d=>d.task.taskId );
 
 				// enter
 				allSeries.enter()
 				  .append( "g" )
-						  .attr( "class", "plotSeries")
-						  .attr( "task-id", ctrl.tools.getTaskId)
-						.append( "path" )
-						  .attr( "class", "line" )
-						  .attr( "d", ctrl.tools.line )
-						  .style( "stroke", ctrl.tools.getColor ) 
-						  .style( "fill", "none" )
-						  .style( "stroke-width", 2.5 / ctrl.view.t.k )
-						  .on("mouseover", cfD3Line.interactivity.addTipOn(ctrl))
-						  .on("mouseout", cfD3Line.interactivity.addTipOff(ctrl))
-						  .on("click", cfD3Line.interactivity.addSelection)
+				    .attr( "class", "plotSeries")
+				    .attr( "task-id", ctrl.tools.getTaskId)
+				  .append( "path" )
+				    .attr( "class", "line" )
+				    .attr( "d", d=>ctrl.tools.line(d.series) )
+				    .style( "stroke", ctrl.tools.getColor ) 
+				    .style( "fill", "none" )
+				    .style( "stroke-width", 2.5 / ctrl.view.t.k )
+				    .on("mouseover", cfD3Line.interactivity.addTipOn(ctrl))
+				    .on("mouseout", cfD3Line.interactivity.addTipOff(ctrl))
+				    .on("click", cfD3Line.interactivity.addSelection)
 
 				// update:
-				allSeries.each( function() {
-					// The taskId is in the parent wrapper.
-					var series = d3.select( this.parentElement )
-						.attr( "task-id",  ctrl.tools.getTaskId);
-						
-				})	
-				
-				// Keep a reference to the original draw domain to allow the data to be updated more seamlessly?
 				allSeries
-					  .transition()
-					  .duration(ctrl.view.transitions.duration)
-					  .attr( "d", ctrl.tools.line )
-					  .style( "stroke", ctrl.tools.getColor )
+				  .transition()
+				  .duration(ctrl.view.transitions.duration)
+				  .attr( "d", d=>ctrl.tools.line(d.series) )
+				  .style( "stroke", ctrl.tools.getColor )
 					  
 				// exit
 				allSeries.exit().remove();
@@ -269,39 +310,27 @@ var cfD3Line = {
 			updateUiOptions: function updateUiOptions(ctrl){
 				// The current view options may differ from the available data options. Therefore update the corresponding elements here.
 				
-				ctrl.data.intersect.userOptions.forEach(function(dataOption){
-					// For each different option that can be queried in the available compatible data, check if an option in the view is already selected, what it's value is, and update the value if it is not in the new set.
-					
-					var viewOption = helpers.findObjectByAttribute( ctrl.view.options, "name", [dataOption.name], true )
-					
-					if(viewOption.length == 0){
-						ctrl.view.options.push({
-							   name: dataOption.name,
-							   val : dataOption.options[0],
-							options: dataOption.options,
-							  event: cfD3Line.updateData
-						})
-					} else {
-						
-						updateOption(viewOption, dataOption)
-					
-					} // if
-					
-				}) // forEach
+				
 				
 				
 				// Do the same for the x and y axis options
 				if(ctrl.view.xVarOption == undefined){
-					ctrl.view.xVarOption = ctrl.data.intersect.varOptions.x
+					ctrl.view.xVarOption = {
+						val: ctrl.data.intersect[0],
+						options: ctrl.data.intersect 
+					}
 				} else {
-					updateOption(ctrl.view.xVarOption, ctrl.data.intersect.varOptions.x)
+					updateOption(ctrl.view.xVarOption, ctrl.data.intersect)
 				} // if
 				
 				
 				if(ctrl.view.yVarOption == undefined){
-					ctrl.view.yVarOption = ctrl.data.intersect.varOptions.y
+					ctrl.view.yVarOption =  {
+						val: ctrl.data.intersect[0],
+						options: ctrl.data.intersect 
+					}
 				} else {
-					updateOption(ctrl.view.yVarOption, ctrl.data.intersect.varOptions.y)
+					updateOption(ctrl.view.yVarOption, ctrl.data.intersect)
 				} // if
 				
 				
@@ -331,32 +360,23 @@ var cfD3Line = {
 				
 				// Helpers
 				
-				function updateOption(viewOption, dataOption){
+				function updateOption(viewOption, options){
 
 					// If the option does exist, then just update it.
-					if(!dataOption.options.includes( viewOption.val )){
+					if(!options.includes( viewOption.val )){
 						// The new options do not include the previously selected option value. Initialise a new one.
-						viewOption.val = dataOption.options[0]
+						viewOption.val = options[0]
 					} // if
 					
-					viewOption.options = dataOption.options
+					viewOption.options = options
 					
 				} // updateOption
 				
 				function assembleButtonMenuOptions(){
 					// The button menu holds several different options that come from different sources. One is toggling the axis AR of the plot, which has nothing to do with the data. Then the coloring and grouping of points using lines, which relies on metadata categorical variables. Thirdly, the options that are in the files loaded on demand are added in.
 					
-					// Make a custom option that fires an aspect ratio readjustment.
-					var arOption = {
-						name: "AR",
-						val: undefined,
-						options: ["User / Unity"],
-						event: cfD3Line.interactivity.toggleAR
-					} // arOption
-					
-					
 					// Make functionality options for the menu.
-					var codedPlotOptions = [color.settings, arOption]
+					var codedPlotOptions = [color.settings]
 					
 					return codedPlotOptions.concat( ctrl.view.options )
 					
@@ -367,10 +387,22 @@ var cfD3Line = {
 			// Functionality required to setup the tools.
 			setupLineSeries: function setupLineSeries(ctrl){
 				
-				// Retrieve the data once.
-				ctrl.data.series = ctrl.data.compatible.map(function(file){
-					return cfDataManagement.getLineDataVals(file, ctrl)
-				})
+				// Create the appropriate data series. Here the user's selection of variables is taken into accout too.
+				
+				ctrl.data.available = ctrl.data.available.map(function(dataobj){
+					
+					// Pass in the x variable and the y variable. Maintain reference to the task!!
+					
+					
+					dataobj.series = dataobj.file.content.data.map(function(point){	
+						return {
+							x: point[ctrl.view.xVarOption.val],
+							y: point[ctrl.view.yVarOption.val]
+						}
+					})
+					
+					return dataobj
+				}) // map
 				
 			}, // setupLineSeries
 			
@@ -402,8 +434,8 @@ var cfD3Line = {
 			
 				// The series are now an array of data for each of the lines to be drawn. They possibly consist of more than one array of values. Loop over all to find the extent of the domain.
 				
-				var seriesExtremes = ctrl.data.series.map(function(series){
-				
+				var seriesExtremes = ctrl.data.available.map(function(dataobj){
+					let series = dataobj.series
 					return {x: [d3.min(series, function(d){return d.x}),
  					            d3.max(series, function(d){return d.x})], 
 					        y: [d3.min(series, function(d){return d.y}),
@@ -724,25 +756,20 @@ var cfD3Line = {
 				// • .requested is an array of urls whose data are requested by the plotting tool. These need not be the same as the data in promises as those are loaded on user prompt!
 				// • .available is an array of urls which were found in the central booking,
 				// • .missing                              NOT found
-				// • .dataProperties is a string array of properties found in the data.
+				// • .ordinalProperties is a string array of properties found in the data.
 				// • .data is an array of n-data arrays of the n-task slice files.
 				
 				
 				var ctrl = {
 				    plotFunc: cfD3Line,
+					fileClass: line2dFile,
 					figure: undefined,
 					svg: undefined,
-					data: {promises: [],
-					       requested: [],
-						   available: [],
-						   duplicates: [],
-					       missing : [],
-						   compatible: [],
-						   incompatible: [],
-						   intersect: [],
-						   series: [],
-						   processor: importExport.importing.line
-					       },
+					data: {
+					   available: [],
+					   missing : [],
+					   intersect: [],
+					},
 					view: {sliceId: undefined,
 					       options: [],
 						   viewAR: NaN,
@@ -1006,6 +1033,3 @@ var cfD3Line = {
 		} // helpers
 	
 	} // cfD3Line
-		
-
-export { cfD3Line };

@@ -1,5 +1,3 @@
-import { dbsliceData } from '../core/dbsliceData.js';
-
 var crossPlotHighlighting = {
 			
 		on: function on(d, sourcePlotName){
@@ -123,8 +121,10 @@ var crossPlotHighlighting = {
 					  
 					  
 					case "cfD3Contour2d":
-						// Tasks to be highlighted come directly from the pile.
-						allDataPoints = d;
+						// The relevant points are those that were passed into the cross plot highlighting.
+						allDataPoints = d
+						
+					  break;
 					  
 					  					  
 					default:
@@ -155,6 +155,4 @@ var crossPlotHighlighting = {
 		}, // manuallySelectedTasks
 		
 	} // crossPlotHighlighting 
-							
-
-export { crossPlotHighlighting };
+	

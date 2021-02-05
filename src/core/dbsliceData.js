@@ -1,14 +1,6 @@
-
-// https://www.sitepoint.com/javascript-object-creation-patterns-best-practises/
-
-class dbsliceData = {
+var dbsliceData = {
 		data: undefined,
-		flowData: [],
-		session: {}
+		files: [],
+		session: {},
+		merging: {}
 	} // dbsliceData
-
-
-export let dbsliceData = new DbsliceData();
-
-
-

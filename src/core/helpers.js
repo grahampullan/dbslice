@@ -1,5 +1,5 @@
-
-var helpers = {
+// General helpers
+	var helpers = {
 		
 			isIterable: function isIterable(object) {
 			  // https://stackoverflow.com/questions/18884249/checking-whether-something-is-iterable
@@ -20,6 +20,13 @@ var helpers = {
 				return d.filter( onlyUnique )
 			
 			}, // unique
+			
+			arrayEqual: function arrayEqual(A, B){
+				
+				return helpers.arrayIncludesAll(A, B)
+					&& helpers.arrayIncludesAll(B, A)
+				
+			}, // arrayEqual
 			
 			arrayIncludesAll: function arrayIncludesAll(A,B){
 				// 'arrayIncludesAll' checks if array A includes all elements of array B. The elements of the arrays are expected to be strings.
@@ -70,129 +77,19 @@ var helpers = {
 			
 			}, // collectObjectArrayProperty
 			
+			setDifference: function (A, B){
+				
+				let a = new Set(A);
+				let b = new Set(B);
+				
+				return { 
+				  aMinusB: new Set([...a].filter(x => !b.has(x))),
+				  bMinusA: new Set([...b].filter(x => !a.has(x)))
+				}
+			}, // setDifference
+			
 			// Comparing file contents
 			
-			checkCompatibility: function checkCompatibility(files, accessor){
-				// 'checkCompatibility' checks if the properties retrieved using 'accessor( file )' are exactly the same. To check if the arrays are exactly the same all the contents of A have to be in B, and vice versa. 
-			  
-				// The first file is taken as the target. Others must be compatible to it.
-				var target = []
-				if(files.length > 0){
-					target = accessor( files[0] )
-				} // if
-				
-				
-				var compatibleFiles = files.filter(function(file){
-				
-					var tested = accessor( file )
-				
-					// Check if the tested array includes all target elements.
-					var allExpectedInTested = helpers.arrayIncludesAll(tested, target)
-					
-					// Check if the target array includes all test elements.
-					var allTestedInExpected = helpers.arrayIncludesAll(target, tested)
-					
-					return allExpectedInTested && allTestedInExpected
-				})
-				
-				
-				
-				// Remove any incompatible files from available files.
-				var compatibleUrls = compatibleFiles.map(function(file){return file.url})
-				var incompatibleFiles = files.filter(function(file){
-					return !compatibleUrls.includes( file.url )
-				})
-				
-				// Return the summary
-				return {compatibleFiles:   compatibleFiles,
-					  incompatibleFiles: incompatibleFiles}
-			  
-			}, // checkCompatibility
-				
-			chainCompatibilityCheck: function chainCompatibilityCheck(files, accessors){
-				// A wrapper to perform several compatibility checks at once.
-			  
-				var compatible = files
-				var incompatible = []
-					
-				// The compatibility checks are done in sequence.
-				accessors.forEach(function(accessor){
-					var c = helpers.checkCompatibility(compatible, accessor)
-					compatible = c.compatibleFiles
-					incompatible.concat(c.incompatibleFiles)
-				})
-		  
-				return {compatibleFiles:   compatible,
-					  incompatibleFiles: incompatible}
-			  
-			}, // chainCompatibilityCheck
-			  
-			getIntersectOptions: function getIntersectOptions(files){
-			  
-				// 'getIntersectOptions' returns the intersect of all options available. The compatibility checks established that the files have exactly the same option names available, now the intersect of option options is determined.
-
-				// Three different options exist.
-				// 1.) User options (tags such as 'height', "circumference"...)
-				// 2.) Var options (possibilities for the x and y axes)
-				// 3.) Common options - to cater for explicit variable declaration. These are not included for the intersect as the user will not be allowed to select from them for now.
-
-				// First select the options for which the intersect is sought for. It assumes that all the files will have the same userOptions. This should be guaranteed by the compatibility check.
-				
-				
-				var i = helpers.calculateOptionIntersect
-				// 'calculateOptionIntersect' is geared to deal with an array of options, therefore it returns an array of intersects. For x and y options only 1 option is available, therefore the array wrapper is removed here.
-				var xVarIntersect = i( files, function(f){return [f.data.varOptions.x]}  )
-				var yVarIntersect = i( files, function(f){return [f.data.varOptions.y]}  )
-				
-				// Why index the first one out? To remove the array wrapper. User options need the array wrapper to allow later inclusion of additional options.
-				return {
-				   userOptions: 
-						   i( files, function (f){return f.data.userOptions} ),
-					varOptions: {
-						x: xVarIntersect[0],
-						y: yVarIntersect[0]
-					} // varOptions
-				} // intersectOptions
-				
-
-					
-			}, // getIntersectOptions
-					
-			calculateOptionIntersect: function calculateOptionIntersect( files, accessor ){
-				// 'calculateOptionIntersect' takes teh array of files 'files' and returns all options stored under the attribute files.data[<optionsName>] that all the files have.
-				
-				// The first file is selected as teh seed. Only the options that occur in all files are kept, so the initialisation makes no difference on the end result.
-				var seedSelections = accessor( files[0] )
-				var intersect = seedSelections.map(function(seedSelection){
-					
-					// The options of the seed user options will be the initial intersect options for this particular option.
-					var intersectOptions = seedSelection.options
-					
-					// For each of the options loop through all the files, and see which options are included. Only keep those that are at every step.
-					files.forEach(function(file){
-						
-						// For this particular file fitler all the options for this particular user option.
-						intersectOptions = intersectOptions.filter(function(option){
-						
-							// It is expected that only one option of the same name will be present. Pass in an option that only one element is required - last 'true' input.
-							var fileOptions = helpers.findObjectByAttribute(accessor(file), "name", [seedSelection.name], true)
-							
-							return fileOptions.options.includes( option )
-						}) // filter
-					}) // forEach
-
-					return {name: seedSelection.name,
-							 val: intersectOptions[0],
-						 options: intersectOptions}
-					
-				}) // map
-				
-				// Don't unwrap if it is a single object. In some cases the array is needed to allow other options to be joined later on.
-				
-				return intersect
-			
-			
-			}, // calculateOptionIntersect
 			
 			// Text sizing
 			fitTextToBox: function fitTextToBox(text, box, dim, val){
@@ -227,7 +124,22 @@ var helpers = {
 			
 			}, // calculateExponent
 			
+			
+			// FILES
+			createFileInputElement: function createFileInputElement(loadFunction){
+				
+				// This button is already created. Just add the functionaity.
+				var dataInput = document.createElement('input');
+				dataInput.type = 'file';
+
+				dataInput.onchange = function(e){
+					loadFunction(e.target.files)
+				}; // onchange
+				
+			  return dataInput
+				
+			}, // createFileInputElement
+		   
+			
 	} // helpers
 	
-
-export { helpers };

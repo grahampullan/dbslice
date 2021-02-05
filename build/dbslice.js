@@ -5,8 +5,9 @@ var dbslice = (function (exports) {
 	// State object.
 	var dbsliceData = {
 		data: undefined,
-		flowData: [],
-		session: {}
+		files: [],
+		session: {},
+		merging: {}
 	} // dbsliceData
 
 	// Positioning of plots
@@ -124,90 +125,6 @@ var dbslice = (function (exports) {
             d.format.position.delta = undefined
         }, // dragEnd
         
-		
-		dragSmooth: function dragSmooth(ctrl){
-			
-			/*
-			ctrl = {
-				wrapper: card to move
-				container: bounding element
-				onstart: on-start event
-				onmove: on-move event
-				onend: on-end event
-				position: position accessor
-			}
-			*/
-			
-			function getMousePosition(containerDOM){
-					
-				let mousePosition = d3.mouse(containerDOM)
-				
-				return {
-					x: mousePosition[0],
-					y: mousePosition[1]
-				}
-			} // getMousePosition
-			
-			// Position: absolute is somehow crucial to make thedragging smooth at the start!
-			return d3.drag()
-				.on("start", function(d){
-					let position = ctrl.position(d)
-					position.mouse = getMousePosition(ctrl.container.node())
-					ctrl.onstart(d)		
-				})
-				.on("drag", function(d){
-					let position = ctrl.position(d)
-					let mp0 = position.mouse
-					let mp1 = getMousePosition(ctrl.container.node())
-					
-					
-					let movement = {
-						x: mp1.x - mp0.x,
-						y: mp1.y - mp0.y
-					}
-					
-					position.mouse = mp1
-					
-					
-					// Stop the movement exceeding the container bounds.
-					let rightBreach = position.w + position.x + movement.x > ctrl.container.node().offsetWidth
-					let leftBreach = position.x + movement.x < 0
-					if( rightBreach || leftBreach ){
-						movement.x = 0
-					} // if
-					
-					// Bottom breach should extend the plot!
-					if( position.y + movement.y < 0 ){
-						movement.y = 0
-					} // if
-					
-					position.x += movement.x
-					position.y += movement.y
-					
-					
-					
-				
-					ctrl.wrapper(d)
-					  .style("left", position.x + "px")
-					  .style("top", position.y + "px")
-					  
-					  
-					// Also update the ix and iy.
-					let dx = positioning.dx(ctrl.container)
-					let dy = positioning.dy(ctrl.container)
-					
-					position.ix = Math.floor( position.x / dx )
-					position.iy = Math.floor( position.y / dy )
-					  
-					// Move also all the members.
-					ctrl.onmove(d)
-				})
-				.on("end", function(d){
-					// Fix into grid positions?
-					ctrl.onend(d)
-				})
-			
-		}, // dragSmooth
 		
 		// Resizing plots
 		
@@ -341,59 +258,9 @@ var dbslice = (function (exports) {
 			
 		}, // newPlot
         
-		newCard: function newCard(plotCtrl){
-			
-			
-			// The difference between plots and cards is that plots are added manually, and the cards are added automatically.
-			
-			let h = positioning.helpers
-			let occupiedNodes = []
-			
-			// Collect already occupied nodes. Check if there are any existing contours here already. The existing contours will have valid `ix' and `iy' positions. Position all new cards below the existing ones. This means that all nodes that have an existing card below them are `occupied'.
-			
-			// How to eliminatethe empty space at the top though?? Calculate the min iy index, and offset all plots by it?
-			let minOccupiedIY = d3.min(plotCtrl.data.plotted, function(d){
-				return d.format.position.iy})
-			plotCtrl.data.plotted.forEach(function(d){
-				d.format.position.iy -= minOccupiedIY
-			})
-				
-			let maxOccupiedIY = 	d3.max(plotCtrl.data.plotted, function(d){
-				return d.format.position.iy + d.format.position.ih})
-			h.pushNodes(occupiedNodes, 0, 0, plotCtrl.grid.nx, maxOccupiedIY)
-			
-			
-			
-			// With all the occupied nodes known, start positioning the contours that are not positioned.
-			let dx = positioning.dx(plotCtrl.figure)
-			let dy = positioning.dy(plotCtrl.figure)
-			
-			plotCtrl.data.plotted.forEach(function(d){
-				let pn = d.format.position
-			
-				
-				// Position this card, but only if it is unpositioned.
-				if( ( (pn.ix == undefined) || isNaN(pn.ix) ) && 
-				    ( (pn.iy == undefined) || isNaN(pn.iy) ) ){
-					
-					// Position the plot on hte grid.
-					positioning.onGrid(plotCtrl.grid.nx, occupiedNodes, pn)
-					
-					// Add position in absolute coordinates
-					pn.x = pn.ix*dx
-					pn.y = pn.iy*dy
-				
-					// Mark the nodes as occupied.
-					h.pushNodes(occupiedNodes, pn.ix, pn.iy, pn.iw, pn.ih)
-					
-				} // if
-				
-			}) // forEach plot
-			
-			
-			
-			
-		}, // newCard
+		
+		// This is only really used by the contour2d plot
+		
 		
 		onGrid: function onGrid(nx, occupiedNodes, pn){
 			
@@ -531,9 +398,12 @@ var dbslice = (function (exports) {
 						h.pushNodes(occupiedNodes, pn.ix, pn.iy, pn.iw, pn.ih)
 						
 						// Update the plot DOMs.
-						f.wrapper
-						  .style("left", (f.parent.offsetLeft + f.position.ix*dx) + "px")
-						  .style("top" , (f.parent.offsetTop + f.position.iy*dy) + "px")
+						if(f.wrapper){
+							f.wrapper
+							  .style("left", (f.parent.offsetLeft + f.position.ix*dx) + "px")
+							  .style("top" , (f.parent.offsetTop + f.position.iy*dy) + "px")
+						} // if
+						
 						  
 					} // if
 				})
@@ -799,735 +669,2711 @@ var dbslice = (function (exports) {
 	} // lasso
 	
 	
+	
+	
+	
+	
+	
 	// Data management. Handles all internal data manipulation.
 	// MERGE WITH IMPORT/EXPORT?
-	var cfDataManagement = {
+	var cfDataManager = {
 		
-		cfInit: function cfInit(metadata){
+		cfInit: function cfInit(){
       
-			var cfData = {};
-			cfData.metaDataProperties = metadata.header.metaDataProperties;
-			cfData.dataProperties = metadata.header.dataProperties;
-			cfData.line2dProperties = metadata.header.line2dProperties;
-			cfData.contour2dProperties = metadata.header.contour2dProperties;
+			// Initialise the internal data as empty. So this just gives the general structure of the internal data. The structure of 'dbsliceData' gives the general separation between files, internal data, and session.
+	  
 			
-			cfData.cf = crossfilter(metadata.data);
-			cfData.metaDims = [];
-			cfData.metaDataUniqueValues = {};
-			cfData.dataDims = [];
-			cfData.taskDim = []
-			cfData.fileDim = [];
-			cfData.filterSelected = [];
-			cfData.histogramSelectedRanges = [];
-			cfData.manuallySelectedTasks = [];
 			
-			// Populate the metaDims and metaDataUniqueValues.
-			cfData.metaDataProperties.forEach(function (property, i) {
-				// Dimension object
-				cfData.metaDims[property] = 
-					cfData.cf.dimension(function (d){return d[property];})
+			let cfData = {
 				
-				// Its unique values
-				cfData.metaDataUniqueValues[property] = helpers.unique( metadata.data.map(
-					function (d){return d[property]}
-				));
-			}); // forEach
+				categoricalProperties: [],
+				ordinalProperties: [],
+				line2dProperties: [],
+				contour2dProperties: [],
+				
+				cf: crossfilter([]),
+				
+				categoricalDims: [],
+				ordinalDims: [],
+				taskDim : undefined,
+				fileDim : undefined,
+				
+				filterSelected: [],
+				histogramSelectedRanges: [],
+				manuallySelectedTasks: [],
+				
+				categoricalUniqueValues: {},
 			
-			
-			// Populate the dataDims. cf.dimension(function(d){return d.<property>}) sets up a dimension, which is an object that can perform some specific tasks based on the data it is give. Two of these are "top(n)", and "bottom(n)", whih return topmost and bottommost n elements respectively.
-			cfData.dataProperties.forEach(function (property, i) {
-			  cfData.dataDims[property] = 
-				cfData.cf.dimension(function (d){return d[property];});
-			}); // forEach
-			
+			}; // cfData
 			
 
-			cfData.fileDim = cfData.cf.dimension(function (d){return d.__file__;})
-			cfData.taskDim = cfData.cf.dimension(function (d){return d.taskId;})
+			cfData.fileDim = cfData.cf.dimension(d=>d.filenameId)
+			cfData.taskDim = cfData.cf.dimension(d=>d.taskId)
 			
-
-			// Check if any histogram selected ranges have already been set up. This is important when the data is being replaced.
-			if(dbsliceData.data !== undefined){
-				if(dbsliceData.data.histogramSelectedRanges !== undefined){
-					cfData.histogramSelectedRanges = dbsliceData.data.histogramSelectedRanges
-				} // if
-			} // if
-			
-			
-			// Store data internally
-		    dbsliceData.data = cfData;
-			
-			// Update the color options.
-			color.settings.options = dbsliceData.data.metaDataProperties
-			
-			
-		
+			dbsliceData.data = cfData
 			
 		}, // cfInit
 				
-		cfAdd: function cfAdd(metadata){
-			// This function attempts to add data to the already existing dataset. It allows a compromise between searching for all available data and loading it in, and personally creating additional combinations of the metadata in csv files.
-			// The ideal solution would be for each individual task to have it's own small metadata file, which could then by parsed by a search engine. This is unpractical for a localised application - this functionality is usable however.
-			
-			// If no data is currently loaded then call cfInit instead - this allows the dimensions to be overrun.
-			if (dbsliceData.data !== undefined){
-				
-				
-				// If no data is currently loaded then call cfInit instead - this allows the dimensions to be overrun.
-				if (dbsliceData.data.cf.all().length < 1){
-					cfDataManagement.cfInit(metadata)
-			
-				} else {
-			
-					// Here the compatibility of data needs to be assessed. If the new dataset has the same variables as the existing datasets, then add those in. If it does not do nothing.
-					var canMerge = cfDataManagement.helpers.crossCheckProperties(dbsliceData.data, metadata)
-					
-					if(canMerge){
-						
-						// Add these records into the dataset.
-						dbsliceData.data.cf.add(metadata.data)
 
-					} // if
-				} // if
-				
-				
-			} else {
-				cfDataManagement.cfInit(metadata)
-			} // if
+		cfChange: function(metadata){
+			// Handle the change to the metadata. Simply exchange all the internal data. But, I may need to retain the filter settings?
 			
-			
-		}, // cfAdd
-			
-		cfRemove: function cfRemove(dataFilesToRemove){
-			// This function will remove the data from the crossfilter.
-			
-			// Remove the current user selected filter.
-			filter.remove()
-			
-			// Apply a temporary filter: which files are to be removed..
-			dbsliceData.data.fileDim.filter(function(d){
-				return dataFilesToRemove.indexOf(d) > -1
-			})
-			
-			
-			// Remove the data.
+			// Exchange the data.
 			dbsliceData.data.cf.remove()
+			dbsliceData.data.cf.add(metadata.data)
 			
-			
-			// Remove the temporary filter.
-			dbsliceData.data.fileDim.filterAll()
-			
-			
-			// Refresh the data info
-			cfDataManagement.helpers.refreshMetadataInfo()
-			
-			// Reinstate user specified data filters.
-			filter.apply()
-			
-			
-		}, // cfRemove
-		
-		
-		// Variable handling
-		variableUseChange: function variableUseChange(newHeader){
-			
-			// Go through the new header. The changes require also the crossfilter dimensions to be adjusted.
-			
-			
-			
-			
-			Object.keys(newHeader).forEach(function(key){
-				let cfData = dbsliceData.data
-				
-				let diff = setDifference(cfData[key], newHeader[key])
-				
-				switch(key){
-					case "metaDataProperties":
-					  
-					  // Dimensions first
-					  resolveDimensions(cfData.metaDims, diff)
-					  
-					  // Handle the metadata unique values arrays.
-					  resolveUnique(cfData.metaDataUniqueValues, diff, function (varName){
-							return helpers.unique( 
-								  cfData.fileDim.top(Infinity).map(
-									function (d){return d[varName]}
-								  )
-								);
-						})
-						
-					  cfData[key] = newHeader[key]
-					  
-					  break;
-					
-					case "dataProperties":
-					
-					  // Dimensions first
-					  resolveDimensions(cfData.metaDims, diff)
-					  
-					  resolveUnique(cfData.histogramSelectedRanges, diff, function(){return undefined})
-					  
-					  cfData[key] = newHeader[key]
-					
-					  break;
-					  
-					case "line2dProperties":
-					case "contour2dProperties":
-					  // Just replace the options
-					  cfData[key] = newHeader[key]
-					  break;
-					
-				} // switch
-				
-			})
+			// Resolve the differences between the old variables and the new variables.
+			cfDataManager.resolve.cfData.headerChange(metadata.header)
 			
 			// Update the color options.
-			color.settings.options = dbsliceData.data.metaDataProperties
+			color.settings.options = dbsliceData.data.categoricalProperties
 			
-			
-			// PLOTS NEED TO BE REFRESHED, AS WELL AS THE MENUS THAT HOLD THE VARIABLES!!!
-			importExport.helpers.onDataAndSessionChangeResolve()
-			
-			
-			function resolveUnique(vals, diff, populate){
+			// Push the UI to adjust to the internal change too.
+			sessionManager.resolve.ui.dataAndSessionChange()
+		}, // cfChange
 				
-				
-				diff.aMinusB.forEach(function(varName){
-					delete vals[varName]
-			    })
-				
-				
-				diff.bMinusA.forEach(function(varName){
-				    vals[varName] = populate(varName)
-			    })
-
-			} // resolveUnique
-			
-			
-			function resolveDimensions(dims, diff){
-				
-			    // Those in A, but not in B, must have their cf dimensions removed.
-			    diff.aMinusB.forEach(function(varName){
-					delete dims[varName]
-					
-			    })
-			  
-			    // Those in B, but not in A, must have cf dimensions created.
-			    diff.bMinusA.forEach(function(varName){
-				    let newDim = dbsliceData.data.cf.dimension(function (d){return d[varName];})
-				  
-				    dims[varName] = newDim
-			    })
-				
-			} // resolveDimensions
-			
-			
-			function setDifference(A, B){
-				
-				
-				let a = new Set(A);
-				let b = new Set(B);
-				
-				return { 
-				  aMinusB: new Set([...a].filter(x => !b.has(x))),
-				  bMinusA: new Set([...b].filter(x => !a.has(x)))
-				}
-			}
-			
-		}, // variableUseChange
 		
-		
-		// On-demand file library:
-		refreshTasksInPlotRows: function refreshTasksInPlotRows() {
-			// Collect all files that need to be loaded, create promises for them and store them into plot promise arrays that can be used to signal to the plot functions when they can update themselves.
+		resolve: {
 			
-			// It is expected that the individual plot controls have the sliceId specified in 'ctrl.view.sliceId', and that they have the promises stored under 'ctrl.data.promises'.
-			
-			// 'dbsliceData.flowData' will contain references to all promises created, and will keep track of the individual file promises. 'plotPromise' is an array of promises constructed for individual plots, and should trigger the redraw on completion of promise.
-			
-			
-			// First do an inventory check of the central booking, and clear out unnecessary items.
-			
-			
-			
-			// Collect all the files that need to be loaded. Note that the files are individual properties of the records in the crossfilter.
-			cfDataManagement.removeRedundantFiles()
-			
-			
-			var filteredTasks = dbsliceData.data.taskDim.top(Infinity)
-			
-			
-			
-			// Create the actual promises to be stored in the central booking. This is a duplicative loop over the existing promises because the plot ctrl assigns the data processor function, which 'collectAllRequiredFiles' does not collect.
-			dbsliceData.session.plotRows.forEach(function(plotRowCtrl, i){
-			
-				// Only consider plots for loading if the plot row is a "plotter". In future this could be moved to the actual plot ctrl's themselves and they could say whether they're expecting data from outside or not.
-				if(plotRowCtrl.type == "plotter"){
-					
-				plotRowCtrl.plots.forEach(function(plotCtrl, j){
-			  
+			// cfdata
+			cfData: {
 				
-					// Loop over all the files that will be required for this plot.
-					var sliceId = plotCtrl.view.sliceId
-					var requiredFiles = filteredTasks.map(function(d){return d[sliceId] })
+				headerChange: function(newHeader){
 					
-					// For this particular plot all promises must be made, and a record tracked.
-					var plotPromise = []
-					var file = undefined
+					let resolve = cfDataManager.resolve
+					let cfData = dbsliceData.data
 					
-					requiredFiles.forEach(function(url, k){
+					// Maybe just list them, instead of going through the switch??
 					
-						// The loaded files must be updated to prevent duplicate loading.
-						file = undefined
-						var loadedFiles = dbsliceData.flowData.map(function(d){return d.url})
-					
-					
-						// Check if a promise to this file has already been created.
-						var fileIndex = loadedFiles.indexOf( url )
-						if( fileIndex < 0 ){
-							//console.log("loading: " + url)
-							// Promise for this file does not yet exist. Create it, store a reference in 'dbsliceData.flowData', and another in the 'plotCtrl.data.promises'. The storing into 'dbsliceData.flowData' is done in the makeFilePromise already. The storing in the plot ctrl is done to allow the plotting function itself to identify any differences between the plotted state and the tasks selected in hte filter. This is useful if the plots should communicate to the user that they need to be updated.
-							file = makeFilePromise( url, plotCtrl.data.processor )
-							
-						} else {
+					// Go through the new header. The changes require also the crossfilter dimensions to be adjusted.
+					Object.keys(newHeader).forEach(function(key){
 						
-							file = dbsliceData.flowData[fileIndex]
-							
-						} // if
+						// Find the differences for this category that need to be resolved. 'diff' has items aMinusB (in current, but not in new) and bMinusA ( in new, but not in current)
+						let diff = helpers.setDifference(cfData[key], newHeader[key])
 						
-						plotCtrl.data.promises.push( file.promise )
-					
+						switch(key){
+							case "categoricalProperties":
+							  
+								// Dimensions first
+								resolve.cfData.dimensions(cfData.categoricalDims, diff)
+							  
+								// Metadata dimensions have precomputed unique values. Create these ones for new variables, and delete any unnecessary ones.
+								resolve.cfData.uniqueValues(cfData.categoricalUniqueValues, diff)
+							  break;
+							
+							case "ordinalProperties":
+							
+								// Dimensions first
+								resolve.cfData.dimensions(cfData.ordinalDims, diff)
+							  
+								// Data dimensions have corresponding histogram ranges. Delete unnecessary ones, and create necessary ones.
+								resolve.cfData.histogramRanges(cfData.histogramSelectedRanges, diff)
+							  break;
+							  
+							case "line2dProperties":
+							case "contour2dProperties":
+								// Nothing apart from the default change of the options in the header needs to be done.
+							  break;
+							
+						} // switch
+						
+						// Resolve the header.
+						cfData[key] = newHeader[key]
+						
 					}) // forEach
+					
+				}, // headerChange
 				
+				dimensions: function dimensions(dims, diff){
 				
-					// If a file is not found a rejected promise is stored. Therefore, if dbslice couldn't find the file, it will not look for it again. If it would instead search for it every time the refresh button is clicked, missing file issues could be resolved on the fly. However, if data is missing in the files the app must be reloaded so that the promises are cleared, so that on next load the new data is loaded too.
-					// It is important that the promises log themselves immediately, and remain in place in order to ensure no additional loading is scheduled. Therefore the central booking must clear out the rejected files AFTER all the promises have been processed. This is done when the "Plot Selected Tasks" button is pressed again. 
+					// Those in A, but not in B, must have their cf dimensions removed.
+					diff.aMinusB.forEach(function(varName){
+						delete dims[varName]
+						
+					})
+				  
+					// Those in B, but not in A, must have cf dimensions created.
+					diff.bMinusA.forEach(function(varName){
+						let newDim = dbsliceData.data.cf.dimension(function (d){return d[varName];})
+					  
+						dims[varName] = newDim
+					})
+					
+				}, // dimensions
+				
+				uniqueValues: function(vals, diff){
+				
+					cfDataManager.resolve.cfData.attributes(vals, diff, function (varName){
+						// Find all the unique values for a particular variable.
+						return helpers.unique( 
+							  dbsliceData.data.cf.all().map(
+								function (d){return d[varName]}
+							  )
+							);
+					})
 					
 					
-					// Now that all the plot promises have been assembled, attach the event to run after their completion.
-					addUpdateOnPromiseCompletion(plotCtrl, sliceId, i, j)
+				}, // uniqueValues
 				
-			  
-				}) // forEach
+				histogramRanges: function(vals, diff){
+					
+					cfDataManager.resolve.cfData.attributes(vals, diff, function (varName){
+						// Find the max range for the histogram.
+						
+						let tasks = dbsliceData.data.cf.all()
+						
+						return d3.extent(tasks, d=>d[varName])
+					})
+					
+				}, // histogramRanges
 				
-				} // if
+				attributes: function (vals, diff, populate){
+					// Vals is an object of attributes that  needs to be resolved. The resolution of the attributes is given by diff. Populate is a function that states how that attribute should be populated if it's being created.
+					
+					// Delete
+					diff.aMinusB.forEach(function(varName){
+						delete vals[varName]
+					})
+					
+					// Variables that are in 'new', but not in 'old'.
+					diff.bMinusA.forEach(function(varName){
+						// If a populate function is defined, then create an entry, otherwise create an empty one.
+						if(populate){
+							vals[varName] = populate(varName)	
+						} else {
+							vals[varName] = []
+						} // if
+					})
+
+				}, // attributes
+				
+			}, // cfData
 			
+		}, // resolve
+		
+	} // cfDataManager
+	
+	var sessionManager = {
+	
+		initialise: function(session){
+			
+			dbsliceData.session = session
+			
+			// Add in a reference to the element for ease of use.
+			dbsliceData.session.element = d3.select("#" + dbsliceData.session.elementId)
+			
+			// Build adds the functionality, update updates
+			builder.build.sessionHeader()
+			builder.update.sessionHeader()
+			
+			// Build the body too.
+			builder.update.sessionBody()
+			
+		}, // initialise
+		
+		render: function (){
+			var element = d3.select( "#" + dbsliceData.session.elementId );
+
+			// Update and build elements in particular plot rows.
+			builder.update.sessionHeader(element)
+			
+			builder.update.sessionBody()
+			
+
+		    // Control all button and menu activity;
+			sessionManager.enableDisableAllButtons();			
+			
+		}, // render
+		
+		refreshTasksInPlotRows: function (){
+			
+			// Every file can demand it's own files, therefore we can just update them as we go, and then update the library at the end.
+			let filteredTasks = dbsliceData.data.taskDim.top(Infinity)
+			
+			dbsliceData.session.plotRows.forEach(function(plotRowCtrl){
+				plotRowCtrl.plots.forEach(function(plotCtrl){
+			  
+					if(plotCtrl.view.sliceId){
+						// If the sliceId is defined the plot is expecting on demand data.
+						
+						let files = filteredTasks.map(function(task){
+							return {
+								url: task[plotCtrl.view.sliceId],
+								filename: task[plotCtrl.view.sliceId]
+							}
+						})
+						
+						// Import the files
+						let requestPromises = fileManager.importing.batch(plotCtrl.fileClass, files)
+						
+						// Launch a task upon loading completion.
+						Promise.allSettled( requestPromises ).then(function(fileobjs){
+							plotCtrl.plotFunc.updateData(plotCtrl)
+						}) // then
+						
+					} // if
+				
+					
+				}) // forEach
 			}) // forEach
 			
-			function makeFilePromise( url, processor ){
-				// Has to return an object {url: url, promise: Promise(url)}. Furthermore, the completion of the promise should store the data into this same object.
-				
-				var file = {  url: url,
-						  promise: undefined,
-							 data: undefined}
-				
-				// Create teh promise to load and process the data.
-				file = processor.createFilePromise(file)
-				
-				// Store the file into the central booking location.
-				dbsliceData.flowData.push( file )
-				
-				return file
-				
-			} // makeFilePromise
-			
-			function addUpdateOnPromiseCompletion(plotCtrl, sliceId, i, j){
-			
-				
-				Promise.all( plotCtrl.data.promises ).then(function(){
-					// The data has been loaded, start the plotting. How to pass in special parameters?
-					
-					// console.log("Started plotting slice: "+sliceId+" ( plotRow:"+i+", plot: "+j+")")
-					
-					
-					plotCtrl.plotFunc.updateData(plotCtrl)
-					
-				})
-			
-			} // addUpdateOnPromiseCompletion
 
 		}, // refreshTasksInPlotRows
 		
-		collectAllRequiredUrls: function collectAllRequiredUrls(filteredTasks){
 		
-			var requiredUrls = []
-			dbsliceData.session.plotRows.forEach(function(plotRowCtrl){
+		enableDisableAllButtons(){
 			
-				plotRowCtrl.plots.forEach(function(plotCtrl){
-			  
+			// This functionality decides which buttons should be enabled.
+			var metadata = dbsliceData.data.taskDim.top(Infinity)
+			var isDataInFilter = metadata.length !== undefined && metadata.length > 0;
+			
+			// For the data to be loaded some records should have been assigned to the crossfilter.
+			var isDataLoaded = false
+			if(dbsliceData.data !== undefined){
+				isDataLoaded = dbsliceData.data.cf.size() > 0
+			} // if
+			
+			
+			
+			
+			// GROUP 1: SESSION OPTIONS
+			// Button controlling the session options is always available!
+			document.getElementById("sessionOptionsButton").disabled = false;
+			
+			// "Load session" only available after some data has been loaded.
+			// Data: Replace, add, remove, Session: save, load
+			// These have to have their class changed, and the on/click event suspended!!
+			listItemEnableDisable( "saveSession" , true )
+			listItemEnableDisable( "metadataMerging" , isDataInFilter )
+			
+			
+			// GROUP 2: ON DEMAND FUNCTIONALITY
+			// "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
+			var refreshTasksButton = d3.select("#refreshTasksButton")
+			arrayEnableDisable(refreshTasksButton, isDataInFilter)
+			
+			
+			
+			
+			// GROUP 3: ADDING/REMOVING PLOTS/ROWS
+			// "Add plot row" should be available when the data is loaded. Otherwise errors will occur while creating the apropriate menus.
+			document.getElementById("addPlotRowButton").disabled = !isDataLoaded;
+			
+			
+			// "Remove plot row" should always be available.
+			var removePlotRowButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-danger")
+			arrayEnableDisable(removePlotRowButtons, true)
+			
+			
+			// "Add plot" should only be available if the data is loaded.
+			var addPlotButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-success");
+			arrayEnableDisable(addPlotButtons, isDataInFilter)
+							
+			// "Remove plot" should always be available.
+			var removePlotButtons = d3.selectAll(".plotTitle").selectAll(".btn-danger");
+			arrayEnableDisable(removePlotButtons, true)
+			
+			
+			// GROUP 4: Plot interactive controls.
+			var plotInteractionButtons = d3.selectAll(".plot").selectAll(".btn")
+			arrayEnableDisable(plotInteractionButtons, true)
+			
+			
+			
+			function arrayEnableDisable(d3ButtonSelection, conditionToEnable){
 				
-					// Loop over all the files that will be required for this plot.
-					if(plotCtrl.view.sliceId != undefined){
+				if(conditionToEnable){
+					// Enable the button
+					d3ButtonSelection.each(function(){ this.disabled = false })
+				} else {
+					// Disable the button
+					d3ButtonSelection.each(function(){ this.disabled = true })         
+				}; // if					
+				
+			} // arrayEnableDisable
+			
+			
+			function listItemEnableDisable(elementId, conditionToEnable){
+				
+				let el = document.getElementById(elementId)
+				if(el){
+					if(conditionToEnable){
+						// Enable the button
+						el.classList.remove("disabled")
+						el.style.pointerEvents = 'auto'
+					} else {
+						// Disable the button
+						el.classList.add("disabled")
+						el.style.pointerEvents = 'none'
+					}; // if
+				} // if
+				
+			} // listItemEnableDisable
+			
+			
+		}, // enableDisableAllButtons
+		
+		
+		onSessionFileLoad: function(fileobj){
+			
+			Object.assign(dbsliceData.merging, fileobj.content.merging)
 						
-						requiredUrls = requiredUrls.concat( filteredTasks.map(function(d){
-							return d[ plotCtrl.view.sliceId ] 
-						}))
+			// The session should be applied and resolved straight away. But only if the session is defined!
+			if(fileobj.content.session){
+				dbsliceData.session.title = fileobj.content.session.title
+				
+				// Instantiate the plot rows
+				dbsliceData.session.plotRows = fileobj.content.session.plotRows.map(function(ctrl){return new plotRow(ctrl)})
+			} // if
+			
+			
+			sessionManager.resolve.ui.dataAndSessionChange()
+			
+		}, // onSessionFileLoad
+		
+		resolve: {
+			
+			ui: {
+			
+				dataAndSessionChange: function(){
+					
+					
+					// Update the merging.
+					dbsliceDataCreation.make()
+					
+					// Update the UI
+					sessionManager.render()
+					
+				}, // dataAndSessionChange
+				
+			}, // ui
+			
+			
+		}, // resolve
+		
+		
+		write: function(){
+			
+			var contentobj = {
+				mergingInfo: dbsliceData.merging,
+				sessionInfo: {
+					title: dbsliceData.session.title,
+					plotRows: dbsliceData.session.plotRows.map(function(plotrow){
+						return {
+							title: plotrow.title,
+							type: plotrow.type,
+							plots: plotrow.plots.map(prunePlot)
+						}
+					}) // map
+					
+				}
+			}
+			
+			
+			function prunePlot(plotCtrl){
+				// Only a few things need to be retained: yProperty, xProperty and sliceId
+				
+				let saveCtrl = {
+					plottype: plotCtrl.plotFunc.name,
+				}
+				
+				if(plotCtrl.view.xVarOption){
+					saveCtrl.xProperty = plotCtrl.view.xVarOption.val
+				} // if
+				
+				if(plotCtrl.view.yVarOption){
+					saveCtrl.yProperty = plotCtrl.view.yVarOption.val
+				} // if
+				
+				if(plotCtrl.view.sliceId){
+					saveCtrl.sliceId = plotCtrl.view.sliceId
+				} // if
+				
+				return saveCtrl
+			} // prunePlot
+			
+			
+			return JSON.stringify( contentobj )
+
+			
+			// Write together.
+			
+		}, // write
+		
+		
+		
+	} // sessionManager
+	
+	var fileManager = {
+	
+		// CHECK TO SEE IF THE FILE WAS ALREADY LOADED!!
+		importing: {
+			
+			
+			// PROMPT SHOULD BE MOVED!!
+			prompt: function(requestPromises){
+				// Only open the prompt if any of the requested files were metadata files!
+				
+				Promise.allSettled(requestPromises).then(function(loadresults){
+					
+					if(loadresults.some(res=>res.value instanceof metadataFile)){
+					
+						let allMetadataFiles = fileManager.library.retrieve(metadataFile)
+
+						// PROMPT THE USER
+						if(allMetadataFiles.length > 0){
+							// Prompt the user to handle the categorication and merging.
+							
+							// Make the variable handling
+							dbsliceDataCreation.make()
+							dbsliceDataCreation.show()
+							
+						} else {
+							// If there is no files the user should be alerted. This should use the reporting to tell the user why not.
+							alert("None of the selected files were usable.")
+						} // if
+						
 					} // if
-			  
-			    }) // forEach
+										
+				}) // then
+				
+			}, // prompt
 			
+			
+			dragdropped: function(files){
+				// In the beginning only allow the user to load in metadata files.
+				
+				let requestPromises
+				let allMetadataFiles = fileManager.library.retrieve(metadataFile)
+				if(allMetadataFiles.length > 0){
+					// Load in as userFiles, mutate to appropriate file type, and then push forward.
+					requestPromises = fileManager.importing.batch(userFile, files)
+					
+				} else {
+					// Load in as metadata.
+					requestPromises = fileManager.importing.batch(metadataFile, files)
+				} // if
+				
+				fileManager.importing.prompt(requestPromises)
+				
+				
+			}, // dragdropped
+			
+			
+			single: function(classref, file){
+				
+				// Construct the appropriate file object.
+				let fileobj = new classref(file)
+				
+				// Check if this file already exists loaded in.
+				let libraryEntry = fileManager.library.retrieve(undefined, fileobj.filename)
+				if(libraryEntry){
+					fileobj = libraryEntry
+				} else {
+					// Initiate loading straight away
+					fileobj.load()
+					
+					// After loading if the file has loaded correctly it has some content and can be added to internal storage.
+					fileManager.library.store(fileobj)
+				} // if
+				
+
+				// The files are only stored internally after they are loaded, therefore a reference must be maintained to the file loaders here.
+				return fileobj.promise
+				
+			}, // single
+			
+			batch: function(classref, files){
+				// This is in fact an abstract loader for any set of files given by 'files' that are all of a file class 'classref'.
+				
+				
+				let requestPromises = files.map(function(file){
+					return fileManager.importing.single(classref, file)
+				})
+				
+				return requestPromises
+				
+				
+			}, // batch
+			
+		}, // importing
+		
+		library: {
+			
+			update: function(){
+				// Actually, just allow the plots to issue orders on hteir own. The library update only collects the files that are not required anymore.
+				
+				
+				
+				let filteredTasks = dbsliceData.data.taskDim.top(Infinity)
+				
+				var requiredFilenames = []
+				dbsliceData.session.plotRows.forEach(function(plotRowCtrl){
+					plotRowCtrl.plots.forEach(function(plotCtrl){
+				  
+						// If a sliceId is defined, then the plot requires on-demand data.
+						if(plotCtrl.view.sliceId != undefined){
+							
+							requiredFiles = requiredFiles.concat( 
+								filteredTasks.map(function(d){
+									return d[ plotCtrl.view.sliceId ]
+								}) // map
+							) // concat
+						} // if
+				  
+					}) // forEach
+				}) // forEach
+				
+				
+				// Remove redundant files of this classref.
+				let allRequiredFilenames = requiredFiles.map(d=>d.filename)
+				
+				let filesForRemoval = dbsliceData.files.filter(function(file){
+					return allRequiredFilenames.includes(file.filename)
+				}) // filter
+				
+				filesForRemoval.forEach(function(file){
+					let i = dbsliceData.files.indexOf(file)
+					dbsliceData.files.splice(i,1)
+				})
+				
+				
+				
+			}, // update
+			
+			store: function(fileobj){
+				
+				
+				
+
+				fileobj.promise.then(function(obj_){
+					
+					if(obj_ instanceof sessionFile){				
+						// Session files should not be stored internally! If the user loads in another session file it should be applied directly, and not in concert with some other session files.
+						sessionManager.onSessionFileLoad(obj_)
+						
+					} else {
+						// Other files should be stored if they have any content.
+						if(obj_.content){
+							dbsliceData.files.push(fileobj)
+						} // if
+
+					} // if
+					
+				})
+					
+				
+
+				
+			}, // store
+			
+			retrieve: function(classref, filename){
+				// If filename is defined, then try to return that file. Otherwise return all.
+				
+				let files
+				if(filename){
+				
+					files = dbsliceData.files.filter(function(file){
+						return file.filename == filename
+					}) // filter
+					files = files[0]
+					
+				} else {
+					
+					files = dbsliceData.files.filter(function(file){
+						return file instanceof classref
+					}) // filter
+					
+				} // if
+				
+				return files
+				
+			}, // retrieve
+			
+			remove: function(classref, filename){
+				
+				// First get the reference to all hte files to be removed.
+				let filesForRemoval = fileManager.library.retrieve(classref, filename)
+				
+				// For each of these find it's index, and splice it.
+				filesForRemoval.forEach(function(file){
+					let i = dbsliceData.files.indexOf(file)
+					dbsliceData.files.splice(i,1)
+				})
+				
+			}, // remove
+			
+			
+
+			
+		}, // library
+			
+		exporting : {
+				
+			session : {
+				
+				download: function(){
+					
+					
+					
+					// Make a blob from a json description of the session.
+					var b = fileManager.exporting.session.makeTextFile( sessionManager.write() )
+					
+					
+					// Download the file.
+					var lnk = document.createElement("a")
+					lnk.setAttribute("download", "test_session.json")
+					lnk.setAttribute("href", b)
+					
+					var m = d3.select( document.getElementById("sessionOptions").parentElement ).select(".dropdown-menu").node()
+					m.appendChild(lnk)
+					lnk.click()	
+					
+				}, // download
+				
+				makeTextFile: function makeTextFile(text) {
+					var data = new Blob([text], {
+						type: 'text/plain'
+					}); 
+					
+					var textFile = null;
+					// If we are replacing a previously generated file we need to
+					// manually revoke the object URL to avoid memory leaks.
+					if (textFile !== null) {
+						window.URL.revokeObjectURL(textFile);
+					} // if
+
+					textFile = window.URL.createObjectURL(data);
+					
+				  return textFile;
+				}, // makeTextFile
+				
+				
+			}, // session
+			
+		}, // exporting
+
+		
+	} // fileManager
+	
+	var dbsliceDataCreation = {
+	
+		// If there's only one metadata file then create the row oriented menu, otherwise the column oriented one. Allow for movemen
+		
+		// Functionality
+		make: function(){
+			
+			// Collect the metadata and all the merger info
+			let allMetadataFiles = fileManager.library.retrieve(metadataFile)
+			let allMergerInfo = fileManager.library.retrieve(sessionFile)
+			
+			// Construct the appropriate internal data
+			let fileobjs = dbsliceDataCreation.makeInternalData(allMetadataFiles)
+			fileobjs = dbsliceDataCreation.sortByLoadedMergingInfo(fileobjs, dbsliceData.merging)
+			
+			
+			// Construct the menu itself.
+			dbsliceDataCreation.builder.make(fileobjs)
+			
+		}, // make
+		
+		show: function show(){
+			
+			let fullscreenContainer = d3.select("#merging-container")
+		
+			fullscreenContainer.style("display", "")
+			
+			dbsliceDataCreation.drag.helpers.styling.adjust()
+		
+		}, // show
+		
+		hide: function hide(){
+			
+			d3.select("#merging-container").style("display", "none")
+			
+		}, // hide
+		
+		submit: function submit(){
+		
+			
+			// Collect the classification from the ui.
+			let mergerInfo = dbsliceDataCreation.collectMergerInfo()
+			
+			// Store this in the session data.
+			dbsliceData.merging = mergerInfo
+			
+			// Get the merged data.
+			let mergedData = dbsliceDataCreation.merge(mergerInfo)
+			
+			// Store it internally.
+			cfDataManager.cfChange(mergedData)
+			
+			dbsliceDataCreation.hide()
+			
+		}, // submit
+			
+		// Here just allow the movement between the categories too
+		drag: {
+		
+		
+			make: function make(){
+				let h = dbsliceDataCreation.drag.helpers
+			
+				var drag = d3.drag()
+				  .on("start", function(d){
+					  this.classList.add('dragging')
+				  
+					  
+					  d.position.t0 = d3.mouse(this.parentElement)
+					  
+				  
+					  d3.select(this)
+						.style("position", "relative")
+						.style("left", 0 + "px")
+						.style("top", 0 + "px")
+					  
+				  })
+				  .on("drag", function(d){
+					  let position = d3.mouse(this.parentElement)
+				  
+					  
+					  d.position.x += position[0] - d.position.t0[0]
+					  d.position.y += position[1] - d.position.t0[1]
+					  
+					  d3.select(this)
+						.style("position", "relative")
+						.style("left", d.position.x + "px")
+						.style("top", d.position.y + "px")
+				  
+					  d.position.t0 = position
+					  
+					  
+					  
+					  // Find the new position to allow for a preview.
+					  d.position.dom.container = h.findNewContainer(this)
+					  
+					  // Make the preview - a border around the cell. Maybe even allow positioning within the cell if the button is positioned over a ghost element.
+					  h.preview(d)
+					  
+				  })
+				  .on("end", function(d){
+					  
+					  // Reposition.
+					  d.position.dom.replaceElement = h.findNewPositionInContainer(d.position.dom.container, this)
+					  h.reposition(this, d)
+					  
+					  // Update the internal data element
+					  d.variable.category = d3.select(this.parentElement).datum().category
+					  
+					  // Clear dragging utility
+					  this.classList.remove('dragging')
+				  
+					  d3.select(this)
+						.style("position", "")
+						
+					  d.position.x = 0
+					  d.position.y = 0
+					  
+					  // Remove highlights, and adjust column heights.
+					  h.styling.adjust()
+					  
+					  
+				  })
+				  
+				return drag
+			
+			}, // make
+		
+			helpers: {
+				
+				
+				// Functionality
+				findNewContainer: function(draggedDOM){
+					// Find the container.
+					
+
+					
+					let container
+					let draggedBox = draggedDOM.getBoundingClientRect()
+					
+					// button -> cell -> category -> file
+					d3.select(draggedDOM.parentElement.parentElement.parentElement)
+					  .selectAll("div.category")
+					  .each(function(d){
+						  
+						  // Is the draggedDOM over this category.
+						  let categoryBox = this.getBoundingClientRect()
+						  
+						  // Bottom is the bottom of the div as is perceived, but the coordinate system begins top left!
+						  if( (categoryBox.bottom > draggedBox.bottom) && 
+							  (categoryBox.top < draggedBox.top)          ){
+							  
+							  // The dragged button is over this container. Check if the variable is allowed to be added to it. Otherwise keep it where it is.
+							  if(dbsliceDataCreation.drag.helpers.isContainerCompatible(this, draggedDOM)){
+								  container = this
+							  } // if
+							  
+							  
+						  } // if
+						  
+					  })
+					  
+					if(!container){
+						container = draggedDOM.parentElement
+					} // if
+					
+					return container
+					
+				}, // findNewPosition
+				
+				isContainerCompatible: function(container, draggedDom){
+					// There are restrictions on which items can be dragged to which category.
+					
+					let category = d3.select(container).datum().category
+					let varType = d3.select(draggedDom).datum().variable.type
+					
+					return categoryInfo.catCompatibleTypes[category].includes(varType)
+					
+					
+				}, // isContainerCompatible
+				
+				findNewPositionInContainer: function(container, draggedElement){
+					// Find the closest element. Calculate the distance between the top of the moved element and the static elements.
+					
+					// MAYBE CHANGE THIS DYNAMIC TO FIND THE NEAREST GAP, WITH ORIGINAL POSITION, GHOST NODES, AND THE END ARE CONSIDERED?? THAT WOULD LIKELY BE MOST ELEGANT.
+					// Still stick with replaceElement, as for all but the final position it works. Forfinal position undefined can be used, and repositioning can figure that out. And also check if sibling element is replaceElement.
+					
+					// Only allow the elements to move into an open position
+					let staticElements = [...container.querySelectorAll('button.shape-pill')]
+					let ghostElements = [...container.querySelectorAll('button.ghost')]
+				  
+				  
+					let draggedBox = draggedElement.getBoundingClientRect()
+
+					// Calculate all overlaps and offsets to determine the positioning.
+					let candidates = ghostElements.map(child => {
+					  let staticBox = child.getBoundingClientRect()
+					  return {
+						dist: staticBox.bottom - draggedBox.bottom,
+						element: child,
+					  }
+					})
+					
+					// Push original position. What if original position is last position?
+					// Original position
+					candidates.push({
+						dist: (draggedBox.y - parseInt( draggedElement.style.top )) - draggedBox.top,
+						element: draggedElement,
+					})
+					
+					// ALLOW PUSHING PAST THE END!!
+					// Last element. Only push if it is different to the original position - only push if you really want to move past the end
+					let lastElement = container.lastElementChild
+					let lastElementBottom
+					if(lastElement == draggedElement){
+						// Last element is the dragged one, but try to see what would be best if there was another node after this one.
+						lastElementBottom = draggedBox.y - parseInt( draggedElement.style.top ) + 2*draggedBox.height
+					} else {
+						lastElementBottom = lastElement.getBoundingClientRect().bottom
+					} // if
+					candidates.push({
+						dist: lastElementBottom - draggedBox.bottom,
+						element: undefined
+					})
+				
+						
+					
+
+					// Find if any overlaps are valid. The minimum overlap is set at 12 so that the margin between the elements does not cancel a repositioning.
+					let closest = candidates.reduce(function(best, current){
+					  return Math.abs(current.dist) < Math.abs(best.dist) ? current : best 
+					}, {dist: Number.POSITIVE_INFINITY})
+					
+					// Note that this outputs the exact position!
+				  
+				  return closest.element
+
+				 
+				}, // findNewPositionInContainer
+				
+				
+				// Changing the DOM
+				preview: function(d){
+					
+					// A border around the cell. Maybe even allow positioning within the cell if the button is positioned over a ghost element.
+					
+					// Select all siblings
+					d3.select(d.position.dom.container.parentElement.parentElement)
+					  .selectAll("div.category")
+					  .style("border-style", "none")
+					
+					d3.select(d.position.dom.container)
+					  .style("border-style", "solid")
+					
+					
+				}, // preview
+				
+				reposition: function(el, d){
+					
+					// The button is being repositioned. In the original container a ghost button should replace the dragged button.
+					
+					
+					
+					if( el != d.position.dom.replaceElement ){
+						// If the element should replace itself do nothing.
+					
+						// Ghost element
+						let ghost = dbsliceDataCreation.builder.build.ghostButton()
+						el.parentElement.insertBefore(ghost.node(), el)
+						el.remove()
+					
+					
+						
+						if(d.position.dom.replaceElement){
+							// If 'd.dom.replaceElement' is defined then the element should be repositioned. When it is repositioned the 'replaceElement' should be removed. 
+						  
+							d.position.dom.container.insertBefore(el, d.position.dom.replaceElement)
+							d.position.dom.replaceElement.remove()
+							
+						} else {
+							// Append it at the very end.
+						  
+							d.position.dom.container.appendChild(el)
+						  
+						} // if
+					  
+					  
+					} // if 
+					
+					
+				}, // reposition
+			
+				
+				styling: {
+					
+					removeGhostElements: function(categories){
+						
+						categories.each(function(){
+						  
+							if(this.childElementCount > 0){
+								while(this.lastElementChild.classList.contains("ghost")){
+									this.lastElementChild.remove()
+								} // while						
+							} // if  
+							
+						  }) // each
+						
+					}, // removeGhostNodes
+					
+					
+					adjust: function(){
+						
+						// Helper reference
+						let h = dbsliceDataCreation.drag.helpers.styling
+						
+						// The column sizes need to be controled in rows. But the files are arranged
+						let categories = d3.select("#merging-container")
+						  .select("div.card-body")
+						  .selectAll("div.file")
+						  .selectAll("div.categoryWrapper")
+						  .selectAll("div.category")
+						
+
+						
+						// Remove unnecessary ghost nodes.
+						h.removeGhostElements(categories)
+						
+						// Remove all border previews.
+						categories.style("border-style", "none")
+						
+						
+						dbsliceDataCreation.operateOverCategories(categories, function(categoryCells){
+							h.columnHeights(categoryCells)
+							h.colorMergers(categoryCells)
+							
+						})
+
+						
+					}, // adjust
+					
+					
+					// MERGE THE FOLLOWING TWO
+					columnHeights: function(relevantCells){
+						
+						// Find the maximum height
+						let h = relevantCells.reduce(function(max, current){
+							let h_ = current.wrapper.getBoundingClientRect().height
+							return h_ > max ? h_ : max
+						}, 0) // reduce
+						
+						
+						relevantCells.forEach(function(d){
+							d3.select(d.wrapper).style("height", h + "px")
+						}) // forEach
+						
+						
+					}, // columnHeights
+						
+					colorMergers: function(categoryCells){
+						// Color the merges for the relevant cells.
+						
+						// Create a color scheme here so it's only created once.
+						var colorscheme = dbsliceDataCreation.builder.color(el=>d3.select(el).datum().category)
+						
+						// Operate over individual rows of the category.
+						dbsliceDataCreation.operateOverCategoryRows(categoryCells, function(rowElements, anyInvalid){
+							
+							// Do the coloring
+							rowElements.forEach(function(el){
+								if(el){
+									let clr
+									if(anyInvalid){
+										clr = el.classList.contains("ghost") ? "white" : "gainsboro"
+									} else {
+										clr = colorscheme(el.parentElement)
+									} // if
+									
+									d3.select(el).style("background-color", clr)
+									
+								} // if
+							}) // forEach
+							
+						}) // operateOverCategoryRows
+						
+					}, // colorMergers
+					
+					
+				}, // styling
+				
+			
+			} // helpers
+		
+		}, // drag
+		
+
+		// Builder
+		builder: {
+			
+			make: function make(fileobjs){
+			
+				let build = dbsliceDataCreation.builder.build
+				
+				// Have the fullscreen container in index.html
+				let fullscreenContainer = d3.select("#merging-container")
+				
+				fullscreenContainer.selectAll("*").remove()
+				  
+				let menuContainer = fullscreenContainer
+				  .append("div")
+					.attr("class", "card card-menu")
+					
+				// Header - add a legend?
+				menuContainer
+				  .append("div")
+					.attr("class", "card-header")
+					.each( build.header )
+
+				// Body
+				// The body will have to contain several groups, each of which is a table-row. Create teh required internal data structure.
+				
+				menuContainer
+				  .append("div")
+					.attr("class", "card-body")
+					.style("overflow-y", "scroll")
+					.style("overflow-x", "auto")
+					.datum( fileobjs )
+				  .each( build.body )
+				  
+				  
+					
+				// Footer
+				menuContainer
+				  .append("div")
+					.attr("class", "card-footer")
+					.each( build.footer )
+				  
+
+
+				// Apply the dragging
+				var drag = dbsliceDataCreation.drag.make()
+
+				menuContainer
+				  .select("div.card-body")
+				  .selectAll(".draggable")
+				  .call(drag)
+						
+			}, // make
+			
+			
+			// Building repertoire
+			build: {
+		
+				header: function header(){
+					
+					let color = dbsliceDataCreation.builder.color(d=>d)
+					let types = categoryInfo.supportedCategories
+					
+					let header = d3.select(this)
+					
+					let title = header
+						.append("div")
+						
+					title
+					 .append("h4")
+						.html("Metadata merging:")
+					title
+					 .append("button")
+					 .attr("class", "btn report")
+					 .style("float", "right")
+					 .on("click", function(){
+						 errors.report.builder.make()
+						 errors.report.show()
+					 })
+					 .append("i")
+						.attr("class", "fa fa-exclamation-triangle")
+					
+					
+					header.append("div")
+					  .selectAll("button.shape-pill")
+					  .data(types)
+					  .enter()
+					  .append("button")
+						.attr("class", "shape-pill")
+						.style("background-color", color)
+					  .append("strong")
+						.html(d=>d)
+						
+					
+					
+				}, // header
+				
+				
+				body: function( fileobjs ){
+					
+					
+					// This is the actual body
+					d3.select(this)
+					  .append("div")
+					  .style("display", "table-row")
+					  .selectAll("div.files")
+					  .data( fileobjs )
+					  .enter()
+					  .append("div")
+						.attr("class", "file")
+						.style("display", "table-cell")
+						.style("vertical-align", "top")
+						.each(dbsliceDataCreation.builder.build.columns)
+						
+					
+						
+				}, // body
+				
+				columns: function (fileobj){
+					// Each column is an individual file.
+					
+					// The filename
+					d3.select(this)
+					  .append("p")
+						.style("text-align", "center")
+					  .append("strong")
+					  .html(fileobj.filename)
+					
+					d3.select(this)
+					  .selectAll("div.categoryWrapper")
+					  .data( fileobj.categories )
+					  .enter()
+					  .append("div")
+						.attr("class", "categoryWrapper")
+						.style("display", "table-row")
+						.style("vertical-align", "top")
+						.each(dbsliceDataCreation.builder.build.category)
+					  
+					
+				}, // columns
+				
+				category: function(catobj){
+					
+					let color = dbsliceDataCreation.builder.color(d=>d.variable.category)
+					
+					// Save the reference to the category wrapper too. The wrapper will be used to adjust the height of the elements as needed.
+					catobj.wrapper = this
+					
+					d3.select(this)
+					  .append("div")
+					  .attr("class", "category")
+					  .style("display", "table-cell")
+					  .style("vertical-align", "top")
+					  .style("border-style", "none")
+					  .style("border-radius", "15px")
+					  .selectAll("button.draggable")
+					  .data( catobj )
+					  .enter()
+					  .append("button")
+						.attr("class", "shape-pill draggable")
+						.style("background-color", color)
+						.style("display", "block")
+					  .append("strong")
+						.html(d=>d.variable.name)
+					
+				}, // category
+					
+				ghostButton: function (){
+						  
+						  return d3.create("button")
+							.attr("class", "shape-pill ghost")
+							.style("background-color", "red")
+							.style("display", "block")
+						  
+				}, // ghostButton
+				
+				
+				footer: function(){
+					
+					let foot = d3.select(this)
+					
+					
+					foot
+					  .append("button")
+						.attr("class", "btn btn-success")
+						.html("Submit")
+						.on("click", dbsliceDataCreation.submit)
+						
+						
+					// The user can drag in session files or metadata files. Therefore the 'userFile' is used to identify which one it is.
+					/*
+					var mergeInfoInput = helpers.createFileInputElement( function(files){ fileManager.importing.batch(userFile, files) } )
+						
+					foot
+					  .append("button")
+						.attr("class", "btn btn-info")
+						.html("Load")
+						.on("click", function(){mergeInfoInput.click()})	
+					*/
+					
+				}, // footer
+				
+			}, // build
+			
+			
+			color: function color(accessor){
+				
+				let scheme = d3.scaleOrdinal(d3.schemePastel2)
+				  .domain(categoryInfo.supportedCategories)
+				  
+				return function(d){
+					
+					let category = accessor(d)
+					
+					return category == "Unused" ? "gainsboro" : scheme(category)
+					// return accessor(d) == "string" ? "aquamarine" : "gainsboro"
+				}
+			}, // color
+			
+			
+		}, // builder
+		
+		
+		// OPERATE OVER DATA
+		
+		operateOverCategories: function(categories, action){
+			
+			// Get the data to operate on.
+			let categoriesData = []
+			categories.each(function(d){
+				// Remove all the height properties so that the heights readjust to the content.
+				d.wrapper.style.height = ""
+				categoriesData.push(d)
+			}) // each
+			
+			// Create optional output.
+			var output = {}
+			
+			// Operate over all the available types.
+			categoryInfo.supportedCategories.forEach(function(categoryType){
+				
+				// Each cell row represents a single category.
+				let categoryCells = categoriesData.filter(function(d){ return d.category == categoryType }) // filter
+				
+				// Allow the action to create an output if necessary.
+				action(categoryCells, output)
+				
+				
 			}) // forEach
+			
+			return output
+			
+			
+		}, // operateOverCategories
 		
-			return requiredUrls
-		}, // collectAllRequiredUrls
+		operateOverCategoryRows: function(categoryCells, action){
+			// For a particular category go over all the cells (one per file), and establish the aliases that can be used when performing the actual data merge later.
+			
+			// Use .wrapper.querySelector("div.category") to access the actual category.
+			let categoryCellsDOM = categoryCells.map(d=>d.wrapper.querySelector("div.category"))
+			
+			let nMax = Math.max(...categoryCellsDOM.map(d=>d.childElementCount))
+			if(Number.isFinite(nMax)){
+				
+				for(let i=0; i<nMax; i++){
+				
+					// Get the corresponding elements.
+					let rowElements = categoryCellsDOM.map(d=>d.children[i])
+					
+					
+					let anyInvalid = rowElements.some(function(el){
+						return  el ? el.classList.contains("ghost") : true
+					}) // some
+					
+					action(rowElements, anyInvalid)
+					
+				} // for
+				
+			} // if
+			
+			
+		}, // operateOverCategoryRows
 		
-		removeRedundantFiles: function removeRedundantFiles(){
+		
+		// INTERNAL DATA
+		makeInternalData: function (allMetadataFiles){
+				
+			// Yes, I should have other internal data - I don't want to have the internal data bloat the file objects.
 			
-			// Collect all the files that need to be loaded. Note that the files are individual properties of the records in the crossfilter.
-			var filteredTasks = dbsliceData.data.taskDim.top(Infinity)
 			
 			
-			// Collect all the required, and loaded files, and identify which, if any, files in the central booking will be redundant, and clear them out.
-			var allRequiredUrls = cfDataManagement.collectAllRequiredUrls(filteredTasks)
-			var allLoadedUrls = dbsliceData.flowData.map(function(file){return file.url})
+			// Find the appropriate index.
+			let cat2ind = categoryInfo.cat2ind
+			let ind2cat = categoryInfo.ind2cat
 			
-			var redundantFiles = dbsliceData.flowData.filter(function(loadedFile){
-				// Files are redundant if the refresh does not need them, or if their data could not be loaded, in which case a repeated attempt to laod them should be launched.
-				var urlNoLongerRequired = !allRequiredUrls.includes(loadedFile.url)
-				var urlWasRejected = loadedFile.data == undefined
-				return urlNoLongerRequired || urlWasRejected
+			let fileobjs = allMetadataFiles.map(function(file){
+				// Organise the different categories here.
+				
+				let catobj = file.content.variables.reduce(function(acc, variable){
+				
+					let i = cat2ind[variable.category]
+				
+					acc[i].push({
+						filename: file.filename,
+						variable: variable,
+						position: {
+							x: 0,
+							y: 0,
+							t0: undefined,
+							dom: {
+								container: undefined,
+								replaceElement: undefined
+							}
+						}
+					})
+					
+					return acc
+				}, [[],[],[],[],[]]) // reduce
+				
+				// Add the category names to the arrays.
+				catobj.forEach(function(a, i){
+					a.file = file.filename
+					a.category = ind2cat[i]
+					a.wrapper = undefined
+				})
+				
+				
+				// Convert the categories into an array
+				let fileobj = {
+					filename: file.filename,
+					categories: catobj
+				} // fileobj
+				
+								
+				return fileobj
+			}) // map
+
+			return fileobjs
+			
+		}, // makeInternalData
+		
+		
+		// Stuff for merger
+		
+		merge: function(mergerInfo){
+			
+			
+			// Merged data is a completely new item! Therefore it does not need to have alias in its name unnecessarily.
+			let allMetadataFiles = fileManager.library.retrieve(metadataFile)
+			
+			// The 'mergedData' can be tailored to fit better with 'cfDataManager' later on.
+			var tasks = []
+			
+			
+			// Determine what filename_id would work for all files. It is simply defined here, and filenameId and taskId are reserved names.
+			let filename_id_name = "filenameId"
+			/*
+			let filename_id_name = "filename_id"
+			let columns = allMetadataFiles.reduce(function(acc, file){
+				return acc.concat(file.content.variables.map(d=>d.name))
+			},[]) // reduce
+			while(columns.includes(filename_id_name)){
+				filename_id_name += "_"
+			} // while
+			*/
+			
+			allMetadataFiles.forEach(function(metadataFile){
+				
+				// Loop over all the content and rename the variables.
+				metadataFile.content.data.forEach(function(task_){
+					// Rename all the necessary variables.
+					
+					
+					// Create a new object to hold the merged data.
+					let d_ = {}
+					d_[filename_id_name] = metadataFile.filename
+					
+					
+					// mergerInfo is organised by categories. Iterate over all of them here.
+					Object.getOwnPropertyNames(mergerInfo).forEach(function(category){
+						
+						// In the category there are the variable aliases.
+						
+						Object.getOwnPropertyNames(mergerInfo[category]).forEach(function(variable){
+							// Each variable holds the aliases that merge the data.
+							d_[variable] = task_[mergerInfo[category][variable][metadataFile.filename]]
+							
+						}) // forEach
+						
+					}) // forEach
+					
+					// Push into the data
+					tasks.push(d_)
+					
+				}) // forEach task
+			}) // forEach file
+			
+			
+			// A task id property MUST be present to allow tracking of individual tasks. It MUST have all unique values. If such a property is not present, then create it. If the taskId is not unique it will overwrite it.
+			let taskIds = tasks.map(d=>d.taskId)
+			if(helpers.unique(taskIds).length != taskIds.length){
+				tasks = tasks.map(function(d, i){
+					d.taskId = i
+					return d
+				})
+			} // if
+			
+			
+			
+			// Create the header expected by dbslice.
+			let header = {}
+			Object.getOwnPropertyNames(mergerInfo).forEach(function(category){
+				header[categoryInfo.cat2prop[category]] = Object.getOwnPropertyNames(mergerInfo[category])
 			})
 			
 			
+			return {
+				header: header,
+				data  : tasks
+			}
 			
-			// Clear the redundant files out of central booking.
-			redundantFiles.forEach(function(redundantFile){
-				var redundantFileInd = helpers.indexOfObjectByAttr(dbsliceData.flowData, "url", redundantFile.url)
-				dbsliceData.flowData.splice(redundantFileInd,1)
-			}) // redundantUrls
+		}, // merge
+		
+		collectCategoryMergeInfo: function(categoryCells, dict){
+			// For a particular category go over all the cells (one per file), and establish the aliases that can be used when performing the actual data merge later.
+			
+			// 'dict' is an empty object into which the results can be stored.
+			
+			// For a particular category operate over the individual rows and determine what to do with the variables.
+			
+			dbsliceDataCreation.operateOverCategoryRows(categoryCells, function(rowElements, anyInvalid){
+				
+				if(!anyInvalid){
+					// Variables can be merged. Create a dictionary with an entry for each variable group. The variable group entry then contains the maps to the corresponding variable for each file. The first element is used to name the group.
+					let category = d3.select(rowElements[0].parentElement).datum().category
+					let varname = d3.select(rowElements[0]).datum().variable.name
+					
+					// If needed create the category entry.
+					if(!dict[category]){
+						dict[category] = {}
+					} // if
+					
+					dict[category][varname] = rowElements.reduce(function(entry, el){
+						// Get the data bound to the element.
+						let d = d3.select(el).datum()
+						entry[d.filename] = d.variable.name
+						
+						return entry
+					}, {}) // reduce
+					
+				} else {
+					
+					// This variable is not being used. do nothing.
+					
+				} // if
+			})
+			
+			return dict
 			
 			
+		}, // collectCategoryMergerInfo
+		
+		collectMergerInfo: function(){
+			// Do everything over categories.
 			
 			
+			let categories = d3.select("#merging-container")
+			  .select("div.card-body")
+			  .selectAll("div.file")
+			  .selectAll("div.categoryWrapper")
+			  .selectAll("div.category")
 			
+			
+			let dict = dbsliceDataCreation.operateOverCategories(categories, dbsliceDataCreation.collectCategoryMergeInfo)
+			
+			return dict
+			  
+			
+		}, // collectMergerInfo
+		
+		sortByLoadedMergingInfo: function(fileobjs, loadedInfo){
+			
+			// HOW TO MAKE THEM MISMATCH ANY NON-MATCHED VARIABLES? PUSH GHOST OBJS BETWEEN??
+			// FIRST FOCUS ON MAKING EVERYTHING ELSE WORK
+			
+			// How to make sure that only items that are fully declared are being used?? Filter out the things that are not needed??
+			
+			// Reorder the variables in the categories.
+			fileobjs.forEach(function(fileobj){
+				fileobj.categories.forEach(function(catobj){
+					
+					
+					let mergedItems = loadedInfo[catobj.category]
+					if(mergedItems){
+						
+					
+						// Create the reordering dict.
+						let ind = {}
+						Object.getOwnPropertyNames( mergedItems ).forEach(function(varname, pos){
+							let nameInTheFile = mergedItems[varname][fileobj.filename]
+							ind[nameInTheFile] = pos
+						})
+						
+						// How to manage this sorting so that all the sosrts are respected? How to make sure that the values are placed exactly in the spots required. Maybe simply creating a new array would be better??
+						catobj.sort(function(a,b){
+			
+							let aval = typeof( ind[a.variable.name] ) == "number" ? ind[a.variable.name] : Number.POSITIVE_INFINITY
+							let bval = typeof( ind[b.variable.name] ) == "number" ? ind[b.variable.name] : Number.POSITIVE_INFINITY
+									
+							let val = isNaN( aval - bval ) ? 0 : aval - bval
+									
+							return val
+						})
+					
+					
+					} // if
+					
+				}) // forEach
+			}) // forEach
+			
+			
+			return fileobjs
+			
+		}, // sortByLoadedMergingInfo
+		
+			
+	} // dbsliceDataCreation
+	
+		
+	var errors = {
+		/* ERRORS SHOULD (!!!) BE LOGGED IN AN ERROR OBJECT TO ALLOW THE FAULTY FILES TO BE RELEASED FROM MEMORY!!
+
+		Errors are loged into a single array, as it is easier to have all the error sorting in the errors object, rather than scattered throughout the loaders.
+
+		Maybe split of the error handling into a separate module?? A sort of reporting module? Add the report generation to it here!
+
+		*/
+		
+		log: [], // log
+		
+		report: {
+			
+			generate: function(){
+			
+				// Create a section for each of the files. On-demand files should be grouped by the metadata file that asks for it. 
+				
+				
+				// Group all errors by their requester.
+				let report = errors.log.reduce(function(acc, er){
+					if(acc[er.requester]){
+						acc[er.requester].push(er)
+					} else {
+						acc[er.requester] = [er]
+					} // if
+					return acc
+				},{})
+				
+				// Errors with user requested files (on-demand files loaded by the user through the UI) should just be reported as individual items.
+				
+				// On-demand files requested indirectly (from metadata) can fail only if the metadata was successfully loaded beforehand. Therefore if the metadata load fails, then the on-demand files will not be loaded at all. Therefore the report as it stands is sufficient! Submenu functionality is not needed!
+				
+				// This report will be bound to the DOM, and as each attribute in report is supposed to have a corresponding DOM element, the report should be an array!!
+				let reportArray = Object.getOwnPropertyNames(report).map(function(name){
+					return {title: name, content: report[name]}
+				})
+				
+				
+				return reportArray
+				
+			}, // generate
+			
+			// Outside INTERACTIVITY
+			show: function show(){
+				
+				let fullscreenContainer = d3.select("#report-container")
+			
+				fullscreenContainer.style("display", "")
+			
+			}, // show
+				
+			hide: function hide(){
+			
+					let fullscreenContainer = d3.select("#report-container")
+				
+					// Hide the container. Bring up the variable handling.
+					fullscreenContainer.style("display", "none")
+			
+			}, // hide
+			
+			// BUILDER
+			builder: {
+				
+				make: function make(){
+				
+					// Clear the parent.
+					let parent = d3.select("#report-container")
+					parent.selectAll("*").remove()
+					
+					// Collect the error data. The error report should be an array!!
+					let errorReport = errors.report.generate()
+					
+					// Build the DOM
+					errors.report.builder.build.menu(parent, errorReport)
+				
+				
+					// Make it interactive!
+					let menus = parent.node().querySelectorAll(".accordion")
+					errors.report.builder.addFunctionality(menus)
+				
+				}, // make
+				
+				
+				build: {
+					
+					menu: function menu(parent, report){
+						
+						
+						// Have the fullscreen container in index.html
+						let menuContainer = parent
+						  .append("div")
+							.attr("class", "card card-menu")
+							
+						menuContainer
+						  .append("div")
+							.attr("class", "card-header")
+						  .append("h1")
+							.html("Report:")
+
+						// Body
+						let varCategories = menuContainer
+						  .append("div")
+							.attr("class", "card-body")
+							.style("overflow-y", "auto")
+							.style("overflow-x", "auto")
+						  .selectAll("div")
+						  .data( report )
+						  .enter()
+							.append("div")
+							.each(function(d){
+								errors.report.builder.build.submenu(d3.select(this), d)
+							})
+						  
+						// Footer
+						menuContainer
+						  .append("div")
+							.attr("class", "card-footer")
+						  .append("button")
+							.attr("class", "btn btn-success")
+							.html("Understood")
+							.on("click", errors.report.hide)	
+						
+						
+						
+					}, // menu
+						
+					submenu: function submenu(parent, itemReport){
+						// Builds the whole menu item, which will be an accordion menu.
+						let button = parent
+						  .append("button")
+							.attr("class", "accordion")
+							.style("outline", "none")
+						
+						button
+						  .append("strong")
+							.html(itemReport.title)
+						button
+						  .append("span")
+							.attr("class", "badge badge-pill badge-info")
+							.style("float", "right")
+							.html(itemReport.content.length)
+							
+						let content = parent
+						  .append("div")
+							.attr("class", "panel")
+						  .append("ul")
+							
+						content.selectAll("li")
+						  .data(itemReport.content)
+						  .enter()
+						  .append("li")
+							.html(errors.report.builder.build.item)
+							
+						// url requester interpreter error
+					
+						return content
+					
+					}, // submenu
+					
+					item: function(item){
+						// No need to report the requestor - this is communicated b the menu structure!
+						// When classifying csv variables onDemandData is used for probable files. Otherwise the classifier restricts the file types!
+						
+						return `<b>${item.url}</b> interpreted as <b>${item.interpreter}</b> produced <b>${item.report.message.fontcolor("red")}</b>`
+						
+					}, // item
+					
+				}, // build
 			
 				
-		}, // removeRedundantFiles
-		
-		// Accessing on-demand data files.
-		getFileAvailabilityInfo: function getFileAvailabilityInfo(ctrl){
+				addFunctionality: function addFunctionality(menus){
+					// Opening the menus.
+					for (let i = 0; i < menus.length; i++) {
+					  menus[i].addEventListener("click", function() {
+						this.classList.toggle("active");
+						var panel = this.nextElementSibling;
+						if (panel.style.display === "block") {
+						  panel.style.display = "none";
+						} else {
+						  panel.style.display = "block";
+						}
+					  });
+					} // for
+				}, // addFunctionality
+				
+				
+			}, // builder
 			
-			  
-			
-			var getUrl = function(task){return task[ctrl.view.sliceId]}
-			var requiredTasks = dbsliceData.data.taskDim.top(Infinity)
-			var requiredUrls = requiredTasks.map( getUrl )
-			
-			// This is the set of urls of all files that have been loaded into internal storage that are required for this plot. The loaded files are not returned as that would mean they are logged into memory again.
-			// Furthermore, also check which have failed upon loading. Those are the files that were not found, therefore the promise was rejected.
-			var availableUrls = dbsliceData.flowData.filter(function(file){
-				var isUrlRequired = requiredUrls.includes( file.url )
-				var wasPromiseResolved = file.data != undefined
-				return isUrlRequired && wasPromiseResolved
-			}).map(function(file){return file.url})
-			
-			// Reverse reference the loaded files to find which required files are not available in the central storage. 
-			var missingUrls = requiredUrls
-			  .filter( function(url){return !availableUrls.includes(url)})	
+		}, // report
+	} // errors
 
+	class dbsliceFile {
+		constructor(file, requester){
 			
-			// Create 'file' responses detailing which files of which tasks were : 
-			// 1.) requested:
-			var requestedFiles = requiredTasks.map(returnFile)
+			// How to load if file is an actual File object.
+			if(file instanceof File){
+				file = {
+					url: URL.createObjectURL(file),
+					filename: file.name,
+				}
+			} // if
 			
-			// 2.) available:
-			var availableFiles = requiredTasks.filter(function(task){
-				return availableUrls.includes( getUrl(task) )
-			}).map(returnFile)
+			this.url = file.url
+			this.filename = file.filename
+			this.extension = file.filename.split(".").pop()
+			this.promise = undefined
 			
-			// 3.) missing:
-			var missingFiles = requiredTasks.filter(function(task){
-				return missingUrls.includes( getUrl(task) )
-			}).map(returnFile)
+			// Also log the requestor. If this was passed in then use the passed in value, otherwise the requestor is the user.
+			this.requester = requester ? requester : "User"
 			
-			// 4.) duplicated:
-			var duplicatedFiles = requiredTasks.filter(function(task){
+		} // constructor
+		
+		load(){
+			// Collect the data and perform input testing.
+			let obj = this
+			
+			// Based on the url decide how to load the file.
+			let loader
+			switch(this.extension){
+				
+				case "csv":
+					loader = function(url){ return d3.csv(url) }
+					break;
+					
+				case "json":
+					loader = function(url){ return d3.json(url) }
+					break;
+					
+				default:
+					// Return a rejected promise as the file extension is wrong.
+					
+					loader = function(){
+						return Promise.reject(new Error("LoaderError: Unsupported Extension"))
+					}
+					break;
+			}; // switch
+			
+			
+			// Wrap in a larger promise that allows the handling of exceptions.
+			
+			let loadPromise = new Promise( (resolve, reject)=>{
+								
+				
+				// If the URL points to a non-existing file the d3 loader will reject the promise and throw an error, but still proceed down the resolve branch!
+				
+				loader(obj.url)
+				  .then(
+					function(content){
+						// Since d3 insists on running the resolve branch even though it doesn't find the file, handle missing contents here.
+						
+						// csv files are always read as strings - convert numbers to numbers. Should be done here. If it's done in a preceeding promise then the error is lost.
+						
+						obj.content = content
+						resolve(obj)
+						
+					},
+					function(e){
+						// 'e' is an error triggered during loading.
+						
+						// The two errors that can enter here are file missing, and a problem reading the file.
+						
+						// This routes any errors that d3 might have into hte new promise.
+						reject(e)
+					})
+
+				
+			})
+			.then(this.format)
+			.then(this.onload)
+			.catch(function(e){
+				// This catches all the rejects. 'e' is the field into which the error can be logged.
+				delete obj.content
+				errors.log.push({
+					url: obj.url, 
+					interpreter: obj.constructor.name, 
+					report: e,
+					requester: obj.requester
+				})
+				
+				return obj
+			})
+			
+			this.promise = loadPromise
+			
+		} // load
+		
+		onload(obj){
+		  return obj
+		} // onload
+	  
+		format(obj){
+		  return obj
+		} // format
+		
+		static test = {
+			
+			structure: function (fileClass, content){
+				// This an abstract test director. When a file is loaded the file classes do not know exactly how to handle to contents. This test director tries different implemented approaches to reformat the data, and stops when a suitable approach is found. In the future this may be extended to the point where the test involves performing a dummy plotting operation, as the plotting is the last operation to be performed on the file data.
+				
+				let content_
+			
+				// No differentiating between the structure or the content failing - the file classes are trying several different structures.
+			
+				// Try to use all different file structures possible.
+				Object.getOwnPropertyNames( fileClass.structure ).every(function(name){
+					try {
+						content_ = fileClass.structure[name]( content )
+						
+						// Return false breaks the loop. This return is reached only if the test was successfully performed and passed.
+						return content_ ? false : true
+					} catch (e){
+						// Keep looping
+						content_ = undefined
+						return true
+					} // try
+					
+				}) // forEach
+				
+				if(content_){
+					// Restructuring succeeded.
+					return content_
+				} else {
+					throw( new Error("InvalidFile: Unsupported data structure"))
+				} // if
+				
+			}, // structure
+			
+		} // test
+		
+		// Maybe move these to helpers??
+		static testrow(array){
+		  
+		  if(array.length > 0){
+			  let i = Math.floor( Math.random()*array.length )
+			  return {
+				  i: i,
+				row: array[i]
+			  } // return
+		  } else {
+			  throw( new Error( "InvalidInput: Array without entries" ))
+		  } // if
 			  
-			  // Assume duplicate by default.
-			  var flag = true
-			  if( requiredUrls.indexOf(     getUrl(task) ) == 
-				  requiredUrls.lastIndexOf( getUrl(task) ) ){
-				// The first element is also the last occurence of this value, hence it is a unique value. This is therefore not a duplicating element.
-				flag = false
+		} // testrow
+		
+		static convertNumbers(array){
+			
+			return array.map(function(row){
+				
+				var r = {};
+				for (var k in row) {
+					r[k] = +row[k];
+					if (isNaN(r[k])) {
+						r[k] = row[k];
+					} // if
+				} // for
+			  return r;
+				
+			})
+			
+			
+		} // convertNumbers
+		
+	} // dbsliceFile
+
+	// Declare file types here.
+	class metadataFile extends dbsliceFile {
+	  
+		onload(obj){
+			// This executes in a promise chain, therefore the overhead promise will wait until thiss is fully executed.
+			
+			// Check if suitable categories have already been declared.
+			let classificationPromise
+			if(!obj.content.categories){
+				// Launch the variable classification.
+				classificationPromise = obj.classify.all(obj)
+			} else { 
+				classificationPromise = Promise.resolve().then(d=>{return obj}); 
+			
+			}// if 
+			
+			// To ensure that the classification is included into the loading promise chain a promise must be returned here. This promise MUST return obj. 'classify.all' returns a promise, which returns the object with the classified variables.
+			return classificationPromise
+			
+		} // onload
+	  
+	  
+		format(obj){
+			
+			// Restructure the data into an expected format
+			obj.content = dbsliceFile.test.structure(metadataFile, obj.content)
+			
+			return obj
+			
+			
+		} // format
+	  
+
+	  
+	  
+		static structure = {
+		  
+		  csv2metadataFile: function(content){
+			  
+			  let content_
+			  
+			  // Data values need to be converted to numbers. Convert the 'variables' into objects?
+			  content_ = {
+				  variables: content.columns.map(function(d){
+					  return {name: d, 
+						  category: undefined,
+							  type: undefined}
+				  }),
+				  data: dbsliceFile.convertNumbers( content ),
+			  }
+			  
+			  
+			  metadataFile.test.content(content_)
+			  
+			  delete content_.data.columns
+			  
+			  return content_
+		  }, // array
+		  
+		  json2metadataFile: function(content){
+			  
+			  let content_
+			  
+			  
+			  content_ = {
+				  variables: Object.getOwnPropertyNames(dbsliceFile.testrow(content.data).row).map(function(d){
+					  return {name: d, 
+						  category: undefined,
+							  type: undefined}
+				  }),
+				  data: content.data,
+			  }
+				  
+			  // Check if declared variables contain all variables in the data.
+			  let allVariablesDeclared = helpers.arrayEqual(
+					metadataFile.cat2var(content.header).map(d=>d.name),
+					content_.variables.map(d=>d.name)
+			  )
+			  
+			  // All variables are declared, but have they been declared in the right categories??
+			  
+			  if(allVariablesDeclared){
+				  // All variables have been declared. The categories can be assigned as they are.
+				  content_.variables = metadataFile.cat2var(content.header)
+				  
 			  } // if
 			  
-			  return flag
-			}).map(returnFile)
-			
-
-			return {
-				 requested: requestedFiles,
-				 available: availableFiles,
-				duplicates: duplicatedFiles,
-				   missing: missingFiles
-			}
-			
-			function returnFile(task){
-				// 'returnFile' changes the input single task from the metadata, and returns the corresponding selected 'file'. The 'file' contains the url selected as per the slice selection made by the user, and the corresponding task. The task is required to allow cross plot tracking of all the data connected to this task, and the optional coloring by the corresponding metadata values.
-				
-				// This here should also package up all the metadata properties that would enable the coloring to fill them in.
-				
-				// dbsliceData.flowData.filter(function(file){return file.url == task[ctrl.view.sliceId]})[0].data
-				var file = helpers.findObjectByAttribute(dbsliceData.flowData, "url", [task[ctrl.view.sliceId]], true)
-				
-				return {  task: task, 
-						   url: task[ctrl.view.sliceId],
-						  data: file.data}
-				
-			} // returnFile
-			
-		}, // getFileAvailabilityInfo
-		
-		
-		// Info on hte data in the files
-		getLineFileDataInfo: function getLineFileDataInfo(ctrl){
-			
-			var files = cfDataManagement.getFileAvailabilityInfo(ctrl)
-			
-			// Compatibility of nests!
-			// The nests will have to be exactly the SAME, that is a prerequisite for compatibility. The options for these nests can be different, and the variables in these nests can be different. From these is the intersect calculated.
-			var compatibilityAccessors = [
-				function(f){return f.data["userOptions"].map(function(o){return o.name})},
-				function(f){return f.data["commonOptions"].map(function(o){return o.name})}]
-			var c = helpers.chainCompatibilityCheck(files.available, compatibilityAccessors)
-			
-			// Compatibility ensures that all the files have exactly the same user tags available. Retrieve their intersect.
-			var intersect = c.compatibleFiles.length > 0 ?  helpers.getIntersectOptions( c.compatibleFiles ) : undefined
-			
-			// The data properties are only available after a particular subset of the data has been selected. Only then will the dropdown menus be updated.
-			ctrl.data.promises     = ctrl.data.promises
-			ctrl.data.requested    = files.requested
-			ctrl.data.available    = files.available
-			ctrl.data.duplicates   = files.duplicated
-			ctrl.data.missing      = files.missing
-			ctrl.data.compatible   = c.compatibleFiles
-			ctrl.data.incompatible = c.incompatibleFiles
-			ctrl.data.intersect    = intersect
-			
-
+			  metadataFile.test.content(content_)
+			  
+			  return content_
+			  
+		  }, // object
 		  
-		}, // getLineFileDataInfo
-		
-		getContour2dFileDataInfo: function getContour2dFileDataInfo(ctrl){
+		} // structure
+	  
+	  
+	  // The testing suite for this file type.
+	  static test = {
+	  
+		content: function(content){
 			
-			// The files must all be 
-			
-			var files = cfDataManagement.getFileAvailabilityInfo(ctrl)
-			
-			// The contours are expected to only contain data of a single slice (2d) / slice scene (3d). Only the properties need to be compatible. For now this is just hard-coded here.
-			
-			var intersect = {
-				varOptions: files.available[0].data.properties
-			}
-
+			// Columns require a taskId property.
+			// Declared categories must contain all variables.
+			// All rows must be the same lenght
+			// There must be some rows.
+			// Data must be iterable
 			
 			
-			// The data properties are only available after a particular subset of the data has been selected. Only then will the dropdown menus be updated.
-			ctrl.data.promises  = ctrl.data.promises
-			ctrl.data.requested = files.requested
-			ctrl.data.available = files.available
-			ctrl.data.duplicates= files.duplicated
-			ctrl.data.missing   = files.missing
-			ctrl.data.compatible = files.available
-			ctrl.data.incompatible = []
-			ctrl.data.intersect = intersect
+			// Check if the data is an array (has function length)
+			let isThereAnyData = Array.isArray(content.data) 
+							  && content.data.length > 0
 			
 
+			// Test to make sure all rows have the same number of columns.
+			let areRowsConsistent = true
+			let testrow = dbsliceFile.testrow(content.data).row
+			content.data.forEach(function(row){
+				areRowsConsistent &&= helpers.arrayEqual(
+					Object.getOwnPropertyNames(testrow),
+					Object.getOwnPropertyNames(row)
+				)
+			}) // forEach
 			
-		}, // getContour2dFileDataInfo
-		
-		// Accessing on-demand data
-		getLineDataVals: function getLineDataVals(file, ctrl){
-			// Make a distinction between accessing explicit and implicit data files.
+			return isThereAnyData && areRowsConsistent
 			
 			
-			// Fix for accessing the json files.
 			
-			// Assemble the names of the properties to plot.
-			var plotData
-			switch( file.data.type ){
-				case "implicit":
-					// The options in the ctrl cannot be associated with the actual variable names in the files. The same menu options may correspond to different file variables if the sub-part of the file selected changes.
-
-					// IS IT POSSIBLE TO REPLACE THIS WITH ACCESSORS??
-					// No - it is possible that the user is trying to combine data from different file specification types.
+			
+		}, // content
+	  
+	  } // test
+	  
+	  // Methods required for variable classification
+	  classify = {
+		  
+		all: function(obj){
+			// This already executes in a promise chain, therefore it's not needed to update the obj.promise. The promises created here will be resolved before the overhead promise resolves further.
+			
+			// Create all the testing promises.
+			let testPromises = obj.content.variables.map(function(variable){
+				// Check this column. Variable is now an object!
+				return obj.classify.variable(obj, variable)
+			})
+			
+			// Return the final promise.
+			return Promise.all(testPromises)
+				.then(function(variableClassification){
+					// The promises update the variable classification into the file object directly.
 					
-					plotData = file.data.properties.map(function(d){
-						return {x: Number(d[ctrl.view.xVarOption.val]), 
-						        y: Number(d[ctrl.view.yVarOption.val])}
-					})
-					break;
-					
-				case "explicit":
+					// obj.content.categories = variableClassification
+					return obj
+				})
 				
-					// json files also resolve to here, in which case they should just
-				
-					var f = helpers.findObjectByAttribute
 			
-					// Available properties after applying all the options.
-					// Retrieve the properties
-					var properties = file.data.properties
-				
-					// Apply all user selected options.	
-					ctrl.view.options.forEach(function(option){
-						properties = f( properties, option.name, [option.val], false)
-					})
-					
-					// Pick the appropriate flow variable
-					let flowProperty = f( properties, "varName", ctrl.view.yVarOption.val, true)
-					
-					
-					plotData = flowProperty.vals
-					
-					break;
 			
+			
+			  
+		  }, // all
+		  
+		variable: function(obj, variable){
+			  
+			// Retrieve an actual value already.
+			let testrow = dbsliceFile.testrow(obj.content.data)
+			let testval = testrow.row[variable.name]
+			
+		  
+			// Split the testing as per the variable type received.
+			let promise
+			switch( typeof(testval) ){
+				case "string":
+					// String can be a file too.
+					variable.type = "string"
+					promise = obj.classify.string(obj, variable, testval)
+					
+				  break;
+				  
+				case "number":
+					variable.category = "ordinal"
+					variable.type = "number"
+					promise = variable
+					
+				  break;
+				  
+				default:
+					variable.category = "Unused"
+					variable.type = undefined
+					promise = variable
+					
+			} // switch
+				
+			return promise
+		  
+		}, // variable
+	  
+		string: function(obj, variable, testval){
+			// If the string is a file, load it in to identify it's structure. It's not important which extension the file has, but what is it's internal structure.
+			
+			// 'obj' is needed to construct an on-load response, 'variable' and 'testval' to have the name value pair.  
+			
+			let promise
+			
+			// Create a new onDemandFile to load in it's contents.
+			
+			
+			switch( testval.split(".").pop() ){
+				case "json":
+				case "csv":
+					// Try to classify the testval as a file. The requester is the metadata for which the variables are being classified.
+					let testFile = new onDemandFile({url: testval, filename: testval}, obj.filename)
+					
+					promise = obj.classify.file(variable, testFile)
+					
+				  break;
+				default:
+					// Unsupported extension.
+					variable.category = "categorical"
+					promise = variable
 			} // switch
 			
-			plotData.task = file.task
 			
-			return plotData
+			return promise
+		  
+		}, // string
 		
-		
+		file: function(variable, testFile){
+			// Make a new generic on-demand file, and return a promise that will return the file type.
+			
+			testFile.load()
+			
+			// What can go wrong:
+			// file is not found
+			// file has wrong content
+			
+			// Below 'obj' represents 'testFile'.
+			return Promise.all([testFile.promise]).then(function(obj){
+				
+				// It's possible that hte file was found and loaded correctly. In that case 'obj.content.format' will contain the name of the file type. Otherwise this field will not be accessible.
+				try {
+					// Category is the categorisation that will actually be used, and type cannot be changed.
+					variable.category = obj[0].content.format
+					variable.type = obj[0].content.format
+					return variable
+					
+				} catch {
+					// If the loading failed for whatever reason the variable is retained as a categorical.
+					variable.category = "categorical"
+					return variable
+					
+				} // try
+			})
 			
 			
-		}, // getLineDataVals
-		
-		
-		
-		// HELPERS
-		helpers : {
-			
-			getTaskIds: function getTaskIds(){
-				var metadata = dbsliceData.data.taskDim.top(Infinity)
-				var taskIds = metadata.data.map(function (task){
-				  return task.taskId
-				});
-			  return taskIds
-			}, // getTaskIds
-			
-			crossCheckProperties: function crossCheckProperties(existingData, newData){
-				
-				var missingDataProperties = existingData.dataProperties.filter(function(d){  return !newData.header.dataProperties.includes(d) })
-				
-				var missingMetadataProperties = existingData.metaDataProperties.filter(function(d){  return !newData.header.metaDataProperties.includes(d) })
-				
-				var missingLine2dProperties = existingData.line2dProperties.filter(function(d){  return !newData.header.line2dProperties.includes(d) })
-					
-				var missingContour2dProperties = existingData.contour2dProperties.filter(function(d){  return !newData.header.contour2dProperties.includes(d) })
-				
-				var allPropertiesIncluded = 
-					(missingDataProperties.length == 0) && 
-					(missingMetadataProperties.length == 0) &&
-					(missingLine2dProperties.length == 0) &&
-					(missingContour2dProperties.length == 0)
-											 
-				
-				
-				if(allPropertiesIncluded){
-					return true
-				} else {
-					// Which ones are not included?
-					var warningText = "Selected data has been rejected. It requires additional variables:\n" + 
-					"Data variables:     " +      missingDataProperties.join(", ") + "\n" +
-				    "Metadata variables: " +  missingMetadataProperties.join(", ") + "\n" +
-					"Line variables:    " +    missingLine2dProperties.join(", ") + "\n" +
-					"Contour variables:  " + missingContour2dProperties.join(", ") + "\n"
-					
-					
-					window.alert(warningText)
-					return false
-				} // if
-				
-			}, // checkProperties
-			
-			refreshMetadataInfo: function refreshMetadataInfo(){
-				
-				// IMPORTANT!!!!!!!!!!!!
-				// The metadata properties need to be refershed whn the data changes!!!
-				
-				// Just check if the dim returns any data!!
-				var d_ = dbsliceData.data
-				
-				// First check if there is still any data left.
-				var data = d_.fileDim.top(Infinity)
-				if(data.length < 1){
-					// No data available,  remove all dims and associate info.
-					
-					d_.metaDataProperties = [];
-					d_.dataProperties = [];
-					d_.line2dProperties = [];
-					d_.contour2dProperties = [];
-					
-					d_.metaDims = [];
-					d_.dataDims = [];
-				
-					d_.metaDataUniqueValues = {};
-					d_.histogramSelectedRanges = [];
-				} else {
-					
-					// Some data is available. Find which properties are still available.
-					var task = data[0]
-					var properties = Object.getOwnPropertyNames( task )
-					
-					// Check if the dbsliceData properties are in the example task properties.
-					
-					// CLEAN THIS UP!!!!!!
-					d_.metaDataProperties = d_.metaDataProperties.filter(function(metaDataProperty){
-						var isMetaDataAvailable = properties.includes(metaDataProperty)
-						if( !properties.includes(metaDataProperty) ){
-							// Remove the property that corresponds to no data properties.
-							delete d_.metaDims[metaDataProperty]
-							delete d_.metaDataUniqueValues[metaDataProperty]
-						} else {
-							d_.metaDataUniqueValues[metaDataProperty] = helpers.unique( data.map(
-						function (d){return d[metaDataProperty]} ))
-						} // if
-						return isMetaDataAvailable
-					}) // filter
-					
-					d_.dataProperties = d_.dataProperties.filter(function(dataProperty){
-						var isDataAvailable = properties.includes(dataProperty)
-						if( !properties.includes(dataProperty) ){
-							// Remove the property that corresponds to no data properties.
-							delete d_.dataDims[dataProperty]
-							delete d_.histogramSelectedRanges[dataProperty]
-						} // if
-						return isDataAvailable
-					}) // filter
-					
-					
-					d_.line2dProperties = d_.line2dProperties.filter(function(sliceId){
-						return properties.includes(sliceId)
-					});
-					
-					d_.contour2dProperties = d_.contour2dProperties.filter(function(sliceId){
-						return properties.includes(sliceId)
-					});
-					
-				} // if
-				
+		}, // file
+	  
+		  
+	  } // classify
+	  
 
-				
-			}, // refreshMetadataInfo
-			
-			isPropertyInDbsliceData: function isPropertyInDbsliceData(property){
-				
-					var isInData = [ 
-						dbsliceData.data.metaDataProperties.includes(property),
-						dbsliceData.data.dataProperties.includes(property),
-						dbsliceData.data.line2dProperties.includes(property),
-						dbsliceData.data.contour2dProperties.includes(property)
-					]
+	  
+	  // Where is this used??
+	  static cat2var(categories){
+		  // If categories are given, just report the categorisation. But do check to make sure all of the variables are in the categories!! What to do with label and taskId??
+		  
+		  let variables = []
+		  let declaredVariables
+		  
+		  Object.getOwnPropertyNames(categories)
+			.forEach(function(category){
+			  if(categoryInfo.supportedCategories.includes(category)){
+				  declaredVariables = categories[category].map(
+					function(d){
+						return {name: d, 
+							category: category,
+								type: categoryInfo.cat2type[category]}
+					})
 					
-				
-				return isInData.some(d=>d)
-				
-			}, // isPropertyInDbsliceData
-			
-		} // helpers
+				  variables = variables.concat(declaredVariables)  
+			  } // if
+			  
+			})
+		  
+		  // Check that all hte variables are declared!
+		  
+		  return variables
+		  
+	  } // category2variable
+	  
+	  
+
+	  
+	  
+	} // metadataFile
+
+	// For a general unknown on-demand file
+	class onDemandFile extends dbsliceFile {
 		
-	} // cfDataManagement
-    
+		onload(obj){
+			
+			// During the data formatting the format of the file is determined already. Here just report it onwards.
+			return obj
+			
+		} // onload
+		
+		format(obj){
+			// Here try all different ways to format the data. If the formatting succeeds, then check if the contents are fine.
+			
+			let availableFileClasses = [line2dFile, contour2dFile]
+			
+			// Here just try to fit the data into all hte supported data formats, and see what works.
+			
+			var format
+			availableFileClasses.every(function(fileClass){
+				try {
+					// The structure test will throw an error if the content cannot be handled correctly.
+					dbsliceFile.test.structure(fileClass, obj.content)
+					
+					// This file class can handle the data.
+					format = fileClass.name
+				} catch {
+					return true
+				} // if
+			})
+				
+				
+			// Output the object, but add it's format to the name.
+			if( format ){
+				obj.content.format = format
+				return obj
+			} else {
+				throw( new Error( "InvalidFile: Unsupported data structure" ))
+			} // if
+				
+			
+		} // format
+		
+	  
+		static test = {
+			
+			content: function(){
+				// Any content that can be loaded and passes through the format testing is a valid on-demand file.
+				return true
+			}, // content
+			
+		} // test
+	  
+	} // onDemandFile
+
+	// Established on-demand files
+	class line2dFile extends onDemandFile {
+		
+		// Can a method be both static and 
+		
+		format(obj){
+			
+			obj.content = dbsliceFile.test.structure(line2dFile, obj.content)
+			return obj
+
+		} // format
+		
+		
+		// Structure should be testable outside as well, as it will have to be called bt onDemandDataFile when its trying to classify the files.
+		static structure = {
+			
+			csv2lineFile: function(content){
+				
+				if(Array.isArray(content)){
+					
+					let content_ = {
+						variables: content.columns,
+						data: dbsliceFile.convertNumbers( content )
+					}
+					
+					// Test the new contents.
+					line2dFile.test.content(content_)
+					
+					// Structure test succeeded. Delete the columns that accompany the array object.
+					delete content_.data.columns
+					
+					return content_
+				} else {
+					return undefined
+				} // if
+				
+			}, // array
+			
+			json2lineFile: function(content){
+				
+				if(Array.isArray(content.data)){
+					
+					
+					let content_ = {
+						variables: Object.getOwnPropertyNames(content.data[0]),
+						data: content.data
+					}
+					
+					// Test the new contents.
+					line2dFile.test.content(content_)
+					
+					return content_
+					
+				} else {
+					return undefined
+				} // if
+				
+			}, // object
+			
+		} // structure
+		
+		// Also needed by onDemandDataFile
+		static test = {
+			
+			content: function(content){
+				
+				if(content.variables.length < 2){
+					throw( new Error("InvalidFile: No variable pair detected" ))
+				} // if
+				
+				
+				// All values MUST be numeric!
+				let testrow = dbsliceFile.testrow(content.data)
+				let areAllContentsNumeric = Object.getOwnPropertyNames(testrow.row).every(function(varName){
+					let value = testrow.row[varName]
+					return typeof(value) === 'number' && isFinite(value)
+				})
+				if(!areAllContentsNumeric){
+					// There are non-numeric values in the data.
+					throw( new Error("InvalidFile: Some variables include non-numeric values." ))
+					
+				} // if
+				
+				
+				return true
+			}, // content
+			
+		} // test
+		
+	} // line2dFile
+
+	class contour2dFile extends onDemandFile {
+		
+		
+		format(obj){
+			
+			obj.content = dbsliceFile.test.structure(contour2dFile, obj.content)
+			return obj
+			
+		} // format
+		
+		static structure = {
+			// This can now more easily handle different ways of specifying contours. Also convenient to implement the data structure conversion here, e.g. from points to triangles.
+			
+			json2contour2dFile: function(content){
+				
+				// Not supposed to be an array! It should contain a single surface. If content.surfaces IS an array, then just select the first one.
+				let surface = Array.isArray(content.surfaces) ? content.surfaces[0] : content.surfaces
+				
+				// In the content I expect an array called `y', `x', `v' (or others), and `size'. The first three must all be the same length, and the last one must have 2 numbers.
+				
+				let L = (surface.x.length == surface.y.length) && (surface.x.length > 3) ? surface.x.length : undefined
+				
+					
+				// Find all possible variables. The variables are deemed available if they are the same length as the x and y arrays. Also, they must contain only numeric values.
+				let compulsory = ["x", "y", "size"]
+				let variables = Object.getOwnPropertyNames(surface).filter(function(d){
+					
+					let L_
+					if(!compulsory.includes(d)){
+						// This is a possible user variable. It fits if it is an array of the same length as the geometrical parameters, and if it has numeric values.
+						let vals = surface[d]
+						
+						
+						
+						L_ = Array.isArray( vals ) && !vals.some(isNaN) ? vals.length : undefined
+					} else {
+						L_ = undefined
+					} // if
+					
+					// The particular variable has to be an array of exactly the same length as `x' and `y'.
+					
+					return L_ == L
+				})
+				
+				
+				// Variables must have at least one option.
+				let content_
+				if(variables.length > 0){
+					content_ = {
+						variables: variables,
+						surface: surface
+					}
+				} else {
+					throw(new Error("InvalidFile: Unsupported data structure")) 
+				} // if
+			
+				// Hard-coded expected contents
+				return content_
+					
+						
+			}, // object
+			
+		} // structure
+		
+	} // contour2dFile
+
+
+
+	// Support file types - data mergers, sessions, etc.
+	// configFile is used to classify user input files. The format has been changed to retain the transformed content.
+	class userFile extends dbsliceFile {
+		
+		onload(obj){
+			
+			// Mutate onload.
+			var mutatedobj
+			switch(obj.content.format){
+				case "metadataFile":
+					// Not easy to mutate, as the format of the content may not be correct.
+					mutatedobj = new metadataFile(obj)
+					
+					mutatedobj.content = obj.content
+					mutatedobj.promise = obj.promise
+					
+					// Also need to classify...
+					mutatedobj = mutatedobj.classify.all(mutatedobj)
+					
+				  break;
+				case "sessionFile":
+					// Return the contents as they are.
+					mutatedobj = new sessionFile(obj)
+					
+					mutatedobj.content = obj.content
+					mutatedobj.promise = obj.promise
+					
+				  break;
+			  } // switch
+			
+			return mutatedobj
+			
+		} // onload
+		
+		format(obj){
+			// Here try all different ways to format the data. If the formatting succeeds, then check if the contents are fine.
+			
+			// SHOULD ALSO ACCEPT SESSION FILES.
+			
+			let availableFileClasses = [metadataFile, sessionFile]
+			
+			// Here just try to fit the data into all hte supported data formats, and see what works.
+			
+			var content_
+			availableFileClasses.every(function(fileClass){
+				try {
+					// The structure test will throw an error if the content cannot be handled correctly.
+					content_ = dbsliceFile.test.structure(fileClass, obj.content)
+					
+					// This file class can handle the data.
+					content_.format = fileClass.name
+				} catch {
+					return true
+				} // if
+			})
+				
+				
+			// Output the object, but add it's format to the name.
+			if( content_.format ){
+				obj.content = content_
+				return obj
+			} else {
+				throw( new Error( "InvalidFile: Unsupported data structure" ))
+			} // if
+				
+			
+		} // format
+		
+	  
+		static test = {
+			
+			content: function(){
+				// Any content that can be loaded and passes through the format testing is a valid on-demand file.
+				return true
+			}, // content
+			
+		} // test
+		
+		mutateToMetadata(obj){
+			
+			let mutatedobj = new metadataFile(obj)
+			
+			
+			// Refactor the 
+			
+		} // mutateToMetadata
+	  
+	} // userFile
+
+	// This one is capable of loading in just about anything, but it's also not getting stored internally.
+	class sessionFile extends userFile {
+		
+		
+		format(obj){
+			
+			obj.content = dbsliceFile.test.structure(sessionFile, obj.content)
+			return obj
+			
+		} // format
+		
+		static structure = {
+			// This can now more easily handle different ways of specifying contours. Also convenient to implement the data structure conversion here, e.g. from points to triangles.
+			
+			json2sessionFile: function(content){
+				
+				// Has to be an object, whose entries are valid categories. The entries of the categories are considered the variables after teh merge. Each of them must have the same exact properties (file names), the names must include all the already loaded files, and all the file variables must be present in those files. 
+				
+				
+				
+				// Expect two parts to hte file: the merging and session info.
+				
+				// What happens when there is no sessionInfo, or nop merging info? Shouldn't it just throw an error??
+				
+				// Prune away anything that is not in line with the expected structure. Using map creates an array, but it should instead remain an object!!
+				let mergingInfo = categoryInfo.supportedCategories.reduce(function(dict, category){
+					dict[category] = content.mergingInfo[category]
+					return dict
+				}, {}) // map
+				
+				
+				// There are some attributes that the sessionInfo section must have:
+				// title, plotRows.
+				let sessionInfo = content.sessionInfo
+				if( !helpers.arrayIncludesAll( Object.getOwnPropertyNames(sessionInfo), ["title", "plotRows"] ) ){
+					throw( new Error("InvalidFile: Session title or rows not specified."))
+				} // if
+				
+				
+				
+				return {
+					merging: mergingInfo,
+					session: sessionInfo
+				}
+			}, // object
+			
+		} // structure
+			
+		static test = {
+			
+			content: function(content){
+				
+				// The philosophy here is that if it can be applied it is valid.
+				
+				
+				// Try to use it and see if it'll be fine.
+				let fileobjs = dbsliceDataCreation.makeInternalData(fileManager.library.retrieve(metadataFile))
+				
+				fileobjs = dbsliceDataCreation.sortByLoadedMergingInfo(fileobjs, content)
+				
+				// No need to check if all the loaded files were declared for - just use the merge to do what is possible.
+				
+				// Maybe the same applies to variables too? Just use what you can?
+				
+				// Maybe I don't even need to find common file names??
+				
+				
+				// If there's no metadata files loaded then assume they're metadata files.
+				
+				
+				
+				// At least some of the 
+				return true
+				
+			}, // content
+			
+		} // test
+		
+	} // sessionFile
+
+
+
+
+
+	// Category info.
+	let categoryInfo = {
+		
+		catCompatibleTypes: {
+			categorical: ["number", "string","line2dFile","contour2dFile"],
+			ordinal: ["number"],
+			line2dFile: ["line2dFile"],
+			contour2dFile: ["contour2dFile"]
+		}, // catCompatibleTypes
+		
+		cat2type: {
+			categorical: "string",
+				ordinal: "number",
+			 line2dFile: "line2dFile",
+		  contour2dFile: "contour2dFile"
+		}, // cat2type
+		
+		cat2ind: {
+			 categorical: 0,
+				 ordinal: 1,
+			  line2dFile: 2,
+		   contour2dFile: 3,
+				  unused: 4
+		}, // cat2ind
+		
+		cat2prop: {
+			categorical: "categoricalProperties",
+				ordinal: "ordinalProperties",
+			 line2dFile: "line2dProperties",
+		  contour2dFile: "contour2dProperties",
+				 unused: "unusedProperties"
+		}, // cat2prop
+			
+		ind2cat: {
+			0: "categorical",
+			1: "ordinal",
+			2: "line2dFile",
+			3: "contour2dFile",
+			4: "unused"
+		}, // ind2cat
+		
+		// Move to input testing
+		supportedCategories: [
+			  "categorical",
+			  "ordinal",
+			  "line2dFile",
+			  "contour2dFile",
+			  "Unused"
+		], // supportedCategories
+		
+		
+	} // categoryInfo
 	
 	// General helpers
 	var helpers = {
@@ -1551,6 +3397,13 @@ var dbslice = (function (exports) {
 				return d.filter( onlyUnique )
 			
 			}, // unique
+			
+			arrayEqual: function arrayEqual(A, B){
+				
+				return helpers.arrayIncludesAll(A, B)
+					&& helpers.arrayIncludesAll(B, A)
+				
+			}, // arrayEqual
 			
 			arrayIncludesAll: function arrayIncludesAll(A,B){
 				// 'arrayIncludesAll' checks if array A includes all elements of array B. The elements of the arrays are expected to be strings.
@@ -1601,129 +3454,19 @@ var dbslice = (function (exports) {
 			
 			}, // collectObjectArrayProperty
 			
+			setDifference: function (A, B){
+				
+				let a = new Set(A);
+				let b = new Set(B);
+				
+				return { 
+				  aMinusB: new Set([...a].filter(x => !b.has(x))),
+				  bMinusA: new Set([...b].filter(x => !a.has(x)))
+				}
+			}, // setDifference
+			
 			// Comparing file contents
 			
-			checkCompatibility: function checkCompatibility(files, accessor){
-				// 'checkCompatibility' checks if the properties retrieved using 'accessor( file )' are exactly the same. To check if the arrays are exactly the same all the contents of A have to be in B, and vice versa. 
-			  
-				// The first file is taken as the target. Others must be compatible to it.
-				var target = []
-				if(files.length > 0){
-					target = accessor( files[0] )
-				} // if
-				
-				
-				var compatibleFiles = files.filter(function(file){
-				
-					var tested = accessor( file )
-				
-					// Check if the tested array includes all target elements.
-					var allExpectedInTested = helpers.arrayIncludesAll(tested, target)
-					
-					// Check if the target array includes all test elements.
-					var allTestedInExpected = helpers.arrayIncludesAll(target, tested)
-					
-					return allExpectedInTested && allTestedInExpected
-				})
-				
-				
-				
-				// Remove any incompatible files from available files.
-				var compatibleUrls = compatibleFiles.map(function(file){return file.url})
-				var incompatibleFiles = files.filter(function(file){
-					return !compatibleUrls.includes( file.url )
-				})
-				
-				// Return the summary
-				return {compatibleFiles:   compatibleFiles,
-					  incompatibleFiles: incompatibleFiles}
-			  
-			}, // checkCompatibility
-				
-			chainCompatibilityCheck: function chainCompatibilityCheck(files, accessors){
-				// A wrapper to perform several compatibility checks at once.
-			  
-				var compatible = files
-				var incompatible = []
-					
-				// The compatibility checks are done in sequence.
-				accessors.forEach(function(accessor){
-					var c = helpers.checkCompatibility(compatible, accessor)
-					compatible = c.compatibleFiles
-					incompatible.concat(c.incompatibleFiles)
-				})
-		  
-				return {compatibleFiles:   compatible,
-					  incompatibleFiles: incompatible}
-			  
-			}, // chainCompatibilityCheck
-			  
-			getIntersectOptions: function getIntersectOptions(files){
-			  
-				// 'getIntersectOptions' returns the intersect of all options available. The compatibility checks established that the files have exactly the same option names available, now the intersect of option options is determined.
-
-				// Three different options exist.
-				// 1.) User options (tags such as 'height', "circumference"...)
-				// 2.) Var options (possibilities for the x and y axes)
-				// 3.) Common options - to cater for explicit variable declaration. These are not included for the intersect as the user will not be allowed to select from them for now.
-
-				// First select the options for which the intersect is sought for. It assumes that all the files will have the same userOptions. This should be guaranteed by the compatibility check.
-				
-				
-				var i = helpers.calculateOptionIntersect
-				// 'calculateOptionIntersect' is geared to deal with an array of options, therefore it returns an array of intersects. For x and y options only 1 option is available, therefore the array wrapper is removed here.
-				var xVarIntersect = i( files, function(f){return [f.data.varOptions.x]}  )
-				var yVarIntersect = i( files, function(f){return [f.data.varOptions.y]}  )
-				
-				// Why index the first one out? To remove the array wrapper. User options need the array wrapper to allow later inclusion of additional options.
-				return {
-				   userOptions: 
-						   i( files, function (f){return f.data.userOptions} ),
-					varOptions: {
-						x: xVarIntersect[0],
-						y: yVarIntersect[0]
-					} // varOptions
-				} // intersectOptions
-				
-
-					
-			}, // getIntersectOptions
-					
-			calculateOptionIntersect: function calculateOptionIntersect( files, accessor ){
-				// 'calculateOptionIntersect' takes teh array of files 'files' and returns all options stored under the attribute files.data[<optionsName>] that all the files have.
-				
-				// The first file is selected as teh seed. Only the options that occur in all files are kept, so the initialisation makes no difference on the end result.
-				var seedSelections = accessor( files[0] )
-				var intersect = seedSelections.map(function(seedSelection){
-					
-					// The options of the seed user options will be the initial intersect options for this particular option.
-					var intersectOptions = seedSelection.options
-					
-					// For each of the options loop through all the files, and see which options are included. Only keep those that are at every step.
-					files.forEach(function(file){
-						
-						// For this particular file fitler all the options for this particular user option.
-						intersectOptions = intersectOptions.filter(function(option){
-						
-							// It is expected that only one option of the same name will be present. Pass in an option that only one element is required - last 'true' input.
-							var fileOptions = helpers.findObjectByAttribute(accessor(file), "name", [seedSelection.name], true)
-							
-							return fileOptions.options.includes( option )
-						}) // filter
-					}) // forEach
-
-					return {name: seedSelection.name,
-							 val: intersectOptions[0],
-						 options: intersectOptions}
-					
-				}) // map
-				
-				// Don't unwrap if it is a single object. In some cases the array is needed to allow other options to be joined later on.
-				
-				return intersect
-			
-			
-			}, // calculateOptionIntersect
 			
 			// Text sizing
 			fitTextToBox: function fitTextToBox(text, box, dim, val){
@@ -1758,10 +3501,1298 @@ var dbslice = (function (exports) {
 			
 			}, // calculateExponent
 			
+			
+			// FILES
+			createFileInputElement: function createFileInputElement(loadFunction){
+				
+				// This button is already created. Just add the functionaity.
+				var dataInput = document.createElement('input');
+				dataInput.type = 'file';
+
+				dataInput.onchange = function(e){
+					loadFunction(e.target.files)
+				}; // onchange
+				
+			  return dataInput
+				
+			}, // createFileInputElement
+		   
+			
 	} // helpers
+	
+	
+	
+	
 	
 	// PLOTTING. 
 
+    var plotHelpers = {
+        
+        setupPlot: {
+			
+			general: {
+				
+				// Making the plot DOM
+				makeNewPlot: function makeNewPlot( plotCtrl, index ) {
+    
+					plotCtrl.format.parent = this._parent
+	
+					// Note that here `this' is a d3 object.
+					let p = plotCtrl.format.position
+					let container = plotCtrl.format.parent
+					
+					let dx = positioning.dx( d3.select(container) )
+					let dy = positioning.dy( d3.select(container) )
+					
+					let iw_min = Math.ceil(p.minW/dx)
+					let ih_min = Math.ceil(p.minH/dy)
+					p.iw = p.iw > iw_min ? p.iw : iw_min
+					p.ih = p.ih > ih_min ? p.ih : ih_min
+					
+	
+					var wrapper = d3.select(this)
+					  .append("div")
+						.attr("class", "plotWrapper")
+						.attr("plottype", plotCtrl.plotFunc.name)
+						.style("position", "absolute")
+						.style("left",container.offsetLeft+p.ix*dx+"px")
+						.style("top",container.offsetTop+p.iy*dy+"px")
+						.style("width" , p.iw*dx + "px")
+						.style("height", p.ih*dy + "px")
+						
+					var plot = wrapper
+					  .append("div")
+					    .attr("class", "card")
+
+
+					// Apply the drag to all new plot headers
+					let drag = d3.drag()
+						.on("start", positioning.dragStart)
+						.on("drag" , positioning.dragMove)
+						.on("end"  , positioning.dragEnd)
+					  
+					var plotHeader = plot
+					  .append("div")
+						.attr("class", "card-header plotTitle")
+						.style("cursor", "grab")
+						.call(drag)
+				
+
+					
+					// Add the actual title
+					var titleBox = plotHeader
+					  .append("div")
+					    .attr("class", "title")
+						.style("display","inline")
+						
+						
+						
+						
+					// Add a div to hold all the control elements.
+					plotHeader
+					  .append("div")
+						.attr("class", "ctrlGrp float-right")
+						.attr("style", "display:inline-block")
+					  .append("button")
+                        .attr("class", "btn btn-danger float-right")
+                        .html("x")
+						.on("mousedown", function() { d3.event.stopPropagation(); })
+						.on("click", addMenu.removePlotControls )
+					
+					  
+					// Now add the text - this had to wait for hte button to be added first, as it takes up some space.
+					titleBox.html(plotCtrl.format.title)
+					  .attr("spellcheck", false)
+					  .attr("contenteditable", true)
+					  .style("cursor", "text")
+					  .on("mousedown", function() { d3.event.stopPropagation(); })
+					  .each(function(ctrl){
+						  this.addEventListener("input", function(){
+							  ctrl.format.title = this.innerHTML
+						  })
+					  })
+					  
+					  
+					  
+					var plotBody = plot
+					  .append("div")
+						.attr("class", "plot")
+						
+						
+
+						
+					// Bind the DOM element to the control object.
+					plotCtrl.figure = plotBody
+					plotCtrl.format.wrapper = wrapper
+
+					
+					
+					
+					// Draw the plot
+					plotCtrl.plotFunc.make(plotCtrl);
+					
+					
+					
+
+					
+
+				}, // makeNewPlot
+				
+				setupPlotBackbone: function setupPlotBackbone(ctrl){
+					/* This function makes the skeleton required for a plot that will have interactive inputs on both axes.
+					_________________________________________________
+					|| div | | div                                   |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||-----| |---------------------------------------|
+					||-----| |---------------------------------------|
+					|| div | | div                                   |
+					||_____| |_______________________________________|
+					
+					*/
+					
+					var plot = ctrl.figure
+				
+					
+					// Left Control
+					plot
+					  .append("div")
+						.attr("class", "leftAxisControlGroup")
+						.style("width", ctrl.format.margin.left +"px")
+						.style("float", "left")
+						
+					// Main plot with its svg.
+					plot
+					  .append("div")
+						.attr("class", "plotContainer")
+						.style("margin-left", ctrl.format.margin.left + "px")
+				
+					// Bottom left corner div
+					// A height of 38px is prescribed, as that is the height of a bootstrap button.
+					plot
+					  .append("div")
+						.attr("class", "bottomLeftControlGroup")
+						.attr("style", "width: "+ ctrl.format.margin.left +"px; height:" + ctrl.format.margin.bottom +"px; float:left")
+					
+					
+					// Bottom controls
+					plot
+					  .append("div")
+						.attr("class", "bottomAxisControlGroup")
+						.attr("style", "margin-left: " + ctrl.format.margin.left + "px;")
+						
+					// Add the resize item.
+					let resize = d3.drag()
+						.on("start", positioning.resizeStart)
+						.on("drag", positioning.resizeMove)
+						.on("end", positioning.resizeEnd)
+					
+					plot.select(".bottomAxisControlGroup")
+					  .append("svg")
+						.attr("width",  "10")
+						.attr("height", 10)
+						.style("position", "absolute")
+						.style("bottom", "0px")
+						.style("right", "0px")
+					  .append("circle")
+						.attr("cx", 5)
+						.attr("cy", 5)
+						.attr("r", 5)
+						.attr("fill", "DarkGrey")
+						.attr("cursor", "nwse-resize")
+						.call(resize)
+					
+					
+				}, // setupPlotBackbone
+				
+				setupPlotContainerBackbone: function setupPlotContainerBackbone(ctrl){
+					
+					// Fill in the plot container backbone.
+					var plotContainer = ctrl.figure.select("div.plotContainer")
+					
+					var svg = plotContainer
+							.append("svg")
+							  .attr("class","plotArea")
+			 
+					// Background group will hold any elements required for functionality in the background (e.g. zoom rectangle). 
+					svg.append("g")
+							.attr("class", "background")
+			 
+					// Group holding the primary data representations.
+					svg.append("g")
+							.attr("class", "data")
+	
+					// Markup group will hold any non-primary data graphic markups, such as chics connecting points on a compressor map. 
+					svg.append("g")
+							.attr("class", "markup")
+			
+					// Group for the x axis
+					svg.append("g")
+						.attr( "class", "axis--x")
+					  .append("g")
+					    .attr("class", "exponent")
+					  .append("text")
+					    .attr("fill", "none")
+						.attr("y", "-0.32em")
+					  .append("tspan")
+					    .html("x10")
+					  .append("tspan")
+					    .attr("class","exp")
+					    .attr("dy", -5)
+						
+					// Group for the y axis
+					svg.append("g")
+						.attr( "class", "axis--y")
+					  .append("g")
+					    .attr("class", "exponent")
+					  .append("text")
+					    .attr("fill", "none")
+						.attr("x", -8)
+					  .append("tspan")
+					    .html("x10")
+					  .append("tspan")
+					    .attr("class","exp")
+					    .attr("dy", -5)
+					  
+						
+				}, // setupPlotContainerBackbone
+				
+				
+				//Scaling
+				rescaleSvg: function rescaleSvg(ctrl){
+					
+					
+					// RESIZE ALL THE PLOT CONTAINERS AS NEEDED.
+					
+					// First enforce the size based on the size of the wrapper.
+					
+					
+					
+					// Now calculate the size of the svg.
+					var svg = ctrl.figure.select("svg.plotArea")
+					var cardDOM = ctrl.figure.node().parentElement
+					var wrapperDOM = cardDOM.parentElement
+					var headerDOM = d3.select(cardDOM).select(".plotTitle").node()
+					
+					
+					
+					
+					
+					
+					// These are margins of the entire drawing area including axes. The left and top margins are applied explicitly, whereas the right and bottom are applied implicitly through the plotWidth/Height parameters.
+					var margin = ctrl.format.margin
+					var axesMargin = ctrl.format.axesMargin
+					
+					
+					// Width of the plotting area is the width of the div intended to hold the plot (.plotContainer). ctrl.format.margin.bottom is the margin for hte button.
+					var width = wrapperDOM.offsetWidth - margin.left - margin.right
+					var height = wrapperDOM.offsetHeight - headerDOM.offsetHeight - margin.bottom - margin.top
+
+					
+					
+					
+					// The plot will contain some axes which will take up some space. Therefore the actual plot width will be different to the width of the entire graphic. Same is true for the height. The outer and inner svg only touch on the right border - there is no margin there.
+					var plotWidth = width - axesMargin.left - axesMargin.right
+					var plotHeight = height - axesMargin.bottom - axesMargin.top
+					
+					// Outer svg. This is required to separate the plot from the axes. The axes need to be plotted onto an svg, but if the zoom is applied to the same svg then the zoom controls work over the axes. If rescaling of individual axes is needed the zoom must therefore be applied to a separate, inner svg.
+					// This svg needs to be translated to give some space to the controls on the y-axes.
+					svg
+						.attr("width", width)
+						.attr("height", height)
+							
+							
+							
+					
+					// If margins are too small the ticks will be obscured. The transform is applied from the top left corner.
+					var axesTranslate = makeTranslate(axesMargin.left, axesMargin.top)
+					
+					// Make a group that will hold any non-primary data graphic markups, such as chics connecting points on a compressor map. This group also holds a white rectangle that allows the whole plot area to use zoom controls. This is so as the zoom will only apply when the cursor is on top of children within a g. E.g., without the rectangle the pan could only be done on mousedown on the points.
+					var background = svg.select("g.background")
+							.attr("transform",  axesTranslate)
+					background
+						.select("clipPath")
+						.select("rect")
+								.attr("width", plotWidth )
+								.attr("height", plotHeight )
+								.style("fill", "rgb(255,255,255)")
+					background
+						.select("rect.zoom-area")
+								.attr("width", plotWidth )
+								.attr("height", plotHeight )
+								.style("fill", "rgb(255,255,255)")
+
+					// Transform the markup to the right location.
+					svg.select("g.markup")
+							.attr("transform",  axesTranslate)								
+					
+					// Group holding the primary data representations. Needs to be after g.markup, otherwise the white rectangle hides all the elements.
+					svg.select("g.data")
+							.attr("transform", axesTranslate)
+							.attr("width", plotWidth)
+							.attr("height", plotHeight)
+						
+						
+					// Group for the x axis
+					svg.select("g.axis--x")
+						.attr( "transform", makeTranslate(axesMargin.left, plotHeight + axesMargin.top) )
+					  .select("g.exponent")
+					  .select("text")
+					    .attr("x", plotWidth - 12)
+						
+					// Group for the y axis
+					svg.select("g.axis--y")
+						.attr( "transform", axesTranslate )
+						.attr("x", -12)
+						.attr("y", 5)
+				
+						
+					function makeTranslate(x,y){
+						return "translate("+[x, y].join()+")"
+					} // makeTranslate	
+					
+				}, // rescaleSvg
+			
+				
+				
+				// Select menus
+				
+				appendVerticalSelection: function appendVerticalSelection(figure, onChangeFunction){
+			
+					let container = figure.select(".leftAxisControlGroup")
+		
+					let s = container
+					  .append("select")
+						.attr("class", "select-vertical custom-select")
+					
+									
+					// This is just the text label - it has no impact on the select functionality. Fit the text into a box here.
+					let txt = container
+					  .append("text")
+						.text( s.node().value )
+						.attr("class","txt-vertical-axis")
+					plotHelpers.helpers.adjustAxisSelect(figure)
+					
+					
+					s.on("change", onChangeFunction )
+				
+				}, // appendVerticalSelection
+				
+				updateVerticalSelection: function updateVerticalSelection(ctrl){
+				
+					// THIS WORKS!!
+					// NOTE THAT CHANGING THE SELECT OPTIONS THIS WAY DID NOT TRIGGER THE ON CHANGE EVENT!!
+					
+					var variables = ctrl.view.yVarOption.options
+					
+					var container = ctrl.figure.select(".leftAxisControlGroup")
+					
+					// Handle the select element.
+					var s = container.select("select")
+					var options = s.selectAll("option").data(variables)
+					options
+					  .enter()
+						.append("option")
+						   .attr("class","dropdown-item")
+						   .html(function(d){return d})
+						   .attr("value", function(d){return d})
+						   
+					options.html(function(d){return d})
+					
+					options.exit().remove()
+						
+						
+					// Force the appropriate selection to be selected.
+					s.node().value = ctrl.view.yVarOption.val
+					
+					// Update the text to show the same.
+					container.select("text").text(ctrl.view.yVarOption.val)
+					plotHelpers.helpers.adjustAxisSelect(ctrl.figure)
+				
+				}, // updateVerticalSelection
+				
+				appendHorizontalSelection: function appendHorizonalSelection(figure, onChangeFunction){
+				
+					let container = figure.select(".bottomAxisControlGroup")
+				
+					let s = container
+					  .append("select")
+						.attr("class", "custom-select")
+						.attr("dir","rtl")
+						.attr("style", 'float:right;')
+					
+					
+					s.on("change", onChangeFunction)
+					
+				}, // appendHorizonalSelection
+			
+				updateHorizontalSelection: function updateHorizontalSelection(ctrl, variables){
+				
+					// THIS WORKS!!
+					// NOTE THAT CHANGING THE SELECT OPTIONS THIS WAY DID NOT TRIGGER THE ON CHANGE EVENT!!
+					
+					var variables = ctrl.view.xVarOption.options
+					var container = ctrl.figure.select(".bottomAxisControlGroup")
+					
+					// Handle the select element.
+					var s = container.select("select")
+					var options = s.selectAll("option").data(variables)
+					options
+					  .enter()
+						.append("option")
+						   .attr("class","dropdown-item")
+						   .html(function(d){return d})
+						   
+					options.html(function(d){return d})
+					
+					options.exit().remove()
+						
+						
+					// Force the appropriate selection to be selected.
+					s.node().value = ctrl.view.xVarOption.val
+					
+					
+				
+				}, // updateHorizontalSelection
+			
+				// Toggle in the header
+				
+				appendToggle: function appendToggle(container, onClickEvent){
+				
+					// Additional styling was added to dbslice.css to control the appearance of the toggle.
+
+					var toggleGroup = container
+					  .append("label")
+						.attr("class", "switch float-right")
+					var toggle = toggleGroup
+					  .append("input")
+						.attr("type", "checkbox")
+					toggleGroup
+					  .append("span")
+						.attr("class", "slider round")
+						
+					// Add it's functionality.
+					toggle.on("change", onClickEvent)
+					
+				}, // appendToggle
+				
+			}, // general
+			
+			twoInteractiveAxes: {
+				
+				setupPlotBackbone: function setupPlotBackbone(ctrl){
+					/* This function makes the skeleton required for a plot that will have interactive inputs on both axes.
+					_________________________________________________
+					|| div | | div                                   |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||     | |                                       |
+					||-----| |---------------------------------------|
+					||-----| |---------------------------------------|
+					|| div | | div                                   |
+					||_____| |_______________________________________|
+					
+					*/
+					
+					// Make the general backbone.
+					plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
+					
+					plotHelpers.setupPlot.general.setupPlotContainerBackbone(ctrl)
+					
+					
+					// Fill in custom elements.
+					var svg = ctrl.figure
+					  .select("div.plotContainer")
+					  .select("svg.plotArea")
+					
+
+					
+							
+					
+					// The markup group also holds a white rectangle that allows the whole plot area to use zoom controls. This is so as the zoom will only apply when the cursor is on top of children within a g. E.g., without the rectangle the pan could only be done on mousedown on the points.
+					// USE THIS RESTANGLE AS THE clipPAth too??
+					var background = svg
+						.select("g.background")
+						
+					// At some point this didn't work:
+					// .attr("clipPathUnits","objectBoundingBox")
+					background
+						.append("clipPath")
+							.attr("id", "zoomClip")
+						.append("rect")
+					background.append("rect")
+						.attr("class", "zoom-area")
+						.attr("fill", "rgb(255,25,255)")
+					background
+						.append("g")
+							.style("display","none")
+							.attr("class","tooltipAnchor")
+						.append("circle")
+								.attr("class", "anchorPoint")
+								.attr("r",1);
+					
+				
+					svg.select("g.data")
+						.attr("clip-path", "url(#zoomClip)")	
+						
+				}, // setupPlotBackbone
+							
+				// Button Menu
+				buttonMenu: {
+			
+					
+					
+					make: function make(ctrl){
+						
+						var container = ctrl.figure.select(".bottomLeftControlGroup")
+		
+						var menuWrapper = container
+						  .append("div")
+							.attr("class", "dropup")
+							
+						// The button that will toggle the main menu.
+						var button = menuWrapper
+						  .append("button")
+							.attr("class", "btn dropup-toggle")
+							.html("O")
+						  
+						// The div that will hold the accordion options.
+						var menu = menuWrapper
+						  .append("div")
+							.attr("class", "dropup-content")
+							.style("display", "none")
+			
+						// REQUIRED CUSTOM FUNCTIONALITY
+						var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.helpers
+						
+						
+						// When the button is clicked the dropup should toggle visibility.
+						button.on("click", h.toggleDropupMenu)
+						
+						// When outside of the menu, and the main menu items is clicked close the dropup menu.
+						window.addEventListener("click", h.closeDropupMenu(menu) )
+						
+						
+						
+						
+					
+					}, // make
+					
+					update: function update(ctrl, optionGroups){
+			
+			
+						var container = ctrl.figure.select(".bottomLeftControlGroup")
+						var menu = container.select(".dropup").select(".dropup-content")
+			
+						// First remove all previous groups.
+						while (menu.node().firstChild) {
+							menu.node().removeChild(menu.node().lastChild);
+						} // while
+			
+						// Now append all the options required.
+						optionGroups.forEach(function(option){
+							appendGroup(menu, option)
+						})
+			
+						
+						function appendGroup(menu, option){
+							// Append the group div, the p holding the name, and another div holding the options.
+							var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.helpers
+							var submenuWrapper = menu.append("div")
+							
+							// By clicking on this p I want to show the submenu.
+							var p = submenuWrapper
+							  .append("p")
+								.attr("class", "dropup-toggle submenu-toggle")
+								.html(option.name)
+								.style("font-weight", "bold")
+								.style("font-size", "12px")
+							p.on("click", h.toggleDropupSubmenu) // on
+							
+							var submenu = submenuWrapper
+							  .append("div")
+								.attr("class", "submenu-content")
+								.style("display", "none")
+							  
+							submenu
+							  .selectAll("a")
+							  .data(option.options)
+							  .enter()
+							  .append("a")
+								.attr("class", function(d){
+									// This function intitialises the selection.
+									var classList = ["submenu-item"]
+									if(option.val == d){
+										classList.push("selected")
+									} else {
+										classList.push("deselected")
+									} // if
+									return classList.join(" ")
+								})
+								.html(function(d){return d})
+								.on("click", function(d){
+									// Several events should occur on an item click. First of all the selection should be highlighted in the selection menu. Then the corresponding ctrl attributes should be updated. And finally a redraw should be ordered.
+									
+									// Perform the usual toggling of the menu items. This also allows an option to be deselected!
+									h.toggleSubmenuItemHighlight(this)
+									
+									// Update the corresponding ctrl attribute.
+									// 'option' is a reference to either a manually created option in 'update', or a reference to an actual option in 'ctrl.view.options'.
+									var optionSame = option.val == d
+									option.val = optionSame ? undefined : d;
+									
+									// If a special event is specified, execute it here. This event might require to know the previous state, therefore execute it before updating the state.
+									if(option.event != undefined){
+										
+										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
+										
+										option.event(ctrl, option.val, optionSame)
+										
+										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
+									} // if
+									
+									
+									
+									// The data defined options, if they exist, must not be deselected however. Highlight the selected ones.
+									// if for ctrl.view.options is here to account for the cases where the only options are those that feature only functionality.
+									if(ctrl.view.options != undefined){
+									
+										var userOptionNames = ctrl.view.options.map(function(o){return o.name})
+										if( userOptionNames.includes(option.name) ){
+											// This item belongs to an option defined by the data. It must remain selected.
+											this.classList.replace("deselected", "selected")
+										} // if
+									} // if
+
+									
+								})
+							
+						} // appendGroup
+						
+						
+					
+					}, // update
+					
+					helpers: {
+						
+						
+						toggleDisplayBlock: function toggleDisplayBlock(menu){
+		
+			
+							if(menu.style.display === "none"){
+								menu.style.display = "block"
+							} else {
+								menu.style.display = "none"
+							} // if
+						
+						}, // toggleDisplayBlock
+						
+						toggleDropupMenu: function toggleDropupMenu(){
+							var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.helpers
+							var menu = d3.select(this.parentElement).select("div")
+							
+							// Toggle the display of the overall menu.
+							h.toggleDisplayBlock(menu.node())
+							
+							
+							// Hide all the accordion submenu menus.
+							menu.selectAll(".submenu-content").each(function(){
+								this.style.display = "none"
+							})
+							
+							// FAILED CONSIDERATIONS:
+							// document.getElementById("myDropdown").classList.toggle("show");
+							//wrapper.select(".dropup-content").node().classList.toggle("show");
+							
+						}, // toggleDropupMenu
+						
+						toggleDropupSubmenu: function toggleDropupSubmenu(){
+							
+							// Collect helper object for code readability.
+							var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.helpers
+						
+							// Collect the submenu corresponding to the clicked element.
+							var clickedSubmenu = d3.select(this.parentElement).select(".submenu-content").node()
+							
+							// This needs to toggle itself, but also all the other submenus, therefor search for them, and loop over them.
+							var allSubmenu = d3.select(this.parentElement.parentElement)
+							  .selectAll(".submenu-content")
+							  
+							allSubmenu
+							  .each(function(){
+								  if(clickedSubmenu == this){
+									// The current one that was clicked needs to toggle depending on the current state.
+									h.toggleDisplayBlock(this)
+								  } else {
+									// All others must collapse.
+									this.style.display = "none"
+								  } // if
+							  }) // each
+						
+						}, // toggleDropupSubmenu
+						
+						closeDropupMenu: function closeDropupMenu(menu) {
+							// 'closeDropupMenu' creates the function to be executed upon click outside the interactive area of the dropup menu. It is targeted for a particular menu, therefore a new function must be created everytime.
+						  
+							return function(event){
+								// If the desired element is NOT preseed, close the corresponding menu.
+								if (!event.target.matches('.dropup-toggle')) {
+											
+									menu.node().style.display = "none";	
+
+								} // if
+								
+								// If the event matches a submenu, then it's options should be expanded.
+							}
+							
+						}, // closeDropupMenu
+					
+						toggleSubmenuItemHighlight: function toggleSubmenuItemHighlight(clickedItem){
+						
+							//
+						
+							// Deselect competing options
+							var allOptions = d3.select(clickedItem.parentNode).selectAll(".submenu-item")
+							allOptions.each(function(){
+								if( this == clickedItem ){
+									// Toggle this option on or off as required.
+									if( clickedItem.classList.contains("selected") ){
+										clickedItem.classList.replace("selected", "deselected")
+									} else {
+										clickedItem.classList.replace("deselected", "selected")
+									} // if
+								} else {
+									// Deselect.
+									this.classList.replace("selected", "deselected")
+								} // if
+							})
+						
+						} // toggleSubmenuItemHighlight
+						
+						
+					} // helpers
+				
+				}, // buttonMenu
+				
+				// Title toggle
+				updatePlotTitleControls: function updatePlotTitleControls(ctrl){
+			
+					// Add the toggle to switch manual selection filter on/off
+					var container = d3.select( ctrl.figure.node().parentElement )
+					  .select(".plotTitle")
+					  .select("div.ctrlGrp")
+					var onClickEvent = function(){ 
+						
+						// Update teh DOM accordingly.
+						plotHelpers.setupInteractivity.general.toggleToggle(this)
+						
+						// Update filters
+						filter.apply()
+						
+						sessionManager.render()
+					} // onClickEvent
+					  
+					plotHelpers.setupPlot.general.appendToggle( container, onClickEvent )
+					
+				}, // updatePlotTitleControls
+			
+			}, // twoInteractiveAxes
+			
+		}, // setupPlot
+		
+		setupInteractivity: {
+			
+			general: {
+				
+				onSelectChange: {
+					
+					vertical: function vertical(ctrl, selectedVar){
+						// Update the vertical text and the state.
+						
+						// Change the text.
+						ctrl.figure
+						  .select(".leftAxisControlGroup")
+						  .select(".txt-vertical-axis")
+						  .text( selectedVar )
+						  
+						// Update the y-variable for the plot.
+						ctrl.view.yVarOption.val = selectedVar
+						
+					}, // vertical
+					
+					horizontal: function horizontal(){
+						
+						// Horizontal select change requires so little to update itself that this function here is not necessary as of now.
+						
+					}, // horizontal
+					
+				}, // onSelectChange
+				
+				toggleToggle: function toggleToggle(clickedToggleDOM){
+					
+					var currentVal = clickedToggleDOM.checked
+					
+					// All such switches need to be activated.
+					var allToggleSwitches = d3
+					  .selectAll(".plotWrapper")
+					  .selectAll(".plotTitle")
+					  .selectAll(".ctrlGrp")
+					  .selectAll(".switch")
+					  .selectAll("input[type='checkbox']")
+					
+					allToggleSwitches.each(function(){
+						this.checked = currentVal
+					}) // each
+				}, // toggleToggle
+				
+			}, // general
+			
+			twoInteractiveAxes: {
+				
+				onSelectChange: {
+					
+					vertical: function vertical(ctrl){
+						// 'vertical' returns a function in order to be able to include a reference to the correct 'ctrl' object in it.
+						
+						return function(){
+									
+							// `this' is the vertical select! 
+							var selectedVar = this.value
+							
+							// Perform the regular task for y-select.
+							plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar)
+							
+
+							// Perform other needed tasks and refresh.
+							ctrl.plotFunc.interactivity.onSelectChange(ctrl)
+						
+						} // return
+						
+					}, // vertical
+					
+					horizontal: function horizontal(ctrl){
+						// 'horizontal' returns a function in order to be able to include a reference to the correct 'ctrl' object in it.
+						
+						return function(){
+								
+							var selectedVar = this.value
+							  
+							// Update the y-variable for the plot.
+							ctrl.view.xVarOption.val = selectedVar
+							
+							// Perform other needed tasks and refresh.
+							ctrl.plotFunc.interactivity.onSelectChange(ctrl)
+							
+						} // return
+						
+					}, // horizontal
+					
+				}, // onSelectChange
+							
+				addAxisScaling: function addAxisScaling(ctrl){
+	
+					var svg = ctrl.figure.select("svg.plotArea")
+		
+					var mw;
+					var downx = Math.NaN;
+					var downscalex;
+					
+					var mh;
+					var downy = Math.NaN;
+					var downscaley;
+				
+					svg.select(".axis--x")
+					  .on("mousedown", function(d) {
+						mw = Number( svg.select("g.data").attr("width") )
+						mh = Number( svg.select("g.data").attr("height") )
+						
+						let axisXDOM = svg.select("g.axis--x").node()
+						var p = d3.mouse(axisXDOM)[0];
+						downx = ctrl.tools.xscale.invert(p);
+						downscalex = ctrl.tools.xscale;
+						
+					  });
+					  
+					svg.select(".axis--y")
+					  .on("mousedown", function(d) {
+						mw = Number( svg.select("g.data").attr("width") )
+						mh = Number( svg.select("g.data").attr("height") )
+						
+						let axisYDOM = svg.select("g.axis--y").node()
+						var p = d3.mouse(axisYDOM)[1];
+						downy = ctrl.tools.yscale.invert(p);
+						downscaley = ctrl.tools.yscale;
+						
+					  });
+					  
+					// attach the mousemove and mouseup to the body
+					// in case one wonders off the axis line
+					
+					svg
+					  .on("mousemove", function(d) {
+						  
+						let axisXDOM = d3.select(this).select("g.axis--x").node()
+						let axisYDOM = d3.select(this).select("g.axis--y").node()
+						
+						if (!isNaN(downx)) {
+						  var px = d3.mouse( axisXDOM )[0]
+						  if (downscalex(px) != downx) {
+							// Here it would be great if the dragged number would move to where the cursor is.
+							
+							//let tx = ctrl.view.t.x
+							//let tv = downscalex.invert( tx )
+							//let vb = tv + ( downx - tv )/( px - tx )*( mw - tx )
+							//let va = tv - ( downx - tv )/( px - tx )*tx
+							
+							let va = downscalex.domain()[0]
+							let vb = mw * (downx - downscalex.domain()[0]) / px + downscalex.domain()[0]
+							  
+							ctrl.tools.xscale.domain([ va,  vb ]);
+						  } // if
+						  
+						  // Execute redraw
+						  ctrl.plotFunc.interactivity.dragAdjustAR(ctrl)
+						  
+						} // if
+						
+						
+						if (!isNaN(downy)) {
+						  var py = d3.mouse( axisYDOM )[1]
+						  if (downscaley(py) != downy) {
+							ctrl.tools.yscale.domain([
+								downscaley.domain()[0],  
+								mh * ( downy - downscaley.domain()[0]) / (mh-py) + downscaley.domain()[0] 
+							])
+						  } // if
+						  
+						  // Execute redraw
+						  ctrl.plotFunc.interactivity.dragAdjustAR(ctrl)
+							
+						} // if
+						
+					  })
+					  .on("mouseup", function(d) {
+						downx = Math.NaN;
+						downy = Math.NaN;
+						// When the domain is manually adjusted the previous transformations are no longer valid, and to calculate the delta at next zoom event the transformation needs to be reinitiated.
+						ctrl.view.t = -1
+					  });
+					  
+					  
+
+									
+						 
+					  
+					  
+				}, // addAxisScaling
+				
+				addZooming: function addZooming(ctrl){
+					  
+					// The current layout will keep adding on zoom. Rethink this for more responsiveness of the website.
+					var zoom = d3.zoom().scaleExtent([0.01, Infinity]).on("zoom", zoomed);
+				
+					// Zoom operates on a selection. In this case a rect has been added to the markup to perform this task.
+					ctrl.figure
+					  .select("svg.plotArea")
+					  .select("g.background")
+					  .select("rect.zoom-area")
+					  .call(zoom);
+					
+					// ctrl.svg.select(".plotArea").on("dblclick.zoom", null);
+					
+					
+					// As of now (23/03/2020) the default zoom behaviour (https://d3js.org/d3.v5.min.js) does not support independantly scalable y and x axis. If these are implemented then on first zoom action (panning or scaling) will have a movement as the internal transform vector (d3.event.transform) won't corespond to the image. 
+					
+					// The transformation vector is based on the domain of the image, therefore any manual scaling of the domain should also change it. The easiest way to overcome this is to apply the transformation as a delta to the existing state.
+					
+					// ctrl.view.t is where the current state is stored. If it is set to -1, then the given zoom action is not performed to allow any difference between d3.event.transform and ctrl.view.t due to manual rescaling of the domain to be resolved.
+					ctrl.view.t = d3.zoomIdentity
+					
+					
+					function zoomed(){
+						
+						// Get the current scales, and reshape them back to the origin.
+						var t = d3.event.transform
+						var t0= ctrl.view.t
+						
+						// Check if there was a manual change of the domain
+						if(t0 == -1){
+							t0 = t
+						}
+						
+						// Hack to get the delta transformation.
+						var dt = d3.zoomIdentity
+						dt.k = t.k / t0.k 
+						dt.x = t.x - t0.x 
+						dt.y = t.y - t0.y
+						
+						ctrl.view.t = t
+						
+						var xScaleDefined = ctrl.tools.xscale != undefined
+						var yScaleDefined = ctrl.tools.yscale != undefined
+						if(xScaleDefined && yScaleDefined){
+							
+							// Simply rescale the axis to incorporate the delta event.  
+							ctrl.tools.xscale = dt.rescaleX(ctrl.tools.xscale)
+							ctrl.tools.yscale = dt.rescaleY(ctrl.tools.yscale)
+							
+							// Assign appropriate transitions
+							ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
+							
+							
+							// Update the plot
+							ctrl.plotFunc.refresh(ctrl)
+							
+							
+						} // if
+						
+						
+						
+						
+						
+					} // zoomed
+					  
+
+					  
+				}, // addZooming
+			
+			}, // twoInteractiveAxes
+			
+		}, // setupInteractivity
+             
+        setupTools: {
+			
+			go: function go(ctrl){
+	
+				// The plot tools are either setup based on data (e.g. upon initialisation), or on where the user has navigated to.
+				var bounds = plotHelpers.setupTools.getPlotBounds(ctrl)
+				
+				
+				// Create the required scales.
+				ctrl.tools.xscale = d3.scaleLinear()
+					.range( bounds.range.x )
+					.domain( bounds.domain.x );
+
+				ctrl.tools.yscale = d3.scaleLinear()
+					.range( bounds.range.y )
+					.domain( bounds.domain.y );
+				
+			}, // go
+			
+			getPlotBounds: function getPlotBounds(ctrl){
+				// This function should determine the domain of the plot and use it to control the plots aspect ratio.
+				var h = ctrl.plotFunc.setupPlot
+				var h_= plotHelpers.setupTools
+				
+				
+				// Get the bounds based on the data.
+				var domain = h.findDomainDimensions(ctrl)
+				var range  = h.findPlotDimensions(ctrl.figure.select("svg.plotArea"))
+				
+				
+				
+				
+				if( !isNaN(ctrl.view.viewAR) ){
+					
+					// Adjust the plot domain to preserve an aspect ratio of 1, but try to use up as much of the drawing area as possible.
+					h_.adjustAR(range, domain, ctrl.view.viewAR)
+					
+				} else {
+					// The aspect ratio is the ratio between pixels per unit of y axis to the pixels per unit of the x axis. As AR = 2 is expected to mean that the n pixels cover 2 units on y axis, and 1 unit on x axis teh actual ration needs to be ppdx/ppdy.
+					
+					ctrl.view.dataAR = h_.calculateAR(range, domain)
+					ctrl.view.viewAR = h_.calculateAR(range, domain)
+				}// switch
+				
+				
+				// Finally, adjust the plot so that there is some padding on the sides of the plot.
+				h_.adjustPadding(range, domain)
+				
+				return {domain: domain, range: range}
+			
+			
+			
+			}, // getPlotBounds
+			
+			adjustPadding: function adjustPadding(range, domain){
+				// The padding must be equal both on the x and y axes in terms of pixels used for padding. Specify this simply in terms of pixels. This inadvertently impacts the AR of the actual final plot.
+				var padding = 10
+			
+				var xPad = ( d3.max(domain.x) - d3.min(domain.x) ) / (d3.max(range.x) - d3.min(range.x))*padding 
+				var yPad = ( d3.max(domain.y) - d3.min(domain.y) ) / (d3.max(range.y) - d3.min(range.y))*padding
+				
+				domain.x[0] = domain.x[0] - xPad
+				domain.x[1] = domain.x[1] + xPad
+				
+				domain.y[0] = domain.y[0] - yPad
+				domain.y[1] = domain.y[1] + yPad
+				
+			
+			}, // adjustPadding
+			
+			calculateAR: function calculateAR(range, domain){
+				var ppdx = (range.x[1] - range.x[0]) / (domain.x[1] - domain.x[0])
+				var ppdy = (range.y[0] - range.y[1]) / (domain.y[1] - domain.y[0])
+				return ppdx / ppdy
+			}, // calculateAR
+						
+			adjustAR: function adjustAR(range, domain, AR){
+			
+				// The limits of the data definitely need to be within the plot.
+				// If the x range is fixed, then there is a maximum AR that can be imposed. If the forced AR is larger the x range will need to be adjusted to display it appropriately
+				
+				// The smaller of these will be the dominating one.
+				var xAR = (d3.max(range.x) - d3.min(range.x)) / ( d3.max(domain.x) - d3.min(domain.x) )
+				var yAR = (d3.max(range.y) - d3.min(range.y)) / ( d3.max(domain.y) - d3.min(domain.y) )
+
+				if(xAR*AR <= yAR){
+					// Resize the y domain.
+					var yDiff = (d3.max(range.y) - d3.min(range.y)) / (xAR/AR)
+					domain.y[1] = domain.y[0] + yDiff
+				} else {
+					// Resize the x domain.
+					var xDiff = (d3.max(range.x) - d3.min(range.x)) / (yAR*AR)
+					domain.x[1] = domain.x[0] + xDiff
+
+				} // if
+			
+			}, // adjustAR
+
+			
+			
+		}, // setupTools
+        
+        
+		helpers: {
+			
+			formatAxisScale: function formatAxisScale(scale){
+				// With a million tasks it is possible that the min and max are more than O(3) different. In that case a logarithmic scale would be better!
+				
+				
+				var dom = scale.domain()
+				
+				var format = {
+					scale: scale,
+					exp: undefined,
+					fill: undefined
+				} // format
+				
+				// In cases where the exponent of hte min and the exponent of the max are very different, pick the one in between! We're likely only going to be able to handle 1e6 tasks, in which case the most extreme case is minExp = 0, and maxExp = 6. In that case pick the middle value of 3.
+				var maxExp = helpers.calculateExponent(dom[1])
+				var minExp = helpers.calculateExponent(dom[0])
+				format.exp = (maxExp - minExp) > 3 ? 3 : minExp
+				
+				if (format.exp > 0){
+					format.scale = d3.scaleLinear()
+						.domain( dom.map(d=>d/10**format.exp) )
+						.range( scale.range() )
+						
+					format.fill = "currentColor"
+				} else {
+					format.fill = "none"
+					format.exp = ""
+				} // if
+				
+				return format
+				
+			}, // formatExponent
+			
+			fitTextToBox: function fitTextToBox(text, box, orientation){
+				// `text' is a d3 selection. `box' must have height and width attributes. `orientation' can be either `horizontal' or `vertical'.
+		
+				// So, when the text orientation is horizontal the font size will impact the height, otherwise it impacts the width.
+				
+				let d = {
+					fontDim: {
+						horizontal: "height",
+						vertical: "width"
+					},
+					lengthDim: {
+						horizontal: "width",
+						vertical: "height"
+					},
+				} // d
+				
+				
+				let fontSize = parseInt( window.getComputedStyle(text.node(), null).getPropertyValue('font-size') )
+				
+				// Font size.
+				while( exceedsDim(text, box, d.fontDim[orientation]) ){
+					// Reduce the font size
+					fontSize -= 1
+					text.style("font-size", fontSize + "px")
+					
+					// Safety break
+					if(fontSize<2){break}
+				} // while
+				
+				
+				
+				
+				// String length.
+				let s = text.html()
+				let j = Math.floor( s.length/2 )
+				while( exceedsDim(text, box, d.lengthDim[orientation]) ){
+					
+					let first = s.substr(0, j)
+					let last = s.substr(s.length-j, s.length)
+					
+					text.html(first + " ... " + last)
+					
+					j-=1
+					
+					if(j<3){break}
+				} // while
+				
+				function exceedsDim(text, box, dim){
+					return text.node().getBoundingClientRect()[dim] > box[dim]
+				} // exceedsDim
+				
+			}, // fitTextToBox
+			
+			getAxisBox: function(figure){
+				
+				let plot = figure.node().getBoundingClientRect()
+				let blcg = figure.select("div.bottomLeftControlGroup").node().getBoundingClientRect()
+				
+				return {
+					height: plot.height - blcg.height,
+					 width: plot.width - blcg.width,
+				}
+				
+			}, // getAxisBox
+			
+			adjustAxisSelect: function(figure){
+				// Horizontal axis doesn't use a separate text tag
+				
+				let group = figure
+				  .select("div.leftAxisControlGroup")
+				
+				if(group.select("select").node()){
+					let box = plotHelpers.helpers.getAxisBox(figure)
+					plotHelpers.helpers.fitTextToBox(group.select("text"), box, "vertical")
+				} // if
+					
+			
+
+			}, // adjustAxisSelect
+			
+			
+		}, // helpers
+        	
+		
+	} // plotHelpers
 
 	var cfD3BarChart = {
 		
@@ -1788,7 +4819,7 @@ var dbslice = (function (exports) {
 			
 			// Handle the select.
 			var i= cfD3BarChart.interactivity.onSelectChange
-			plotHelpers.setupPlot.general.appendVerticalSelection(ctrl.figure.select(".leftAxisControlGroup"), i.vertical(ctrl))
+			plotHelpers.setupPlot.general.appendVerticalSelection(ctrl.figure, i.vertical(ctrl))
 			plotHelpers.setupPlot.general.updateVerticalSelection(ctrl)
 			
 			
@@ -2117,7 +5148,7 @@ var dbslice = (function (exports) {
 						ctrl.view.yVarChanged = true
 			
 						// Render is called because the filter may have changed.
-						render()			
+						sessionManager.render()			
 					
 					} // return
 				}, // vertical
@@ -2142,7 +5173,7 @@ var dbslice = (function (exports) {
 				    filter.apply();
 				  
 				    // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
-				    render();
+				    sessionManager.render();
 					
 				} // onClick
 				
@@ -2220,7 +5251,7 @@ var dbslice = (function (exports) {
 						}
 				} // ctrl
 				
-				var options = dbsliceData.data.metaDataProperties
+				var options = dbsliceData.data.categoricalProperties
 				ctrl.view.yVarOption = {name: "varName",
 					                     val: options[0],
 								     options: options}
@@ -2237,7 +5268,7 @@ var dbslice = (function (exports) {
 				
 				// If the x and y properties were stored, and if they agree with the currently loaded metadata, then initialise them.
 				if(plotData.yProperty != undefined){
-					if( dbsliceData.data.metaDataProperties.includes(plotData.yProperty) ){
+					if( dbsliceData.data.categoricalProperties.includes(plotData.yProperty) ){
 						ctrl.view.yVarOption.val = plotData.yProperty
 						ctrl.view.gVar =           plotData.yProperty
 					} // if						
@@ -2369,8 +5400,8 @@ var dbslice = (function (exports) {
 				
 				// Make the subgroup the graphic basis, and plot it directly. Then make sure that the grouping changes are handled properly!!
 				
-				var groupVals = dbsliceData.data.metaDataUniqueValues[groupKey]
-				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.metaDataUniqueValues[subgroupKey]
+				var groupVals = dbsliceData.data.categoricalUniqueValues[groupKey]
+				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.categoricalUniqueValues[subgroupKey]
 				
 				// Loop over them to create the rectangles.
 				var items = []
@@ -2408,7 +5439,7 @@ var dbslice = (function (exports) {
 			
 			getFilteredItems: function getFilteredItems(property){
 				
-				var tasks = dbsliceData.data.metaDims[property].top(Infinity)
+				var tasks = dbsliceData.data.categoricalDims[property].top(Infinity)
 				
 				return cfD3BarChart.helpers.getItems(tasks, property, undefined)
 				
@@ -2416,7 +5447,7 @@ var dbslice = (function (exports) {
 			
 			getFilteredItemsGrouped: function getFilteredItemsGrouped(property){
 				
-				var tasks = dbsliceData.data.metaDims[property].top(Infinity)
+				var tasks = dbsliceData.data.categoricalDims[property].top(Infinity)
 				
 				return cfD3BarChart.helpers.getItems(tasks, property, color.settings.variable)
 				
@@ -2509,7 +5540,7 @@ var dbslice = (function (exports) {
 			
 			
 			var i= cfD3Histogram.interactivity.onSelectChange
-			plotHelpers.setupPlot.general.appendHorizontalSelection(ctrl.figure.select(".bottomAxisControlGroup"), i.horizontal(ctrl))
+			plotHelpers.setupPlot.general.appendHorizontalSelection(ctrl.figure, i.horizontal(ctrl))
 			plotHelpers.setupPlot.general.updateHorizontalSelection(ctrl)
 			
 			
@@ -2748,8 +5779,8 @@ var dbslice = (function (exports) {
 				// Get the values on which the calculation is performed
 				var items = dbsliceData.data.cf.all()
 				var g = ctrl.figure.select("svg.plotArea").select("g.data")
-				var width = g.attr("width")
-				var height = g.attr("height")
+				var width = Number( g.attr("width") )
+				var height = Number( g.attr("height") )
 				function xAccessor(d){return d[ctrl.view.xVarOption.val]}
 				
 				// Create the domains and ranges that can be. The y domain is dependent on the binning of the data. Therefore it can only be specified after the histogram data has been created.
@@ -2871,7 +5902,7 @@ var dbslice = (function (exports) {
 						ctrl.view.transitions = cfD3Histogram.helpers.transitions.animated()
 
 						// Update the graphics. As the variable changed and the fitler is getting removed the other plots should be notified.
-						render()
+						sessionManager.render()
 						
 						
 						
@@ -2894,7 +5925,6 @@ var dbslice = (function (exports) {
 					
 					
 					// There should be an update brush here. It needs to read it's values, reinterpret them, and set tiself up again
-					// Why is there no brush here on redraw??
 					var brush = svg.select(".brush")
 					if(brush.empty()){
 						
@@ -2931,13 +5961,13 @@ var dbslice = (function (exports) {
 						
 					}// if
 					
-
-					var height = svg.select("g.data").attr("height")
+					var width = x(xMax) - x(xMin)
+					var height = Number( svg.select("g.data").attr("height") )
 					var rect = brush
 					  .append("rect")
 						.attr("class", "selection")
 						.attr("cursor", "move")
-						.attr("width", x(xMax) - x(xMin))
+						.attr("width", width)
 						.attr("height", height)
 						.attr("x", x(xMin))
 						.attr("y", 0)
@@ -3165,7 +6195,7 @@ var dbslice = (function (exports) {
 					// Only update other plots if the number of elements in the filter has changed.
 					var nTasks = dbsliceData.data.taskDim.top(Infinity).length
 					if(nTasks_ != nTasks){
-						render()
+						sessionManager.render()
 					} // if
 					
 				}, // updateSelection
@@ -3547,7 +6577,7 @@ var dbslice = (function (exports) {
 					}
 				} // ctrl
 				
-				var options = dbsliceData.data.dataProperties
+				var options = dbsliceData.data.ordinalProperties
 				ctrl.view.xVarOption = {name: "varName",
 					                     val: options[0],
 								     options: options}
@@ -3565,7 +6595,7 @@ var dbslice = (function (exports) {
 				
 				// If the x and y properties were stored, and if they agree with the currently loaded metadata, then initialise them.
 				if(plotData.xProperty != undefined){
-					if( dbsliceData.data.dataProperties.includes(plotData.xProperty) ){
+					if( dbsliceData.data.ordinalProperties.includes(plotData.xProperty) ){
 						ctrl.view.xVarOption.val = plotData.xProperty
 						ctrl.view.gVar =           plotData.xProperty
 					} // if						
@@ -3624,7 +6654,7 @@ var dbslice = (function (exports) {
 				
 				// Make the subgroup the graphic basis, and plot it directly. Then make sure that the grouping changes are handled properly!!
 				
-				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.metaDataUniqueValues[subgroupKey]
+				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.categoricalUniqueValues[subgroupKey]
 				
 				// Loop over them to create the rectangles.
 				var items = []
@@ -3745,7 +6775,7 @@ var dbslice = (function (exports) {
 				
 				
 				// Add the manual selection toggle to its title.
-				hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
+				// hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
 				
 				// Create the backbone required for the plot. This is the division of the card into the divs that hold the controls and the plot.
 				hs.twoInteractiveAxes.setupPlotBackbone(ctrl)
@@ -3755,12 +6785,10 @@ var dbslice = (function (exports) {
 
 
 				// Add in the controls for the y axis.
-				hs.general.appendVerticalSelection( ctrl.figure.select(".leftAxisControlGroup"),
-										   hi.onSelectChange.vertical(ctrl) )
+				hs.general.appendVerticalSelection( ctrl.figure, hi.onSelectChange.vertical(ctrl) )
 				
 				// Add in the controls for the x axis.
-				hs.general.appendHorizontalSelection( ctrl.figure.select(".bottomAxisControlGroup"),
-											 hi.onSelectChange.horizontal(ctrl) )
+				hs.general.appendHorizontalSelection( ctrl.figure,hi.onSelectChange.horizontal(ctrl) )
 				
 				// Add teh button menu - in front of the update for it!
 				hs.twoInteractiveAxes.buttonMenu.make(ctrl)
@@ -3963,7 +6991,7 @@ var dbslice = (function (exports) {
 						
 						
 						// Make functionality options for the menu.
-						var codedPlotOptions = [color.settings, ctrl.view.gVarOption, arOption]
+						var codedPlotOptions = [color.settings]
 						
 						return codedPlotOptions
 					
@@ -3971,37 +6999,7 @@ var dbslice = (function (exports) {
 
 					
 				}, // updateUiOptions
-				
-				updatePlotTitleControls: function updatePlotTitleControls(ctrl){
-			
-				// Add the toggle to switch manual selection filter on/off
-				var container = d3.select( ctrl.figure.node().parentElement )
-				  .select(".plotTitle")
-				  .select("div.ctrlGrp")
-				var onClickEvent = function(){ 
-					
-					var currentVal = this.checked
-					
-					// All such switches need to be activated.
-					var allToggleSwitches = d3.selectAll(".plotWrapper[plottype='cfD3Line']").selectAll("input[type='checkbox']")
-					
-					allToggleSwitches.each(function(){
 						
-						this.checked = currentVal
-						// console.log("checking")
-					})
-					
-					// Update filters
-					filter.apply()
-					
-					render()
-				} // onClickEvent
-				  
-				plotHelpers.setupPlot.general.appendToggle( container, onClickEvent )
-				
-			}, // updatePlotTitleControls
-
-		
 				// Helpers for setting up plot tools.
 				findPlotDimensions: function findPlotDimensions(svg){
 				
@@ -4577,7 +7575,7 @@ var dbslice = (function (exports) {
 					// Initialise the options straight away.
 					var i = cfD3Scatter.interactivity
 					var hs = plotHelpers.setupPlot.twoInteractiveAxes
-					var options = dbsliceData.data.dataProperties 
+					var options = dbsliceData.data.ordinalProperties 
 					
 					ctrl.view.xVarOption = {name: "varName",
 					                         val: options[0],
@@ -4592,7 +7590,7 @@ var dbslice = (function (exports) {
 					// Custom option.
 					ctrl.view.gVarOption = {name: "Line",
 					                         val: undefined,
-										 options: dbsliceData.data.metaDataProperties,
+										 options: dbsliceData.data.categoricalProperties,
 										   event: i.groupLine.make,
 										  action: undefined}
 					
@@ -4606,13 +7604,13 @@ var dbslice = (function (exports) {
 					
 					// If the x and y properties were stored, and if they agree with the currently loaded metadata, then initialise them.
 					if(plotData.xProperty != undefined){
-						if( dbsliceData.data.dataProperties.includes(plotData.xProperty) ){
+						if( dbsliceData.data.ordinalProperties.includes(plotData.xProperty) ){
 							ctrl.view.xVarOption.val = plotData.xProperty
 						} // if						
 					} // if
 					
 					if(plotData.yProperty != undefined){
-						if( dbsliceData.data.dataProperties.includes(plotData.yProperty) ){
+						if( dbsliceData.data.ordinalProperties.includes(plotData.yProperty) ){
 							ctrl.view.yVarOption.val = plotData.yProperty
 						} // if						
 					} // if
@@ -4877,7 +7875,7 @@ var dbslice = (function (exports) {
 			var i = cfD3Line.interactivity
 			
 			// Add the manual selection toggle to its title.
-			hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
+			// hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
 			
 			// Create the backbone required for the plot. This is the division of the card into the divs that hold the controls and the plot.
 			hs.twoInteractiveAxes.setupPlotBackbone(ctrl)
@@ -4889,12 +7887,10 @@ var dbslice = (function (exports) {
 			
 			
 			// Add in the controls for the y axis.
-			hs.general.appendVerticalSelection( ctrl.figure.select(".leftAxisControlGroup"),
-                                       hi.onSelectChange.vertical(ctrl) )
+			hs.general.appendVerticalSelection( ctrl.figure, hi.onSelectChange.vertical(ctrl) )
 			
 			// Add in the controls for the x axis.
-			hs.general.appendHorizontalSelection( ctrl.figure.select(".bottomAxisControlGroup"),
-										 hi.onSelectChange.horizontal(ctrl) )
+			hs.general.appendHorizontalSelection( ctrl.figure, hi.onSelectChange.horizontal(ctrl) )
 			
 			
 			// General interactivity
@@ -4921,6 +7917,64 @@ var dbslice = (function (exports) {
 			
 		
 		}, // make
+		
+		getData: function(ctrl){
+			// Setup the appropriate connection between individual tasks and the loaded files.
+			
+			
+			// First establish for which tasks the files are available.
+			let tasks = dbsliceData.data.taskDim.top(Infinity)
+			let requiredUrls = tasks.map(d=>d[ctrl.view.sliceId])
+			
+			// Create an itnernal data object for tasks that have a loaded file, and log those that weren't loaded as missing.
+			ctrl.data = tasks.reduce(function(acc, t){
+				
+				// The library will retrieve at most 1 file!
+				let filename = t[ctrl.view.sliceId]
+				let f = fileManager.library.retrieve(line2dFile, filename)
+				
+				if(f){
+					// Exactly the right file was found. As on-demand filenames will have the same filename and url this should always happen when the file has been loaded. The series is still empty as the selection of the variables has not been made yet.
+					acc.available.push({
+						task: t,
+						file: f,
+						series: []
+					})
+				} else {
+					// File not found - log as missing
+					acc.missing.push({
+						task: t,
+						value: filename
+					})
+				} // if
+						
+				
+				return acc
+			}, {available: [], missing:[]}) // reduce
+			
+			
+			// Set the intersect of availbale variables.
+			ctrl.data.intersect = ctrl.data.available.length > 0 ?  cfD3Line.getIntersectOptions( ctrl.data.available ) : undefined
+			
+		}, // getData
+		
+		getIntersectOptions: function(dataobjs){
+			
+			// Find which variables appear in all the dataobj files. These are the variables that can be compared.
+			
+			
+			let commonvars = dataobjs.reduce(function(acc, d){
+				
+				acc = acc.filter(function(varname){
+					return d.file.content.variables.includes(varname)
+				})
+				
+				return acc
+			}, [...dataobjs[0].file.content.variables])
+			
+			return commonvars
+			
+		}, // getIntersectOptions
 		
 		update: function update(ctrl){
 			
@@ -4952,7 +8006,7 @@ var dbslice = (function (exports) {
 			
 			
 			// GETDATAINFO should be launched when new data is loaded for it via the 'refresh' button, and when a different height is selected for it. Otherwise it is just hte data that gets loaded again.
-			cfDataManagement.getLineFileDataInfo(ctrl)
+			let data = cfD3Line.getData(ctrl)
 			
 			
 			
@@ -4998,7 +8052,7 @@ var dbslice = (function (exports) {
 			// This function re-intialises the plots based on the data change that was initiated by the user.
 
 			// RELOCATE TO DRAW??
-			if(ctrl.data.compatible.length > 0){
+			if(ctrl.data.available.length > 0){
 			
 				// Update the axes
 				cfD3Line.helpers.axes.update(ctrl)
@@ -5006,40 +8060,33 @@ var dbslice = (function (exports) {
 				// CHANGE TO JOIN!!
 				
 				 // Assign the data
-				var allSeries = ctrl.figure.select("svg.plotArea")
+				var allSeries = ctrl.figure
+				  .select("svg.plotArea")
 				  .select("g.data")
 				  .selectAll("path.line")
-				  .data( ctrl.data.series );
+				  .data( ctrl.data.available, d=>d.task.taskId );
 
 				// enter
 				allSeries.enter()
 				  .append( "g" )
-						  .attr( "class", "plotSeries")
-						  .attr( "task-id", ctrl.tools.getTaskId)
-						.append( "path" )
-						  .attr( "class", "line" )
-						  .attr( "d", ctrl.tools.line )
-						  .style( "stroke", ctrl.tools.getColor ) 
-						  .style( "fill", "none" )
-						  .style( "stroke-width", 2.5 / ctrl.view.t.k )
-						  .on("mouseover", cfD3Line.interactivity.addTipOn(ctrl))
-						  .on("mouseout", cfD3Line.interactivity.addTipOff(ctrl))
-						  .on("click", cfD3Line.interactivity.addSelection)
+				    .attr( "class", "plotSeries")
+				    .attr( "task-id", ctrl.tools.getTaskId)
+				  .append( "path" )
+				    .attr( "class", "line" )
+				    .attr( "d", d=>ctrl.tools.line(d.series) )
+				    .style( "stroke", ctrl.tools.getColor ) 
+				    .style( "fill", "none" )
+				    .style( "stroke-width", 2.5 / ctrl.view.t.k )
+				    .on("mouseover", cfD3Line.interactivity.addTipOn(ctrl))
+				    .on("mouseout", cfD3Line.interactivity.addTipOff(ctrl))
+				    .on("click", cfD3Line.interactivity.addSelection)
 
 				// update:
-				allSeries.each( function() {
-					// The taskId is in the parent wrapper.
-					var series = d3.select( this.parentElement )
-						.attr( "task-id",  ctrl.tools.getTaskId);
-						
-				})	
-				
-				// Keep a reference to the original draw domain to allow the data to be updated more seamlessly?
 				allSeries
-					  .transition()
-					  .duration(ctrl.view.transitions.duration)
-					  .attr( "d", ctrl.tools.line )
-					  .style( "stroke", ctrl.tools.getColor )
+				  .transition()
+				  .duration(ctrl.view.transitions.duration)
+				  .attr( "d", d=>ctrl.tools.line(d.series) )
+				  .style( "stroke", ctrl.tools.getColor )
 					  
 				// exit
 				allSeries.exit().remove();
@@ -5124,39 +8171,27 @@ var dbslice = (function (exports) {
 			updateUiOptions: function updateUiOptions(ctrl){
 				// The current view options may differ from the available data options. Therefore update the corresponding elements here.
 				
-				ctrl.data.intersect.userOptions.forEach(function(dataOption){
-					// For each different option that can be queried in the available compatible data, check if an option in the view is already selected, what it's value is, and update the value if it is not in the new set.
-					
-					var viewOption = helpers.findObjectByAttribute( ctrl.view.options, "name", [dataOption.name], true )
-					
-					if(viewOption.length == 0){
-						ctrl.view.options.push({
-							   name: dataOption.name,
-							   val : dataOption.options[0],
-							options: dataOption.options,
-							  event: cfD3Line.updateData
-						})
-					} else {
-						
-						updateOption(viewOption, dataOption)
-					
-					} // if
-					
-				}) // forEach
+				
 				
 				
 				// Do the same for the x and y axis options
 				if(ctrl.view.xVarOption == undefined){
-					ctrl.view.xVarOption = ctrl.data.intersect.varOptions.x
+					ctrl.view.xVarOption = {
+						val: ctrl.data.intersect[0],
+						options: ctrl.data.intersect 
+					}
 				} else {
-					updateOption(ctrl.view.xVarOption, ctrl.data.intersect.varOptions.x)
+					updateOption(ctrl.view.xVarOption, ctrl.data.intersect)
 				} // if
 				
 				
 				if(ctrl.view.yVarOption == undefined){
-					ctrl.view.yVarOption = ctrl.data.intersect.varOptions.y
+					ctrl.view.yVarOption =  {
+						val: ctrl.data.intersect[0],
+						options: ctrl.data.intersect 
+					}
 				} else {
-					updateOption(ctrl.view.yVarOption, ctrl.data.intersect.varOptions.y)
+					updateOption(ctrl.view.yVarOption, ctrl.data.intersect)
 				} // if
 				
 				
@@ -5186,32 +8221,23 @@ var dbslice = (function (exports) {
 				
 				// Helpers
 				
-				function updateOption(viewOption, dataOption){
+				function updateOption(viewOption, options){
 
 					// If the option does exist, then just update it.
-					if(!dataOption.options.includes( viewOption.val )){
+					if(!options.includes( viewOption.val )){
 						// The new options do not include the previously selected option value. Initialise a new one.
-						viewOption.val = dataOption.options[0]
+						viewOption.val = options[0]
 					} // if
 					
-					viewOption.options = dataOption.options
+					viewOption.options = options
 					
 				} // updateOption
 				
 				function assembleButtonMenuOptions(){
 					// The button menu holds several different options that come from different sources. One is toggling the axis AR of the plot, which has nothing to do with the data. Then the coloring and grouping of points using lines, which relies on metadata categorical variables. Thirdly, the options that are in the files loaded on demand are added in.
 					
-					// Make a custom option that fires an aspect ratio readjustment.
-					var arOption = {
-						name: "AR",
-						val: undefined,
-						options: ["User / Unity"],
-						event: cfD3Line.interactivity.toggleAR
-					} // arOption
-					
-					
 					// Make functionality options for the menu.
-					var codedPlotOptions = [color.settings, arOption]
+					var codedPlotOptions = [color.settings]
 					
 					return codedPlotOptions.concat( ctrl.view.options )
 					
@@ -5222,10 +8248,22 @@ var dbslice = (function (exports) {
 			// Functionality required to setup the tools.
 			setupLineSeries: function setupLineSeries(ctrl){
 				
-				// Retrieve the data once.
-				ctrl.data.series = ctrl.data.compatible.map(function(file){
-					return cfDataManagement.getLineDataVals(file, ctrl)
-				})
+				// Create the appropriate data series. Here the user's selection of variables is taken into accout too.
+				
+				ctrl.data.available = ctrl.data.available.map(function(dataobj){
+					
+					// Pass in the x variable and the y variable. Maintain reference to the task!!
+					
+					
+					dataobj.series = dataobj.file.content.data.map(function(point){	
+						return {
+							x: point[ctrl.view.xVarOption.val],
+							y: point[ctrl.view.yVarOption.val]
+						}
+					})
+					
+					return dataobj
+				}) // map
 				
 			}, // setupLineSeries
 			
@@ -5257,8 +8295,8 @@ var dbslice = (function (exports) {
 			
 				// The series are now an array of data for each of the lines to be drawn. They possibly consist of more than one array of values. Loop over all to find the extent of the domain.
 				
-				var seriesExtremes = ctrl.data.series.map(function(series){
-				
+				var seriesExtremes = ctrl.data.available.map(function(dataobj){
+					let series = dataobj.series
 					return {x: [d3.min(series, function(d){return d.x}),
  					            d3.max(series, function(d){return d.x})], 
 					        y: [d3.min(series, function(d){return d.y}),
@@ -5579,25 +8617,20 @@ var dbslice = (function (exports) {
 				// • .requested is an array of urls whose data are requested by the plotting tool. These need not be the same as the data in promises as those are loaded on user prompt!
 				// • .available is an array of urls which were found in the central booking,
 				// • .missing                              NOT found
-				// • .dataProperties is a string array of properties found in the data.
+				// • .ordinalProperties is a string array of properties found in the data.
 				// • .data is an array of n-data arrays of the n-task slice files.
 				
 				
 				var ctrl = {
 				    plotFunc: cfD3Line,
+					fileClass: line2dFile,
 					figure: undefined,
 					svg: undefined,
-					data: {promises: [],
-					       requested: [],
-						   available: [],
-						   duplicates: [],
-					       missing : [],
-						   compatible: [],
-						   incompatible: [],
-						   intersect: [],
-						   series: [],
-						   processor: importExport.importing.line
-					       },
+					data: {
+					   available: [],
+					   missing : [],
+					   intersect: [],
+					},
 					view: {sliceId: undefined,
 					       options: [],
 						   viewAR: NaN,
@@ -5861,8 +8894,8 @@ var dbslice = (function (exports) {
 		} // helpers
 	
 	} // cfD3Line
-	
-	var cfD3Contour2d = {
+		
+    var cfD3Contour2d = {
 		
 		// Externally visible methods are:
 		// name, make, update, rescale, helpers.highlught/unhighlight/defaultStyle, helpers.createDefaultControl/createLoadedControl/writeControl
@@ -5907,6 +8940,67 @@ var dbslice = (function (exports) {
 		
 		}, // make
 		
+		
+		getData: function(ctrl){
+			
+			
+			// First establish for which tasks the files are available.
+			let tasks = dbsliceData.data.taskDim.top(Infinity)
+			let requiredUrls = tasks.map(d=>d[ctrl.view.sliceId])
+			
+			// Create an itnernal data object for tasks that have a loaded file, and log those that weren't loaded as missing.
+			let dataobjs = tasks.reduce(function(acc, t){
+				
+				// The library will retrieve at most 1 file!
+				let filename = t[ctrl.view.sliceId]
+				let f = fileManager.library.retrieve(line2dFile, filename)
+				
+				if(f){
+					// Exactly the right file was found. As on-demand filenames will have the same filename and url this should always happen when the file has been loaded. The series is still empty as the selection of the variables has not been made yet.
+					acc.available.push({
+						task: t,
+						file: f,
+						graphic: undefined
+					})
+				} else {
+					// File not found - log as missing
+					acc.missing.push({
+						task: t,
+						value: filename
+					})
+				} // if
+				
+				
+				return acc
+			}, {available: [], missing:[]}) // reduce
+			
+			
+			ctrl.data.available = dataobjs.available
+			ctrl.data.missing = dataobjs.missing
+			
+			// Set the intersect of availbale variables.
+			ctrl.data.intersect = ctrl.data.available.length > 0 ?  cfD3Contour2d.getIntersectOptions( ctrl.data.available ) : undefined
+			
+		}, // getData
+		
+		getIntersectOptions: function(dataobjs){
+			
+			// Find which variables appear in all the dataobj files. These are the variables that can be compared.
+			
+			
+			let commonvars = dataobjs.reduce(function(acc, d){
+				
+				acc = acc.filter(function(varname){
+					return d.file.content.variables.includes(varname)
+				})
+				
+				return acc
+			}, [...dataobjs[0].file.content.variables])
+			
+			return commonvars
+			
+		}, // getIntersectOptions
+		
 				
 		update: function update(ctrl){
 			// This is called during render. Do nothing. Maybe only signal differences to the crossfilter.
@@ -5918,7 +9012,7 @@ var dbslice = (function (exports) {
 			// This should do what? Come up with the initial contour data? Maybe calculate the initial threshold items? Set a number of levels to show. Calculate the ideal bin number?
 			
 			// First collect and report the data available.
-			cfDataManagement.getContour2dFileDataInfo(ctrl)
+			cfD3Contour2d.getData(ctrl)
 			
 			// How to handle contour data? The user should be expected to select the position variables once, and then just change the flow variable if needed. For now this is manually selected here, but the user should be able to select their varioable based on hte name. Implement that later. Maybe a focus out to adjust the contours, and then a focus in to show change. However, in json formats the user should just name the variables correctly!! How should it happen in csv?
 			
@@ -5966,12 +9060,34 @@ var dbslice = (function (exports) {
 		
 		resizing: {
 			
+			findContainerSize: function findContainerSize(container, memberClass){
+				
+				// Index of the lowest plot bottom.
+				var lowestPoint = []
+				container
+				  .selectAll( memberClass )
+				  .each(function(d){
+					  lowestPoint.push(this.offsetTop + this.offsetHeight)
+				})
+				
+				
+				// But return only an incremental change - so every time the lowest point is lower than the container return the height incremented by one grid distance.
+				lowestPoint = Math.max(...lowestPoint)
+				
+				let dy = positioning.dy(container)
+				
+				return Math.ceil(lowestPoint/dy)*dy
+				
+			
+			}, // findContainerSize
+			
 			contourCard: function contourCard(contourCtrl){
 			
 				// Retrieve the data AR from the plot ctrl.
-				let card = contourCtrl.format.wrapper
-				let p = contourCtrl.format.position
-				let plotCtrl = d3.select(contourCtrl.format.parent).data()[0]
+				let format = contourCtrl.graphic.format
+				let card = format.wrapper
+				let p = format.position
+				let plotCtrl = d3.select(format.parent).datum()
 				
 				let dy = positioning.dy(plotCtrl.figure)
 				let dx = positioning.dx(plotCtrl.figure)
@@ -6024,7 +9140,7 @@ var dbslice = (function (exports) {
 				// First update the size of the contour plotting area. Based on this size update the plot wrapper. Based on the new plot wrapper size update the plot row.
 				
 				
-				let h = positioning.helpers
+				let h = cfD3Contour2d.resizing
 				let f = ctrl.format
 				let w = ctrl.format.wrapper
 				
@@ -6054,6 +9170,7 @@ var dbslice = (function (exports) {
 				
 				w.style("height", wrapperHeight + "px" )
 				ctrl.figure.style("height", plotAreaHeight + "px" )
+				d3.select(ctrl.figure.node().parentElement).style("height", plotAreaHeight + "px" )
 				
 				w.select("svg.overlay").style("height", plotAreaHeight + "px")
 				
@@ -6115,6 +9232,13 @@ var dbslice = (function (exports) {
 				
 				let p = ctrl.format.position
 				
+				ctrl.figure
+				  .attr("class", "card-body plot")
+				  .style("padding-left", "0px")
+				  .style("padding-top", "0px")
+				  .style("padding-right", "0px")
+				  .style("padding-bottom", "0px")
+				
 				// `cfD3Contour2d' has a different structure than the other plots, therefore the `ctrl.figure' attribute needs to be updated.
 				let dataDiv = ctrl.figure.append("div")
 				  .attr("class", "data")
@@ -6168,7 +9292,7 @@ var dbslice = (function (exports) {
 			
 			setupTrendingCtrlGroup: function setupTrendingCtrlGroup(ctrl){
 				
-				let variables = dbsliceData.data.dataProperties
+				let variables = dbsliceData.data.ordinalProperties
 				
 				let trendingCtrlGroup = ctrl.format.wrapper
 				  .select("div.plotTitle")
@@ -6247,25 +9371,23 @@ var dbslice = (function (exports) {
 			setupContourTools: function setupContourTools(ctrl){
 				
 				var h = cfD3Contour2d.setupPlot
-				var files = ctrl.data.available
-				
-				// Calculate the spatial domain.
-				var xDomain = h.getDomain(files, d=>d.data.vals.surfaces.x)
-				var yDomain = h.getDomain(files, d=>d.data.vals.surfaces.y)
-				var vDomain = h.getDomain(files, d=>d.data.vals.surfaces.v)
-				
+				var dataobjs = ctrl.data.available
 				
 				// Setup the domain.
 				ctrl.data.domain = {
-					x: xDomain,
-					y: yDomain,
-					v: vDomain,
-					ar: ( yDomain[1] - yDomain[0] ) / ( xDomain[1] - xDomain[0] ),
+					x: h.getDomain(dataobjs, d=>d.file.content.surface.x),
+					y: h.getDomain(dataobjs, d=>d.file.content.surface.y),
+					v: h.getDomain(dataobjs, d=>d.file.content.surface.v),
 					thresholds: undefined,
 					nLevels: undefined
 				}
 				
-				cfD3Contour2d.setupPlot.setupThresholds(ctrl, vDomain)
+				// Set the AR:
+				ctrl.data.domain.ar = 
+					( ctrl.data.domain.y[1] - ctrl.data.domain.y[0] ) / 
+					( ctrl.data.domain.x[1] - ctrl.data.domain.x[0] )
+				
+				cfD3Contour2d.setupPlot.setupThresholds(ctrl, ctrl.data.domain.v)
 				
 
 			}, // setupContourTools
@@ -6314,10 +9436,10 @@ var dbslice = (function (exports) {
 				  .domain( ctrl.data.domain.v )
 				  .thresholds( thresholds );
 								  
-				let fileBins = ctrl.data.available.map(function(file){
+				let fileBins = ctrl.data.available.map(function(dataobj){
 					
 					// The returned bins acutally contain all the values. Rework the bins to remove them and thus minimise memory usage.
-					let bins = histogram( file.data.vals.surfaces.v )
+					let bins = histogram( dataobj.file.content.surface.v )
 					
 					return bins.map(function(bin){return {x0:bin.x0, x1:bin.x1, n: bin.length}});
 				})
@@ -6511,7 +9633,7 @@ var dbslice = (function (exports) {
 				// First check if the number of levels has been determined already.
 				if( ctrl.data.domain.nLevels == undefined ){
 					// Base it off of the values in a single contour.
-					ctrl.data.domain.nLevels = d3.thresholdSturges( ctrl.data.available[0].data.vals.surfaces.v )
+					ctrl.data.domain.nLevels = d3.thresholdSturges( ctrl.data.available[0].file.content.surface.v )
 				} // if
 				
 				
@@ -6576,7 +9698,59 @@ var dbslice = (function (exports) {
 			
 		}, // setupPlot
 	
-		// Keep both svg and webGL contour drawing. webGL can draw the colors, while the svg can draw teh levels. But even if the svg draws the levels it must go throug the same loops to do it...
+
+		positioning: {
+			
+			newCard: function newCard(plotCtrl){
+			
+			
+				// The difference between plots and cards is that plots are added manually, and the cards are added automatically.
+				
+				let h = positioning.helpers
+				let occupiedNodes = []
+				
+				// Collect already occupied nodes. Check if there are any existing contours here already. The existing contours will have valid `ix' and `iy' positions. Position all new cards below the existing ones. This means that all nodes that have an existing card below them are `occupied'.
+				
+				// How to eliminatethe empty space at the top though?? Calculate the min iy index, and offset all plots by it?
+				let minOccupiedIY = d3.min(plotCtrl.data.plotted, function(d){ return d.graphic.format.position.iy})
+				
+				plotCtrl.data.plotted.forEach(function(d){
+					d.graphic.format.position.iy -= minOccupiedIY
+				})
+					
+				let maxOccupiedIY = d3.max(plotCtrl.data.plotted, function(d){return d.graphic.format.position.iy + d.graphic.format.position.ih})
+				
+				h.pushNodes(occupiedNodes, 0, 0, plotCtrl.grid.nx, maxOccupiedIY)
+				
+				
+				
+				// With all the occupied nodes known, start positioning the contours that are not positioned.
+				
+				
+				plotCtrl.data.plotted.forEach(function(d){
+					let pn = d.graphic.format.position
+				
+					
+					// Position this card, but only if it is unpositioned.
+					if( ( (pn.ix == undefined) || isNaN(pn.ix) ) && 
+						( (pn.iy == undefined) || isNaN(pn.iy) ) ){
+						
+						// Position the plot.
+						positioning.onGrid(plotCtrl.grid.nx, occupiedNodes, pn)
+					
+						// Mark the nodes as occupied.
+						h.pushNodes(occupiedNodes, pn.ix, pn.iy, pn.iw, pn.ih)
+						
+					} // if
+					
+				}) // forEach plot
+				
+				
+				
+				
+			}, // newCard
+			
+		}, // positioning
 	
 		draw: {
 			
@@ -6588,13 +9762,14 @@ var dbslice = (function (exports) {
 				let dx = positioning.dx(div)
 				let dy = positioning.dy(div)
 			  
-			    let drag = cfD3Contour2d.interactivity.dragging.make(ctrl)
+			    let drag = cfD3Contour2d.interactivity.dragging.smooth.make(ctrl)
 				  
 				function getPositionLeft(d){
-					return d.format.position.ix*dx + d.format.parent.offsetLeft + "px"
+					return d.graphic.format.position.ix*dx + 
+						   d.graphic.format.parent.offsetLeft + "px"
 				}
 				function getPositionTop(d){
-					return d.format.position.iy*dy + "px"
+					return d.graphic.format.position.iy*dy + "px"
 				}
 			    
 				// The key function must output a string by which the old data and new data are compared.
@@ -6614,7 +9789,7 @@ var dbslice = (function (exports) {
 					.call(drag)
 					.each(function(d){
 						
-						d.format.wrapper = d3.select(this)
+						d.graphic.format.wrapper = d3.select(this)
 						
 						cfD3Contour2d.draw.contourBackbone(d)
 					
@@ -6637,13 +9812,13 @@ var dbslice = (function (exports) {
 				
 				// The projection should be updated here to cover the case when the user resizes the plot.
   
-			    let card = d.format.wrapper
+			    let card = d.graphic.format.wrapper
 			    
 			    // Set the width of the plot, and of the containing elements.
 			    card
-				  .style(     "width", d.format.position.w + "px" )
-				  .style( "max-width", d.format.position.w + "px" )
-				  .style(    "height", d.format.position.h + "px" )
+				  .style(     "width", d.graphic.format.position.w + "px" )
+				  .style( "max-width", d.graphic.format.position.w + "px" )
+				  .style(    "height", d.graphic.format.position.h + "px" )
 			  
 			    // Append the title div. Enforce a 24px height for this div.
 			    let title = card.append("div")
@@ -6661,8 +9836,8 @@ var dbslice = (function (exports) {
 			    // Append the svg
 			    card.append("svg")
 				    .attr("class", "plotArea")
-				    .attr("width",  d.format.position.sw)
-				    .attr("height", d.format.position.sh )
+				    .attr("width",  d.graphic.format.position.sw)
+				    .attr("height", d.graphic.format.position.sh )
 				    .style("fill", "smokewhite")
 				    .style("display", "block")
 				    .style("margin", "auto")
@@ -6674,12 +9849,13 @@ var dbslice = (function (exports) {
 
 					
 				// The resize behavior. In addition to resizeEnd the resizing should also update the contour.
+				let h = cfD3Contour2d.interactivity.dragging.gridded
 				let resize = d3.drag()
-				  .on("start", positioning.resizeStart)
-				  .on("drag", positioning.resizeMove)
+				  .on("start", h.resizeStart)
+				  .on("drag", h.resizeMove)
 				  .on("end", function(d){
 					  
-					  positioning.resizeEnd(d)
+					  h.resizeEnd(d)
 					  
 					  cfD3Contour2d.draw.updateContour(d)
 				  })
@@ -6707,11 +9883,11 @@ var dbslice = (function (exports) {
 
 			  
 			    // Append the contour
-			    d.format.wrapper.select("g.contour")
+			    d.graphic.format.wrapper.select("g.contour")
 				  .selectAll("path")
-				  .data(d => d.levels)
+				  .data(d => d.graphic.levels)
 				  .join("path")
-				    .attr("fill", d.format.color )
+				    .attr("fill", d.graphic.format.color )
 				    .attr("d", cfD3Contour2d.draw.projection(d) );
 				
 					  
@@ -6727,20 +9903,20 @@ var dbslice = (function (exports) {
 				
 				// The projection should be updated here to cover the case when the user resizes the plot.
   
-			    let card = d.format.wrapper
+			    let card = d.graphic.format.wrapper
 			    let projection = cfD3Contour2d.draw.projection(d)
 
 			  
 			    // Update the contour
 				card.select("g.contour")
 				  .selectAll("path")
-				  .data(d => d.levels)
+				  .data(d => d.graphic.levels)
 				  .join(
 					enter => enter.append("path")
-					             .attr("fill", d.format.color )
+					             .attr("fill", d.graphic.format.color )
 				                 .attr("d", projection ),
 					update => update
-					             .attr("fill", d.format.color )
+					             .attr("fill", d.graphic.format.color )
 				                 .attr("d", projection ),
 					exit => exit.remove()
 				  )
@@ -6892,36 +10068,27 @@ var dbslice = (function (exports) {
 				let alreadyPlottedTasks = ctrl.data.plotted.map(d=>d.task.taskId)
 				
 				// Create contours
-				ctrl.data.plotted = ctrl.data.available.map(function(file){
-					// The available files is a collection in the memory. Mapping this data into `plotted' establishes the connection to DOM, and allows to check whether this file already has a DOM card associated to it.
+				ctrl.data.plotted = ctrl.data.available.map(function(dataobj){
 					
-					// The files already have properties:
-					// data, task, url.
 					
-					// Add properties: `plotFunc', `levels', `parent', `wrapper', `format'.
 					
-					// If the current file is already in hte plotted array then just return that. Otherwise initialise a new one.
 					
 					// What happens if the URL is duplicated?? Instead focus on retrieving the taskId
-					let i = alreadyPlottedTasks.indexOf(file.task.taskId)
+					let i = alreadyPlottedTasks.indexOf(dataobj.task.taskId)
 					
 					if( i > -1 ){
 						// Return the already existing object.
-						item = ctrl.data.plotted[i]
+						dataobj = ctrl.data.plotted[i]
 						
 					} else {
 						// Initialise new plotting entry.
 						
-						item = {
-							data: file.data,
-							task: file.task,
-							url: file.url,
-							plotFunc: cfD3Contour2d,
-							levels: cfD3Contour2d.draw.json2contour(file.data.vals.surfaces, ctrl.data.domain.thresholds),
+						dataobj.graphic = {
+							levels: cfD3Contour2d.draw.json2contour(dataobj.file.content.surface, ctrl.data.domain.thresholds),
 							format: {
 								parent: ctrl.figure.node(),
 								wrapper: undefined,
-								position: cfD3Contour2d.setupPlot.design(ctrl, file),
+								position: cfD3Contour2d.setupPlot.design(ctrl, dataobj),
 								domain: ctrl.data.domain,
 								color: function(d){ return ctrl.tools.scales.val2clr(d.value) }
 							}
@@ -6930,12 +10097,12 @@ var dbslice = (function (exports) {
 					
 					} // if
 					
-					return item
+					return dataobj
 				}) // items
 				  
 				  
 				// Positioning needs to be re-done to allow for update to add cards. Position the new cards below the existing cards.
-				positioning.newCard(ctrl)
+				cfD3Contour2d.positioning.newCard(ctrl)
 				
 				
 				
@@ -6968,8 +10135,6 @@ var dbslice = (function (exports) {
 				
 				return {ix: undefined,
 						iy: undefined,
-						 x: undefined,
-						 y: undefined,
 						iw: iw, 
 						ih: ih, 
 						w: divWidth,
@@ -6988,21 +10153,23 @@ var dbslice = (function (exports) {
 				
 			}, // dimension
 			
-			projection: function projection(file){
+			projection: function projection(dataobj){
 				// The projection is only concerned by plotting the appropriate contour level points at the appropriate x and y positions. That is why the projection only relies on x and y data, and can be computed for all contours at the same time, if they use the same x and y locations.
-
+				let f = dataobj.graphic.format
+				let s = dataobj.file.content.surface
+				
 				let xscale = d3.scaleLinear()
-						.domain( file.format.domain.x )
-						.range( [0, file.format.position.sw] );
+						.domain( f.domain.x )
+						.range( [0, f.position.sw] );
 
 				let yscale = d3.scaleLinear()
-						.domain( file.format.domain.y ) 
-						.range( [file.format.position.sh, 0] );
+						.domain( f.domain.y ) 
+						.range( [f.position.sh, 0] );
 				
-				let x = file.data.vals.surfaces.x;
-				let y = file.data.vals.surfaces.y;
-				let m = file.data.vals.surfaces.size[0];
-				let n = file.data.vals.surfaces.size[1];
+				let x = s.x;
+				let y = s.y;
+				let m = s.size[0];
+				let n = s.size[1];
 
 				// configure a projection to map the contour coordinates returned by
 				// d3.contours (px,py) to the input data (xgrid,ygrid)
@@ -7053,7 +10220,7 @@ var dbslice = (function (exports) {
 			
 			// POTENTIALLY MOVE FOR ALL PLOTS?
 			refreshContainerSize: function refreshContainerSize(ctrl){
-				// This is used in other plots too, so must remain here.
+				// This method is declared in other plots too, so must remain in this one for global compatibility.
 				
 				// There are 4 events that may prompt resisizing.
 				// 1: Moving plots
@@ -7061,15 +10228,19 @@ var dbslice = (function (exports) {
 				// 3: Moving contours
 				// 4: Resizing contours
 				
-				if(ctrl.format.title !=undefined){
-					// Plot. These don't have a title attribute.
+				// Maybe I should create classes for data objects??
+				// Such as a pile object and a contour object?
+				
+				// Differentiate between contour rescaling and plot rescaling??
+				if(ctrl.graphic ==undefined){
+					// Plot. These don't have a graphic attribute.
 					cfD3Contour2d.resizing.plotOnExternalChange(ctrl)
 					
 				} else {
 					// Contour
 					
-					let contourPlot = d3.select(ctrl.format.parent)
-					let contourPlotCtrl = contourPlot.data()[0]
+					let contourPlot = d3.select(ctrl.graphic.format.parent)
+					let contourPlotCtrl = contourPlot.datum()
 					
 					cfD3Contour2d.resizing.plotOnInternalChange(contourPlotCtrl)
 					
@@ -7098,14 +10269,32 @@ var dbslice = (function (exports) {
 				      .attr("y", d => s.val2px(d) )
 				      
 					// Update the contour data. For this the levels need to be recalculated.
-					ctrl.data.plotted.forEach(function(item){
-						item.levels = cfD3Contour2d.draw.json2contour(item.data.vals.surfaces, ctrl.data.domain.thresholds)
+					ctrl.data.plotted.forEach(function(dataobj){
+						dataobj.graphic.levels = cfD3Contour2d.draw.json2contour(dataobj.file.content.surface, ctrl.data.domain.thresholds)
 					})
 					
 					// Update teh contour graphics.
 					cfD3Contour2d.draw.cards(ctrl)
 					
-					
+					// Also update the statistical plots if there are any.
+					ctrl.figure
+					  .selectAll(".pileWrapper")
+					  .each(function(pileCtrl){
+						  let stats = cfD3Contour2d.interactivity.statistics
+						  stats.mean(pileCtrl)
+						  stats.standardDeviation(pileCtrl)
+						  
+						  // Update the required plot:
+						  switch( pileCtrl.statistics.plotted ){
+							  case "mu":
+								stats.drawMu(pileCtrl);
+							    break;
+							  case "sigma":
+							    stats.drawSigma(pileCtrl);
+								break;
+						  } // switch
+						  
+					  })
 				}, // update
 				
 				
@@ -7172,14 +10361,12 @@ var dbslice = (function (exports) {
 					accessor: {
 						// Here the data that is searched after is the position of the card on the screen.
 						x: function(d){
-							let dx = positioning.dx(ctrl.figure)
-							return d.format.position.x + 
-								   d.format.position.iw*dx/2
+							let el = d.graphic.format.wrapper.node()
+							return el.offsetLeft + el.offsetWidth/2
 						},
 						y: function(d){
-							let dy = positioning.dy(ctrl.figure)
-							return d.format.position.y + 
-								   d.format.position.ih*dy/2
+							let el = d.graphic.format.wrapper.node()
+							return el.offsetTop + el.offsetHeight/2
 						},
 					},
 					scales: {
@@ -7402,15 +10589,56 @@ var dbslice = (function (exports) {
 				
 				}, // updatePile
 			
+				createPileObject: function createPileObject(container, cardCtrls){
+			
+					
+			
+					var pileCtrl = {
+						x: 0,
+						y: 0,
+						sw: 0,
+						sh: 0,
+						delta: {
+							x: undefined,
+							y: undefined
+						},
+						container: container,
+						wrapper: undefined,
+						members: cardCtrls,
+						statistics: {
+							  mu: undefined,
+						   sigma: undefined
+						}
+					}
+					
+					// Find the position of the pile, as well as it's width and height based on it's members. The position is the average of the memeber positions, and the size is determined by the largest member.
+					var n = pileCtrl.members.length
+					var position = pileCtrl.members.reduce(function(ctrl, member){
+						let el = member.graphic.format.wrapper.node()
+						
+						ctrl.x += el.offsetLeft / n
+						ctrl.y += el.offsetTop / n
+						
+						ctrl.sw = el.offsetWidth > ctrl.sw ? el.offsetWidth : ctrl.sw
+						ctrl.sh = el.offsetHeight > ctrl.sh ? el.offsetHeight : ctrl.sh
+						
+						return ctrl
+					}, pileCtrl )
+				
+					return position
+				
+				}, // createPileObject
+				
+			
 				drawPile: function drawPile(ctrl){
 					// Needs to have the position it draws to, and the cards it will contain.
 					let s = cfD3Contour2d.interactivity.statistics
 					let p = cfD3Contour2d.interactivity.piling
-					let dx = positioning.dx(ctrl.container)
-					let dy = positioning.dx(ctrl.container)
-					let dw = ctrl.iw*dx/ctrl.members.length
-					let width = 2*ctrl.iw*dx
-					let height = ctrl.ih*dy 
+					
+					
+					let width = 2*ctrl.sw
+					let height = ctrl.sh 
+					let dw = ctrl.sw/ctrl.members.length
 					
 					// For now just draw a card and add dragging to it.
 					ctrl.wrapper = ctrl.container
@@ -7458,7 +10686,7 @@ var dbslice = (function (exports) {
 						.attr("fill", "Gainsboro")
 						.on("mouseover", function(d){
 							// Raise.
-							d.format.wrapper.raise()
+							d.graphic.format.wrapper.raise()
 						})
 						.on("mouseout", function(d){
 							// Raise the wrapper.
@@ -7489,7 +10717,7 @@ var dbslice = (function (exports) {
 							d.delta.y = position[1]
 							  
 							// Move also all the members.
-							p.consolidatePile(d)
+							p.movePile(d)
 						})
 						.on("end", function(d){
 							// Fix into grid positions?
@@ -7537,14 +10765,15 @@ var dbslice = (function (exports) {
 						.style("top", offset.y + "px" )
 						.each(function(d){
 							
+							let p = d.graphic.format.position
 							let card = d3.select(this)
 							
 			    
 							// Set the width of the plot, and of the containing elements.
 							card
-							  .style(     "width", d.format.position.w + "px" )
-							  .style( "max-width", d.format.position.w + "px" )
-							  .style(    "height", d.format.position.h + "px" )
+							  .style(     "width", p.w + "px" )
+							  .style( "max-width", p.w + "px" )
+							  .style(    "height", p.h + "px" )
 						  
 							// Append the title div. Enforce a 24px height for this div.
 							let title = card.append("div")
@@ -7562,8 +10791,8 @@ var dbslice = (function (exports) {
 							// Append the svg
 							card.append("svg")
 								.attr("class", "plotArea")
-								.attr("width",  d.format.position.sw)
-								.attr("height", d.format.position.sh )
+								.attr("width",  p.sw)
+								.attr("height", p.sh )
 								.style("fill", "smokewhite")
 								.style("display", "block")
 								.style("margin", "auto")
@@ -7582,15 +10811,13 @@ var dbslice = (function (exports) {
 				
 				redrawPile: function redrawPile(ctrl){
 					// Needs to have the position it draws to, and the cards it will contain.
-					let dx = positioning.dx(ctrl.container)
-					let dy = positioning.dx(ctrl.container)
-					let h = ctrl.ih*dy
-					let w = ctrl.iw*dx
-					let dw = ctrl.iw*dx / ctrl.members.length
+					let h = ctrl.sh
+					let w = 2*ctrl.sw
+					let dw = ctrl.sw / ctrl.members.length
 					
 
 					var svg = ctrl.wrapper.select("svg.plotArea")
-						.attr("width", 2*w)
+						.attr("width", w)
 						.attr("height", h)
 						
 						
@@ -7602,17 +10829,20 @@ var dbslice = (function (exports) {
 						.attr("class", "preview")
 						.attr("width", dw)
 						.attr("height", h)
-						.attr("x", (d,i)=>w + i*dw)
+						.attr("x", (d,i)=>ctrl.sw + i*dw)
 						.attr("fill", "Gainsboro")
 						.on("mouseover", function(d){
 							// Raise.
-							d.format.wrapper.raise()
+							d.graphic.format.wrapper.raise()
 						})
 						.on("mouseout", function(d){
 							// Raise the wrapper.
 							ctrl.wrapper.raise()
 						})
 					
+					
+					svg.selectAll("rect.preview")
+					  .attr("x", (d,i)=>ctrl.sw + i*dw)
 					
 					// Redo the statistics plot too.
 					let s = cfD3Contour2d.interactivity.statistics
@@ -7631,7 +10861,35 @@ var dbslice = (function (exports) {
 					} // switch
 					
 				}, // redrawPile
-							
+						
+				movePile: function(pileCtrl){
+				
+					// The card hosts the pile title
+					let offset = cfD3Contour2d.interactivity.piling.calculateOffset(pileCtrl)
+				
+					// Move the cards to the pile position.
+					pileCtrl.members.forEach(function(d, i){
+						// When doing this they should also be resized, and redrawn if necessary.
+						let position = d.graphic.format.position
+						// Stagger them a bit?
+						position.x = pileCtrl.x + offset.x
+						position.y = pileCtrl.y + offset.y
+						
+						// Move the wrapper
+						d.graphic.format.wrapper
+							.style("left", position.x + "px")
+							.style("top", position.y + "px")
+							.style("border-width", "")
+						    .style("border-style", "")
+						    .style("border-color", "")
+							.raise()
+						
+					})
+					
+					pileCtrl.wrapper.raise()
+				
+				}, // movePile
+						
 				consolidatePile: function consolidatePile(pileCtrl){
 				
 					// The card hosts the pile title
@@ -7640,13 +10898,13 @@ var dbslice = (function (exports) {
 					// Move the cards to the pile position.
 					pileCtrl.members.forEach(function(d, i){
 						// When doing this they should also be resized, and redrawn if necessary.
-						let position = d.format.position
+						let position = d.graphic.format.position
 						// Stagger them a bit?
 						position.x = pileCtrl.x + offset.x
 						position.y = pileCtrl.y + offset.y
 						
 						// Move the wrapper
-						d.format.wrapper
+						d.graphic.format.wrapper
 							.style("left", position.x + "px")
 							.style("top", position.y + "px")
 							.style("border-width", "")
@@ -7655,22 +10913,22 @@ var dbslice = (function (exports) {
 							.raise()
 							
 						// Resize the wrapper if needed.
-						if((position.iw != pileCtrl.iw) || 
-						   (position.ih != pileCtrl.ih)){
+						if((position.sw != pileCtrl.sw) || 
+						   (position.sh != pileCtrl.sh)){
 							   
 							let dx = positioning.dx(pileCtrl.container)
 							let dy = positioning.dy(pileCtrl.container)
-							position.iw = pileCtrl.iw
-							position.ih = pileCtrl.ih
-							let width = position.iw*dx
-							let height = position.ih*dx
+							position.iw = pileCtrl.sw / dx
+							position.ih = pileCtrl.sh / dy
+							let width = pileCtrl.sw
+							let height = pileCtrl.sh
 							
-							d.format.wrapper
+							d.graphic.format.wrapper
 							  .style("max-width", width + "px")
 							  .style("width"    , width + "px" )
 							  .style("height"   , height + "px" )
 							  
-							d.format.wrapper.select("div.card")
+							d.graphic.format.wrapper.select("div.card")
 							  .style("max-width", width + "px")
 							  .style("width"    , width + "px" )
 							  .style("height"   , height + "px" )
@@ -7688,47 +10946,6 @@ var dbslice = (function (exports) {
 				
 				}, // consolidatePile
 				
-				createPileObject: function createPileObject(container, cardCtrls){
-			
-					let dx = positioning.dx(container)
-					let dy = positioning.dy(container)
-			
-					var pileCtrl = {
-						x: 0,
-						y: 0,
-						iw: Infinity,
-						ih: Infinity,
-						delta: {
-							x: undefined,
-							y: undefined
-						},
-						container: container,
-						wrapper: undefined,
-						members: cardCtrls,
-						statistics: {
-							  mu: undefined,
-						   sigma: undefined
-						}
-					}
-					
-				
-					var n = pileCtrl.members.length
-					var position = pileCtrl.members.reduce(function(total, item){
-						let pos = item.format.position
-						total.x += pos.ix*dx/n
-						total.y += pos.iy*dy/n
-						
-						if(total.iw*total.ih > pos.iw*pos.ih){
-							total.iw = pos.iw
-							total.ih = pos.ih
-						} // if
-						
-						return total
-					}, pileCtrl )
-				
-					return position
-				
-				}, // createPileObject
 				
 				calculateOffset: function calculateOffset(pileCtrl){
 					
@@ -7758,10 +10975,10 @@ var dbslice = (function (exports) {
 				isCardOverPile: function isCardOverPile(cardCtrl, pileCtrl){
 					
 					let height = pileCtrl.wrapper.node().offsetHeight
-					let posy = cardCtrl.format.position.y - pileCtrl.y 
+					let posy = cardCtrl.graphic.format.position.y - pileCtrl.y 
 					
 					let width = pileCtrl.wrapper.node().offsetWidth
-					let posx = cardCtrl.format.position.x - pileCtrl.x 
+					let posx = cardCtrl.graphic.format.position.x - pileCtrl.x 
  
 					let isInsideWidth = ( posx > 0) &&
 								        ( posx < width)
@@ -7847,6 +11064,9 @@ var dbslice = (function (exports) {
 					  .select("div.plotTitle")
 					  .select("div.trendingCtrlGroup")
 					trendingCtrlGroup
+					  .selectAll("select")
+					  .each(function(){this.value = -1})
+					trendingCtrlGroup
 						.style("display", "inline-block")
 						
 						
@@ -7868,7 +11088,7 @@ var dbslice = (function (exports) {
 						if(pileCtrl.members.includes(d)){
 							
 						} else {
-							d.format.wrapper.style("display", "none")
+							d.graphic.format.wrapper.style("display", "none")
 						} // if
 					}) // forEach
 					
@@ -7895,6 +11115,9 @@ var dbslice = (function (exports) {
 					pileCtrl.wrapper.style("display", "")
 					cfD3Contour2d.interactivity.piling.consolidatePile(pileCtrl)
 					
+					// Adjust the plot size.
+					cfD3Contour2d.resizing.plotOnInternalChange(pileCtrl.container.datum())  
+					
 				}, // minimise
 				
 			}, // piling
@@ -7902,65 +11125,279 @@ var dbslice = (function (exports) {
 	
 			dragging: {
 				
-				make: function(ctrl){
-					// Makes the dragging ctrl required by positioning.dragSmooth
+				smooth: {
 					
-					
-					/*
-					ctrl = {
-						wrapper: accessor to the wrapper
-						container: bounding element
-						onstart: on-start event
-						onmove: on-move event
-						onend: on-end event
-						position: position accessor
-					}
-					*/
-					
-					let dragCtrl = {
+					make: function(ctrl){
 						
-						wrapper: function(d){
-							return d.format.wrapper
-						},
-						container: ctrl.figure,
-						onstart: function(d){
-							d.format.wrapper.raise()
-						},
-						onmove: function(d){
-							// Check if the container needs to be resized.
+						let dragctrl = {
 							
-							cfD3Contour2d.resizing.plotOnInternalChange(ctrl)
-							
-						},
-						onend: function(d){
-							
-							let i = cfD3Contour2d.interactivity
-							
-							// Check if the card should be added to a pile.
-							i.piling.findAppropriatePile(d, ctrl.figure.selectAll(".pileWrapper").data())
-							
-							// Update the correlations if trending tools are  active.
-							let trendingCtrlGroup = ctrl.format.wrapper
-							  .select("div.plotTitle")
-							  .select("div.trendingCtrlGroup")
-							  
-							if( trendingCtrlGroup.style("display") != "none" ){
-								// Here we can actually pass the pileCtrl in!
-								i.statistics.drawCorrelation(trendingCtrlGroup)
+							onstart: function(d){
+								d.graphic.format.wrapper.raise()
+							},
+							onmove: function(d){
+								// Check if the container needs to be resized.
+								cfD3Contour2d.resizing.plotOnInternalChange(ctrl)
+							},
+							onend: function(d){
 								
-							} // if
-						},
-						position: function(d){
-							return d.format.position
+								let i = cfD3Contour2d.interactivity
+								
+								// Check if the card should be added to a pile.
+								i.piling.findAppropriatePile(d, ctrl.figure.selectAll(".pileWrapper").data())
+								
+								// Update the correlations if trending tools are  active.
+								let trendingCtrlGroup = ctrl.format.wrapper
+								  .select("div.plotTitle")
+								  .select("div.trendingCtrlGroup")
+								  
+								if( trendingCtrlGroup.style("display") != "none" ){
+									// Here we can actually pass the pileCtrl in!
+									i.statistics.drawCorrelation(trendingCtrlGroup)
+									
+									// Update the selects also.
+									trendingCtrlGroup
+									  .selectAll("select")
+									  .each(function(){
+										  this.value = -1
+									  })
+									
+								} // if
+							},
+							
+						}	
+						
+						
+						var h = cfD3Contour2d.interactivity.dragging.smooth
+
+						// Position: absolute is somehow crucial to make thedragging smooth at the start!
+						let drag = d3.drag()
+							.on("start", function(d){
+								
+								// Store the starting position of hte mouse.
+								
+								d.graphic.format.position.mouse = h.getMousePosition(d)
+								
+								dragctrl.onstart(d)
+							})
+							.on("drag", function(d){
+								
+								let position = h.calculateNewPosition(d)
+								
+								// Move the wrapper.
+								d.graphic.format.wrapper
+								  .style("left",position.x + "px")
+								  .style("top",position.y + "px")
+								  
+								// Store the new position internally.
+								d.graphic.format.position.x = position.x
+								d.graphic.format.position.y = position.y
+								  
+								// Perform any additional on move tasks.
+								dragctrl.onmove(d)
+							})
+							.on("end", function(d){
+								dragctrl.onend(d)
+							})
+							
+						
+						
+						
+						return drag
+						
+						
+
+						
+						
+					}, // add
+					
+					calculateNewPosition: function(d){
+						
+						let h = cfD3Contour2d.interactivity.dragging.smooth
+						
+						// Get the current wrapper position and the mouse movement on increment.
+						let wrapper = h.getWrapperPosition(d)
+						let movement = h.calculateMouseMovement(d)
+						let parent = d.graphic.format.parent
+						
+						// Apply boundaries to movement
+						movement = h.applyMovementBoundaries(movement, wrapper, parent)
+						
+						return {
+							x: wrapper.x + movement.x,
+							y: wrapper.y + movement.y
 						}
-					}	
+						
+					}, // calculateNewPosition
+					
+					getMousePosition: function(d){
+							
+						let mousePosition = d3.mouse(d.graphic.format.parent)
+						
+						return {
+							x: mousePosition[0],
+							y: mousePosition[1]
+						}
+					}, // getMousePosition
+					
+					getWrapperPosition: function(d){
+						// Calculate the position of the wrapper relative to it's parent
+						let el = d.graphic.format.wrapper.node()
+						
+						return {
+							x: el.offsetLeft,
+							y: el.offsetTop,
+							w: el.offsetWidth,
+							h: el.offsetHeight
+						}
+						
+					}, // getWrapperPosition
+					
+					calculateMouseMovement: function (d){
+						
+						let h = cfD3Contour2d.interactivity.dragging.smooth
+						let position = d.graphic.format.position
+						
+						let mp0 = position.mouse
+						let mp1 = h.getMousePosition(d)
+						
+						let movement = {
+							x: mp1.x - mp0.x,
+							y: mp1.y - mp0.y
+						}
+						
+						position.mouse = mp1
+
+						return movement
+						
+					}, // calculateMouseMovement
+					
+					applyMovementBoundaries: function(movement, wrapper, parent){
+						
+						// Stop the movement exceeding the container bounds.
+						let rightBreach = wrapper.w + wrapper.x + movement.x > parent.offsetWidth
+						let leftBreach = wrapper.x + movement.x < 0
+						
+						
+						if( rightBreach || leftBreach ){
+							movement.x = 0
+						} // if
+						
+						// Bottom breach should extend the plot!
+						if( wrapper.y + movement.y < 0 ){
+							movement.y = 0
+						} // if
+						
+						return movement
+						
+					} // applyMovementBoundaries
+					
+					
+				}, // smooth
+				
+				
+				gridded: {
+					
+					resizeStart: function resizeStart(d){
+						// Bring hte plot to front.
+						d.graphic.format.wrapper.raise()
+						
+					}, // resizeStart
+					
+					resizeMove: function resizeMove(d){
+			  
+			  
+						// Calculate the cursor position on the grid. When resizing the d3.event.x/y are returned as relative to the top left corner of the svg containing the resize circle. The cue to resize is when the cursor drags half way across a grid cell.
+						
+						// this < svg < bottom div < plot body < card < plotWrapper
+						var f = d.graphic.format
+						let parent = d.graphic.format.parent
+						let container = d3.select(parent)
+						let p = d.graphic.format.position
+						
+						
+						let nx = positioning.nx( container )
+						let dx = positioning.dx( container )
+						let dy = positioning.dy( container )
+						
+						
+						// clientX/Y is on-screen position of the pointer, but the width/height is relative to the position of the plotWrapper, which can be partially off-screen. getBoundingClientRect retrieves teh plotRowBody position relative to the screen.
+						let x = d3.event.sourceEvent.clientX -parent.getBoundingClientRect().left -p.ix*dx
+						let y = d3.event.sourceEvent.clientY -parent.getBoundingClientRect().top -p.iy*dy
+					  
+						let ix = p.ix
+						let iw = Math.round( x / dx )
+						let ih = Math.round( y / dy )
+					  
+						// Calculate if a resize is needed
+						let increaseWidth = iw > p.iw
+						let decreaseWidth = iw < p.iw
+						let increaseHeight = ih > p.ih
+						let decreaseHeight = ih < p.ih
+						  
+						// Update the container size if needed
+						if([increaseWidth, decreaseWidth, increaseHeight, decreaseHeight].some(d=>d)){
+							
+							// Corrections to force some size. The minimum is an index width/height of 1, and in px. The px requirement is to make sure that the plot does not squash its internal menus etc. In practice 190/290px seems to be a good value. This finctionality handles the contours as well, therefore the minimum limits are in the format.position attribute.
+							
+							iw = iw*dx < p.minW ? Math.ceil(p.minW/dx) : iw
+							ih = ih*dy < p.minH ? Math.ceil(p.minH/dy) : ih
+							
+											
+							// RETHINK THIS LIMIT!! FOR CONTOUR PLOTS THE PX LIMIT IS NOT NEEDED!!
+							
+							// Correction to ensure it doesn't exceed limits.
+							iw = (ix + iw) > nx ? nx - ix : iw
+							
+							
+							// Width must simultaneously not be 1, and not exceed the limit of the container.
+								
+							p.ih = ih
+							p.iw = iw
+
+							
+							
+							// this < svg < bottom div < plot body < card < plotWrapper
+							f.wrapper
+							  .style("max-width", iw*dx + "px")
+							  .style("width"    , iw*dx + "px" )
+							  .style("height"   , ih*dy + "px" )
+							  
+							f.wrapper.select("div.card")
+							  .style("max-width", iw*dx + "px")
+							  .style("width"    , iw*dx + "px" )
+							  .style("height"   , ih*dy + "px" )
+							
+							
+							// UPDATE THE PLOT
+							cfD3Contour2d.rescale(d)
+							
+							// Resize the containers accordingly
+							cfD3Contour2d.interactivity.refreshContainerSize(d)
+							
+							// Redo the graphics.
+								
+						} // if
+						  
+					  
+					}, // resizeMove
+					
+					resizeEnd: function resizeEnd(d){
+						// After teh resize is finished update teh contour.
+					  
+						let container = d3.select(d.graphic.format.parent)
+						builder.refreshPlotRowHeight( container )
+						builder.refreshPlotRowWidth(  container )
+						
+						
+
+					}, // resizeEnd
 					
 					
 					
-					return positioning.dragSmooth(dragCtrl)	
 					
-					
-				} // add
+				}, // gridded
+				
+				
 				
 			}, // dragging
 	
@@ -7988,14 +11425,14 @@ var dbslice = (function (exports) {
 						  svg
 						    .select("g.contour")
 						    .selectAll("path")
-						    .data(statContour.levels)
+						    .data(statContour.graphic.levels)
 						    .join(
 							  enter => enter
 							    .append("path")
-								  .attr("fill", statContour.format.color )
+								  .attr("fill", statContour.graphic.format.color )
 								  .attr("d", projection ),
 							update => update
-								  .attr("fill", statContour.format.color )
+								  .attr("fill", statContour.graphic.format.color )
 								  .attr("d", projection ),
 							exit => exit.remove()
 						  )
@@ -8008,7 +11445,7 @@ var dbslice = (function (exports) {
 				
 				design: function design(svg, statContour){
 					
-					let f = statContour.format
+					let f = statContour.graphic.format
 					
 					let xdiff = f.domain.x[1] - f.domain.x[0]
 					let ydiff = f.domain.y[1] - f.domain.y[0]
@@ -8104,16 +11541,57 @@ var dbslice = (function (exports) {
 					
 				}, // drawCorrelation
 				
+				makeDataObj: function(wrapper, surface, thresholds, name, taskId){
+					
+					let s = surface
+					
+					let colorScheme = d3.scaleSequential(d3.interpolateViridis)
+				      .domain( d3.extent( thresholds ) )
+					
+					return {
+						
+						file: {
+							filename: name,
+							content: {
+								surface: s
+							}
+						},
+						task: {taskId: taskId},
+						graphic: {
+							
+							levels: cfD3Contour2d.draw.json2contour(s, thresholds),
+					    
+							format: {
+								wrapper: wrapper,
+								position: {
+									sh: parseFloat( wrapper.attr("height") ),
+									sw:  parseFloat( wrapper.attr("width") )
+								},
+								domain: {
+									x: [d3.min(s.x), d3.max(s.x)],
+									y: [d3.min(s.y), d3.max(s.y)],
+									v: [d3.min(s.v), d3.max(s.v)] 
+								},
+								color: function(d){
+									return colorScheme(d.value)
+								}
+							}
+							
+						}
+						
+					}
+					
+				}, // makeDataObj
 				
 				mean: function mean(pileCtrl){
 
-					let tasks = pileCtrl.members
+					let dataobjs = pileCtrl.members
 				    let mu, domain_
-				    let n = tasks.length
+				    let n = dataobjs.length
 				  
 				    // calculate mean
-				    tasks.forEach(function(task){
-					  let d= task.data.vals.surfaces
+				    dataobjs.forEach(function(dataobj){
+					  let d= dataobj.file.content.surface
 					
 					  if(mu == undefined){
 					  
@@ -8139,27 +11617,7 @@ var dbslice = (function (exports) {
 					
 							
 					// Create a statistics output:
-				    pileCtrl.statistics.mu = {
-						filename: "mean@obs",
-					    data: {vals: {surfaces: mu}},
-						levels: cfD3Contour2d.draw.json2contour(mu, plotCtrl.data.domain.thresholds),
-					    task: {taskId: "μ"},
-					    format: {
-							wrapper: svg,
-							position: {
-								sh: parseFloat( svg.attr("height") ),
-								sw:  parseFloat( svg.attr("width") )
-							},
-							domain: {
-								x: [d3.min(mu.x), d3.max(mu.x)],
-							    y: [d3.min(mu.y), d3.max(mu.y)],
-							    v: [d3.min(mu.v), d3.max(mu.v)] 
-							},
-							color: function(d){
-								return plotCtrl.tools.scales.val2clr(d.value)
-							}
-						}
-					}
+				    pileCtrl.statistics.mu = cfD3Contour2d.interactivity.statistics.makeDataObj(svg, mu, plotCtrl.data.domain.thresholds, "mean@obs", "μ")
 				  
 
 				}, // mean
@@ -8168,13 +11626,13 @@ var dbslice = (function (exports) {
 				 
 					let tasks = pileCtrl.members
 					let mean = pileCtrl.statistics.mu
-					let mu = mean.data.vals.surfaces
+					let mu = mean.file.content.surface
 				    let sigma
 				    let n = tasks.length
 				  
 				    // calculate standard deviation based on the mean.
 				    tasks.forEach(function(task){
-					  let t = task.data.vals.surfaces
+					  let t = task.file.content.surface
 					  if(sigma == undefined){
 					    sigma = {x: mu.x, 
 							     y: mu.y, 
@@ -8191,6 +11649,7 @@ var dbslice = (function (exports) {
 				    }) // forEach
 					
 					
+
 					let svg = pileCtrl.wrapper.select("div.pileBody").select("div.summaryWrapper").select("svg")
 					
 					
@@ -8200,32 +11659,10 @@ var dbslice = (function (exports) {
 				
 
 				    // Create a statistics output:
-				    pileCtrl.statistics.sigma = {
-						filename: "stdev@obs",
-					    data: {vals: {surfaces: sigma}},
-						levels: cfD3Contour2d.draw.json2contour(sigma, thresholds),
-					    task: {taskId: "σ"},
-					    format: {
-							wrapper: svg,
-							position: {
-								sh: parseFloat( svg.attr("height") ),
-								sw:  parseFloat( svg.attr("width") )
-							},
-							domain: {
-							  x: mean.format.domain.x,
-							  y: mean.format.domain.y,
-							  v: d3.extent(sigma.v),
-							  size: mean.format.domain.size 
-						    },
-							color: function(d){
-								let val2clr = d3
-								  .scaleSequential(d3.interpolateViridis)
-								  .domain( d3.extent( thresholds ) )
-								
-								return val2clr(d.value)
-							}
-						}
-					}
+				    pileCtrl.statistics.sigma = cfD3Contour2d.interactivity.statistics.makeDataObj(svg, sigma, thresholds, "stdev@obs", "σ")
+					
+					
+					
 
 				}, // standardDeviation
 				
@@ -8237,15 +11674,16 @@ var dbslice = (function (exports) {
 				    // Order is based given the left edge of the contour. The order on the screen is coordinated with the sequential order in contours.tasks in 'dragMove', and in 'ordering'.
 				    
 				  
-				    let scores = dbsliceData.data.dataProperties.map(function(variable){
+				    let scores = dbsliceData.data.ordinalProperties.map(function(variable){
 						// For each of the data variables calculate a correlation.
 						
 						
 						// Collect the data to calculate the correlation.
-						let d = pileCtrl.members.map(function(contour){
-						  return {x: contour.format.position.x,
-								  y: contour.format.position.y,
-								  var: contour.task[variable]
+						let d = pileCtrl.members.map(function(dataobj){
+						  let el = dataobj.graphic.format.wrapper.node()
+						  return {x: el.offsetLeft,
+								  y: el.offsetTop,
+								  var: dataobj.task[variable]
 								 }
 						}) // map
 						
@@ -8336,10 +11774,10 @@ var dbslice = (function (exports) {
 						
 						let x = scale( d.task[variable] )
 						
-						d.format.position.x = x
-						d.format.position.ix = Math.floor( x/dx )
+						d.graphic.format.position.x = x
+						d.graphic.format.position.ix = Math.floor( x/dx )
 						
-						d.format.wrapper.style("left", x + "px")
+						d.graphic.format.wrapper.style("left", x + "px")
 					})
 					
 				}, // x
@@ -8364,10 +11802,10 @@ var dbslice = (function (exports) {
 						
 						let y = scale( d.task[variable] )
 						
-						d.format.position.y = y
-						d.format.position.iy = Math.floor( y/dy )
+						d.graphic.format.position.y = y
+						d.graphic.format.position.iy = Math.floor( y/dy )
 						
-						d.format.wrapper.style("top", y + "px")
+						d.graphic.format.wrapper.style("top", y + "px")
 					})
 					
 				}, // y
@@ -8377,8 +11815,8 @@ var dbslice = (function (exports) {
 					let height = ctrl.figure.node().offsetHeight
 					let width = ctrl.figure.node().offsetWidth
 					
-					let maxCardHeight = d3.max( ctrl.tools.trending.members.map(d=>d.format.position.h) )
-					let maxCardWidth = d3.max( ctrl.tools.trending.members.map(d=>d.format.position.w) )
+					let maxCardHeight = d3.max( ctrl.tools.trending.members.map(d=>d.graphic.format.position.h) )
+					let maxCardWidth = d3.max( ctrl.tools.trending.members.map(d=>d.graphic.format.position.w) )
 					
 					return {
 						x: [0, width - maxCardWidth],
@@ -8402,23 +11840,19 @@ var dbslice = (function (exports) {
 				// • .requested is an array of urls whose data are requested by the plotting tool. These need not be the same as the data in promises as those are loaded on user prompt!
 				// • .available is an array of urls which were found in the central booking,
 				// • .missing                              NOT found
-				// • .dataProperties is a string array of properties found in the data.
+				// • .ordinalProperties is a string array of properties found in the data.
 				// • .data is an array of n-data arrays of the n-task slice files.
 				
 				
 				var ctrl = {
 				    plotFunc: cfD3Contour2d,
+					fileClass: contour2dFile,
 					figure: undefined,
 					svg: undefined,
 					grid: {nx: 12},
 					data: {plotted: [],
-						   promises: [],
-					       requested: [],
 						   available: [],
-						   duplicates: [],
 					       missing : [],
-						   compatible: [],
-						   incompatible: [],
 						   intersect: [],
 						   domain: {
 							   x: undefined,
@@ -8427,8 +11861,7 @@ var dbslice = (function (exports) {
 							   ar: undefined,
 							   thresholds: undefined,
 							   nLevels: undefined,
-						   },
-						   processor: importExport.importing.contour2d
+						       },
 					       },
 					view: {sliceId: undefined,
 					       options: [],
@@ -8609,6 +12042,10 @@ var dbslice = (function (exports) {
 			
 			highlight: function highlight(ctrl, allDataPoints){
 				
+				// Only highlight those points that are not in piles.
+				
+				
+				
 				// Udate the boundary.
 				var allCards = ctrl.figure
 				  .selectAll("div.contourWrapper")
@@ -8651,1182 +12088,12 @@ var dbslice = (function (exports) {
 		
 	} // cfD3Contour2d
 	
-	// Plot creation abstract object.
-    var plotHelpers = {
-        
-        setupPlot: {
-			
-			general: {
-				
-				// Making the plot DOM
-				makeNewPlot: function makeNewPlot( plotCtrl, index ) {
     
-					// Note that here `this' is a d3 object.
-					let f = plotCtrl.format
-					f.parent = this._parent
-					let dx = positioning.dx( d3.select(f.parent) )
-					let dy = positioning.dy( d3.select(f.parent) )
-					
+
 	
-					var wrapper = d3.select(this)
-					  .append("div")
-						.attr("class", "plotWrapper")
-						.attr("plottype", plotCtrl.plotFunc.name)
-						.style("position", "absolute")
-						.style("left"  , f.parent.offsetLeft + f.position.ix*dx + "px")
-						.style("top"   , f.parent.offsetTop + f.position.iy*dy + "px")
-						.style("width" , f.position.iw*dx + "px")
-						.style("height", f.position.ih*dy + "px")
-						
-					var plot = wrapper
-					  .append("div")
-					    .attr("class", "card")
-
-
-					// Apply the drag to all new plot headers
-					let drag = d3.drag()
-						.on("start", positioning.dragStart)
-						.on("drag" , positioning.dragMove)
-						.on("end"  , positioning.dragEnd)
-					  
-					var plotHeader = plot
-					  .append("div")
-						.attr("class", "card-header plotTitle")
-						.style("cursor", "grab")
-						.call(drag)
-				
-
-					
-					// Add the actual title
-					var titleBox = plotHeader
-					  .append("div")
-					    .attr("class", "title")
-						.style("display","inline")
-						
-						
-						
-						
-					// Add a div to hold all the control elements.
-					plotHeader
-					  .append("div")
-						.attr("class", "ctrlGrp float-right")
-						.attr("style", "display:inline-block")
-					  .append("button")
-                        .attr("class", "btn btn-danger float-right")
-                        .html("x")
-						.on("mousedown", function() { d3.event.stopPropagation(); })
-						.on("click", addMenu.removePlotControls )
-					
-					  
-					// Now add the text - this had to wait for hte button to be added first, as it takes up some space.
-					titleBox.html(plotCtrl.format.title)
-					  .attr("spellcheck", false)
-					  .attr("contenteditable", true)
-					  .style("cursor", "text")
-					  .on("mousedown", function() { d3.event.stopPropagation(); })
-					  .each(function(ctrl){
-						  this.addEventListener("input", function(){
-							  ctrl.format.title = this.innerHTML
-						  })
-					  })
-					  
-					  
-					  
-					var plotBody = plot
-					  .append("div")
-						.attr("class", "plot")
-						
-						
-
-						
-					// Bind the DOM element to the control object.
-					plotCtrl.figure = plotBody
-					plotCtrl.format.wrapper = wrapper
-
-					
-					
-					
-					// Draw the plot
-					plotCtrl.plotFunc.make(plotCtrl);
-					
-					
-					
-
-					
-
-				}, // makeNewPlot
-				
-				setupPlotBackbone: function setupPlotBackbone(ctrl){
-					/* This function makes the skeleton required for a plot that will have interactive inputs on both axes.
-					_________________________________________________
-					|| div | | div                                   |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||-----| |---------------------------------------|
-					||-----| |---------------------------------------|
-					|| div | | div                                   |
-					||_____| |_______________________________________|
-					
-					*/
-					
-					var plot = ctrl.figure
-				
-					
-					// Left Control
-					plot
-					  .append("div")
-						.attr("class", "leftAxisControlGroup")
-						.style("width", ctrl.format.margin.left +"px")
-						.style("float", "left")
-						
-					// Main plot with its svg.
-					plot
-					  .append("div")
-						.attr("class", "plotContainer")
-						.style("margin-left", ctrl.format.margin.left + "px")
-				
-					// Bottom left corner div
-					// A height of 38px is prescribed, as that is the height of a bootstrap button.
-					plot
-					  .append("div")
-						.attr("class", "bottomLeftControlGroup")
-						.attr("style", "width: "+ ctrl.format.margin.left +"px; height:" + ctrl.format.margin.bottom +"px; float:left")
-					
-					
-					// Bottom controls
-					plot
-					  .append("div")
-						.attr("class", "bottomAxisControlGroup")
-						.attr("style", "margin-left: " + ctrl.format.margin.left + "px;")
-						
-					// Add the resize item.
-					let resize = d3.drag()
-						.on("start", positioning.resizeStart)
-						.on("drag", positioning.resizeMove)
-						.on("end", positioning.resizeEnd)
-					
-					plot.select(".bottomAxisControlGroup")
-					  .append("svg")
-						.attr("width",  "10")
-						.attr("height", 10)
-						.style("position", "absolute")
-						.style("bottom", "0px")
-						.style("right", "0px")
-					  .append("circle")
-						.attr("cx", 5)
-						.attr("cy", 5)
-						.attr("r", 5)
-						.attr("fill", "DarkGrey")
-						.attr("cursor", "nwse-resize")
-						.call(resize)
-					
-					
-				}, // setupPlotBackbone
-				
-				setupPlotContainerBackbone: function setupPlotContainerBackbone(ctrl){
-					
-					// Fill in the plot container backbone.
-					var plotContainer = ctrl.figure.select("div.plotContainer")
-					
-					var svg = plotContainer
-							.append("svg")
-							  .attr("class","plotArea")
-			 
-					// Background group will hold any elements required for functionality in the background (e.g. zoom rectangle). 
-					svg.append("g")
-							.attr("class", "background")
-			 
-					// Group holding the primary data representations.
-					svg.append("g")
-							.attr("class", "data")
 	
-					// Markup group will hold any non-primary data graphic markups, such as chics connecting points on a compressor map. 
-					svg.append("g")
-							.attr("class", "markup")
-			
-					// Group for the x axis
-					svg.append("g")
-						.attr( "class", "axis--x")
-					  .append("g")
-					    .attr("class", "exponent")
-					  .append("text")
-					    .attr("fill", "none")
-						.attr("y", "-0.32em")
-					  .append("tspan")
-					    .html("x10")
-					  .append("tspan")
-					    .attr("class","exp")
-					    .attr("dy", -5)
-						
-					// Group for the y axis
-					svg.append("g")
-						.attr( "class", "axis--y")
-					  .append("g")
-					    .attr("class", "exponent")
-					  .append("text")
-					    .attr("fill", "none")
-						.attr("x", -8)
-					  .append("tspan")
-					    .html("x10")
-					  .append("tspan")
-					    .attr("class","exp")
-					    .attr("dy", -5)
-					  
-						
-				}, // setupPlotContainerBackbone
-				
-				
-				// Svg scaling
-				rescaleSvg: function rescaleSvg(ctrl){
-					
-					// RESIZE ALL THE PLOT CONTAINERS AS NEEDED.
-					
-					var svg = ctrl.figure.select("svg.plotArea")
-					var cardDOM = ctrl.figure.node().parentElement
-					var wrapperDOM = cardDOM.parentElement
-					var headerDOM = d3.select(cardDOM).select(".plotTitle").node()
-					
-					// First enforce the size based on the size of the wrapper.
-					d3.select(cardDOM)
-					  .style("height", wrapperDOM.offsetHeight - headerDOM.offsetHeight)
-					
-					
-					
-					// These are margins of the entire drawing area including axes. The left and top margins are applied explicitly, whereas the right and bottom are applied implicitly through the plotWidth/Height parameters.
-					var margin = ctrl.format.margin
-					var axesMargin = ctrl.format.axesMargin
-					
-					
-					// Width of the plotting area is the width of the div intended to hold the plot (.plotContainer). ctrl.format.margin.bottom is the margin for hte button.
-					var width = wrapperDOM.offsetWidth - margin.left - margin.right
-					var height = wrapperDOM.offsetHeight - headerDOM.offsetHeight - margin.bottom - margin.top
-
-					
-					
-					
-					// The plot will contain some axes which will take up some space. Therefore the actual plot width will be different to the width of the entire graphic. Same is true for the height. The outer and inner svg only touch on the right border - there is no margin there.
-					var plotWidth = width - axesMargin.left - axesMargin.right
-					var plotHeight = height - axesMargin.bottom - axesMargin.top
-					
-					// Outer svg. This is required to separate the plot from the axes. The axes need to be plotted onto an svg, but if the zoom is applied to the same svg then the zoom controls work over the axes. If rescaling of individual axes is needed the zoom must therefore be applied to a separate, inner svg.
-					// This svg needs to be translated to give some space to the controls on the y-axes.
-					svg
-						.attr("width", width)
-						.attr("height", height)
-							
-							
-							
-					
-					// If margins are too small the ticks will be obscured. The transform is applied from the top left corner.
-					var axesTranslate = makeTranslate(axesMargin.left, axesMargin.top)
-					
-					// Make a group that will hold any non-primary data graphic markups, such as chics connecting points on a compressor map. This group also holds a white rectangle that allows the whole plot area to use zoom controls. This is so as the zoom will only apply when the cursor is on top of children within a g. E.g., without the rectangle the pan could only be done on mousedown on the points.
-					var background = svg.select("g.background")
-							.attr("transform",  axesTranslate)
-					background
-						.select("clipPath")
-						.select("rect")
-								.attr("width", plotWidth )
-								.attr("height", plotHeight )
-								.style("fill", "rgb(255,255,255)")
-					background
-						.select("rect.zoom-area")
-								.attr("width", plotWidth )
-								.attr("height", plotHeight )
-								.style("fill", "rgb(255,255,255)")
-
-					// Transform the markup to the right location.
-					svg.select("g.markup")
-							.attr("transform",  axesTranslate)								
-					
-					// Group holding the primary data representations. Needs to be after g.markup, otherwise the white rectangle hides all the elements.
-					svg.select("g.data")
-							.attr("transform", axesTranslate)
-							.attr("width", plotWidth)
-							.attr("height", plotHeight)
-						
-						
-					// Group for the x axis
-					svg.select("g.axis--x")
-						.attr( "transform", makeTranslate(axesMargin.left, plotHeight + axesMargin.top) )
-					  .select("g.exponent")
-					  .select("text")
-					    .attr("x", plotWidth - 12)
-						
-					// Group for the y axis
-					svg.select("g.axis--y")
-						.attr( "transform", axesTranslate )
-						.attr("x", -12)
-						.attr("y", 5)
-				
-						
-					function makeTranslate(x,y){
-						return "translate("+[x, y].join()+")"
-					} // makeTranslate	
-					
-				}, // rescaleSvg
-			
-				
-				// Select menus
-				
-				appendVerticalSelection: function appendVerticalSelection(container, onChangeFunction){
-		
-					// var container = ctrl.figure.select(".leftAxisControlGroup")
-		
-					var s = container
-					  .append("select")
-						.attr("class", "select-vertical custom-select")
-					
-									
-					
-					container
-					  .append("text")
-						.text( s.node().value )
-						.attr("class","txt-vertical-axis")
-					
-					
-					s.on("change", onChangeFunction )
-				
-				}, // appendVerticalSelection
-				
-				updateVerticalSelection: function updateVerticalSelection(ctrl){
-				
-					// THIS WORKS!!
-					// NOTE THAT CHANGING THE SELECT OPTIONS THIS WAY DID NOT TRIGGER THE ON CHANGE EVENT!!
-					
-					var variables = ctrl.view.yVarOption.options
-					
-					var container = ctrl.figure.select(".leftAxisControlGroup")
-					
-					// Handle the select element.
-					var s = container.select("select")
-					var options = s.selectAll("option").data(variables)
-					options
-					  .enter()
-						.append("option")
-						   .attr("class","dropdown-item")
-						   .html(function(d){return d})
-						   .attr("value", function(d){return d})
-						   
-					options.html(function(d){return d})
-					
-					options.exit().remove()
-						
-						
-					// Force the appropriate selection to be selected.
-					s.node().value = ctrl.view.yVarOption.val
-					
-					// Update the text to show the same.
-					container.select("text").text(ctrl.view.yVarOption.val)
-				
-				}, // updateVerticalSelection
-				
-				appendHorizontalSelection: function appendHorizonalSelection(container, onChangeFunction){
-				
-					// var container = ctrl.figure.select(".bottomAxisControlGroup")
-				
-					var s = container
-					  .append("select")
-						.attr("class", "custom-select")
-						.attr("dir","rtl")
-						.attr("style", 'float:right;')
-					
-					
-					s.on("change", onChangeFunction)
-					
-				}, // appendHorizonalSelection
-			
-				updateHorizontalSelection: function updateHorizontalSelection(ctrl, variables){
-				
-					// THIS WORKS!!
-					// NOTE THAT CHANGING THE SELECT OPTIONS THIS WAY DID NOT TRIGGER THE ON CHANGE EVENT!!
-					
-					var variables = ctrl.view.xVarOption.options
-					var container = ctrl.figure.select(".bottomAxisControlGroup")
-					
-					// Handle the select element.
-					var s = container.select("select")
-					var options = s.selectAll("option").data(variables)
-					options
-					  .enter()
-						.append("option")
-						   .attr("class","dropdown-item")
-						   .html(function(d){return d})
-						   
-					options.html(function(d){return d})
-					
-					options.exit().remove()
-						
-						
-					// Force the appropriate selection to be selected.
-					s.node().value = ctrl.view.xVarOption.val
-					
-					
-				
-				}, // updateHorizontalSelection
-			
-				// Toggle in the header
-				
-				appendToggle: function appendToggle(container, onClickEvent){
-				
-					// Additional styling was added to dbslice.css to control the appearance of the toggle.
-
-					var toggleGroup = container
-					  .append("label")
-						.attr("class", "switch float-right")
-					var toggle = toggleGroup
-					  .append("input")
-						.attr("type", "checkbox")
-					toggleGroup
-					  .append("span")
-						.attr("class", "slider round")
-						
-					// Add it's functionality.
-					toggle.on("change", onClickEvent)
-					
-				}, // appendToggle
-				
-			}, // general
-			
-			twoInteractiveAxes: {
-				
-				setupPlotBackbone: function setupPlotBackbone(ctrl){
-					/* This function makes the skeleton required for a plot that will have interactive inputs on both axes.
-					_________________________________________________
-					|| div | | div                                   |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||     | |                                       |
-					||-----| |---------------------------------------|
-					||-----| |---------------------------------------|
-					|| div | | div                                   |
-					||_____| |_______________________________________|
-					
-					*/
-					
-					// Make the general backbone.
-					plotHelpers.setupPlot.general.setupPlotBackbone(ctrl)
-					
-					plotHelpers.setupPlot.general.setupPlotContainerBackbone(ctrl)
-					
-					
-					// Fill in custom elements.
-					var svg = ctrl.figure
-					  .select("div.plotContainer")
-					  .select("svg.plotArea")
-					
-
-					
-							
-					
-					// The markup group also holds a white rectangle that allows the whole plot area to use zoom controls. This is so as the zoom will only apply when the cursor is on top of children within a g. E.g., without the rectangle the pan could only be done on mousedown on the points.
-					// USE THIS RESTANGLE AS THE clipPAth too??
-					var background = svg
-						.select("g.background")
-						
-					// At some point this didn't work:
-					// .attr("clipPathUnits","objectBoundingBox")
-					background
-						.append("clipPath")
-							.attr("id", "zoomClip")
-						.append("rect")
-					background.append("rect")
-						.attr("class", "zoom-area")
-						.attr("fill", "rgb(255,25,255)")
-					background
-						.append("g")
-							.style("display","none")
-							.attr("class","tooltipAnchor")
-						.append("circle")
-								.attr("class", "anchorPoint")
-								.attr("r",1);
-					
-				
-					svg.select("g.data")
-						.attr("clip-path", "url(#zoomClip)")	
-						
-				}, // setupPlotBackbone
-							
-				// Button Menu
-				buttonMenu: {
-			
-					
-					
-					make: function make(ctrl){
-						
-						var container = ctrl.figure.select(".bottomLeftControlGroup")
-		
-						var menuWrapper = container
-						  .append("div")
-							.attr("class", "dropup")
-							
-						// The button that will toggle the main menu.
-						var button = menuWrapper
-						  .append("button")
-							.attr("class", "btn dropup-toggle")
-							.html("O")
-						  
-						// The div that will hold the accordion options.
-						var menu = menuWrapper
-						  .append("div")
-							.attr("class", "dropup-content")
-							.style("display", "none")
-			
-						// REQUIRED CUSTOM FUNCTIONALITY
-						var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.helpers
-						
-						
-						// When the button is clicked the dropup should toggle visibility.
-						button.on("click", h.toggleDropupMenu)
-						
-						// When outside of the menu, and the main menu items is clicked close the dropup menu.
-						window.addEventListener("click", h.closeDropupMenu(menu) )
-						
-						
-						
-						
-					
-					}, // make
-					
-					update: function update(ctrl, optionGroups){
-			
-			
-						var container = ctrl.figure.select(".bottomLeftControlGroup")
-						var menu = container.select(".dropup").select(".dropup-content")
-			
-						// First remove all previous groups.
-						while (menu.node().firstChild) {
-							menu.node().removeChild(menu.node().lastChild);
-						} // while
-			
-						// Now append all the options required.
-						optionGroups.forEach(function(option){
-							appendGroup(menu, option)
-						})
-			
-						
-						function appendGroup(menu, option){
-							// Append the group div, the p holding the name, and another div holding the options.
-							var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.helpers
-							var submenuWrapper = menu.append("div")
-							
-							// By clicking on this p I want to show the submenu.
-							var p = submenuWrapper
-							  .append("p")
-								.attr("class", "dropup-toggle submenu-toggle")
-								.html(option.name)
-								.style("font-weight", "bold")
-								.style("font-size", "12px")
-							p.on("click", h.toggleDropupSubmenu) // on
-							
-							var submenu = submenuWrapper
-							  .append("div")
-								.attr("class", "submenu-content")
-								.style("display", "none")
-							  
-							submenu
-							  .selectAll("a")
-							  .data(option.options)
-							  .enter()
-							  .append("a")
-								.attr("class", function(d){
-									// This function intitialises the selection.
-									var classList = ["submenu-item"]
-									if(option.val == d){
-										classList.push("selected")
-									} else {
-										classList.push("deselected")
-									} // if
-									return classList.join(" ")
-								})
-								.html(function(d){return d})
-								.on("click", function(d){
-									// Several events should occur on an item click. First of all the selection should be highlighted in the selection menu. Then the corresponding ctrl attributes should be updated. And finally a redraw should be ordered.
-									
-									// Perform the usual toggling of the menu items. This also allows an option to be deselected!
-									h.toggleSubmenuItemHighlight(this)
-									
-									// Update the corresponding ctrl attribute.
-									// 'option' is a reference to either a manually created option in 'update', or a reference to an actual option in 'ctrl.view.options'.
-									var optionSame = option.val == d
-									option.val = optionSame ? undefined : d;
-									
-									// If a special event is specified, execute it here. This event might require to know the previous state, therefore execute it before updating the state.
-									if(option.event != undefined){
-										
-										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.animated()
-										
-										option.event(ctrl, option.val, optionSame)
-										
-										ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
-									} // if
-									
-									
-									
-									// The data defined options, if they exist, must not be deselected however. Highlight the selected ones.
-									// if for ctrl.view.options is here to account for the cases where the only options are those that feature only functionality.
-									if(ctrl.view.options != undefined){
-									
-										var userOptionNames = ctrl.view.options.map(function(o){return o.name})
-										if( userOptionNames.includes(option.name) ){
-											// This item belongs to an option defined by the data. It must remain selected.
-											this.classList.replace("deselected", "selected")
-										} // if
-									} // if
-
-									
-								})
-							
-						} // appendGroup
-						
-						
-					
-					}, // update
-					
-					helpers: {
-						
-						
-						toggleDisplayBlock: function toggleDisplayBlock(menu){
-		
-			
-							if(menu.style.display === "none"){
-								menu.style.display = "block"
-							} else {
-								menu.style.display = "none"
-							} // if
-						
-						}, // toggleDisplayBlock
-						
-						toggleDropupMenu: function toggleDropupMenu(){
-							var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.helpers
-							var menu = d3.select(this.parentElement).select("div")
-							
-							// Toggle the display of the overall menu.
-							h.toggleDisplayBlock(menu.node())
-							
-							
-							// Hide all the accordion submenu menus.
-							menu.selectAll(".submenu-content").each(function(){
-								this.style.display = "none"
-							})
-							
-							// FAILED CONSIDERATIONS:
-							// document.getElementById("myDropdown").classList.toggle("show");
-							//wrapper.select(".dropup-content").node().classList.toggle("show");
-							
-						}, // toggleDropupMenu
-						
-						toggleDropupSubmenu: function toggleDropupSubmenu(){
-							
-							// Collect helper object for code readability.
-							var h = plotHelpers.setupPlot.twoInteractiveAxes.buttonMenu.helpers
-						
-							// Collect the submenu corresponding to the clicked element.
-							var clickedSubmenu = d3.select(this.parentElement).select(".submenu-content").node()
-							
-							// This needs to toggle itself, but also all the other submenus, therefor search for them, and loop over them.
-							var allSubmenu = d3.select(this.parentElement.parentElement)
-							  .selectAll(".submenu-content")
-							  
-							allSubmenu
-							  .each(function(){
-								  if(clickedSubmenu == this){
-									// The current one that was clicked needs to toggle depending on the current state.
-									h.toggleDisplayBlock(this)
-								  } else {
-									// All others must collapse.
-									this.style.display = "none"
-								  } // if
-							  }) // each
-						
-						}, // toggleDropupSubmenu
-						
-						closeDropupMenu: function closeDropupMenu(menu) {
-							// 'closeDropupMenu' creates the function to be executed upon click outside the interactive area of the dropup menu. It is targeted for a particular menu, therefore a new function must be created everytime.
-						  
-							return function(event){
-								// If the desired element is NOT preseed, close the corresponding menu.
-								if (!event.target.matches('.dropup-toggle')) {
-											
-									menu.node().style.display = "none";	
-
-								} // if
-								
-								// If the event matches a submenu, then it's options should be expanded.
-							}
-							
-						}, // closeDropupMenu
-					
-						toggleSubmenuItemHighlight: function toggleSubmenuItemHighlight(clickedItem){
-						
-							//
-						
-							// Deselect competing options
-							var allOptions = d3.select(clickedItem.parentNode).selectAll(".submenu-item")
-							allOptions.each(function(){
-								if( this == clickedItem ){
-									// Toggle this option on or off as required.
-									if( clickedItem.classList.contains("selected") ){
-										clickedItem.classList.replace("selected", "deselected")
-									} else {
-										clickedItem.classList.replace("deselected", "selected")
-									} // if
-								} else {
-									// Deselect.
-									this.classList.replace("selected", "deselected")
-								} // if
-							})
-						
-						} // toggleSubmenuItemHighlight
-						
-						
-					} // helpers
-				
-				}, // buttonMenu
-				
-				// Title toggle
-				updatePlotTitleControls: function updatePlotTitleControls(ctrl){
-			
-					// Add the toggle to switch manual selection filter on/off
-					var container = d3.select( ctrl.figure.node().parentElement )
-					  .select(".plotTitle")
-					  .select("div.ctrlGrp")
-					var onClickEvent = function(){ 
-						
-						// Update teh DOM accordingly.
-						plotHelpers.setupInteractivity.general.toggleToggle(this)
-						
-						// Update filters
-						filter.apply()
-						
-						render()
-					} // onClickEvent
-					  
-					plotHelpers.setupPlot.general.appendToggle( container, onClickEvent )
-					
-				}, // updatePlotTitleControls
-			
-			}, // twoInteractiveAxes
-			
-		}, // setupPlot
-		
-		setupInteractivity: {
-			
-			general: {
-				
-				onSelectChange: {
-					
-					vertical: function vertical(ctrl, selectedVar){
-						// Update the vertical text and the state.
-						
-						// Change the text.
-						ctrl.figure
-						  .select(".leftAxisControlGroup")
-						  .select(".txt-vertical-axis")
-						  .text( selectedVar )
-						  
-						// Update the y-variable for the plot.
-						ctrl.view.yVarOption.val = selectedVar
-						
-					}, // vertical
-					
-					horizontal: function horizontal(){
-						
-						// Horizontal select change requires so little to update itself that this function here is not necessary as of now.
-						
-					}, // horizontal
-					
-				}, // onSelectChange
-				
-				toggleToggle: function toggleToggle(clickedToggleDOM){
-					
-					var currentVal = clickedToggleDOM.checked
-					
-					// All such switches need to be activated.
-					var allToggleSwitches = d3
-					  .selectAll(".plotWrapper")
-					  .selectAll(".plotTitle")
-					  .selectAll(".ctrlGrp")
-					  .selectAll(".switch")
-					  .selectAll("input[type='checkbox']")
-					
-					allToggleSwitches.each(function(){
-						this.checked = currentVal
-					}) // each
-				}, // toggleToggle
-				
-			}, // general
-			
-			twoInteractiveAxes: {
-				
-				onSelectChange: {
-					
-					vertical: function vertical(ctrl){
-						// 'vertical' returns a function in order to be able to include a reference to the correct 'ctrl' object in it.
-						
-						return function(){
-									
-							// `this' is the vertical select! 
-							var selectedVar = this.value
-							
-							// Perform the regular task for y-select.
-							plotHelpers.setupInteractivity.general.onSelectChange.vertical(ctrl, selectedVar)
-							
-
-							// Perform other needed tasks and refresh.
-							ctrl.plotFunc.interactivity.onSelectChange(ctrl)
-						
-						} // return
-						
-					}, // vertical
-					
-					horizontal: function horizontal(ctrl){
-						// 'horizontal' returns a function in order to be able to include a reference to the correct 'ctrl' object in it.
-						
-						return function(){
-								
-							var selectedVar = this.value
-							  
-							// Update the y-variable for the plot.
-							ctrl.view.xVarOption.val = selectedVar
-							
-							// Perform other needed tasks and refresh.
-							ctrl.plotFunc.interactivity.onSelectChange(ctrl)
-							
-						} // return
-						
-					}, // horizontal
-					
-					
-					
-					
-				}, // onSelectChange
-							
-				addAxisScaling: function addAxisScaling(ctrl){
 	
-					var svg = ctrl.figure.select("svg.plotArea")
-		
-					var mw;
-					var downx = Math.NaN;
-					var downscalex;
-					
-					var mh;
-					var downy = Math.NaN;
-					var downscaley;
-				
-					svg.select(".axis--x")
-					  .on("mousedown", function(d) {
-						mw = Number( svg.select("g.data").attr("width") )
-						mh = Number( svg.select("g.data").attr("height") )
-						
-						let axisXDOM = svg.select("g.axis--x").node()
-						var p = d3.mouse(axisXDOM)[0];
-						downx = ctrl.tools.xscale.invert(p);
-						downscalex = ctrl.tools.xscale;
-						
-					  });
-					  
-					svg.select(".axis--y")
-					  .on("mousedown", function(d) {
-						mw = Number( svg.select("g.data").attr("width") )
-						mh = Number( svg.select("g.data").attr("height") )
-						
-						let axisYDOM = svg.select("g.axis--y").node()
-						var p = d3.mouse(axisYDOM)[1];
-						downy = ctrl.tools.yscale.invert(p);
-						downscaley = ctrl.tools.yscale;
-						
-					  });
-					  
-					// attach the mousemove and mouseup to the body
-					// in case one wonders off the axis line
-					
-					svg
-					  .on("mousemove", function(d) {
-						  
-						let axisXDOM = d3.select(this).select("g.axis--x").node()
-						let axisYDOM = d3.select(this).select("g.axis--y").node()
-						
-						if (!isNaN(downx)) {
-						  var px = d3.mouse( axisXDOM )[0]
-						  if (downscalex(px) != downx) {
-							// Here it would be great if the dragged number would move to where the cursor is.
-							
-							//let tx = ctrl.view.t.x
-							//let tv = downscalex.invert( tx )
-							//let vb = tv + ( downx - tv )/( px - tx )*( mw - tx )
-							//let va = tv - ( downx - tv )/( px - tx )*tx
-							
-							let va = downscalex.domain()[0]
-							let vb = mw * (downx - downscalex.domain()[0]) / px + downscalex.domain()[0]
-							  
-							ctrl.tools.xscale.domain([ va,  vb ]);
-						  } // if
-						  
-						  // Execute redraw
-						  ctrl.plotFunc.interactivity.dragAdjustAR(ctrl)
-						  
-						} // if
-						
-						
-						if (!isNaN(downy)) {
-						  var py = d3.mouse( axisYDOM )[1]
-						  if (downscaley(py) != downy) {
-							ctrl.tools.yscale.domain([
-								downscaley.domain()[0],  
-								mh * ( downy - downscaley.domain()[0]) / (mh-py) + downscaley.domain()[0] 
-							])
-						  } // if
-						  
-						  // Execute redraw
-						  ctrl.plotFunc.interactivity.dragAdjustAR(ctrl)
-							
-						} // if
-						
-					  })
-					  .on("mouseup", function(d) {
-						downx = Math.NaN;
-						downy = Math.NaN;
-						// When the domain is manually adjusted the previous transformations are no longer valid, and to calculate the delta at next zoom event the transformation needs to be reinitiated.
-						ctrl.view.t = -1
-					  });
-					  
-					  
-
-									
-						 
-					  
-					  
-				}, // addAxisScaling
-				
-				addZooming: function addZooming(ctrl){
-					  
-					// The current layout will keep adding on zoom. Rethink this for more responsiveness of the website.
-					var zoom = d3.zoom().scaleExtent([0.01, Infinity]).on("zoom", zoomed);
-				
-					// Zoom operates on a selection. In this case a rect has been added to the markup to perform this task.
-					ctrl.figure
-					  .select("svg.plotArea")
-					  .select("g.background")
-					  .select("rect.zoom-area")
-					  .call(zoom);
-					
-					// ctrl.svg.select(".plotArea").on("dblclick.zoom", null);
-					
-					
-					// As of now (23/03/2020) the default zoom behaviour (https://d3js.org/d3.v5.min.js) does not support independantly scalable y and x axis. If these are implemented then on first zoom action (panning or scaling) will have a movement as the internal transform vector (d3.event.transform) won't corespond to the image. 
-					
-					// The transformation vector is based on the domain of the image, therefore any manual scaling of the domain should also change it. The easiest way to overcome this is to apply the transformation as a delta to the existing state.
-					
-					// ctrl.view.t is where the current state is stored. If it is set to -1, then the given zoom action is not performed to allow any difference between d3.event.transform and ctrl.view.t due to manual rescaling of the domain to be resolved.
-					ctrl.view.t = d3.zoomIdentity
-					
-					
-					function zoomed(){
-						
-						// Get the current scales, and reshape them back to the origin.
-						var t = d3.event.transform
-						var t0= ctrl.view.t
-						
-						// Check if there was a manual change of the domain
-						if(t0 == -1){
-							t0 = t
-						}
-						
-						// Hack to get the delta transformation.
-						var dt = d3.zoomIdentity
-						dt.k = t.k / t0.k 
-						dt.x = t.x - t0.x 
-						dt.y = t.y - t0.y
-						
-						ctrl.view.t = t
-						
-						var xScaleDefined = ctrl.tools.xscale != undefined
-						var yScaleDefined = ctrl.tools.yscale != undefined
-						if(xScaleDefined && yScaleDefined){
-							
-							// Simply rescale the axis to incorporate the delta event.  
-							ctrl.tools.xscale = dt.rescaleX(ctrl.tools.xscale)
-							ctrl.tools.yscale = dt.rescaleY(ctrl.tools.yscale)
-							
-							// Assign appropriate transitions
-							ctrl.view.transitions = ctrl.plotFunc.helpers.transitions.instantaneous()
-							
-							
-							// Update the plot
-							ctrl.plotFunc.refresh(ctrl)
-							
-							
-						} // if
-						
-						
-						
-						
-						
-					} // zoomed
-					  
-
-					  
-				}, // addZooming
-			
-			}, // twoInteractiveAxes
-			
-		}, // setupInteractivity
-             
-        setupTools: {
-			
-			go: function go(ctrl){
 	
-				// The plot tools are either setup based on data (e.g. upon initialisation), or on where the user has navigated to.
-				var bounds = plotHelpers.setupTools.getPlotBounds(ctrl)
-				
-				
-				// Create the required scales.
-				ctrl.tools.xscale = d3.scaleLinear()
-					.range( bounds.range.x )
-					.domain( bounds.domain.x );
-
-				ctrl.tools.yscale = d3.scaleLinear()
-					.range( bounds.range.y )
-					.domain( bounds.domain.y );
-				
-			}, // go
-			
-			getPlotBounds: function getPlotBounds(ctrl){
-				// This function should determine the domain of the plot and use it to control the plots aspect ratio.
-				var h = ctrl.plotFunc.setupPlot
-				var h_= plotHelpers.setupTools
-				
-				
-				// Get the bounds based on the data.
-				var domain = h.findDomainDimensions(ctrl)
-				var range  = h.findPlotDimensions(ctrl.figure.select("svg.plotArea"))
-				
-				
-				
-				
-				if( !isNaN(ctrl.view.viewAR) ){
-					
-					// Adjust the plot domain to preserve an aspect ratio of 1, but try to use up as much of the drawing area as possible.
-					h_.adjustAR(range, domain, ctrl.view.viewAR)
-					
-				} else {
-					// The aspect ratio is the ratio between pixels per unit of y axis to the pixels per unit of the x axis. As AR = 2 is expected to mean that the n pixels cover 2 units on y axis, and 1 unit on x axis teh actual ration needs to be ppdx/ppdy.
-					
-					ctrl.view.dataAR = h_.calculateAR(range, domain)
-					ctrl.view.viewAR = h_.calculateAR(range, domain)
-				}// switch
-				
-				
-				// Finally, adjust the plot so that there is some padding on the sides of the plot.
-				h_.adjustPadding(range, domain)
-				
-				return {domain: domain, range: range}
-			
-			
-			
-			}, // getPlotBounds
-			
-			adjustPadding: function adjustPadding(range, domain){
-				// The padding must be equal both on the x and y axes in terms of pixels used for padding. Specify this simply in terms of pixels. This inadvertently impacts the AR of the actual final plot.
-				var padding = 10
-			
-				var xPad = ( d3.max(domain.x) - d3.min(domain.x) ) / (d3.max(range.x) - d3.min(range.x))*padding 
-				var yPad = ( d3.max(domain.y) - d3.min(domain.y) ) / (d3.max(range.y) - d3.min(range.y))*padding
-				
-				domain.x[0] = domain.x[0] - xPad
-				domain.x[1] = domain.x[1] + xPad
-				
-				domain.y[0] = domain.y[0] - yPad
-				domain.y[1] = domain.y[1] + yPad
-				
-			
-			}, // adjustPadding
-			
-			calculateAR: function calculateAR(range, domain){
-				var ppdx = (range.x[1] - range.x[0]) / (domain.x[1] - domain.x[0])
-				var ppdy = (range.y[0] - range.y[1]) / (domain.y[1] - domain.y[0])
-				return ppdx / ppdy
-			}, // calculateAR
-						
-			adjustAR: function adjustAR(range, domain, AR){
-			
-				// The limits of the data definitely need to be within the plot.
-				// If the x range is fixed, then there is a maximum AR that can be imposed. If the forced AR is larger the x range will need to be adjusted to display it appropriately
-				
-				// The smaller of these will be the dominating one.
-				var xAR = (d3.max(range.x) - d3.min(range.x)) / ( d3.max(domain.x) - d3.min(domain.x) )
-				var yAR = (d3.max(range.y) - d3.min(range.y)) / ( d3.max(domain.y) - d3.min(domain.y) )
-
-				if(xAR*AR <= yAR){
-					// Resize the y domain.
-					var yDiff = (d3.max(range.y) - d3.min(range.y)) / (xAR/AR)
-					domain.y[1] = domain.y[0] + yDiff
-				} else {
-					// Resize the x domain.
-					var xDiff = (d3.max(range.x) - d3.min(range.x)) / (yAR*AR)
-					domain.x[1] = domain.x[0] + xDiff
-
-				} // if
-			
-			}, // adjustAR
-
-			
-			
-		}, // setupTools
-        
-        
-		helpers: {
-			
-			formatAxisScale: function formatAxisScale(scale){
-				// With a million tasks it is possible that the min and max are more than O(3) different. In that case a logarithmic scale would be better!
-				
-				
-				var dom = scale.domain()
-				
-				var format = {
-					scale: scale,
-					exp: undefined,
-					fill: undefined
-				} // format
-				
-				// In cases where the exponent of hte min and the exponent of the max are very different, pick the one in between! We're likely only going to be able to handle 1e6 tasks, in which case the most extreme case is minExp = 0, and maxExp = 6. In that case pick the middle value of 3.
-				var maxExp = helpers.calculateExponent(dom[1])
-				var minExp = helpers.calculateExponent(dom[0])
-				format.exp = (maxExp - minExp) > 3 ? 3 : minExp
-				
-				if (format.exp > 0){
-					format.scale = d3.scaleLinear()
-						.domain( dom.map(d=>d/10**format.exp) )
-						.range( scale.range() )
-						
-					format.fill = "currentColor"
-				} else {
-					format.fill = "none"
-					format.exp = ""
-				} // if
-				
-				return format
-				
-			}, // formatExponent
-			
-			
-		}
-        	
-		
-	} // plotHelpers
-
 	
 	
 	// Coloring and highlighting
@@ -9884,7 +12151,7 @@ var dbslice = (function (exports) {
 					
 					
 					// do the render so that all plots are updated with the color.
-					render()
+					sessionManager.render()
 					
 					
 					function toggleAllColorSubmenuItems(){
@@ -9935,7 +12202,7 @@ var dbslice = (function (exports) {
 			var palette = color.defaultPalette
 			
 			var colorIsChosen = color.settings.scheme != undefined
-			var keyIsValid    = color.settings.val == undefined? false : dbsliceData.data.metaDataUniqueValues[color.settings.val].includes(key)
+			var keyIsValid    = color.settings.val == undefined? false : dbsliceData.data.categoricalUniqueValues[color.settings.val].includes(key)
 			
 			if( colorIsChosen && keyIsValid ){
 				palette = color.colorPalette
@@ -10072,8 +12339,10 @@ var dbslice = (function (exports) {
 					  
 					  
 					case "cfD3Contour2d":
-						// Tasks to be highlighted come directly from the pile.
-						allDataPoints = d;
+						// The relevant points are those that were passed into the cross plot highlighting.
+						allDataPoints = d
+						
+					  break;
 					  
 					  					  
 					default:
@@ -10121,11 +12390,11 @@ var dbslice = (function (exports) {
                 switch(plotRowType){
                     case "metadata":
 					
-						if( existsAndHasElements(d.metaDataProperties) ){
+						if( existsAndHasElements(d.categoricalProperties) ){
 							options.push( {val: "cfD3BarChart" , text: "Bar Chart"} )
 						}
 						
-						if( existsAndHasElements(d.dataProperties) ){
+						if( existsAndHasElements(d.ordinalProperties) ){
 							options.push( {val: "cfD3Scatter"  , text: "Scatter"} )
 							options.push( {val: "cfD3Histogram", text: "Histogram"} )
 						}
@@ -10244,7 +12513,7 @@ var dbslice = (function (exports) {
 					addMenu.addPlotControls.clearMenu(config);
 					
 					 // Redraw the screen.
-					render();
+					sessionManager.render();
 					
 					
 					
@@ -10266,91 +12535,12 @@ var dbslice = (function (exports) {
                 
             }, // createConfig
             
-            copyNewPlot:   function copyNewPlot(config){
-                // Based on the type of plot selected a config ready to be submitted to the plotting functions is assembled.
-
-                
-                
-                var plotCtrl = {};
-                switch( config.newCtrl.plottype ){
-                    
-                    case "cfD3BarChart":
-					
-						
-						plotCtrl = cfD3BarChart.helpers.createDefaultControl()
-						
-						plotCtrl.view.yVarOption.val = config.newCtrl.yProperty
-						plotCtrl.view.gVar = config.newCtrl.yProperty
-						
-					
-					  break;
-					
-                    case "cfD3Histogram":
-						
-						plotCtrl = cfD3Histogram.helpers.createDefaultControl()
-						
-						plotCtrl.view.xVarOption.val = config.newCtrl.xProperty
-						
-						
-                      break;
-                      
-                    case "cfD3Scatter":
-						
-						
-						
-						
-						// Custom functionality for the d3interactive2axes imposter function is here. The idea is that the ctrl is hidden in 'layout'.
-						
-						plotCtrl = cfD3Scatter.helpers.createDefaultControl()
-						
-						plotCtrl.view.xVarOption.val = config.newCtrl.xProperty
-						plotCtrl.view.yVarOption.val = config.newCtrl.yProperty
-						
-						
-                      break;
-                      
-                    case "cfD3Line":
-                    
-                        // The user selected variable to plot is stored in config.newCtrl, with all other user selected variables. However, for this type of plot it needs to be one level above, which is achieved here.
-                        // Store the currently selected slice, then push everything forward.
-                        
-                    
-                        plotCtrl = cfD3Line.helpers.createDefaultControl()
-						
-						plotCtrl.view.sliceId = config.newCtrl.slice
-						
-                      break;
-					  
-					case "cfD3Contour2d":
-                    
-                        // The user selected variable to plot is stored in config.newCtrl, with all other user selected variables. However, for this type of plot it needs to be one level above, which is achieved here.
-                        // Store the currently selected slice, then push everything forward.
-                        
-                    
-                        plotCtrl = cfD3Contour2d.helpers.createDefaultControl()
-						
-						plotCtrl.view.sliceId = config.newCtrl.slice
-						
-                      break;  
-					
-                      
-
-                    default:
-                        break;
-                    
-                }; // switch
-
-                
-                return plotCtrl;
-                
-            }, // copyNewPlot
-            
             clearNewPlot: function clearNewPlot(config){
                 
                         config.newCtrl.plottype = undefined;
                         config.newCtrl.xProperty = undefined;
                         config.newCtrl.yProperty = undefined;
-                        config.newCtrl.slice = undefined;
+                        config.newCtrl.sliceId = undefined;
 
             }, // clearNewPlot
 			
@@ -10358,16 +12548,16 @@ var dbslice = (function (exports) {
                 
                 // IMPORTANT! A PHYSICAL COPY OF NEWPLOT MUST BE MADE!! If newPlot is pushed straight into the plots every time newPlot is updated all the plots created using it will be updated too.
                 
-				var plotToPush = addMenu.addPlotControls.copyNewPlot(config);
-				var plotRow = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
+				var plotToPush = plotRow.instantiatePlot(config.newCtrl);
+				var plotRowObj = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
 					return plotRowCtrl == config.ownerCtrl
 				})[0]
 				
 				// Position the new plot row in hte plot container.
-				positioning.newPlot(plotRow, plotToPush)
+				positioning.newPlot(plotRowObj, plotToPush)
 				
 				
-				plotRow.plots.push(plotToPush)
+				plotRowObj.plots.push(plotToPush)
                 
                 
             }, // submitNewPlot
@@ -10388,7 +12578,7 @@ var dbslice = (function (exports) {
 					  // Remove all variable options.
 					  h.removeMenuItemObject( config, "xProperty" );
 					  h.removeMenuItemObject( config, "yProperty" );
-					  h.removeMenuItemObject( config, "slice" );
+					  h.removeMenuItemObject( config, "sliceId" );
 
 					  break;
 					  
@@ -10397,7 +12587,7 @@ var dbslice = (function (exports) {
 					case "cfD3BarChart":
 					
 					  // yProperty required.
-					  h.addUpdateMenuItemObject( config, 'yProperty' , dbsliceData.data.metaDataProperties, "Select y variable");
+					  h.addUpdateMenuItemObject( config, 'yProperty' , dbsliceData.data.categoricalProperties, "Select y variable");
 					  
 					  // xProperty must not be present.
 					  h.removeMenuItemObject( config, "xProperty" );
@@ -10408,7 +12598,7 @@ var dbslice = (function (exports) {
 					  
 					  
 					  // xProperty required.
-					  h.addUpdateMenuItemObject( config, "xProperty" , dbsliceData.data.dataProperties, "Select x variable");
+					  h.addUpdateMenuItemObject( config, "xProperty" , dbsliceData.data.ordinalProperties, "Select x variable");
 					  
 					  // yProperty must not be present.
 					  h.removeMenuItemObject( config, "yProperty" );
@@ -10419,8 +12609,8 @@ var dbslice = (function (exports) {
 					  
 					  
 					  // xProperty and yProperty required.
-					  h.addUpdateMenuItemObject( config, "xProperty", dbsliceData.data.dataProperties, "Select x variable");
-					  h.addUpdateMenuItemObject( config, "yProperty", dbsliceData.data.dataProperties, "Select y variable");
+					  h.addUpdateMenuItemObject( config, "xProperty", dbsliceData.data.ordinalProperties, "Select x variable");
+					  h.addUpdateMenuItemObject( config, "yProperty", dbsliceData.data.ordinalProperties, "Select y variable");
 					  break;
 					  
 					  
@@ -10428,15 +12618,15 @@ var dbslice = (function (exports) {
 					case "cfD3Line":
 					  
 					  
-					  // slice is required.
-					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.line2dProperties, "Select slice");
+					  // sliceId is required.
+					  h.addUpdateMenuItemObject( config, "sliceId", dbsliceData.data.line2dProperties, "Select slice");
 					  break;
 					  
 					case "cfD3Contour2d":
 					  
 					  
 					  // slice is required.
-					  h.addUpdateMenuItemObject( config, "slice", dbsliceData.data.contour2dProperties, "Select 2d contour");
+					  h.addUpdateMenuItemObject( config, "sliceId", dbsliceData.data.contour2dProperties, "Select 2d contour");
 					  break;
 					  
 					
@@ -10447,7 +12637,7 @@ var dbslice = (function (exports) {
 					  // Remove all variable options.
 					  h.removeMenuItemObject( config, "xProperty" );
 					  h.removeMenuItemObject( config, "yProperty" );
-					  h.removeMenuItemObject( config, "slice" );
+					  h.removeMenuItemObject( config, "sliceId" );
 												
 					  console.log("Unexpected plot type selected:", config.newCtrl.plottype);
 					  break;
@@ -10551,11 +12741,11 @@ var dbslice = (function (exports) {
 				
 				h.resetVariableMenuSelections(config, "xProperty");
 				h.resetVariableMenuSelections(config, "yProperty");
-				h.resetVariableMenuSelections(config, "slice");
+				h.resetVariableMenuSelections(config, "sliceId");
 				
 				config.newCtrl.xProperty = undefined;
 				config.newCtrl.yProperty = undefined;
-				config.newCtrl.slice = undefined;
+				config.newCtrl.sliceId = undefined;
 				
 			}, // clearOptionalMenus
             
@@ -10567,13 +12757,13 @@ var dbslice = (function (exports) {
                 addMenu.helpers.resetVariableMenuSelections(config, "plottype");
                 addMenu.helpers.resetVariableMenuSelections(config, "xProperty");
                 addMenu.helpers.resetVariableMenuSelections(config, "yProperty");
-                addMenu.helpers.resetVariableMenuSelections(config, "slice");
+                addMenu.helpers.resetVariableMenuSelections(config, "sliceId");
                 
                 
                 // Remove the select menus from the view.
                 addMenu.helpers.removeMenuItemObject( config, "xProperty" );
                 addMenu.helpers.removeMenuItemObject( config, "yProperty" );
-                addMenu.helpers.removeMenuItemObject( config, "slice" );
+                addMenu.helpers.removeMenuItemObject( config, "sliceId" );
                 
                 // Update the menus so that the view reflects the state of the config.
                 addMenu.helpers.updateMenus(config);
@@ -10621,7 +12811,7 @@ var dbslice = (function (exports) {
 			filter.apply()
 			
 			// Re-render the view
-			render()
+			sessionManager.render()
 
 			
 		}, // removePlotRowControls
@@ -10682,11 +12872,9 @@ var dbslice = (function (exports) {
                         }
 					],
                     
-                    newCtrl: {title: "New row", 
-                              plots: [],
-							   grid: {nx: 12, ny: undefined},
-                               type: "undefined",
-                      addPlotButton: {label : "Add plot"}},
+                    newCtrl: {  
+                        type: "undefined",
+                    },
 					  
 					ownerButton: ownerButton,
                     
@@ -10707,7 +12895,7 @@ var dbslice = (function (exports) {
 					addMenu.helpers.resetVariableMenuSelections(config, "type");
 				
 					// Redraw to show changes.
-					render();				
+					sessionManager.render();				
 					
 				} // ok
 
@@ -10744,14 +12932,8 @@ var dbslice = (function (exports) {
             submitNewPlotRow: function submitNewPlotRow(config){
                 // Submits the dialog selections to dbsliceData, and clears the dialog object selections.
                 
-                var plotRowToPush = {title: config.newCtrl.title, 
-                                      type: config.newCtrl.type,
-									 plots: config.newCtrl.plots, 
-                                      grid: config.newCtrl.grid,
-                            addPlotButton : config.newCtrl.addPlotButton
-                };
+                var plotRowToPush = new plotRow(config.newCtrl)
                 
-
                 // Push and plot the new row.
                 dbsliceData.session.plotRows.push( plotRowToPush );
 				
@@ -10798,179 +12980,6 @@ var dbslice = (function (exports) {
 			
         }, // addPlotRowControls
 
-		removePlotRowControls: {
-			
-			make: function make(removePlotRowButton, clickedPlotRowCtrl){
-				
-				
-				removePlotRowButton
-				  .on("click", function(){
-					  
-					  // button -> plotrowTitle -> plotRow
-					  var plotRowDOM = this.parentElement.parentElement
-					  
-					  // Remove the dialog corresponding to the 'add plot' button in this plot row.
-					  d3.select(plotRowDOM)
-					    .select("div.plotRowTitle")
-						.select("button.btn-success")
-						.each(function(d){
-							d.addPlotButton.dialogWrapper.node().remove()
-						})
-					  
-					  // Remove row from object
-					  dbsliceData.session.plotRows = dbsliceData.session.plotRows.filter(function(plotRowCtrl){
-						  return plotRowCtrl != clickedPlotRowCtrl
-					  }) // filter  
-					  
-					  // Remove the plot row from view.
-					  plotRowDOM.remove()
-					  
-					  // Remove any filters that have been removed.
-					  filter.remove()
-					  filter.apply()
-
-					  // Re-render the to update the filter
-					  render()
-					  
-					  
-					  
-				  }); // on
-				
-				
-			}, // make
-			
-		}, // removePlotRowControls
-
-		removeDataControls: {
-			
-			make: function make(ownerButton){
-			
-				// Create the container required
-				var config = addMenu.removeDataControls.createConfig(ownerButton);
-				
-				// Make the dialog
-				addMenu.helpers.makeDialog(config);
-				
-				// Add the buttons
-				addMenu.helpers.addDialogButtons(config)
-			  
-			  
-				// Add teh functonaliy to the option in the "sesson options" menu.
-				config.ownerButton.on("click", function(){
-						
-					// Get the options required
-					var options = dbsliceData.data.fileDim.group().all()
-
-					
-					// Create the appropriate checkboxes.
-					addMenu.removeDataControls.addCheckboxesToTheForm(config, options);
-						  
-				   
-				   // Show the dialog:
-				   addMenu.helpers.showDialog(config)
-				   
-				})
-				
-				
-			}, // make
-			
-			createConfig: function createConfig(ownerButton){
-                // ownerButton    - the button that prompts the menu
-				// ownerContainer - container to add the menu and button to
-				// ownerCtrl      - plot row ctrl to update with user selection
-                
-                var config = {
-					
-					f: addMenu.removeDataControls,
-					
-					position: {
-						left: undefined, 
-						 top: undefined, 
-					   delta: undefined
-					},
-					
-					buttons: [
-						{text: "ok"    , onclick: ok    , class: "btn btn-success"},
-						{text: "cancel", onclick: cancel, class: "btn btn-danger"}
-					],
-					
-                    
-					ownerButton: ownerButton,
-					ownerCtrl: {addPlotButton: {}}
-                };
-				
-				// MOVE THESE OUTSIDE
-				function ok(dialogConfig){
-					
-					var checkboxInputs = dialogConfig.gMenu
-					  .selectAll("g.checkbox")
-					  .selectAll("input")
-					var uncheckedDataFiles = checkboxInputs.nodes()
-					  .filter(function(d){return !d.checked})
-					  .map(function(d){return d.value})
-					
-					// Pass these to the data remover.
-					cfDataManagement.cfRemove(uncheckedDataFiles)
-					
-					// Hide the dialog
-					addMenu.helpers.hideDialog(dialogConfig)
-					
-					// Update the session due to data change.
-					importExport.helpers.onDataAndSessionChangeResolve()
-					
-					// Redraw the view.
-					render();
-					
-				} // ok
-
-				function cancel(dialogConfig){
-					
-					// Remove all the checkboxes.
-					dialogConfig.gMenu
-					  .selectAll("g.checkbox")
-					  .remove()
-					
-					// Hide the dialog
-					addMenu.helpers.hideDialog(dialogConfig)
-					
-				} // ok
-                
-
-                return config;
-                
-            }, // createConfig
-            
-
-			addCheckboxesToTheForm: function addCheckboxesToTheForm(config, options){
-				
-				
-				
-				options.forEach(function(o){
-					var gCheckBox = config.gMenu
-					  .append("g")
-					    .attr("class", "checkbox")
-						
-					gCheckBox.append("input")
-					  .attr("type", "checkbox")
-					  .attr("name", o.key)
-					  .attr("value", o.key)
-					  .attr("checked", true)
-					  .attr("class", "dialogContent")
-					  
-					gCheckBox.append("label")
-					  .attr("class", "dialogContent")
-					  .html(o.key)
-				}) // forEach	
-				
-			}, // addCheckboxesToTheForm
-			
-			enableDisableSubmitButton: function enableDisableSubmitButton(config){
-				// The submit button is always available.
-			}, // enableDisableSubmitButton
-			
-			
-		}, // removeDataControls
-
         helpers: {
             
             makeDialog: function makeDialog(config){
@@ -11002,7 +13011,7 @@ var dbslice = (function (exports) {
 					.style("height", "auto")
 					.style("width", "auto")
 					.style("top", -window.innerWidth +"px")
-					.style("left",  -window.innerHeight +"px")
+					.style("left", -window.innerHeight +"px")
 					.style("display", "none")
 					.call( drag )
 					
@@ -11079,8 +13088,6 @@ var dbslice = (function (exports) {
 			
 			}, // showDialog
 
-		
-		
             updateMenus: function updateMenus(config){
 				// Handles all selection menus, including the plot selection!
 				// A 'label' acts as a wrapper and contains html text, and the 'select'.
@@ -11211,100 +13218,7 @@ var dbslice = (function (exports) {
                 
             }, // removeMenuItemObject
 
-            enableDisableAllButtons: function enableDisableAllButtons(){
-                // This functionality decides which buttons should be enabled.
-				var metadata = dbsliceData.data.taskDim.top(Infinity)
-                var isDataInFilter = metadata.length !== undefined && metadata.length > 0;
-				
-				// For the data to be loaded some records should have been assigned to the crossfilter.
-				var isDataLoaded = false
-				if(dbsliceData.data !== undefined){
-					isDataLoaded = dbsliceData.data.cf.size() > 0
-				} // if
-				
-				
-				
-				
-				// GROUP 1: SESSION OPTIONS
-				// Button controlling the session options is always available!
-                document.getElementById("sessionOptions").disabled = false;
-				
-				// "Load session" only available after some data has been loaded.
-				// Data: Replace, add, remove, Session: save, load
-				// These have to have their class changed, and the on/click event suspended!!
-				listItemEnableDisable( "replaceData" , true )
-				listItemEnableDisable( "addData"     , true )
-				listItemEnableDisable( "removeData"  , isDataLoaded )
-				listItemEnableDisable( "saveSession" , true )
-				listItemEnableDisable( "loadSession" , isDataLoaded )
-				
-				
-				
-				
-				
-				
-				// GROUP 2: ON DEMAND FUNCTIONALITY
-                // "Plot Selected Tasks" is on only when there are tasks in the filter, and any 'plotter' plot row has been configured.
-				var refreshTasksButton = d3.select("#refreshTasksButton")
-                arrayEnableDisable(refreshTasksButton, isDataInFilter)
-				
-				
-                
-				
-                // GROUP 3: ADDING/REMOVING PLOTS/ROWS
-                // "Add plot row" should be available when the data is loaded. Otherwise errors will occur while creating the apropriate menus.
-				document.getElementById("addPlotRowButton").disabled = !isDataLoaded;
-                
-                
-                // "Remove plot row" should always be available.
-                var removePlotRowButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-danger")
-                arrayEnableDisable(removePlotRowButtons, true)
-                
-				
-                // "Add plot" should only be available if the data is loaded.
-                var addPlotButtons = d3.selectAll(".plotRowTitle").selectAll(".btn-success");
-				arrayEnableDisable(addPlotButtons, isDataInFilter)
-				                
-                // "Remove plot" should always be available.
-                var removePlotButtons = d3.selectAll(".plotTitle").selectAll(".btn-danger");
-				arrayEnableDisable(removePlotButtons, true)
-				
-				
-				// GROUP 4: Plot interactive controls.
-				var plotInteractionButtons = d3.selectAll(".plot").selectAll(".btn")
-				arrayEnableDisable(plotInteractionButtons, true)
-				
-				
-				
-				function arrayEnableDisable(d3ButtonSelection, conditionToEnable){
-					
-					if(conditionToEnable){
-						// Enable the button
-						d3ButtonSelection.each(function(){ this.disabled = false })
-					} else {
-						// Disable the button
-						d3ButtonSelection.each(function(){ this.disabled = true })         
-					}; // if					
-					
-				} // arrayEnableDisable
-				
-				
-				function listItemEnableDisable(elementId, conditionToEnable){
-					
-					if(conditionToEnable){
-						// Enable the button
-						d3.select("#" + elementId).attr("class", "dropdown-item")
-						document.getElementById(elementId).style.pointerEvents = 'auto'
-					} else {
-						// Disable the button
-						d3.select("#" + elementId).attr("class", "dropdown-item disabled")
-						document.getElementById(elementId).style.pointerEvents = 'none'
-					}; // if
-					
-				} // listItemEnableDisable
-				
-                
-            }, // enableDisableAllButtons
+            
             
             
             
@@ -11315,232 +13229,126 @@ var dbslice = (function (exports) {
     // Building the app.
 	var builder = {
 		
+		update: {
+			
+			sessionHeader: function(){
+			
+				let all = dbsliceData.data.cf.all()
+				let filtered = dbsliceData.data.taskDim.top(Infinity)
+				
+				let msg = "Number of Tasks in Filter = "
+				msg += filtered && filtered.length != all.length ? ( filtered.length + " / " + all.length) : "All (" + all.length + ")"
+				d3.select( "#" + dbsliceData.session.elementId )
+				  .select("#filteredTaskCount")
+				  .html(msg)
+				
+				// Update the session title.
+				d3.select("#sessionTitle")
+				  .html(dbsliceData.session.title)
+				
+			}, // sessionHeader
+			
+			sessionBody: function(){
+				
+				var plotRows = d3.select("#" + dbsliceData.session.elementId)
+				  .select("#sessionBody")
+				  .selectAll(".plotRow")
+				  .data(dbsliceData.session.plotRows);
+			  
+				// HANDLE ENTERING PLOT ROWS!
+				var newPlotRows = builder.makePlotRowContainers(plotRows)
+				
+				// Make this an input box so that it can be change on te go!
+				builder.makePlotRowHeaders(newPlotRows)
+				
+				// Give all entering plot rows a body to hold the plots.
+				builder.makePlotRowBodies(newPlotRows)
+			  
+				// In new plotRowBodies select all the plots. Selects nothing from existing plotRows.
+				builder.makeUpdatePlotRowPlots(newPlotRows)
+			  			  
+				// UPDATE EXISTING PLOT ROWS!!
+				builder.makeUpdatePlotRowPlots(plotRows)
+
+				
+			}, // sessionBody
+			
+		}, // update
+		
 		makeSessionHeader: function makeSessionHeader() {
 		
 			// Check if there was a previous session header already existing. 
-			var element = d3.select("#" + dbsliceData.elementId);
-			var sessionHeader = element.select(".sessionHeader");
-			if (!sessionHeader.empty()) {
-				// Pre-existing session header! Remove any contents. Print a message to the console saying this was done.
-				sessionHeader.selectAll("*")
-			} // if
+			var element = d3.select("#" + dbsliceData.session.elementId);
+			var sessionHeader = element.select("#sessionHeader");
 			
-			var sessionTitle = element
-			  .append("div")
-				.attr("class", "row sessionHeader")
-			  .append("div")
-				.attr("class", "col-md-12 sessionTitle");
-		 
-			sessionTitle
-			  .append("br");
-			
-			sessionTitle
-			  .append("h1")
-			    .attr("class", "sessionTitle")
-				.attr("style", "display:inline")
-				.attr("spellcheck", "false")
-				.html(dbsliceData.session.title)
-				.attr("contenteditable", true)
-				.each(function(){
-					this.addEventListener("input", function(){
-						dbsliceData.session.title = this.innerHTML
-					})
+
+			// Add interactivity to the title. MOVE TO INIT??
+			element.select("#sessionTitle")
+			  .html(dbsliceData.session.title)
+			  .each(function(){
+				this.addEventListener("input", function(){
+					dbsliceData.session.title = this.innerHTML
 				})
+			  }) // each
 			
 		  
 		  
-			if (dbsliceData.session.plotTasksButton) {
-				sessionTitle
-				  .append("button")
-					.attr("class", "btn btn-success float-right")
-					.attr("id", "refreshTasksButton")
-					.html("Plot Selected Tasks")
-					.on("click", function () {
-						cfDataManagement.refreshTasksInPlotRows();
-					});
-			} // if
+			// Plot all tasks interactivity
+			element.select("#refreshTasksButton")
+			  .on("click", function () {
+				sessionManager.refreshTasksInPlotRows();
+			  }); // on
+		
 
 			if (dbsliceData.session.subtitle !== undefined) {
-				sessionTitle
-				  .append("p")
+				element.select("#sessionSubtitle")
 				  .html(dbsliceData.session.subtitle);
 			} // if
 		  
-			sessionTitle
-			  .append("br")
-			sessionTitle
-			  .append("br");
-
-			sessionTitle
-			  .append("div")
-				.attr("class", "filteredTaskCount")
-			  .append("p")
-				.attr("style", "display:inline");
 			
-			// CREATE THE MENU WITH SESSION OPTIONS
-			var sessionGroup = sessionTitle
-			  .append("div")
-				.attr("class", "btn-group float-right")
-				.attr("style", "display:inline")
-				
-			sessionGroup
-			  .append("button")
-				.attr("id", "sessionOptions")
-				.attr("type", "button")
-				.attr("class", "btn btn-info dropdown-toggle")
-				.attr("data-toggle", "dropdown")
-				.attr("aria-haspopup", true)
-				.attr("aria-expanded", false)
-				.html("Session options")
-				
-			var sessionMenu = sessionGroup
-			  .append("div")
-				.attr("class", "dropdown-menu")
+
+			// Add some options.
+			var sessionMenu = d3.select("#sessionOptions")
+			  .select("div.dropdown-menu")
 			  
 			
-			var dataReplace = createFileInputElement( importExport.importing.metadata.go, "replace")
-			sessionMenu
-			  .append("a")
-			    .attr("class", "dropdown-item")
-				.attr("href", "#")
-				.attr("id", "replaceData")
-				.html("Replace data")
-				.on("click", function(){dataReplace.click()})
-				
-			
-			var dataInput = createFileInputElement( importExport.importing.metadata.go, "add")
-			sessionMenu
-			  .append("a")
-			    .attr("class", "dropdown-item")
-				.attr("href", "#")
-				.attr("id", "addData")
-				.html("Add data")
-				.on("click", function(){dataInput.click()})
-			
-				
-			var removeDataItem = sessionMenu
-			  .append("a")
-			    .attr("class", "dropdown-item")
-				.attr("href", "#")
-				.attr("id", "removeData")
-				.html("Remove data")
-			addMenu.removeDataControls.make(removeDataItem)
-					
-			
-			var sessionInput = createFileInputElement( importExport.importing.session )
-			sessionMenu
-			  .append("a")
-			    .attr("class", "dropdown-item")
-				.attr("href", "#")
-				.attr("id", "loadSession")
-				.html("Load session")
-			    .on("click", function(){sessionInput.click()})
-			
+			// Downloading a session file
 			sessionMenu
 			  .append("a")
 			    .attr("class", "dropdown-item")
 				.attr("href", "#")
 				.attr("id", "saveSession")
-				.html("Save session").on("click", function(){
-				
-					// Get the string to save
-					var s = importExport.exporting.session.json()
-					
-					// Make the blob
-					var b = importExport.exporting.session.makeTextFile(s)
-					
-					
-					// Download the file.
-					var lnk = document.createElement("a")
-					lnk.setAttribute("download", "test_session.json")
-					lnk.setAttribute("href", b)
-					
-					var m = d3.select( document.getElementById("sessionOptions").parentElement ).select(".dropdown-menu").node()
-					m.appendChild(lnk)
-					lnk.click()	
-				})
+				.html("Save session")
+				.on("click", fileManager.exporting.session.download )
 			
 				
-				
-				
-			  
-			sessionTitle
-			  .append("br")
-			sessionTitle
-			  .append("br")
-			  
+			// Bring up teh metadata creation.
+			sessionMenu
+			  .append("a")
+			    .attr("class", "dropdown-item")
+				.attr("href", "#")
+				.attr("id", "metadataMerging")
+				.html("Metadata")
+				.on("click", dbsliceDataCreation.show )
+			
+
 
 			
-			
-			// Add a callback for when hte window is resized.
-			window.addEventListener("resize", function(){
-				
-				// All the plotrows should be resized to the width of the screen. The plots will need to be repositioned.
-				let session = d3.select( "#" + dbsliceData.elementId )
-				
-				// Calculate the width so that the plots will still actually fit.
-				var width = session.node().offsetWidth - 45
-				
-				let plotRows = session.selectAll("div.plotRow")
-				  .style("width", width + "px")
-				  
-				  
-				// Because teh width changed the internal positions of the plots must be readjusted. Maybe just reposition them?
-				
-				
-				let plots = plotRows.selectAll("div.plotWrapper")
-				
-				// First redo the widths and heights of all plots.
-				plots.each(function(plotCtrl){
-					positioning.helpers.readjustPlotSize(plotCtrl)
-					
-					positioning.helpers.readjustPlotPosition(plotCtrl)
-				})
-				
-				// For now just keep the positions, but redraw. Adequate for now.
-				
-				
-				
-			})
-
-			// HELPER FUNCTIONS:
-			function createFileInputElement(loadFunction, dataAction){
-				
-				// ERROR! DATA INPUT ONCHANGE SHOULD BE CHANGED - THE USER SHOULD BE ALLOWED TO RELOAD A FILE STRAIGHT AFTER REMOVING IT. CHANGE THIS IN THE IMPORTING - STORE THE METADATA FILES IN HTE CENTRAL BOOKING TOO!
-				
-				// This button is already created. Just add the functionaity.
-				var dataInput = document.createElement('input');
-				dataInput.type = 'file';
-
-				// When the file was selected include it in dbslice. Rerender is done in the loading function, as the asynchronous operation can execute rendering before the data is loaded otherwise.
-				dataInput.onchange = function(e){
-					// BE CAREFULT HERE: file.name IS JUST THE local name without any path!
-					var file = e.target.files[0]; 
-					// importExport.importing.handler(file);
-					loadFunction(file, dataAction)
-				}; // onchange
-				
-			  return dataInput
-				
-			} // createGetDataFunctionality
-		   
 		}, // makeSessionHeader
 		
 		updateSessionHeader: function updateSessionHeader(element){
 			
 			var metadata = dbsliceData.data.taskDim.top(Infinity)
 			if (metadata !== undefined) {
-				element.select(".filteredTaskCount").select("p")
+				element.select("#filteredTaskCount")
 				  .html("Number of Tasks in Filter = " + metadata.length);
 			} else {
-				element.select(".filteredTaskCount").select("p")
+				element.select("#filteredTaskCount")
 				  .html("<p> Number of Tasks in Filter = All </p>");
 			}; // if
 			
 			// Update the session title.
-			element
-			  .select("div.sessionTitle")
-			  .select("h1.sessionTitle")
+			element.select("#sessionTitle")
 			    .html(dbsliceData.session.title)
 			
 		}, // updateSessionHeader
@@ -11548,7 +13356,7 @@ var dbslice = (function (exports) {
 		makePlotRowContainers: function makePlotRowContainers(plotRows){
 			// This creates all the new plot rows.
 			
-			var width = d3.select( "#" + dbsliceData.elementId ).node().offsetWidth - 45
+			var width = d3.select( "#" + dbsliceData.session.elementId ).node().offsetWidth - 45
 			
 			// HANDLE ENTERING PLOT ROWS!
 			var newPlotRows = plotRows.enter()
@@ -11582,7 +13390,7 @@ var dbslice = (function (exports) {
 				  // Store the typed in text in the central object.
 				  this.addEventListener("input", function() {
 					  var newTitle = this.innerText
-					  d3.select(this).each(function(plotRow){ plotRow.title = newTitle })
+					  d3.select(this).each(function(obj){ obj.title = newTitle })
 				  }, false);
 			  }) // each
 			  
@@ -11593,7 +13401,7 @@ var dbslice = (function (exports) {
 				  .append("button")
 					.attr("class", "btn btn-danger float-right removePlotButton")
 					.html("x")
-				addMenu.removePlotRowControls.make( removePlotRowButton, plotRowCtrl );
+					.on("click", builder.interactivity.removePlotRow)
 				
 				// Make the 'add plot' button
 				var addPlotButton = d3.select(this)
@@ -11648,23 +13456,6 @@ var dbslice = (function (exports) {
 			
 		}, // makeUpdatePlotRowPlots
 		
-		makeAddPlotRowButton: function makeAddPlotRowButton(){
-			
-			var addPlotRowButton = d3.select("#addPlotRowButton")
-			
-			if(addPlotRowButton.empty()){
-			    
-				addPlotRowButton = d3.select("#" + dbsliceData.elementId)
-			      .append("button")
-			        .attr("id", "addPlotRowButton")
-				    .attr("class", "btn btn-info btn-block")
-				    .html("+");
-			
-			    addMenu.addPlotRowControls.make(addPlotRowButton)
-			} // if
-			
-		}, // makeAddPlotRowButton
-		
 		refreshPlotRowHeight: function refreshPlotRowHeight(plotRowBody){
             
             var plotRowHeight = positioning.helpers.findContainerSize(plotRowBody, ".plotWrapper")
@@ -11684,121 +13475,198 @@ var dbslice = (function (exports) {
 			let dx = positioning.dx(plotRowBody)
 			
             plotRowBody.selectAll(".plotWrapper")
-			  .style("left"  , d=> d.format.parent.offsetLeft+d.format.position.ix*dx+"px")
-			  .style("top"   , d=> d.format.parent.offsetTop +d.format.position.iy*dy + "px")
-              .style("width" , d=> d.format.position.iw*dx + "px")
-              .style("height", d=> d.format.position.ih*dy + "px")
+			  .style("left"  , d=> d.graphic.format.parent.offsetLeft+d.graphic.format.position.ix*dx+"px")
+			  .style("top"   , d=> d.graphic.format.parent.offsetTop +d.graphic.format.position.iy*dy + "px")
+              .style("width" , d=> d.graphic.format.position.iw*dx + "px")
+              .style("height", d=> d.graphic.format.position.ih*dy + "px")
             
-        } // refreshPlotRowWidth
+        }, // refreshPlotRowWidth
 		
+		
+		// The basic APP interactivity.
+		interactivity: {
+			
+			removePlotRow: function(clickedobj){
+				
+				// Remove the plot row from view.
+				// button -> plotrowTitle -> plotRow
+				var plotRowDOM = this.parentElement.parentElement
+				plotRowDOM.remove()
+				
+				// Remove row from object
+				dbsliceData.session.plotRows = dbsliceData.session.plotRows.filter(function(rowobj){
+				  return rowobj != clickedobj
+				}) // filter  
+				  
+				
+				
+				  
+				// Remove any filters that have been removed.
+				filter.remove()
+				filter.apply()
+
+				// Re-render the to update the filter
+				sessionManager.render()
+				
+				
+			}, // removePlotRow
+			
+		} // interactivity
 		
 	} // builder
 		
+		
+	class plotRow {
+		constructor(config){
+			
+			this.title = typeof(config.title) == "string" ? config.title : "New Plot Row!"
+			this.type = ["plotter", "metadata"].includes( config.type ) ? config.type : "metadata"
+			this.addPlotButton = {label : "Add plot"}
+			this.grid = {nx: 12, ny: undefined}
+			
+			// Handle any specified plots.
+			if(config.plots){
+				
+				this.plots = config.plots.reduce(function(acc, ctrl){
+					// Try to instantiate all the plots.
+					let plot = plotRow.instantiatePlot(ctrl)
+					if(plot){
+						acc.push(plot)
+					} // if
+					return acc
+				}, [])
+				
+			} else {
+				this.plots = []
+			} // if
+			
+			
+		} // constructor
+		
+		static instantiatePlot(ctrl){
+			
+			var plotCtrl = undefined;
+			switch( ctrl.plottype ){
+				
+				case "cfD3BarChart":
+					plotCtrl = cfD3BarChart.helpers.createDefaultControl()
+					plotCtrl.view.yVarOption.val = ctrl.yProperty
+					plotCtrl.view.gVar = ctrl.yProperty
+				  break;
+				
+				case "cfD3Histogram":
+					plotCtrl = cfD3Histogram.helpers.createDefaultControl()
+					plotCtrl.view.xVarOption.val = ctrl.xProperty
+				  break;
+				  
+				case "cfD3Scatter":
+					plotCtrl = cfD3Scatter.helpers.createDefaultControl()
+					plotCtrl.view.xVarOption.val = ctrl.xProperty
+					plotCtrl.view.yVarOption.val = ctrl.yProperty
+				  break;
+				  
+				case "cfD3Line":
+					plotCtrl = cfD3Line.helpers.createDefaultControl()
+					plotCtrl.view.sliceId = ctrl.sliceId
+				  break;
+				  
+				case "cfD3Contour2d":
+					plotCtrl = cfD3Contour2d.helpers.createDefaultControl()
+					plotCtrl.view.sliceId = ctrl.sliceId
+				  break;  
+				default:
+				  break;
+			}; // switch
+
+			
+			return plotCtrl;
+			
+		} // instantiatePlot
+		
+		
+	} // plotRow	
+		
+		
 	// Drawing of the app.
 
-    function render() {
-        var element = d3.select( "#" + dbsliceData.elementId );
-
-		// Update the selected task counter
-		builder.updateSessionHeader(element)
+    function initialise(session) {
 		
 
+		// Initialise the crossfilter.
+		cfDataManager.cfInit();
+		
+		// Store the app configuration and anchor.
+		dbsliceData.session = session;
+
+		
 	  
-        var plotRows = element
-		  .selectAll(".plotRow")
-		  .data(dbsliceData.session.plotRows);
-      
-        // HANDLE ENTERING PLOT ROWS!
-		var newPlotRows = builder.makePlotRowContainers(plotRows)
-        
-      
-        // Add in the container for the title of the plotting section.
-        // Make this an input box so that it can be change on te go!
-		builder.makePlotRowHeaders(newPlotRows)
-		
-
-			
-      
-        // Give all entering plot rows a body to hold the plots.
-        builder.makePlotRowBodies(newPlotRows)
-      
-        // In new plotRowBodies select all the plots. Selects nothing from existing plotRows.
-        builder.makeUpdatePlotRowPlots(newPlotRows)
-      
-      
-      
-        // UPDATE EXISTING PLOT ROWS!!
-		builder.makeUpdatePlotRowPlots(plotRows)
-
-
-	  
-	  
-	  
-        // ADD PLOT ROW BUTTON.
-		builder.makeAddPlotRowButton()
-        
-        
-
-
-	    // DROPDOWN MENU FUNCTIONALITY - MOVE TO SEPARATE FUNCTION??
-      // Control all button and menu activity;
-        addMenu.helpers.enableDisableAllButtons();
-      
-        
- 
-		// Add plot button must always be at the bottom
-		var buttonDOM = document.getElementById("addPlotRowButton")
-		var buttonParentDOM = buttonDOM.parentElement
-		buttonDOM.remove()
-		buttonParentDOM.appendChild(buttonDOM)
+		// Draw the rest of the app.
+		sessionManager.render()
 		
 		
+		// Add the functionality to the buttons in the header.
+		builder.makeSessionHeader()
+		addMenu.addPlotRowControls.make(d3.select("#addPlotRowButton"))
 		
-    } // render
-
-    function initialise(elementId, session, data) {
 		
+		// Dragging and dropping
+		let target = document.getElementById("target")
+		let merging = document.getElementById("merging-container") 
 		
-		let dataInitPromise = new Promise(function(resolve, reject){
-		    // We call resolve(...) when what we were doing asynchronously was successful, and reject(...) when it failed.
-		  
-		    // resolve and reject are in-built names. They allow the user to handle the following scenarios. Resolve allows the user to pass inputs onto the branch which is taken when the promise was resolved. Reject allows the same, but in case of a rejected promise, and allows error handling. Both of these scenarios happen in the '.then' functionality below.
-		  
-		    // Here the promise is used to wait until the execution of the data initialisation is completed before the app is drawn.
+		target.ondrop = dropHandler
+		target.ondragover = dragOverHandler
+		
+		merging.ondrop = dropHandler
+		merging.ondragover = dragOverHandler
 			
-			
-			// Initialise the crossfilter.
-			cfDataManagement.cfInit( data );
-			
-			// Store the app configuration and anchor.
-			dbsliceData.session = session;
-			dbsliceData.elementId = elementId;
-			
+		
+		function dropHandler(ev) {
+			  
 
-			// The state is ready. 
-			resolve("")
-			
-			
-		}) // Promise 
+		  // Prevent default behavior (Prevent file from being opened)
+		  ev.preventDefault();
 
-		Promise.all([dataInitPromise])
-		  .then(function(successInputs){
+		  var files = []
+		  if (ev.dataTransfer.items) {
+			// Use DataTransferItemList interface to access the file(s)
 			
-			// Draw the header.
-			builder.makeSessionHeader()
-		  
-			// Draw the rest of the app.
-			render()
-			},
-			function(error){
-				// The reject hasn't been called, so this shouldn't run at all. See info in `dataInitPromise'.
-				console.log("I shouldn't have run, why did I?")
-			})
+			for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+			  // If dropped items aren't files, reject them
+			  if (ev.dataTransfer.items[i].kind === 'file') {
+				files.push( ev.dataTransfer.items[i].getAsFile() );
+			  } // if
+			} // for
+			
+			
+			
+		  } else {
+			// Use DataTransfer interface to access the file(s)
+			files = ev.dataTransfer.files
+		  } // if
 		  
 		  
-		
+		  fileManager.importing.dragdropped(files)		  
+		  
+		} // dropHandler
 
-	    
+		function dragOverHandler(ev) {
+		  // Prevent default behavior (Prevent file from being opened)
+		  ev.preventDefault();
+		} // dragOverHandler
+
+
+
+
+
+
+		// Test loading contour files.
+		var A = new onDemandFile({
+			url: "./data/comp3stg/task_6/rotor1/ent_area2d_exit_rotor1_task_6.json",
+			filename: "./data/comp3stg/task_6/rotor1/ent_area2d_exit_rotor1_task_6.json"
+		})
+		A.load()
+		console.log(A, errors)
+
     } // initialise
 
     
@@ -11813,13 +13681,13 @@ var dbslice = (function (exports) {
 			var cf = dbsliceData.data
 			
 			// Bar charts
-			Object.keys(cf.metaDims).forEach(function(property){
-					cf.metaDims[property].filterAll()
+			Object.keys(cf.categoricalDims).forEach(function(property){
+					cf.categoricalDims[property].filterAll()
 			}) // forEach
 			
 			// Histograms
-			Object.keys(cf.dataDims).forEach(function(property){
-					cf.dataDims[property].filterAll()
+			Object.keys(cf.ordinalDims).forEach(function(property){
+					cf.ordinalDims[property].filterAll()
 			}) // forEach
 			
 			
@@ -11894,8 +13762,8 @@ var dbslice = (function (exports) {
 				// First deselect all filters, and then subsequently apply only those that are required.
 				
 				// Deselect all metadata filters.
-				Object.keys(cf.metaDims).forEach(function(variable){
-					cf.metaDims[variable].filterAll()
+				Object.keys(cf.categoricalDims).forEach(function(variable){
+					cf.categoricalDims[variable].filterAll()
 				}) // forEach
 				
 				// Apply required filters. Reselect the filtered variables, as some might have been removed.
@@ -11908,10 +13776,10 @@ var dbslice = (function (exports) {
 					// if the filters array is empty: ie. all values are selected, then reset the dimension
 					if ( filterItems.length === 0) {
 						// Reset the filter
-						cf.metaDims[variable].filterAll();
+						cf.categoricalDims[variable].filterAll();
 					} else {
 						// Apply the filter
-						cf.metaDims[variable].filter(function (d) {
+						cf.categoricalDims[variable].filter(function (d) {
 							// Here d is the value of the individual task property called <variable> already.
 							return filterItems.indexOf(d) > -1;
 						}); // filter
@@ -11959,8 +13827,8 @@ var dbslice = (function (exports) {
 				
 				
 				// Deselect all metadata filters.
-				Object.keys(cf.dataDims).forEach(function(variable){
-					cf.dataDims[variable].filterAll()
+				Object.keys(cf.ordinalDims).forEach(function(variable){
+					cf.ordinalDims[variable].filterAll()
 				}) // forEach
 				
 				// Get the fitlered variables. These are selected differently than for filter deselection as an additional safety net - all filters are definitely removed this way.
@@ -11974,7 +13842,7 @@ var dbslice = (function (exports) {
 				
 					if (selectedRange.length !== 0) {
 						// If the selected range has some bounds prescribed attempt to apply them. Note that the filter here is NOT the array.filter, but crossfitler.dimension.fitler.
-						cf.dataDims[variable].filter(function (d) {
+						cf.ordinalDims[variable].filter(function (d) {
 						  return d >= selectedRange[0] && d <= selectedRange[1] ? true : false;
 						}); // filter
 					}; // if
@@ -12061,7 +13929,7 @@ var dbslice = (function (exports) {
 		
 		addUpdateDataFilter: function addUpdateDataFilter(property, limits){
 			/*
-			var dimId = dbsliceData.data.dataProperties.indexOf(ctrl.view.xVarOption.val)
+			var dimId = dbsliceData.data.ordinalProperties.indexOf(ctrl.view.xVarOption.val)
 			var filter = dbsliceData.data.histogramSelectedRanges[dimId]
 			if(filter !== undefined){
 				xMin = filter[0]
@@ -12080,2442 +13948,11 @@ var dbslice = (function (exports) {
     } // filter
 
     
-	var inputTesting = {
-	
-		getTestRow: function getTestRow(metadata){
-		
-		
-			
-			let rowInd = Math.floor( Math.random()*metadata.length )
-			let row = metadata[rowInd]
-			
-			// Find all variables to test. Exclude the artificially generated __file__.
-			let variablesToTest = Object.getOwnPropertyNames(row).filter(d=> d!="__file__") 
-			
-			
-			return variablesToTest.map(function(varName, colInd){
-				 return {
-					tag: "metadata",
-					parent: row.__file__,
-					rowInd: rowInd,
-					colInd: colInd,
-					colName: varName,
-					testVal: row[varName],
-					type: typeof(row[varName]),
-					category: undefined,
-					vals: metadata.map(d=>d[varName])
-				}
-
-			})
-		
-		}, // getTestRow
-	
-		classifyVariables: function(metadata, storeData){
-		
-			let vars = inputTesting.getTestRow(metadata)
-		
-			let promises = []
-			vars.forEach(function(varObj){
-				// Check this column.
-				promises.push( inputTesting.handleVariables(varObj) )
-				
-			})
-			
-			// Promises are tests- they cannot be rejected, they can only come
-			Promise.all(promises)
-			.then(function(variableClassification){
-				// Resolve - communicate the results onwards.
-				
-				inputTesting.displayResults(variableClassification)
-				
-				// When the classification is finished store the results.
-				storeData(variableClassification)
-				
-			})
-		
-		}, // classifyVariables
-	
-		displayResults: function displayResults(variableClassification){
-			
-			console.log("Hand variables on!")
-			console.log(variableClassification)
-			
-			// Maybe make the report in the same div as used for the variable handling? And have it as a two stage?
-			
-			// Make a report
-			inputTesting.report.make();
-			
-			// Make the variable handling
-			variableHandling.make(variableClassification)
-			
-		}, // displayResults
-		
-		handleVariables: function handleVariables(varObj){
-			// Split the testing as per the variable type received.
-			let promise
-			switch( varObj.type ){
-				case "string":
-					// String can be a file too.
-					promise = inputTesting.handleFiles(varObj)
-					
-				  break;
-				  
-				case "number":
-					varObj.category = "Ordinal"
-					promise = varObj
-					
-				  break;
-				  
-				default:
-					inputTesting.error.wrongVarType.instances.push(varObj)
-					
-					varObj.category = "Unused";
-					promise = varObj
-			} // switch
-				
-			return promise
-			
-		}, // handleVariables
-	
-		handleFiles: function handleFiles( stringVar ){
-	
-			let promise
-			let extension = stringVar.testVal.split(".").pop();
-			switch(extension){
-				case "json":
-					promise = inputTesting.test.json(stringVar)
-				  break;
-				case "csv":
-					promise = inputTesting.test.csv(stringVar)
-				  break;
-				default:
-					// Unsupported extension.
-					promise = inputTesting.test.dummy(stringVar)
-			} // switch
-			
-			return promise
-		
-		}, // handleString
-	
-		// MOVE TO HELPERS
-		getConvertedValues: function getConvertedValues(metadata){
-		
-			data = []
-			metadata.forEach(function(d){
-				data.push( inputTesting.convertNumbers(d) )
-			})
-
-					
-			return data
-			
-		}, // getConvertedValues
-		
-		convertNumbers: function convertNumbers(row) {
-				// Convert the values from strings to numbers.
-				
-				var r = {};
-				for (var k in row) {
-					r[k] = +row[k];
-					if (isNaN(r[k])) {
-						r[k] = row[k];
-					} // if
-				} // for
-			  return r;
-		}, // convertNumbers
-		
-		unique: function unique(d){		
-			// https://stackoverflow.com/questions/1960473/get-all-unique-values-in-a-javascript-array-remove-duplicates
-			function onlyUnique(value, index, self) { 
-				return self.indexOf(value) === index;
-			} // unique
-			
-			return d.filter( onlyUnique )
-		
-		}, // unique
-		
-	
-		// REPORT
-		report: {
-			
-			show: function show(){
-				
-					let fullscreenContainer = d3.select("div.report-container")
-				
-					fullscreenContainer.style("display", "")
-				
-				}, // show
-				
-			hide: function hide(){
-			
-					let fullscreenContainer = d3.select("div.report-container")
-				
-					// Hide the container. Bring up the variable handling.
-					fullscreenContainer.style("display", "none")
-					
-					variableHandling.show()
-			
-			}, // hide
-		
-			make: function make(){
-				
-				// Instead of opening this in a separate window draw it into a dedicated container.
-				
-				let parent = d3.select("div.report-container")
-				parent.selectAll("*").remove()
-				
-				inputTesting.metadata.report.make(parent)
-				
-				let menus = parent.node().querySelectorAll(".accordion")
-				
-				inputTesting.report.addFunctionality(menus)
-				
-			}, // make
-		
-			makeMenu: function makeMenu(parent, ctrl){
-				let r = inputTesting.report
-	
-				// Make the overhead menu item.
-				let content = r.makeMenuItemBackbone(parent, ctrl)
-				
-				// For each particular error type make a dedicated submenu.
-				ctrl.errorTypes.forEach(function(errorType){
-					r.makeSubMenu(content, errorType)
-				})
-			
-				// The report items should open. - This is done after it is printed to the new window. As it's printe as a string the new window creates new elements, without the functionality attached.
-				// r.addFunctionality(parent.node().querySelectorAll(".accordion"))
-				
-				
-			
-			}, // makeMenu
-				
-			makeSubMenu: function makeSubMenu(parent, ctrl){
-				let r = inputTesting.report
-
-				let content = r.makeMenuItemBackbone(parent, ctrl)
-				
-				content
-				  .append("p")
-					.attr("class", "description")
-					.html(ctrl.description)
-				content
-				  .append("div")
-					.attr("class", "panel-content")
-				  .append("ul")
-				  .selectAll("li")
-				  .data( ctrl.errors )
-				  .enter()
-				  .append("li")
-					.html(ctrl.printout)  
-			
-			}, // makeSubMenu
-			
-			makeMenuItemBackbone: function makeMenuItemBackbone(parent, ctrl){
-			
-				let button = parent
-				  .append("button")
-					.attr("class", "accordion")
-					.style("outline", "none")
-					
-				if(ctrl.titleEl != undefined){
-					button = button.append(ctrl.titleEl)
-				}
-				
-				button
-				  .append("strong")
-					.html(ctrl.title)
-				button
-				  .append("span")
-					.attr("class", "badge badge-pill badge-info")
-					.style("float", "right")
-					.html(ctrl.nErrors)
-					
-				let content = parent
-				  .append("div")
-					.attr("class", "panel")
-			
-				return content
-			
-			}, // makeMenuItemBackbone
-				
-			addFunctionality: function addFunctionality(menus){
-			
-				for (let i = 0; i < menus.length; i++) {
-				  menus[i].addEventListener("click", function() {
-					this.classList.toggle("active");
-					var panel = this.nextElementSibling;
-					if (panel.style.display === "block") {
-					  panel.style.display = "none";
-					} else {
-					  panel.style.display = "block";
-					}
-				  });
-				} // for
-			
-			
-			}, // addFunctionality
-			
-		}, // report
-		
-		
-		// WHEN COMBINING WITH IMPORTEXPORTFUNCTIONALITY Combine with metadata to keep all relevant functionality together.
-		metadata: {
-		
-			report: {
-
-				make: function make(parent){
-				
-				
-					// Have the fullscreen container in index.html
-					
-					let menuContainer = parent
-					  .append("div")
-						.attr("class", "card card-menu")
-						
-					menuContainer
-					  .append("div")
-						.attr("class", "card-header")
-					  .append("h1")
-						.html("Report:")
-
-					// Body
-					
-					// Collect the error data.
-					let allFilesWithErrors = inputTesting.metadata.report.generate()
-					
-					let varCategories = menuContainer
-					  .append("div")
-						.attr("class", "card-body")
-						.style("overflow-y", "auto")
-						.style("overflow-x", "auto")
-					  .selectAll("div")
-					  .data(allFilesWithErrors)
-					  .enter()
-					    .append("div")
-						.each(function(d){
-							inputTesting.report.makeMenu(d3.select(this), d)
-						})
-					  
-					// Footer
-					menuContainer
-					  .append("div")
-						.attr("class", "card-footer")
-					  .append("button")
-						.attr("class", "btn btn-success")
-						.html("Understood")
-						.on("click", inputTesting.report.hide)	
-				
-				
-				}, // make
-				
-				message: function message(d){
-					return d.colName + " (" + d.rowInd + ", " +d.colInd + "): " + d.testVal
-				}, // message
-			
-				generate: function generate(){
-					// Generate the appropriate data to draw the error report. For metadata the report is structured per metadata file type.
-					let error = inputTesting.error
-					let errorTypes = Object.getOwnPropertyNames(error)
-				
-				
-					// Metadata files have the tag 'metadata' and a property 'parent', which denotes the particular file. Collect all unique files with errors.
-					let filenames = []
-					errorTypes.forEach(function(errorName){
-						error[errorName].instances.forEach(function(varObj){
-							if(varObj.tag == "metadata"){
-								filenames.push(varObj.parent)
-							} // if
-						})
-					})
-					filenames = inputTesting.unique(filenames)
-					
-					
-					// Create the reports for all the files.
-					return filenames.map(function(filename){
-					
-						let fileReport = {
-							title: filename,
-							titleEl: "h2",
-							nErrors: undefined,
-							errorTypes: []
-						}
-						
-						errorTypes.forEach(function(errorName){
-						
-							// Get all the errors of a particular type for this file.
-							var fileErrors = error[errorName].instances.filter(function(varObj){
-								return varObj.parent == filename
-							})
-							
-							// Generate the error report object
-							if(fileErrors.length > 0){
-								fileReport.errorTypes.push(
-									new error[errorName].report(fileErrors)
-								)
-							} // if
-						
-						})
-						
-						// Sum up hte number of all errors.
-						fileReport.nErrors = fileReport.errorTypes.reduce(function(sum, errorType){return sum + errorType.errors.length},0)
-						
-						return fileReport
-					})
-					
-				
-				}, // generate
-				
-			}, // 
-		
-			
-		}, // metadata
-	
-		// All the tests.
-		test: {
-	
-			// File formats
-			json: function json(varObj){
-			
-				return new Promise(function(resolve, reject){
-
-					d3.json(varObj.testVal).then(function(content){
-						// json files can be lines or contours.
-						let test = inputTesting.test
-						
-						let isContour = test.contour.json(content)
-						let isLine = test.line.json(content)
-						
-						
-						// The contents are not in expected form - alert the user.
-						if(isContour){
-							varObj.category = "Contour"
-							varObj.type = "file-contour"
-						} else if(isLine){
-							varObj.category = "Line"
-							varObj.type = "file-line"
-						} else {
-							// Some other format. Don't allow the file to be loaded in by marking the column as categorical.
-							varObj.category = "Categorical"
-							
-							inputTesting.error.unsupportedFileStructure.instances.push(varObj)
-						}
-						
-						resolve(varObj)
-						
-					}).catch(function(){
-						varObj.category = "Categorical"
-						
-						inputTesting.error.fileNotFound.instances.push(varObj)
-						
-						resolve(varObj)
-					}) // then
-					
-				}) // Promise
-			
-			}, // json
-			
-			csv: function csv(varObj){
-			
-				return new Promise(function(resolve, reject){
-
-					// This promise CAN fail - e.g. no file.
-					d3.csv(varObj.testVal).then(function(content){
-						let test = inputTesting.test
-						// csv are always loaded in as strings. Need to convert what can be converted before testing.
-						let content_ = inputTesting.getConvertedValues(content)
-						
-						// Csv could be line.
-						let isLine = test.line.csv(content_)
-						
-						
-						// The contents are not in expected form - alert the user.
-						if(isLine){
-							varObj.category = "Line"
-							varObj.type = "file-line"
-						} else {
-							varObj.category = "Categorical"
-							
-							inputTesting.error.unsupportedFileStructure.instances.push(varObj)
-							
-							
-							
-						}
-						
-						resolve(varObj)
-						
-					}).catch(function(){
-						varObj.category = "Categorical"
-						
-						inputTesting.error.fileNotFound.instances.push(varObj)
-							
-						resolve(varObj)
-					}) // then
-					
-				}) // Promise
-			
-			}, // csv
-			
-			dummy: function dummy(varObj){
-				// All real categorical variables pass through here, alongside to any with extensions.
-			
-				return new Promise(function(resolve, reject){
-
-					varObj.category = "Categorical"
-					
-					// Add a report if there is an extension.
-					let extension = varObj.testVal.split(".").pop()
-					if(extension != varObj.testVal){
-						inputTesting.error.unsupportedFileExtension.instances.push(varObj)			
-					} // if
-					
-					
-					
-					// Directly pass the category to resolve.
-					resolve(varObj)
-					
-				}) // Promise
-			
-			}, // dummy
-			
-			// Data formats
-			contour: {
-			
-				json: function json(content){
-				
-					let isContour = false
-				
-					try {
-				
-						if(content.surfaces != undefined){
-							// surfaces must have an object with properties y, x, and v, and size
-							let s = content.surfaces
-							let hasRequiredProperties = 
-								Array.isArray(s.x) &&
-								Array.isArray(s.y) &&
-								Array.isArray(s.v) &&
-								Array.isArray(s.size);
-							if(hasRequiredProperties){
-								isContour = true
-							} // if
-						} // if
-						return isContour
-				
-					} catch (e){
-						return isContour
-					} // try
-				
-				}, // json
-			
-			}, // contour
-			
-			line: {
-			
-				json: function json(content){
-				
-					// Check if 'content.data' is an array containing only numbers in a random row.
-					return inputTesting.test.helpers.testArray(content.data)
-				
-				}, // json
-				
-				csv: function csv(content){
-				
-					// Check if 'content' is an array containing only numbers in a random row.
-					return inputTesting.test.helpers.testArray(content)
-				
-				}, // csv
-			
-			}, // line
-				
-			// Helpers
-			helpers: {
-			
-				testArray: function testArray(expectedArray){
-				
-					let isArray = false
-					
-					try { 
-					
-						if( Array.isArray(expectedArray) ){
-							// Pick a random row and test it. It can include only numbers.
-							let randomEl = expectedArray[Math.floor(Math.random()*(expectedArray.length-1))]
-							
-							
-							let allPropertiesAreNumber = inputTesting.test.helpers.areAllPropertiesNumeric(randomEl)
-							
-							if(allPropertiesAreNumber){
-								isArray = true
-							} // if
-						} // if
-						return isArray
-						
-					} catch (e){
-						return isArray
-					} // try
-				
-				}, // testArray
-				
-				areAllPropertiesNumeric: function areAllPropertiesNumeric(singleEl){
-				
-					let properties = Object.getOwnPropertyNames(singleEl)
-							
-					let areAllNumeric = properties.reduce(function(isNumber, property){
-						return isNumber && typeof(singleEl[property]) == "number"
-					}, true)
-					
-					return areAllNumeric
-				
-				}, // areAllPropertiesNumeric
-			
-			}
-			
-		}, // test
-	
-		// Maybe make the errors for each file separately?
-		error: {
-		
-			// UNEXPECTED METADATA DATA TYPE
-			wrongVarType: {
-				report: class wrongVarTypeReport {
-					constructor(items){
-						this.title = "Metadata variables: unsupported type";
-						this.description = "I only know how to support strings and numbers. The following variables have therefore been removed from the session.";
-						this.nErrors = items.length,
-						this.errors = items;
-					}
-					
-					printout(d){return inputTesting.metadata.report.message(d)} 
-				}, // wrongVarTypeReport
-				
-				
-				instances: []
-			}, // wrongVarType
-		
-		
-		// ON DEMAND FILES:
-		
-			// FILE NOT FOUND
-			fileNotFound: {
-				report: class fileNotFoundReport {
-					constructor(items){
-						this.title = "On-demand variables: Missing files";
-						this.description = "I thought the following were files that I am able to load. However, I could not find them. The columns containing the filenames are available as categorical variables.";
-						this.nErrors = items.length,
-						this.errors = items;
-					}
-					
-					printout(d){return inputTesting.metadata.report.message(d)} 
-				}, // fileNotFoundReport
-
-			
-				instances: []
-			}, // missingFile
-		
-		
-			// UNSUPPORTED FILE EXTENSION
-			unsupportedFileExtension: {
-			
-				report: class fileNotFoundReport {
-					constructor(items){
-						this.title = "On-demand variables: Unsupported file extensions";
-						this.description = "I thought the following are files that I am expected to load. However, Aljaz didn't teach me how to load anything but .csv and .json files with particular formats. Instead the columns containing the filenames are available as categorical variables.";
-						this.nErrors = items.length,
-						this.errors = items;
-					}
-					
-					printout(d){return inputTesting.metadata.report.message(d)} 
-				}, // fileNotFoundReport
-			
-				instances: []
-			}, // unsupportedFileExtension
-		
-			
-			// UNSUPPORTED FILE STRUCTURE
-			unsupportedFileStructure: {
-				report: class fileNotFoundReport {
-					constructor(items){
-						this.title = "On-demand variables: Unexpected data structure";
-						this.description = "I loaded the following files, however, I wasn't taught how to handle their particular formats. Instead the columns containing the filenames are available as categorical variables.";
-						this.nErrors = items.length,
-						this.errors = items;
-					}
-					
-					printout(d){return inputTesting.metadata.report.message(d)} 
-				}, // fileNotFoundReport
-				
-			
-				instances: []		
-			}, // wrongFileStructure
-		
-		} // errors
-	
-	} // inputTesting
-  
-	
-	var variableHandling = {
-	
-		show: function show(){
-		
-			let fullscreenContainer = d3.select("div.variable-container")
-		
-			fullscreenContainer.style("display", "")
-			
-			variableHandling.coordinateColumnStyles( fullscreenContainer.node() )
-		
-		}, // show
-		
-		hide: function hide(){
-			
-			d3.select("div.variable-container").style("display", "none")
-			
-		}, // hide
-		
-		submit: function submit(fullscreenContainer){
-		
-			return function(d){
-				// Collect the classification, and report it for use with dbslice.
-				
-				// For now change it so that it reports the name and the category.
-				let output = fullscreenContainer
-				  .select("div.card-body")
-				  .selectAll("button.shape-pill")
-				  .data()
-				  .map(function(d){
-					return d.variable
-				  })
-				
-				fullscreenContainer.style("display", "none")
-				
-				
-				// Form a new header.
-				let header = importExport.importing.helpers.assignVariables(output)
-				
-				cfDataManagement.variableUseChange(header)
-				
-			}	
-		
-		}, // submit
-
-		make: function make(variableClassification){
-			
-			// Create the particular config that can flow to all of the DOM elements.
-			
-			// Maybe merge these?
-			var categoryInfo = variableHandling.varData2CategoryData(variableClassification)
-		
-			// Have the fullscreen container in index.html
-			let fullscreenContainer = d3.select("div.variable-container")
-			let menuContainer = fullscreenContainer
-			  .append("div")
-				.attr("class", "card card-menu")
-				.datum(categoryInfo)
-				
-			// Header - add a legend?
-			menuContainer
-			  .append("div")
-				.attr("class", "card-header")
-				.each(variableHandling.makeHeader)
-
-			// Body
-			let varCategories = menuContainer
-			  .append("div")
-				.attr("class", "card-body")
-				.style("overflow-y", "auto")
-				.style("overflow-x", "auto")
-			  .append("div")
-				.style("display", "table-row")
-			  .selectAll("div")
-			  .data(d=>d.categories)
-			  
-			varCategories.enter()
-			  .append("div")
-				.style("display", "table-cell")
-			  .append("div")
-				.style("margin-right", "10px")
-				.each(variableHandling.makeVariableList)
-				
-			// Footer
-			menuContainer
-			  .append("div")
-				.attr("class", "card-footer")
-			  .append("button")
-				.attr("class", "btn btn-success")
-				.html("Submit")
-				.on("click", variableHandling.submit(fullscreenContainer))	
-
-
-			// Apply the dragging
-			var drag = variableHandling.drag.make()
-
-			menuContainer
-			  .select("div.card-body")
-			  .selectAll(".draggable")
-			  .call(drag)
-					
-		}, // make
-		
-		drag: {
-		
-			make: function make(){
-				let h = variableHandling.drag.helpers
-			
-				var drag = d3.drag()
-				  .on("start", function(d){
-					  this.classList.add('dragging')
-				  
-					  
-					  d.position.t0 = d3.mouse(this.parentElement)
-					  
-				  
-					  d3.select(this)
-						.style("position", "relative")
-						.style("left", 0 + "px")
-						.style("top", 0 + "px")
-					  
-					  // Ordinal plots do not support string values. Check if the variable type is compatible with the category.
-					  let parent = this.parentElement.parentElement.parentElement.parentElement
-					  d.dom = h.findAndSignalPosition(parent)
-					  
-				  })
-				  .on("drag", function(d){
-					  let position = d3.mouse(this.parentElement)
-				  
-					  
-					  d.position.x += position[0] - d.position.t0[0]
-					  d.position.y += position[1] - d.position.t0[1]
-					  
-					  d3.select(this)
-						.style("position", "relative")
-						.style("left", d.position.x + "px")
-						.style("top", d.position.y + "px")
-				  
-					  d.position.t0 = position
-					  
-					  // This should find the element to move the tag to, and the element to append it after, and store it into d. on end can then just perform the final assignment.
-					  // Make a gap as a preview.
-					  
-					  let parent = this.parentElement.parentElement.parentElement.parentElement
-					  let dom_ = h.findAndSignalPosition(parent)
-					  
-					  if(h.checkVariableCategoryCompatibility(d.variable.type, d3.select(dom_.container).datum().category )){
-						  d.dom = dom_
-					  } // if
-					  
-					  
-				  })
-				  .on("end", function(d){
-					  
-					  this.remove()
-					  d.dom.container.insertBefore(this, d.dom.afterElement)
-					  
-					  this.classList.remove('dragging')
-				  
-					  d3.select(this)
-						.style("position", "")
-						
-					  d.position.x = 0
-					  d.position.y = 0
-					  
-					  // Remove gaps, and adjust column heights.
-					  variableHandling.coordinateColumnStyles( d.dom.container.parentElement.parentElement.parentElement )
-					  
-					  // Change the category in the data.
-					  d.variable.category = d3.select( d.dom.container ).datum().category
-					  
-					  
-					  
-				  })
-				  
-				return drag
-			
-			}, // make
-		
-			helpers: {
-			
-				findAndSignalPosition: function findAndSignalPosition(parent){
-					let h = variableHandling.drag.helpers
-		
-					let pos = d3.mouse(document.body)
-					
-					let containers = parent.querySelectorAll('.variable-category')
-				
-					let currentContainer = h.getDragContainer(containers, pos[0])
-					
-					// Is it the gap making??
-					let afterElement = h.makeGapPreview(currentContainer, pos[1])
-				
-					return {
-						container: currentContainer,
-						afterElement: afterElement
-					}
-				}, // makeGapPreview
-				
-				makeGapPreview: function makeGapPreview(container, y){
-					// A gap should open up in the list to indicate the drop position. 
-					let h = variableHandling.drag.helpers
-				
-					
-					let all = [...container.querySelectorAll('.draggable:not(.dragging)')]
-					let below = h.getDragAfterElement(all, y)
-					
-					
-					
-					// Only add a gap if the closest element isn't the one right after the dragged element.
-					
-					let draggable = [...container.querySelectorAll(".draggable")];
-					let dragged = container.querySelector(".dragging");
-					let neighbour = draggable[draggable.indexOf(dragged) + 1]
-					
-					// Default margin = 2px
-					d3.selectAll(draggable).style("margin-top", "2px")
-					
-					if(neighbour != below.closest){
-						d3.select( below.closest ).style("margin-top", "20px")
-					} // if
-
-					
-					
-					
-					return below.closest
-				}, // makeGapPreview
-
-				getDragAfterElement: function getDragAfterElement(allElements, y) {
-				  
-
-				  return allElements.reduce((below, child) => {
-					const box = child.getBoundingClientRect()
-					const offset = y - box.top - box.height / 2
-					// Introduce a counter that also tracks all below. This will be used to offset them.
-					if(offset < 0){
-						below.elements.push(child)
-					} // if
-					
-					if (offset < 0 && offset > below.offset) {
-						below.offset = offset
-						below.closest = child
-					}
-					return below
-				  }, { offset: Number.NEGATIVE_INFINITY, elements: [] })
-				}, // getDragAfterElement
-				
-				getDragContainer: function getDragContainer(containers, x){
-					// Find the appropriate container, as the dragging was not particularly aesthetic.
-					return [...containers].reduce(function(closest, current){
-						
-						let pos_= closest.getBoundingClientRect()
-						let pos = current.getBoundingClientRect()
-						
-						let isLeft = (x - pos.x) > 0
-						let isCloser = (x - pos_.x) > (x - pos.x)
-						
-						if( isLeft && isCloser ){
-							closest = current
-						} // if
-						return closest
-					}, containers[0])
-					
-				}, // getDragContainer
-			
-			
-				// Move to input testing?
-				checkVariableCategoryCompatibility: function checkVariableCategoryCompatibility(varType, categoryType){
-					let compatibility
-					switch(categoryType){
-						case "Categorical":
-							compatibility = ["number", "string","file-line","file-contour","file-surface"].includes(varType)
-						  break;
-						case "Ordinal":
-							compatibility = ["number"].includes(varType)
-						  break;
-						case "Line":
-							compatibility = ["file-line"].includes(varType)
-						  break;
-						case "Contour":
-							compatibility = ["file-contour"].includes(varType)
-						  break;
-						case "Surface":
-							compatibility = ["file-surface"].includes(varType)
-						  break;
-						default:
-							compatibility = true
-					} // switch
-					return compatibility
-					
-				}, // checkVariableCategoryCompatibility
-			
-			} // helpers
-		
-		}, // drag
-		
-		makeHeader: function makeHeader(){
-			
-			let color = variableHandling.color(d=>d)
-			let types = variableHandling.availableTypes
-			
-			let header = d3.select(this)
-			
-			let title = header
-				.append("div")
-				
-			title
-			 .append("h4")
-				.html("Variable declaration:")
-			title
-			 .append("button")
-			 .attr("class", "btn report")
-			 .style("float", "right")
-			 .on("click", function(){
-				 variableHandling.hide()
-				 inputTesting.report.show()
-			 })
-			 .append("i")
-				.attr("class", "fa fa-exclamation-triangle")
-			
-			
-			header.append("div")
-			  .selectAll("button.shape-pill")
-			  .data(types)
-			  .enter()
-			  .append("button")
-				.attr("class", "shape-pill")
-				.style("background-color", color)
-			  .append("strong")
-				.html(d=>d)
-			
-		}, // makeHeader
-		
-		makeVariableList: function makeVariableList(d){
-		
-			let h = variableHandling
-			let color = h.color(d=>d.variable.type)
-			let category = d3.select(this)
-			function nUnique(vals){
-				
-				function onlyUnique(value, index, self) { 
-					return self.indexOf(value) === index;
-				} // unique
-				
-				return vals.filter(onlyUnique).length
-			} // nUnique
-			
-		
-			category
-			  .append("h6")
-				.html(d.category)
-				
-			let variableList = category
-			  .append("div")
-				.attr("class", "variable-category")
-			
-			let varObjects = h.makeVariableTagObjects(d.vars)
-			variableList
-			  .selectAll("button")
-			  .data(varObjects)
-			  .enter()
-			  .append("button")
-				.attr("class", "shape-pill draggable")
-				.style("background-color", color)
-				.html(d=>"<strong>"+d.variable.colName+"</strong>")
-			  .append("span")
-				.attr("class", "badge badge-pill badge-light")
-				.style("margin-left", "4px")
-				.html(d=>nUnique(d.variable.vals))
-				
-			
-		}, // makeVariableList
-		
-		makeVariableTagObjects: function makeVariableTagObjects(vars){
-			let data = []
-			vars.forEach(function(variable){
-				data.push({
-					variable: variable,
-					position: {
-						x: 0,
-						y: 0,
-						t0: undefined,
-					},
-					dom: {
-					  container: undefined,
-					  afterElement: undefined
-					}
-				})
-			})
-			return data
-		}, // makeVariableTagObjects
-		
-		coordinateColumnStyles: function coordinateColumnStyles(parent){
-			
-			// Remove any gaps: default margin = 2px
-			let menuBody = d3.select( parent )
-			menuBody
-			  .selectAll(".draggable")
-				.style("margin-top", "2px")
-			  
-			// Consolidate column sizes.
-			let divs = menuBody
-			  .selectAll("div.variable-category")
-			  .style("height", "100%")
-			  
-			let divHeight = 0
-			divs.each(function(d){
-				divHeight = this.offsetHeight > divHeight ? this.offsetHeight : divHeight
-			})
-			divs.style("height", divHeight + "px")
-			
-		}, // coordinateColumnStyles
-		
-		
-		color: function color(accessor){
-			
-			let scheme = d3.scaleOrdinal(d3.schemePastel2)
-			  .domain(variableHandling.availableTypes)
-			  
-			return function(d){
-				return scheme(accessor(d))
-				// return accessor(d) == "string" ? "aquamarine" : "gainsboro"
-			}
-		}, // color
-		
-		
-		varData2CategoryData: function varData2CategoryData(variableClassification){
-			
-			// Convert to category info.
-			let categoryObj = variableClassification.reduce(function(catObj, varObj){
-				if(catObj.categories[varObj.category] == undefined){
-					// This category has already been identified, therefore just add 
-					catObj.categories[varObj.category] = {
-						category: varObj.category,
-						vars: [varObj]
-					}
-				} else {
-					// Just add the variable to it.
-					catObj.categories[varObj.category].vars.push(varObj)
-				} // if
-				return catObj
-				
-			},{categories: {}}) // reduce
-			
-			
-			// Always provide an 'Unused' category too -> this is done here to enforce this is the last category.
-			if(categoryObj.categories.Unused == undefined){
-				categoryObj.categories.Unused = {category: "Unused", vars: []}
-			} // if
-			
-			
-			
-			// The output should be an array of object, whereas now it's a single object.
-			categoryObj.categories = Object.keys(categoryObj.categories).map(d=>categoryObj.categories[d])
-			
-			
-			
-			
-			return categoryObj
-			
-		}, // varData2CategoryData
-		
-		// Move to input testing
-		availableTypes: [
-			  "string",
-			  "number",
-			  "file-line",
-			  "file-contour"
-		],
-		
-	} // variableHandling
-	
-	
-    // Handles all tasks connected to importing/exporting data.
-	var importExport = {
-		// This object controls all the behaviour exhibited when loading in data or session layouts, as well as all behaviour when saving the layout.
-		
-		// The loading of sessions and data must be available separately, and loading the session should include an option to load in a predefined dataset too.
-		
-		// It is possible that the session configuration and data will have incompatible variable names. In these cases the user should resolve the incompatibility, but the incompatibility should be presented to them!
-		
-		// Saving the session is done by downloading a created object. Therefore a session object should be written everytime the view is refreshed.
-		
-		// The views depending on "Plot Selected Tasks" to be pressed should be loaded in merely as configs in their plotrows, and the corresponding filtering values need to be loaded into their corresponding plots.
-		
-		
-		importing : {
-			// WIP: This has to be able to load in data from anywhere on the client computer, not just the server root.
-			
-			
-			
-			// DONE: It must be able to load both csv and json fle formats.
-			
-			// DONE: Must prompt the user if the variables don't include those in existing plots. Solution: does not prompt the user, but for now just removed any incompatible plots.
-			
-			// WIP: The user must be prompted to identify variables that are different in loaded, and to be loaded data.
-			
-			// DONE: Handle the case where the user attempts to load data, but selects a session json.
-			
-			metadata : {
-			
-				go: function go(file, actionTag){
-					
-					// Create convenient handles.
-					var ld = importExport.importing
-					
-					
-					// This function will fire also when 'cancel' is pressed on the file input menu. In that case skip the following to avoid errors.
-					if(file != undefined){
-						
-					
-					
-						// Determine if the input adds new data, or if it replaces the data.
-						var actionOnInternalStorage = ld.metadata.load.action(actionTag)
-						
-						
-						// Handle the case based on the file type.
-						var extension = file.name.split(".").pop();
-						switch(extension){
-							
-							case "csv":
-								ld.metadata.load.csv(file, actionOnInternalStorage)
-								break;
-								
-							case "json":
-								ld.metadata.load.json(file, actionOnInternalStorage)
-								break;
-								
-							default:
-								window.alert("Selected file must be either .csv or .json")
-								break;
-						}; // switch
-					
-					} // if
-					
-				}, // go
-				
-				load: {
-					
-					csv: function csv(file, action){
-						var ld = importExport.importing
-						var url = window.URL.createObjectURL(file)
-						
-						d3.csv(url).then(function(metadata){
-								
-							// All the numbers are read in as strings - convert them to strings straight away.
-							let data = ld.helpers.getConvertedValues(metadata)
-							
-					
-									
-							// Add the source file to tha data - this will also get tested if it's added here.
-							data.forEach(function(d){
-								d.__file__ = file.name
-							})
-							
-							
-							// Store the results of the classifying straight away, and then use the method that will be required to change the variables in hte session to make changes.
-							
-							
-							inputTesting.classifyVariables(data, function(variableClassification){
-								
-								// This could be csv2json?
-								let d = {
-									 data : data,
-									 header: ld.helpers.assignVariables(variableClassification),
-								}
-								
-								// Store the variables
-								action(d);
-								
-								// Redraw
-								render();
-								
-								// Show the reports.
-								if(dbsliceData.data != undefined){
-									var canMerge = cfDataManagement.helpers.crossCheckProperties(dbsliceData.data, d)
-									if(canMerge){
-										variableHandling.show()
-									} // if
-								} // if
-							})
-							
-						}) // d3.csv
-						
-						
-					}, // csv
-					
-					json: function json(file, action){
-						
-						var ld = importExport.importing
-						var url = window.URL.createObjectURL(file)
-						
-						d3.json(url).then(function(metadata){
-							// ERROR HANDLING: The metadata must have a `data' attribute that is an iterable. Otherwise show a prompt to the user.
-							if(helpers.isIterable(metadata.data)){
-							
-								// Add the source file to tha data
-								metadata.data.forEach(function(d){d.__file__ = file.name})
-								
-								
-								// Change any backslashes with forward slashes
-								metadata.data.forEach(function(d){
-									ld.helpers.replaceSlashes(d, "taskId");
-								}) // forEach
-								
-								// Store the data appropriately
-								action(metadata)
-								
-								render();
-							
-							} else {
-								
-								window.alert("Selected .json file must have iterable property `.data'.")
-							} // if
-							
-						}) // d3.json
-						
-					}, // json
-					
-					action: function(actionTag){
-						
-						let action
-						switch(actionTag){
-							case "add":
-								action = cfDataManagement.cfAdd
-							  break
-							  
-							case "replace":
-								action = function(d){
-									// cfInit will totally override the internal data.
-									cfDataManagement.cfInit(d)
-									
-									// Update the session.
-									importExport.helpers.onDataAndSessionChangeResolve()
-								} 
-							  break
-							  
-							default:
-								action = cfDataManagement.cfInit
-							  break
-							
-						} // switch
-						
-						return action
-						
-					}, // action
-					
-				}, // load
-			
-			}, // metadata
-			
-			session : function session(file){
-				// WIP: Must be able to load a session file from anywhere.
-				
-				// DONE: Must load in metadata plots
-
-				// DONE: Must be able to load in data automatically. If the data is already loaded the loading of additional data must be ignored. Or the user should be asked if they want to add it on top.
-				
-				// WIP: Must be able to load without data.
-				
-				// DONE: Must only load json files.
-				
-				// WIP: Must prompt the user if the variables don't include those in loaded data.
-				
-				
-
-				var h = importExport.importing.helpers
-			
-				// Split the name by the '.', then select the last part.
-				var extension = file.name.split(".").pop();
-				
-				// Create a url link to allow files to be loaded fromanywhere on the local machine.
-				var url = window.URL.createObjectURL(file)
-				
-				
-				
-				switch(extension){
-					
-					case "json":
-						d3.json(url).then(function(sessionData){
-							h.assembleSession(sessionData);
-						}) // d3.json
-						break;
-						
-					default:
-						window.alert("Selected file must be .json")
-						break;
-				}; // switch
-				
-			}, // session
-		
-		    line: {
-				
-				createFilePromise: function(file){
-					
-					var i = importExport.importing.helpers
-					
-					// The extension must be either json or csv
-					var extension = file.url.split(".").pop()
-					
-					switch(extension){
-						case "json":
-						
-						   file.promise = d3.json(file.url).then(function(data){
-								file.data = i.json2line( data )
-							}).catch(function(d){
-								console.log("Loading of a file failed.")
-							}) // d3.csv 
-						
-						  break;
-						  
-						  
-						case "csv":
-						
-							file.promise = d3.csv(file.url).then(function(data){
-								file.data = i.csv2line( data )
-							}).catch(function(d){
-								console.log("Loading of a file failed.")
-							}) // d3.csv 
-						
-						  break;
-						
-					} // switch
-					
-					return file
-					
-				}, // createFilePromise
-				
-			}, // line
-		
-			contour2d: {
-				
-				createFilePromise: function(file){
-					
-					var i = importExport.importing.helpers
-					
-					// The extension must be either json or csv
-					var extension = file.url.split(".").pop()
-					
-					switch(extension){
-						case "json":
-						
-						   file.promise = d3.json(file.url).then(function(data){
-								file.data = i.json2contour2d( data )
-								// file.data = i.json2contour2dBin( data )
-							}).catch(function(d){
-								console.log("Loading of a file failed.")
-							}) // d3.csv 
-						
-						  break;
-						
-					} // switch
-					
-					return file
-					
-				}, // createFilePromise
-				
-
-			}, // contour2d
-			
-			
-			helpers: {
-				
-				// METADATA
-				renameVariables: function renameVariables(data, oldVar, newVar){
-						// This function renames the variable of a dataset.
-						for(var j=0; j<data.length; j++){
-							// Have to change the names individually.
-							data[j][newVar] = data[j][oldVar];
-							delete data[j][oldVar];
-						}; // for
-				}, // renameVariable
-				
-				getConvertedValues: function getConvertedValues(metadata){
-					let h = importExport.importing.helpers
-					data = []
-					metadata.forEach(function(d){
-						data.push( h.convertNumbers(d) )
-					})
-
-							
-					return data
-					
-				}, // getConvertedValues
-				
-				convertNumbers: function convertNumbers(row) {
-						// Convert the values from strings to numbers.
-						
-						var r = {};
-						for (var k in row) {
-							r[k] = +row[k];
-							if (isNaN(r[k])) {
-								r[k] = row[k];
-							} // if
-						} // for
-					  return r;
-				}, // convertNumbers
-								
-				replaceSlashes: function replaceSlashes(d, variable){
-						// Replace all the slashes in the variable for ease of handling in the rest of the code.
-						var variable_ = d[variable];
-						d[variable] = variable_.replace(/\\/g, "/");
-						
-				}, // replaceSlashes
-				
-				assignVariables: function assignVariables(variableClassification){
-					
-					// each variable has a category assigned. Assign the variables to the appropriate plots by creating a distribution object.
-					
-					let h = {
-						dataProperties : [],
-					    metaDataProperties : [],
-						line2dProperties : [],
-					    contour2dProperties : []
-					}
-					
-					// Combine in an overall object.
-					
-					
-					variableClassification.forEach(function(varObj){
-						switch(varObj.category){
-							case "Categorical":
-								h.metaDataProperties.push(varObj.colName)
-							  break;
-							case "Ordinal":
-								h.dataProperties.push(varObj.colName)
-							  break;
-							case "Line":
-								h.line2dProperties.push(varObj.colName)
-							  break;
-							case "Contour":
-								h.contour2dProperties.push(varObj.colName)
-							  break;
-							default:
-							  // These are not considered.
-							  break;
-						} // switch
-						
-					})
-					
-					return h
-					
-				}, // assignVariables
-				
-				// SESSION
-				
-				getPlottingFunction: function getPlottingFunction(string){
-					// This only creates a function when there are somne properties for that function to use.
-					var isDataAvailable = dbsliceData.data.dataProperties.length > 0
-					var isMetadataAvailable = dbsliceData.data.metaDataProperties.length > 0
-					var isLine2dDataAvailable = dbsliceData.data.line2dProperties.length > 0
-					var isContour2dDataAvailable = dbsliceData.data.contour2dProperties.length > 0
-					
-					var func;
-					switch(string){
-						case "cfD3BarChart":
-							func = isMetadataAvailable? cfD3BarChart : undefined;
-							break;
-						case "cfD3Histogram":
-							func = isDataAvailable? cfD3Histogram : undefined;
-							break;
-						case "cfD3Scatter":
-							func = isDataAvailable? cfD3Scatter : undefined;
-							break;
-						case "cfD3Line":
-							func = isLine2dDataAvailable? cfD3Line : undefined;
-							break;
-						case "cfD3Contour2d":
-							func = isContour2dDataAvailable? cfD3Contour2d : undefined;
-							break;
-							
-						default :
-							func = undefined;
-							break;
-					}; // switch
-					return func;
-					
-				}, // getPlottingFunction
-				
-				assemblePlots: function assemblePlots(plotsData, plotRow){
-					
-					var h = importExport.importing.helpers
-					
-					// Assemble the plots.
-					var plots = [];
-					plotsData.forEach(function(plotData){
-						
-						var f = h.getPlottingFunction(plotData.type)
-						
-						if(f != undefined){
-						
-							var plotToPush = f.helpers.createLoadedControl(plotData)
-							
-							// Position the new plot row in hte plot container.
-							positioning.newPlot(plotRow, plotToPush)
-						
-							plotRow.plots.push(plotToPush);
-							
-						} else {
-							// The plotData type is not valid
-							window.alert(plotData.type + " is not a valid plot type.")
-							
-							
-						} // if
-						
-						
-					}); // forEach
-					
-					return plotRow;
-					
-				}, // assemblePlots
-				
-				assemblePlotRows: function assemblePlotRows(plotRowsData){
-					
-					var h = importExport.importing.helpers
-					
-					// Loop over all the plotRows.
-					var plotRows = [];
-					plotRowsData.forEach(function(plotRowData){
-						var plotRowToPush = {title: plotRowData.title, 
-											 plots: [], 
-											  type: plotRowData.type,
-											  grid: {nx: 12, ny: undefined},
-									 addPlotButton: {label : "Add plot"}   }
-									
-						// Assemble hte plots 
-						plotRowToPush = h.assemblePlots(plotRowData.plots, plotRowToPush)
-									
-						plotRows.push(plotRowToPush);
-					})
-					
-					return plotRows;
-					
-				}, // assemblePlotRows
-				
-				assembleSession: function assembleSession(sessionData){
-					
-					var h = importExport.importing.helpers
-				
-					// Check if it is a session file!
-					if (sessionData.isSessionObject === "true"){
-						
-						// To simplify handling updating the existing plot rows, they are simply deleted here as the new session is loaded in. Not the most elegant, but it gets the job done.
-						// This is done here in case a file that is not a json is selected.
-						d3.select("#" + dbsliceData.elementId).selectAll(".plotRow").remove();
-						
-						
-						var plotRows = h.assemblePlotRows(sessionData.plotRows);
-						
-						// Finalise the session object.
-						var session = {
-							title : sessionData.title,
-							plotRows: plotRows
-						};
-						
-						// Store into internal object
-						dbsliceData.session = session;
-						
-						// Render!
-						render()
-						
-					} else {
-						window.alert("Selected file is not a valid session object.")
-					}; // if
-					
-				}, // assembleSession
-				
-				
-				// ON-DEMAND VARIABLES
-				handlePropertyNames: function handlePropertyNames(properties){
-			
-					// NOTES
-					// First of all it is important to observe that the _ separates both property name parts, as well as the variable name parts (e.g. it separates the units from the flow property names). This also means that once separated by _ the names can have different amounts of substrings.
-					
-					// Also note that the bl param file and the distribution files MUST specify bot hthe x and y coordinates of all lines (see notes above). Therefore it is relatively safe to assume that they will have an 'x' and 'y' token in their names. It is also likely that these will be the last tokens.
-					
-					// If it is assumed that all the properties follow the same naming structure, and that the hierarchy follows along: height - side - property - coordinate, then the variables can be handled after the split from radial file names has been made. This can be made if it is found that no tokens are the same.
-					
-					// For every nested part the flow variables should reappear n-times, where n is the number of different nesting parts. What if a property is missing from just a single height?
-					
-					// QUESTIONS:
-					// NOTE: parsing all the files in a folder from the browser is not possible. A 'dir' file could be written, but it defeats the purpose. If file selection rules are created to access the files (taskId + token + token, ...) then any tasks without those files will produce errors on loading. Furthermore, appropriate files will have to be provided to include them, which will possibly become misleading. Furthermore, this complicates attempts to visualise tasks with slightly different file naming systems/folder structure.
-					
-					// Q: What should the files containe (e.g. each file a different line, each file a different variable at different locations, each file all variables at a single position)?
-					// A: 
-					// 1.) If each file contains a different line then the user will have to select the data to be loaded from a large list of possibilities, in this case 168. Thius could be simplified by allowing the user to pick parts of the name from a list, but that would be awkward. In essence, something like that is being done now anyway, but having the options moved to different controls.
-					// 2 & 3.) Different file data separations would then require appropriate interpreters. This would also require even more entries into the metadata such that these files could be located. In this case there are already 6*23 files, and this is after (!) many of the files have been combined. Originally there were 19*23 files to pick from. If each line had an individual file there would be tens of thousands of them.
-					
-					// Q: Where should the data transformation take place (on load, after loading but before drawing, or on draw)?
-					// A: 
-					// On draw: The d3 process will assign data to the DOM object on the screen. If the dat ais transformed before the plotting it means that the entire transformed file data will be assigned to an individual line on plotting. This could end up using a lot of memory. It is therefore preferred if the data is already transformed when passed to the plotting, such that only the relevant data may be stored with the object.
-					// After loading but before drawing: keeping the file in the original state is ideal if the same file should be used as a data source for several plotting functions. Alternately the functions should use the same input data format, which they kind of have to anyway. Another option is to just transform the data before it is passed to the drawing, but this requires a lot of redundant transforming, which would slow down the app. The issue of differentiating between the parameters is present anyway.
-					// On loading: It is best to just transform the data upon load. The it is accessible for all the plotting functions immediately. The transofrmation should be general.
-					
-					
-					
-					// Tags could be identified by checking if all variables have them. If they don't a particular item is not a tag. The rule would therefore be that everything between tags belongs to a particular tag. Only 'x', and 'y' at the end would be needed to complete the rule.
-					
-					
-					// METHOD
-					// 1.) Create an array of name property objects. These should include the original name, and its parts split by '_'. Token indexes are allowed to facilitate different lengths of values between individual tokens.
-					var properties_ = createPropertyObjects(properties)
-					
-					// 2.) Now that all the parts are know search for any tokens. A TOKEN is a common property name part. 'tokens' is an array of strings. 
-					var userTokens = findUserTokens( properties_ )
-					
-
-					// Also look for any expected common tokens that might not have been properly specified, like 'ps':'ss', or 'x','y'. These not need be parts of the variable name, if they are present in all of the properties. If they are not they will be left in the property names.
-					// The common tokens need to be handled separately, as they allow more than one option for the position.
-					// The common tokens cannot be added into the token array directly in this loop, as it is possible that one of the subsequent elements will have it missing. Also, what happens if the name for some reason includes more than one token of of the expected values? Just add all of them.
-					var commonTokens = findCommonTokens( properties_ )
-					
-						
-					// 3.) With the tokens known, find their positions in each of the properties, and make the appropriate token options.
-					properties_.forEach(function(p){
-					
-						handleUserTokens(  p, userTokens  )
-						handleCommonTokens(p, commonTokens)
-						
-						// The tokens have now been handled, now get the remainder of the variable name - this is expected to be the flow property.
-						handleFlowPropertyName(p)
-						
-					}) // forEach
-					
-					// Change the common tokens into an array of string options.
-					commonTokens = commonTokens.map(function(o){return o.name})
-					
-					// Return the properties as split into the tokens etc., but also which additional options are available to the user, and which are common and handled internally.
-					
-					// Unique user token values ARE stored here. They only indicate which nests are available in the file. For now only one nest is specified, therefore combinations of different ones are not strictly needed, but it would expand the functionality of the code (for e.g. boundary layer profile plotting, or velocity profiles in general)
-					
-					
-					// IMPORTANT NOTE: If a particular subnest does not branch into exactly all of the possibilities of the other subnests, then the order of selecting the tags becomes very important, as it can hide some of the data from the user!!
-					
-					// Common tokens are only stored so that the internal functionality might realise how the properties should be assembled when the data is being accessed for plotting
-					
-					var type = getVariableDeclarationType( commonTokens )
-					
-					
-					removeRedundantPropertyFromObjectArray(properties_, "_parts")
-					return {properties: properties_,
-						   userOptions: getTokenWithOptions(properties_, userTokens),
-						 commonOptions: getTokenWithOptions(properties_, commonTokens),
-							varOptions: getFlowVarOptions(properties_, type),
-								  type: type
-						 }
-						 
-						 
-					// handlePropertyNames HELPER FUNCTIONS:
-					
-					function createPropertyObjects(properties){
-						// 'properties' is an array of strings. The output is an array of objects that will be the backbone of the file's data structure.
-					
-						return properties.map(function(p){
-							
-							// trim the preceding or trailing blank spaces off.
-							
-							// Name handling is going to work poorly if all variables share a part, but it actually doesn't mean anything...
-							return {val: p,
-							_parts: p.split("_")}
-						})
-					
-					} // createPropertyObjects
-					
-					function findUserTokens( properties_ ){
-						// Input is the array produced by 'splitPropertyNames'. Output is a filter array of the same class.
-						
-						// The initial sample of possible tokens are the parts of the first name. Tokens MUST be in all the names, therefore loop through all of them, and retain only the ones that are in the following ones.
-						
-						var tokens = properties_[0]._parts
-						if(tokens.length > 1){
-							// If the first name has more than 1 part, there may be tokens available.
-							properties_.forEach(function(p){
-							tokens = tokens.filter(function(candidate){ 
-								return p._parts.includes(candidate)
-								}) // forEach
-							}) // forEach
-						} else {
-							// No tokens available
-							tokens = []
-						} // if
-						
-						
-						// There may be some tokens in there that are comment tokens. For now this is implemented to hande the decimal part of the height identifiers, which are '0%'.
-						
-						// Should this be more precise to look for percentage signs in the first and last places only?
-						tokens = removeCommentTokens(tokens, ["%", "deg"])
-						
-						return tokens
-					
-					} // findUserTokens
-					
-					function removeCommentTokens(tokens, commentIdentifiers){
-						// Removes any tokens that include any character in the commentIdentifiers array of characters.
-						commentIdentifiers.forEach(function(commentIdentifier){
-							// Perform the filter for this identifier.
-							tokens = tokens.filter(function(token){
-								return !token.split("").includes(commentIdentifier)
-							}) // filter
-						}) // forEach
-						return tokens
-					
-					} // removeCommentTokens
-					
-					function findCommonTokens( properties_ ){
-						// Input is the array produced by 'splitPropertyNames'. Output is a filter array of the same class.
-						
-						// Common tokens allow a single line to be specified by several variables. 
-						
-						// The "ps"/"ss" aplit does not offer any particular advantage so far. 
-						// The "x"/"y" split allows for hte lines to be specified explicitly, as opposed to relying on an implicit position variabhle. This is useful when the flow properties ofr a particular height or circumferential position are not calculated at the same positions (e.g. properties calculated on separate grids).
-					
-						// The common tokens are hardcoded here.
-						var commonTokens = [{name: "side", value: ["ps", "PS", "ss", "SS"]},
-											{name: "axis", value: ["x" , "X" , "y" , "Y" ]}]
-						
-						// Search for the common tokens
-						properties_.forEach(function(p){
-							commonTokens = commonTokens.filter(function(token){
-								var containsPossibleValue = false
-								token.value.forEach(function(v){
-									containsPossibleValue = containsPossibleValue | p._parts.includes(v)
-								}) // forEach
-								return containsPossibleValue
-							}) // forEach
-						}) // forEach
-						
-						// Here the token is returned with the specified array of expected values. This allows the code to handle cases in which the specified common tokens are a mix of lower and upper case options.
-						
-						return commonTokens
-					
-					} // findCommonTokens
-					
-					function getTokenWithOptions(properties_, tokens){
-					
-						return tokens.map(function(token){
-							// Loop over the properties, and assemble all the possible values for this particular token. The options of the properties have to be read through their tokens array at the moment.
-							var allVals = properties_.map(function(p){
-								// First find the appropriate token.
-								return p[token]
-							}) // map
-							
-							return {name: token,
-								 options: helpers.unique( allVals ) }
-							
-						})
-					
-					} // getUserTokens
-					
-					function handleUserTokens(p, tokens){
-						// For a given property object 'p', find where in the name the user specified tokens are, and which user specified values belong to them. Push the found name value pairs into p.tokens as an object.
-					
-						// Find the indices of the individual tokens.
-						var ind = []
-						tokens.forEach(function(token){
-							ind.push( p._parts.indexOf(token) )
-						})
-						
-						// Sort the indices - default 'sort' operates on characters. https://stackoverflow.com/questions/1063007/how-to-sort-an-array-of-integers-correctly
-						ind.sort(function(a,b){return a-b;});
-						
-						// Indices are sorted smallest to largest, so now just go through the parts to assemble the tokens and the options.
-						ind.forEach(function(ind_){
-							// 'i' is the index of a particular token in the parts of the variable, 'j' is the position of 'i' in the index array.
-							
-							// As we are splicing from the array for easier identification of the variable name later on, the index will have to be found again every time.
-							var t = p.val.split("_")[ind_]
-							var start = 0
-							var n = p._parts.indexOf( t )
-							
-							// Add teh appropriate properties to the property object.
-							p[ t ] = p._parts.splice( start, n ).join("_")
-							
-							// Splice out the token name
-							p._parts.splice( p._parts.indexOf(t), 1 )
-						})
-					
-					
-					} // handleUserTokens
-					
-					function handleCommonTokens(p, tokens){
-						// Here the tokens that are found are converted to lower case for consistency.
-					
-						// Handle the commonly expected tokens.
-						tokens.forEach(function(token){
-							
-							var values = []
-							p._parts.forEach(function(v){
-								if ( token.value.includes( v ) ){
-									values.push( v.toLowerCase() )
-								} // if
-							}) // forEach
-							
-							// Splice all the values out of the parts.
-							values.forEach(function(v){
-								p._parts.splice( p._parts.indexOf(v),1)
-							}) // forEach
-							
-							
-							// Here it is allowed that more than one common token value is present in a variable. This shouldn't happen, but it is present anyway.
-							p[token.name] =  values.join("_")
-						}) // forEach
-					
-					} // handleCommonTokens
-					
-					function handleFlowPropertyName(p){
-						// Whatever is left of the parts is the variable name. What about when it is empty? Just leave it empty?
-						
-						// What to do with possible blank spaces in the name?
-						
-						
-						
-						p.varName = p._parts.join("_") == "" ? p.axis : p._parts.join("_")
-					
-					} // getFlowPropertyName
-					
-					function removeRedundantPropertyFromObjectArray(A, property){
-						
-						A.forEach(function(O){
-							delete O[property]
-						})
-					
-					} // removeRedundantPropertyFromObjectArray
-					
-					function getVariableDeclarationType( commonTokens ){
-						
-						return commonTokens.includes("axis")? "explicit" : "implicit"
-					
-					} // getVariableDeclarationType
-									
-					function getFlowVarOptions(properties_, type){
-						// 'getFlowVarOptions' sets up which properties this plot can offer to the x and y axes. This can also be used to assign the accessors to the data!
-						
-						var option = {}
-						var varOptions = getTokenWithOptions(properties_, ["varName"])
-						varOptions = varOptions[0]
-						
-						
-						
-						switch(type){
-							case "implicit":
-								// Implicit variables can be available on both axes.
-								option = {x: varOptions, y: varOptions}
-								break;
-						
-							case "explicit":
-								// Explicit variables can be available on only one axes.
-								var dummyOption = {
-									name: "x",
-									options: ["x"]
-								}
-								option = {x: dummyOption, y: varOptions}
-								break;
-						
-						} // switch
-						
-						return option
-					
-					} // getFlowVarOptions
-					
-				}, // handlePropertyNames
-				
-				
-				// CFD3LINE
-				json2line: function json2line(data){
-					// json are assumed to have only one series, with several properties possible per series.
-					
-					let h = importExport.importing.helpers
-					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
-					
-					// Collect the json variable names differently? 
-					// The json file can also contain both implicit and explicit type of data.
-					
-					// 1 - fully curated json file - load straight in as is
-					// 2 - 'csv' json file - parse as csv file. For this there must be a variables property in the file.
-					let isJsonCsvFormatted = data.variableNames != undefined
-					if( isJsonCsvFormatted ){
-						// In this case parse the variable names, and then handle the data.
-						var info = h.handlePropertyNames( data.variableNames )
-						info.properties = h.formatLineData(info, data.data)
-					} else {
-						
-						// Filter out anything that does not have an array attached!!!
-						let propertyNames = Object.getOwnPropertyNames(data)
-						propertyNames = propertyNames.filter(function(name){
-							return Array.isArray(data[name])
-						})
-						
-						// Must be an appropriately formatted json file.
-						var info = h.handlePropertyNames( propertyNames )
-						// Clear the common options:
-						info.commonOptions = []
-						info.type = "explicit"
-						info.properties.forEach(function(p){
-							p.vals = data[p.varName]
-						})
-						
-						var dummyOption = {
-							name: "x",
-							options: ["x"]
-						}
-						info.varOptions.x = dummyOption
-						
-						// Now data is supposed to be an array of properties!!
-					} // if
-					
-					
-					
-					// ALREADY HERE CREATE THE ROW DATA THAT CAN BE PASSED INTO PLOTTING.
-					// The data should be in rows. But what happens in cases where there cannot be rows? In the case of explicit variables create the series here already.
-					
-					// If there are no common options
-				
-					// Keep the data in rows - this is a more natural storage considering that d3.line requests points as separate objects.
-					
-					
-					
-					return info
-					
-				}, // json2line
-				
-				csv2line: function csv2line(data){
-					
-					let h = importExport.importing.helpers
-					// The first element in the 'data' array is the first row of the csv file. Data also has a property 'colums', which lists all the column headers.
-					var info = h.handlePropertyNames( data.columns )
-					
-					
-				
-					// Keep the data in rows - this is a more natural storage considering that d3.line requests points as separate objects.
-					info.properties = h.formatLineData(info, data)
-					
-					
-					
-
-					// Implement the accessors, and handle the difference between split properties, and single properties! Note that if the file has any common options (ps/ss. x/y) then this is a split variable file. This should be used as the test!
-					
-					
-					return info
-					
-				
-				}, // csv2line
-				
-				formatLineData: function formatLineData(info, data){
-					// This is still a bit of a mess. Write a library that is capable of handling all sorts of mixes of variables.
-					
-					
-					// Create the series.
-					var series
-					switch( info.type ){
-						case "explicit":
-							// Explicit means that there is a separation between x and y properties in the variable names.
-							
-							
-							
-							var f = helpers.findObjectByAttribute
-
-							// Available properties after applying all the options.
-							// Retrieve the properties
-							var properties = info.properties
-							
-							
-
-							// Get all combinations of user options and flow variable options
-							var combinations = getAllOptionCombinations([].concat(info.userOptions, info.varOptions.y))
-							
-							// Loop over all the combinations
-							combinations.forEach(function(c){
-						
-								// Merge the properties for this combination to eliminate the axis or side options.
-								mergeProperties(data, info, c)
-
-							}) // forEach
-							
-							
-							// Remove any properties that do not exist.
-							series = combinations.filter(function(d){
-								return d.vals != undefined
-							})
-
-							
-						
-							
-							
-
-						
-						  break;
-						  
-						case "implicit":
-							// Data cannot be expressed in x-y pairs, as that would require creating all possible combinations of the parameters. Instead all the variables are stored, and the accessor to the data can be changed.
-							series = data
-						
-					} // if
-					
-					
-					return series
-					
-					
-					function getAllOptionCombinations(options){
-						
-						var n = 1
-						options.forEach(function(option){
-							n *= option.options.length
-						})
-						
-						// Repetition frequencies.
-						var nn = []
-						options.forEach(function(option, j){
-							nn[j] = j==0 ? n / option.options.length : nn[j-1] / option.options.length
-						})
-						
-						
-						// Create all possible combinations of these options.
-						var combinations = []
-						// var ind = options.map(d=>0)
-						for(let i=0; i<n; i++){
-							var c = {}
-							
-							var i_ = i
-							
-							// Move from the other direction.
-							options.forEach(function(option, j){
-								let m = Math.floor( i_ / nn[j] )
-								i_ -= m*nn[j]
-								// ind[j] =  m
-								
-								c[option.name] = option.options[m]
-							})
-							
-							combinations.push(c)
-						
-							
-						} // for
-						
-						return combinations
-						
-						
-					} // getAllOptionCombinations
-					
-					function mergeProperties(data, info, c){
-						// Handle cases where there is x and y separation, but no ps and ss separation, and vice versa.
-						
-						// if there's no x and y separation the data is implicitly defined.
-						
-						var properties = info.properties
-						Object.getOwnPropertyNames(c).forEach(function(cOptName){
-							properties = f( properties, cOptName, c[cOptName], false)
-						}) // forEach
-						
-						// Assign the data to the properties first, and then merge them as needed.
-						properties.map(function(property){
-							property.vals = data.map(function(d){ return Number( d[property.val] ) })
-						})
-						
-						// At this point the only differences can be x/y and ps/ss.
-						switch(properties.length){
-							case 4:
-							
-								var xProperties = f(properties,"axis","x",false)
-								var yProperties = f(properties,"axis","y",false)
-							
-								var xSS = f(xProperties,"side", ["ss"], true)
-								var xPS = f(xProperties,"side", ["ps"], true)
-								var ySS = f(yProperties,"side", ["ss"], true)
-								var yPS = f(yProperties,"side", ["ps"], true)
-								
-								var ss = data.map(function(d){
-									return {x: Number( d[xSS.val] ), 
-											y: Number( d[ySS.val] )} })
-								var ps = data.map(function(d){
-									return {x: Number( d[xPS.val] ), 
-											y: Number( d[yPS.val] )}  })
-								
-								c.vals = ss.concat(ps.reverse())
-							
-							  break;
-							  
-							case 2:
-								// Type = 'explicit' means that the separation is done by axis.
-								
-									// Combine x and y properties
-									var x = f(properties,"axis","x",true)
-									var y = f(properties,"axis","y",true)
-									
-									c.vals = data.map(function(d){
-										return {x: Number( d[x.val] ), 
-												y: Number( d[y.val] )} })
-								
-							  break;
-							  
-							default: 
-							  // This combination does not exist, or is mis-defined.
-							  c.vals = undefined
-						} // switch
-						
-					} // mergeVariables
-					
-
-					
-				}, // formatLineData
-	
-				// CFD3CONTOUR2D
-				json2contour2d: function json2contour2d(data){
-					
-					// For 2d contours the surfaces attribute has a single object. For 3d contours it has an array of surfaces. In `json2contour3d' the property names will have to be differentiated into options.
-					
-					// Don't check the property names. The data of the entire domain is too large to be loaded at once.
-					data.surfaces = data.surfaces[0]
-					
-					return {
-						properties: Object.getOwnPropertyNames(data.surfaces),
-						vals: data
-					}
-					
-				}, // json2contour2d
-					
-				json2contour2dBin: function json2contour2dBin(json){
-					
-					let x = json.surfaces.x
-					let y = json.surfaces.y
-					let size = json.surfaces.size
-					let values = json.surfaces.v
-					
-
-					// Create values, indices, vertices.
-					
-					
-					let vertices = []
-					for(let i=0; i<x.length; i++){
-						vertices.push( x[i] )
-						vertices.push( y[i] )
-					} // for
-					
-					// It's a structured mesh in this case, but in principle it could be unstructured. The vertices are declared in rows.
-					let nx = size[0]
-					let ny = size[1]
-					
-					function grid2vec(row, col){ return row*nx + col }
-		
-					let indices = []
-					let ne, nw, sw, se
-					// Create indices into the `vertices' array
-					for(let row=0; row<ny-1; row++){
-						for(let col=0; col<nx-1; col++){
-							// For every row and column combination there are 4 vertices, which make two triangles - the `upper' and `lower' triangles. 
-							
-							// Corners on a grid. Just the sequential number of the vertex.
-							nw = grid2vec( row    , col     )
-							ne = grid2vec( row    , col + 1 )
-							sw = grid2vec( row + 1, col     )
-							se = grid2vec( row + 1, col + 1 )
-							
-							// `upper'
-							indices.push(sw, nw, ne)
-
-							// `lower'
-							indices.push(sw, se, ne)
-						
-						} // for
-					} // for
-					
-					
-					
-					return {
-						vertices: new Float32Array(vertices),
-						  values: new Float32Array(values),
-						 indices: new Uint32Array(indices),
-						 domain: {x: d3.extent(x),
-								  y: d3.extent(y),
-								  v: d3.extent(values)}
-					}
-					
-					
-					
-				}, // json2contour2dBin
-				
-			} // helpers
-			
-		}, // loadData
-		
-		exporting : {
-			
-			session : {
-			
-				// USE JSON.stringify()? - in that case properties need to be selected, but the writing can be removed. This is more elegant.
-				json: function json() {
-					// This function should write a session file.
-					// It should write which data is used, plotRows, and plots.
-					// Should it also write the filter selections made?
-
-					var sessionJson = '';
-					write('{"isSessionObject": "true", ');
-					write(' "title": "' + dbsliceData.session.title + '", ');
-					write(' "plotRows": [');
-
-					var plotRows = dbsliceData.session.plotRows
-					plotRows.forEach(function (plotRow, i) {
-						
-						var plotRowString = writePlotRow(plotRow);
-						write(plotRowString);
-
-						if (i < plotRows.length - 1) {
-							write(', ');
-						} // if
-
-					}); // forEach
-
-					write("]");
-					write('}');
-
-					function write(s) {
-						sessionJson = sessionJson + s;
-					} // write
-
-
-					function writePlotRow(plotRow) {
-						
-						var s = "{";
-						s = s + '"title": "' + plotRow.title + '", ';
-						s = s + '"type": "' + plotRow.type + '", ';
-						s = s + '"plots": [';
-						
-						plotRow.plots.forEach(function (plot, i) {
-							
-						  // Let the plot write it's own entry.
-						  s = s + plot.plotFunc.helpers.writeControl(plot)
-
-						  if (i < plotRow.plots.length - 1) {
-							s = s + ', ';
-						  } // if
-
-						}); // forEach
-
-						s = s + ']';
-						s = s + '}';
-						return s;
-						
-						
-						
-					} // writePlotRow
-
-
-				  return sessionJson;
-				  
-				  
-				  // HELPERS
-				  function writeOptionalVal(s, name, val){
-							
-					if (val !== undefined) {
-					  s = s + ', ';
-					  s = s + '"' + name + '": "' + val + '"';
-					} // if
-					
-				  } // writeOptionalVal
-				  
-				  function accessProperty(o,p){
-					  // When accessing a property of the child of an object it is possible that the child itself is undefined. In this case an error will be thrown as a property of undefined cannot be accessed.
-					  // This was warranted as the line plot has it's x and y options left undefined until data is laoded in.
-					  return o==undefined? undefined : o[p]
-				  } // accessProperty
-				  
-				}, // json
-				
-				makeTextFile: function makeTextFile(text) {
-					var data = new Blob([text], {
-						type: 'text/plain'
-					}); 
-					
-					var textFile = null;
-					// If we are replacing a previously generated file we need to
-					// manually revoke the object URL to avoid memory leaks.
-					if (textFile !== null) {
-						window.URL.revokeObjectURL(textFile);
-					} // if
-
-					textFile = window.URL.createObjectURL(data);
-					
-				  return textFile;
-				}, // makeTextFile
-				
-				
-			}, // session
-			
-		}, // exporting
-
-		
-		
-		
-		helpers : {
-			
-			
-			collectPlotProperties: function collectPlotProperties(plot){
-				
-				var plotProperties = []
-				
-										
-				if( plot.view.xVarOption !== undefined ){
-					plotProperties.push( plot.view.xVarOption.val )
-				} // if
-				
-				if( plot.view.yVarOption !== undefined ){
-					plotProperties.push( plot.view.yVarOption.val )
-				} // if
-				
-				if( plot.view.sliceId !== undefined ){
-					plotProperties.push( plot.view.sliceId )
-				} // if
-				
-				return plotProperties
-				
-			}, // collectPlotProperties
-			
-			isPlotCompatible : function isPlotCompatible(plot){
-				// Collect all the variables in the current plots (by type!), the variables in the current data, and return them.
-				// If there is a variable in th eplot, but not in hthe new data it must either be given, or the plot needs to be removed.
-		
-				var plotProperties = importExport.helpers.collectPlotProperties(plot)
-				
-				var arePropertiesAvailable = plotProperties.map(function(p){
-					return cfDataManagement.helpers.isPropertyInDbsliceData(p)
-				}) // map
-				
-				// All properties need to be available
-			  return arePropertiesAvailable.every(d=>d)				
-			}, // isPlotCompatible
-			
-
-			onDataAndSessionChangeResolve : function onDataAndSessionChangeResolve(){
-				// The data dominates what can be plotted. Perform a check between the session and data to see which properties are available, and if the plots want properties that are not in the data they are removed.
-
-				
-				// Loop through all incompatible properties, and remove the plots that are not needed.
-				dbsliceData.session.plotRows.forEach(function(plotRow){
-					plotRow.plots = plotRow.plots.filter(function(plot){
-						
-						
-						var isPlotCompatible = importExport.helpers.isPlotCompatible(plot)
-			
-						// Render doesn't remove the plots anymore, so they need to be removed here!
-						if( !isPlotCompatible ){
-							plot.format.wrapper.remove()
-						} else {
-							
-							console.log("Update the select menus.")
-							
-						} // if
-						
-			
-					  return isPlotCompatible
-						
-					}) // map
-				}) // forEach
-				
-
-			} // onDataChangeResolve
-
-			
-			
-			
-		} // helpers
-		
-	} // importExport
+    
 
 
     exports.initialise = initialise;
-
+	exports.dbsliceData = dbsliceData;
 
     return exports;
 

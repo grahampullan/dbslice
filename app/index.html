@@ -9,38 +9,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> 
 
 
+<link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+
+<!-- CSS -->
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css">
-<!--link rel="stylesheet" href="http://dbslice.org/dbslice.css"-->
 <link rel="stylesheet" href="/src/style/dbslice.css">
 
-<link rel="icon" type="image/x-icon" href="/favicon.ico"/>
 
 
 <!-- Bootstrap requires jQuery! -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
 
-<!-- BOOTSTRAP REQUIRES JQUERY!! -->
+
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js"></script>
   
-<script src="https://d3js.org/d3.v5.min.js"></script>
+
 <script src="https://cdn.rawgit.com/crossfilter/crossfilter/master/crossfilter.js"></script>
 
 <!-- d3 -->
+<script src="https://d3js.org/d3.v5.min.js"></script>
 <script src="https://d3js.org/d3-contour.v1.min.js"></script>
 <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+
+
 
 <!-- Tooltip code -->
 <script src="http://dbslice.org/d3-tip.js"></script>
 
 
-<!-- NEW gl-matrix, twgl -->
-<script src="node_modules//gl-matrix//gl-matrix-min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/twgl-base.js@4.8.2/dist/4.x/twgl.min.js"></script>
-
 <!-- dbslice source data -->
-<script type='text/javascript' src="/build/dbslice_rrd.js"></script>
+<script type='text/javascript' src="/build/dbslice.js"></script>
+
+
+
+<!-- Add icon library -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
 
 </head>
@@ -50,36 +57,68 @@
 
 
 
+<!-- The APP backbone. Try to separate the functionality from the html as much as possible. Add teh header here: some buttons need to be added here. -->
+<div class="container-fluid" id="target" style="position: absolute; height: 100%;">
+	<div id="sessionHeader">
+		<div class="col-md-12">
+			<br>
+			<h1 id="sessionTitle" style="display: inline;" spellcheck="false" contenteditable="true">New dbslice session!</h1>
+			<p id="sessionSubtitle"></p>
+			
+			<div >
+				<p id="filteredTaskCount" style="display: inline;"></p>
+				
+				<button id="refreshTasksButton" class="btn btn-success float-right">Plot Selected Tasks</button>
+			</div>
+			
+			
+			
+			<br>
+			<br>
+			
+			
+			
+			<div id="sessionOptions" class="btn-group float-right" style="display: inline;">
+				<button id="sessionOptionsButton" type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria=expanded="false">Session options</button>
+				<div class="dropdown-menu">
+					
+				</div>
+			</div>
+			
+			<br>
+			<br>
+			
+		</div>
+	</div>
+	
+	<div id="sessionBody"></div>
+	
+	<div id="sessionFooter">
+		<button id="addPlotRowButton" class="btn btn-info btn-block">+</button>
+	</div>
 
-<div class="container-fluid" id="target"> </div>
+</div>
 
-<!-- Containers for variable handling and loading reports. -->
-<div class="fullscreen-container report-container" style="display: none;"></div>
-<div class="fullscreen-container variable-container" style="display: none;"></div>
+<!-- Containers for variable handling and loading reports. NOTE: it is important that the report container is below the merging container!! -->
+<div id="merging-container" class="fullscreen-container" style="display: none;"></div>
+<div id="report-container" class="fullscreen-container" style="display: none;"></div>
 
 
 <script>
 
 
 	var session = { 
-			title : "Axial compressor stator design",
-			plotRows : [],
-			plotTasksButton: true
-		};
+		title : "Axial compressor demo",
+		plotRows : [],
+		elementId: "target"
+	};
 
-	var data = { header : { metaDataProperties : [],
-								dataProperties : [],
-								sliceProperties: []
-						  },
-				 data	: []		
-			   };
-
-	dbslice.initialise ("target", session, data, { plotTasksButton : true } );
-	
-	// SUBTRACT COLORS TO GET THE TRUE CORNFLOWRBLUE COLOR FOR BARCHARTS.
-	
+	dbslice.initialise (session);
 
 </script>
+
+
+
 
 </body>
 </html>

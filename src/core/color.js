@@ -1,6 +1,3 @@
-import { dbsliceData } from './dbsliceData.js'
-
-
 var color = {
 		// The color controls should probably be moved to a single location, i.e. a single button on a toolbar somewhere. Maybe create a floating top toolbat to control all general behaviour.
 		
@@ -55,7 +52,7 @@ var color = {
 					
 					
 					// do the render so that all plots are updated with the color.
-					render()
+					sessionManager.render()
 					
 					
 					function toggleAllColorSubmenuItems(){
@@ -106,7 +103,7 @@ var color = {
 			var palette = color.defaultPalette
 			
 			var colorIsChosen = color.settings.scheme != undefined
-			var keyIsValid    = color.settings.val == undefined? false : dbsliceData.data.metaDataUniqueValues[color.settings.val].includes(key)
+			var keyIsValid    = color.settings.val == undefined? false : dbsliceData.data.categoricalUniqueValues[color.settings.val].includes(key)
 			
 			if( colorIsChosen && keyIsValid ){
 				palette = color.colorPalette
@@ -119,6 +116,3 @@ var color = {
 		
 		
 	} // crossPlotColoring
-
-
-export { color };

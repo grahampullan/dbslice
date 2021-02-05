@@ -1,10 +1,3 @@
-import { filter } from '../core/filter.js';
-import { color } from '../core/color.js';
-import { render } from '../core/render.js';
-import { dbsliceData } from '../core/dbsliceData.js';
-import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
-import { plotHelpers } from '../plot/plotHelpers.js';
-
 var cfD3BarChart = {
 		
 		
@@ -30,7 +23,7 @@ var cfD3BarChart = {
 			
 			// Handle the select.
 			var i= cfD3BarChart.interactivity.onSelectChange
-			plotHelpers.setupPlot.general.appendVerticalSelection(ctrl.figure.select(".leftAxisControlGroup"), i.vertical(ctrl))
+			plotHelpers.setupPlot.general.appendVerticalSelection(ctrl.figure, i.vertical(ctrl))
 			plotHelpers.setupPlot.general.updateVerticalSelection(ctrl)
 			
 			
@@ -359,7 +352,7 @@ var cfD3BarChart = {
 						ctrl.view.yVarChanged = true
 			
 						// Render is called because the filter may have changed.
-						render()			
+						sessionManager.render()			
 					
 					} // return
 				}, // vertical
@@ -384,7 +377,7 @@ var cfD3BarChart = {
 				    filter.apply();
 				  
 				    // Everything needs to b rerendered as the plots change depending on one another according to the data selection.
-				    render();
+				    sessionManager.render();
 					
 				} // onClick
 				
@@ -462,7 +455,7 @@ var cfD3BarChart = {
 						}
 				} // ctrl
 				
-				var options = dbsliceData.data.metaDataProperties
+				var options = dbsliceData.data.categoricalProperties
 				ctrl.view.yVarOption = {name: "varName",
 					                     val: options[0],
 								     options: options}
@@ -479,7 +472,7 @@ var cfD3BarChart = {
 				
 				// If the x and y properties were stored, and if they agree with the currently loaded metadata, then initialise them.
 				if(plotData.yProperty != undefined){
-					if( dbsliceData.data.metaDataProperties.includes(plotData.yProperty) ){
+					if( dbsliceData.data.categoricalProperties.includes(plotData.yProperty) ){
 						ctrl.view.yVarOption.val = plotData.yProperty
 						ctrl.view.gVar =           plotData.yProperty
 					} // if						
@@ -611,8 +604,8 @@ var cfD3BarChart = {
 				
 				// Make the subgroup the graphic basis, and plot it directly. Then make sure that the grouping changes are handled properly!!
 				
-				var groupVals = dbsliceData.data.metaDataUniqueValues[groupKey]
-				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.metaDataUniqueValues[subgroupKey]
+				var groupVals = dbsliceData.data.categoricalUniqueValues[groupKey]
+				var subgroupVals = subgroupKey == undefined ? [undefined] : dbsliceData.data.categoricalUniqueValues[subgroupKey]
 				
 				// Loop over them to create the rectangles.
 				var items = []
@@ -650,7 +643,7 @@ var cfD3BarChart = {
 			
 			getFilteredItems: function getFilteredItems(property){
 				
-				var tasks = dbsliceData.data.metaDims[property].top(Infinity)
+				var tasks = dbsliceData.data.categoricalDims[property].top(Infinity)
 				
 				return cfD3BarChart.helpers.getItems(tasks, property, undefined)
 				
@@ -658,7 +651,7 @@ var cfD3BarChart = {
 			
 			getFilteredItemsGrouped: function getFilteredItemsGrouped(property){
 				
-				var tasks = dbsliceData.data.metaDims[property].top(Infinity)
+				var tasks = dbsliceData.data.categoricalDims[property].top(Infinity)
 				
 				return cfD3BarChart.helpers.getItems(tasks, property, color.settings.variable)
 				
@@ -731,6 +724,3 @@ var cfD3BarChart = {
 		} // helpers
 	
 	}; // cfD3BarChart
-
-
-export { cfD3BarChart };

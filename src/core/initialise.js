@@ -1,55 +1,79 @@
-import { render } from './render.js';
-import { dbsliceData } from './dbsliceData.js';
-import { builder } from './builder.js';
-import { cfDataManagement } from '../core/cfDataManagement.js';
-
-function initialise(elementId, session, data) {
-		
-		
-		let dataInitPromise = new Promise(function(resolve, reject){
-		    // We call resolve(...) when what we were doing asynchronously was successful, and reject(...) when it failed.
-		  
-		    // resolve and reject are in-built names. They allow the user to handle the following scenarios. Resolve allows the user to pass inputs onto the branch which is taken when the promise was resolved. Reject allows the same, but in case of a rejected promise, and allows error handling. Both of these scenarios happen in the '.then' functionality below.
-		  
-		    // Here the promise is used to wait until the execution of the data initialisation is completed before the app is drawn.
-			
-			
-			// Initialise the crossfilter.
-			cfDataManagement.cfInit( data );
-			
-			// Store the app configuration and anchor.
-			dbsliceData.session = session;
-			dbsliceData.elementId = elementId;
-			
-
-			// The state is ready. 
-			resolve("")
-			
-			
-		}) // Promise 
-
-		Promise.all([dataInitPromise])
-		  .then(function(successInputs){
-			
-			// Draw the header.
-			builder.makeSessionHeader()
-		  
-			// Draw the rest of the app.
-			render()
-			},
-			function(error){
-				// The reject hasn't been called, so this shouldn't run at all. See info in `dataInitPromise'.
-				console.log("I shouldn't have run, why did I?")
-			})
-		  
-		  
+function initialise(session) {
 		
 
-	    
+		// Initialise the crossfilter.
+		cfDataManager.cfInit();
+		
+		// Store the app configuration and anchor.
+		dbsliceData.session = session;
+
+		
+	  
+		// Draw the rest of the app.
+		sessionManager.render()
+		
+		
+		// Add the functionality to the buttons in the header.
+		builder.makeSessionHeader()
+		addMenu.addPlotRowControls.make(d3.select("#addPlotRowButton"))
+		
+		
+		// Dragging and dropping
+		let target = document.getElementById("target")
+		let merging = document.getElementById("merging-container") 
+		
+		target.ondrop = dropHandler
+		target.ondragover = dragOverHandler
+		
+		merging.ondrop = dropHandler
+		merging.ondragover = dragOverHandler
+			
+		
+		function dropHandler(ev) {
+			  
+
+		  // Prevent default behavior (Prevent file from being opened)
+		  ev.preventDefault();
+
+		  var files = []
+		  if (ev.dataTransfer.items) {
+			// Use DataTransferItemList interface to access the file(s)
+			
+			for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+			  // If dropped items aren't files, reject them
+			  if (ev.dataTransfer.items[i].kind === 'file') {
+				files.push( ev.dataTransfer.items[i].getAsFile() );
+			  } // if
+			} // for
+			
+			
+			
+		  } else {
+			// Use DataTransfer interface to access the file(s)
+			files = ev.dataTransfer.files
+		  } // if
+		  
+		  
+		  fileManager.importing.dragdropped(files)		  
+		  
+		} // dropHandler
+
+		function dragOverHandler(ev) {
+		  // Prevent default behavior (Prevent file from being opened)
+		  ev.preventDefault();
+		} // dragOverHandler
+
+
+
+
+
+
+		// Test loading contour files.
+		var A = new onDemandFile({
+			url: "./data/comp3stg/task_6/rotor1/ent_area2d_exit_rotor1_task_6.json",
+			filename: "./data/comp3stg/task_6/rotor1/ent_area2d_exit_rotor1_task_6.json"
+		})
+		A.load()
+		console.log(A, errors)
+
     } // initialise
-
-
-
-
-
-export { initialise };

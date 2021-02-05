@@ -1,10 +1,3 @@
-import { dbsliceData } from '../core/dbsliceData.js';
-import { render } from '../core/render.js';
-import { crossPlotHighlighting } from '../core/crossPlotHighlighting.js';
-import { filter } from '../core/filter.js';
-import { color } from '../core/color.js';
-import { plotHelpers } from '../plot/plotHelpers.js';
-
 var cfD3Scatter = {
 		
 			name: "cfD3Scatter",
@@ -25,7 +18,7 @@ var cfD3Scatter = {
 				
 				
 				// Add the manual selection toggle to its title.
-				hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
+				// hs.twoInteractiveAxes.updatePlotTitleControls(ctrl)
 				
 				// Create the backbone required for the plot. This is the division of the card into the divs that hold the controls and the plot.
 				hs.twoInteractiveAxes.setupPlotBackbone(ctrl)
@@ -35,12 +28,10 @@ var cfD3Scatter = {
 
 
 				// Add in the controls for the y axis.
-				hs.general.appendVerticalSelection( ctrl.figure.select(".leftAxisControlGroup"),
-										   hi.onSelectChange.vertical(ctrl) )
+				hs.general.appendVerticalSelection( ctrl.figure, hi.onSelectChange.vertical(ctrl) )
 				
 				// Add in the controls for the x axis.
-				hs.general.appendHorizontalSelection( ctrl.figure.select(".bottomAxisControlGroup"),
-											 hi.onSelectChange.horizontal(ctrl) )
+				hs.general.appendHorizontalSelection( ctrl.figure,hi.onSelectChange.horizontal(ctrl) )
 				
 				// Add teh button menu - in front of the update for it!
 				hs.twoInteractiveAxes.buttonMenu.make(ctrl)
@@ -243,7 +234,7 @@ var cfD3Scatter = {
 						
 						
 						// Make functionality options for the menu.
-						var codedPlotOptions = [color.settings, ctrl.view.gVarOption, arOption]
+						var codedPlotOptions = [color.settings]
 						
 						return codedPlotOptions
 					
@@ -251,37 +242,7 @@ var cfD3Scatter = {
 
 					
 				}, // updateUiOptions
-				
-				updatePlotTitleControls: function updatePlotTitleControls(ctrl){
-			
-				// Add the toggle to switch manual selection filter on/off
-				var container = d3.select( ctrl.figure.node().parentElement )
-				  .select(".plotTitle")
-				  .select("div.ctrlGrp")
-				var onClickEvent = function(){ 
-					
-					var currentVal = this.checked
-					
-					// All such switches need to be activated.
-					var allToggleSwitches = d3.selectAll(".plotWrapper[plottype='cfD3Line']").selectAll("input[type='checkbox']")
-					
-					allToggleSwitches.each(function(){
 						
-						this.checked = currentVal
-						// console.log("checking")
-					})
-					
-					// Update filters
-					filter.apply()
-					
-					render()
-				} // onClickEvent
-				  
-				plotHelpers.setupPlot.general.appendToggle( container, onClickEvent )
-				
-			}, // updatePlotTitleControls
-
-		
 				// Helpers for setting up plot tools.
 				findPlotDimensions: function findPlotDimensions(svg){
 				
@@ -857,7 +818,7 @@ var cfD3Scatter = {
 					// Initialise the options straight away.
 					var i = cfD3Scatter.interactivity
 					var hs = plotHelpers.setupPlot.twoInteractiveAxes
-					var options = dbsliceData.data.dataProperties 
+					var options = dbsliceData.data.ordinalProperties 
 					
 					ctrl.view.xVarOption = {name: "varName",
 					                         val: options[0],
@@ -872,7 +833,7 @@ var cfD3Scatter = {
 					// Custom option.
 					ctrl.view.gVarOption = {name: "Line",
 					                         val: undefined,
-										 options: dbsliceData.data.metaDataProperties,
+										 options: dbsliceData.data.categoricalProperties,
 										   event: i.groupLine.make,
 										  action: undefined}
 					
@@ -886,13 +847,13 @@ var cfD3Scatter = {
 					
 					// If the x and y properties were stored, and if they agree with the currently loaded metadata, then initialise them.
 					if(plotData.xProperty != undefined){
-						if( dbsliceData.data.dataProperties.includes(plotData.xProperty) ){
+						if( dbsliceData.data.ordinalProperties.includes(plotData.xProperty) ){
 							ctrl.view.xVarOption.val = plotData.xProperty
 						} // if						
 					} // if
 					
 					if(plotData.yProperty != undefined){
-						if( dbsliceData.data.dataProperties.includes(plotData.yProperty) ){
+						if( dbsliceData.data.ordinalProperties.includes(plotData.yProperty) ){
 							ctrl.view.yVarOption.val = plotData.yProperty
 						} // if						
 					} // if
@@ -1140,6 +1101,4 @@ var cfD3Scatter = {
 			} // helpers
 		
 		} // cfD3Scatter
-		
-
-export { cfD3Scatter };
+	
