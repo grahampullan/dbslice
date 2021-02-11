@@ -1255,7 +1255,7 @@ var dbslice = (function (exports) {
 					} else {
 						// Other files should be stored if they have any content.
 						if(obj_.content){
-							dbsliceData.files.push(fileobj)
+							dbsliceData.files.push(obj_)
 						} // if
 
 					} // if
