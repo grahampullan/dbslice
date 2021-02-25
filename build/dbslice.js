@@ -7484,14 +7484,10 @@ var dbslice = (function (exports) {
 	    var tm = data.triMesh;
 
 	    var nTris = tm.indices.length / 3;
-	    console.log(nTris);
-
-	    //console.log(tm);
 
 	    var values = void 0,
 	        vertices = void 0;
 
-	    // tmp
 	    var nVerts = data.nVerts === undefined ? tm.values.length : data.nVerts;
 
 	    if (layout.highlightTasks == true) {
@@ -7527,9 +7523,6 @@ var dbslice = (function (exports) {
 	        return;
 	      }
 	    }
-
-	    //console.log(vertices);
-	    //console.log(values);
 
 	    var arrays = {
 	      a_position: { numComponents: 2, data: vertices },
@@ -7578,7 +7571,9 @@ var dbslice = (function (exports) {
 
 	    scaleArea.append("g").attr("transform", "translate(20,0)").call(cAxis);
 
-	    var zpCut = 0.1036;
+	    var zpCut = layout.zpCut;
+	    console.log(zpCut);
+	    console.log(layout);
 
 	    var xScale = d3.scaleLinear().domain([view.xMin, view.xMax]).range([0, width]);
 
@@ -7587,11 +7582,23 @@ var dbslice = (function (exports) {
 	    var barCoords = [[xScale(zpCut), 0], [xScale(zpCut), height]];
 	    var barPath = overlay.select(".bar");
 	    if (barPath.empty()) {
-	      overlay.append("path").attr("class", "bar").attr("fill", "none").attr("stroke", "Gray").attr("stroke-width", 5).style("opacity", 0.8)
-	      //.style("cursor","move")
-	      .attr("d", d3.line()(barCoords));
+	      overlay.append("path").attr("class", "bar").attr("fill", "none").attr("stroke", "Gray").attr("stroke-width", 5).style("opacity", 0.8).style("cursor", "move").attr("d", d3.line()(barCoords)).call(d3.drag().on("drag", dragged));
 	    } else {
 	      barPath.attr("d", d3.line()(barCoords));
+	    }
+
+	    function dragged(d) {
+	      zpCut = xScale.invert(d3.event.x);
+	      layout.zpCut = zpCut;
+	      barCoords = [[xScale(zpCut), 0], [xScale(zpCut), height]];
+	      d3.select(this).attr("d", d3.line()(barCoords));
+	      var thisLine = getCut({ indices: tm.indices, vertices: vertices, values: values }, zp, zpCut);
+	      dbsliceData.xCut = thisLine.map(function (d) {
+	        return d.map(function (e) {
+	          return [e[1], e[2]];
+	        });
+	      });
+	      render(dbsliceData.elementId, dbsliceData.session, dbsliceData.config);
 	    }
 
 	    var zp = new Float32Array(nVerts);
@@ -7599,15 +7606,12 @@ var dbslice = (function (exports) {
 	      zp[i] = vertices[2 * i]; // x values
 	    }
 
-	    console.log("requesting cut");
 	    var thisLine = getCut({ indices: tm.indices, vertices: vertices, values: values }, zp, zpCut);
 	    dbsliceData.xCut = thisLine.map(function (d) {
 	      return d.map(function (e) {
 	        return [e[1], e[2]];
 	      });
 	    });
-	    //console.log(thisLine);
-	    //render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
 
 	    function getCut(tm, zp, zpCut) {
 	      var cutTris = findCutTrisLine(data.qTree, zpCut);
