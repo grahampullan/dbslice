@@ -4,14 +4,10 @@ const triMesh2dRender = {
 
 	make : function ( element, data, layout ) {
 
-		console.log("make");
-
 		const container = d3.select(element);
 
         const width = container.node().offsetWidth;
         const height = width; // force square plots for now
-
-        console.log(width);
 
         const canvas = container.append("canvas")
             .attr("width", width)
@@ -47,13 +43,9 @@ const triMesh2dRender = {
 		const tm = data.triMesh;
 
 		const nTris = tm.indices.length/3;
-		console.log(nTris);
-
-		//console.log(tm);
 
 		let values, vertices;
 
-		// tmp
 		const nVerts = ( data.nVerts === undefined ) ? tm.values.length : data.nVerts;
 
 		if ( layout.highlightTasks == true ) {
@@ -98,9 +90,6 @@ const triMesh2dRender = {
 
         }
 
-        //console.log(vertices);
-        //console.log(values);
-
 		const arrays = {
      		a_position: {numComponents: 2, data: vertices},
      		a_val: {numComponents: 1, data: values},
@@ -116,7 +105,7 @@ const triMesh2dRender = {
 
   		const projectionMatrix = glMatrix.mat4.create();
   		glMatrix.mat4.ortho(projectionMatrix, view.xMin, view.xMax, view.yMin, view.yMax, 0, 1.);
-  		console.log(projectionMatrix);
+  		
   		const cmap = new Uint8Array([158, 1, 66, 255, 185, 31, 72, 255, 209, 60, 75, 255, 228, 86, 73, 255, 240, 112, 74, 255, 248, 142, 83, 255, 252, 172, 99, 255, 253, 198, 118, 255, 254, 221, 141, 255, 254, 238, 163, 255, 251, 248, 176, 255, 241, 249, 171, 255, 224, 243, 160, 255, 200, 233, 159, 255, 169, 220, 162, 255, 137, 207, 165, 255, 105, 189, 169, 255, 78, 164, 176, 255, 66, 136, 181, 255, 74, 108, 174, 255, 94, 79, 162, 255]); //spectral
   		const cmapTex = twgl.createTexture(gl, {mag: gl.LINEAR, min:gl.LINEAR, src: cmap, width:21, height:1} );
   		const uniforms = {u_matrix: projectionMatrix, u_cmap: cmapTex, u_cmin: vScale[0], u_cmax:vScale[1]};
