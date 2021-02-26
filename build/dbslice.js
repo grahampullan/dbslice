@@ -7306,21 +7306,17 @@ var dbslice = (function (exports) {
 
 	function getFilteredTaskLabels() {
 
-		return dbsliceData.session.filteredTaskLabels;
+		return dbsliceData.filteredTaskLabels;
 	}
 
 	var triMesh2dRender = {
 
 	    make: function make(element, data, layout) {
 
-	        console.log("make");
-
 	        var container = d3.select(element);
 
 	        var width = container.node().offsetWidth;
 	        var height = width; // force square plots for now
-
-	        console.log(width);
 
 	        var canvas = container.append("canvas").attr("width", width).attr("height", height).style("width", width + "px").style("height", height + "px");
 
@@ -7344,14 +7340,10 @@ var dbslice = (function (exports) {
 	        var tm = data.triMesh;
 
 	        var nTris = tm.indices.length / 3;
-	        console.log(nTris);
-
-	        //console.log(tm);
 
 	        var values = void 0,
 	            vertices = void 0;
 
-	        // tmp
 	        var nVerts = data.nVerts === undefined ? tm.values.length : data.nVerts;
 
 	        if (layout.highlightTasks == true) {
@@ -7388,9 +7380,6 @@ var dbslice = (function (exports) {
 	            }
 	        }
 
-	        //console.log(vertices);
-	        //console.log(values);
-
 	        var arrays = {
 	            a_position: { numComponents: 2, data: vertices },
 	            a_val: { numComponents: 1, data: values },
@@ -7406,7 +7395,7 @@ var dbslice = (function (exports) {
 
 	        var projectionMatrix = glMatrix.mat4.create();
 	        glMatrix.mat4.ortho(projectionMatrix, view.xMin, view.xMax, view.yMin, view.yMax, 0, 1.);
-	        console.log(projectionMatrix);
+
 	        var cmap = new Uint8Array([158, 1, 66, 255, 185, 31, 72, 255, 209, 60, 75, 255, 228, 86, 73, 255, 240, 112, 74, 255, 248, 142, 83, 255, 252, 172, 99, 255, 253, 198, 118, 255, 254, 221, 141, 255, 254, 238, 163, 255, 251, 248, 176, 255, 241, 249, 171, 255, 224, 243, 160, 255, 200, 233, 159, 255, 169, 220, 162, 255, 137, 207, 165, 255, 105, 189, 169, 255, 78, 164, 176, 255, 66, 136, 181, 255, 74, 108, 174, 255, 94, 79, 162, 255]); //spectral
 	        var cmapTex = twgl.createTexture(gl, { mag: gl.LINEAR, min: gl.LINEAR, src: cmap, width: 21, height: 1 });
 	        var uniforms = { u_matrix: projectionMatrix, u_cmap: cmapTex, u_cmin: vScale[0], u_cmax: vScale[1] };
@@ -7449,16 +7438,12 @@ var dbslice = (function (exports) {
 
 	  make: function make(element, data, layout) {
 
-	    console.log("make");
-
 	    var container = d3.select(element);
 
 	    container.style("position", "relative");
 
 	    var width = container.node().offsetWidth;
 	    var height = width; // force square plots for now
-
-	    console.log(width);
 
 	    var canvas = container.append("canvas").attr("width", width).attr("height", height).style("width", width + "px").style("height", height + "px");
 
@@ -7468,8 +7453,6 @@ var dbslice = (function (exports) {
 	  },
 
 	  update: function update(element, data, layout) {
-
-	    console.log("in trimesh render");
 
 	    var container = d3.select(element);
 	    var width = container.node().offsetWidth;
@@ -7539,7 +7522,7 @@ var dbslice = (function (exports) {
 
 	    var projectionMatrix = glMatrix.mat4.create();
 	    glMatrix.mat4.ortho(projectionMatrix, view.xMin, view.xMax, view.yMin, view.yMax, 0, 1.);
-	    console.log(projectionMatrix);
+
 	    var cmap = new Uint8Array([158, 1, 66, 255, 185, 31, 72, 255, 209, 60, 75, 255, 228, 86, 73, 255, 240, 112, 74, 255, 248, 142, 83, 255, 252, 172, 99, 255, 253, 198, 118, 255, 254, 221, 141, 255, 254, 238, 163, 255, 251, 248, 176, 255, 241, 249, 171, 255, 224, 243, 160, 255, 200, 233, 159, 255, 169, 220, 162, 255, 137, 207, 165, 255, 105, 189, 169, 255, 78, 164, 176, 255, 66, 136, 181, 255, 74, 108, 174, 255, 94, 79, 162, 255]); //spectral
 	    var cmapTex = twgl.createTexture(gl, { mag: gl.LINEAR, min: gl.LINEAR, src: cmap, width: 21, height: 1 });
 	    var uniforms = { u_matrix: projectionMatrix, u_cmap: cmapTex, u_cmin: vScale[0], u_cmax: vScale[1] };
@@ -7572,8 +7555,6 @@ var dbslice = (function (exports) {
 	    scaleArea.append("g").attr("transform", "translate(20,0)").call(cAxis);
 
 	    var zpCut = layout.zpCut;
-	    console.log(zpCut);
-	    console.log(layout);
 
 	    var xScale = d3.scaleLinear().domain([view.xMin, view.xMax]).range([0, width]);
 
@@ -7582,7 +7563,7 @@ var dbslice = (function (exports) {
 	    var barCoords = [[xScale(zpCut), 0], [xScale(zpCut), height]];
 	    var barPath = overlay.select(".bar");
 	    if (barPath.empty()) {
-	      overlay.append("path").attr("class", "bar").attr("fill", "none").attr("stroke", "Gray").attr("stroke-width", 5).style("opacity", 0.8).style("cursor", "move").attr("d", d3.line()(barCoords)).call(d3.drag().on("drag", dragged));
+	      overlay.append("path").attr("class", "bar").attr("fill", "none").attr("stroke", "Gray").attr("stroke-width", 5).style("opacity", 0.8).style("cursor", "ew-resize").attr("d", d3.line()(barCoords)).call(d3.drag().on("drag", dragged));
 	    } else {
 	      barPath.attr("d", d3.line()(barCoords));
 	    }

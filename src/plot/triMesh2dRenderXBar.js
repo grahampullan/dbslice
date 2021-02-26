@@ -169,7 +169,7 @@ const triMesh2dRenderXBar = {
             .attr("stroke", "Gray")
             .attr("stroke-width", 5)
             .style("opacity",0.8)
-            .style("cursor","move")
+            .style("cursor","ew-resize")
             .attr("d",d3.line()(barCoords))
             .call(d3.drag().on("drag", dragged));     
         } else {
