@@ -31,10 +31,10 @@ const cfD3Histogram = {
         var dim = data.cfData.dataDims[ dimId ];       
         var items = dim.top( Infinity );
 
-        var xDomMax = d3.max( items, d => d[ data.property ] ) * 1.1; 
+        var xDomMax = d3.max( items, d => d[ data.property ] ) * 1.03; 
         plotArea.attr( "xDomMax", xDomMax);
 
-        var xDomMin = d3.min( items, d => d[ data.property ] ) * 0.9;
+        var xDomMin = d3.min( items, d => d[ data.property ] ) * 0.97;
         plotArea.attr( "xDomMin", xDomMin);
 
         var x = d3.scaleLinear()
@@ -42,6 +42,7 @@ const cfD3Histogram = {
             .rangeRound( [ 0, width ] );
 
         plotArea.append( "g" )
+            .attr( "class", "xAxis")
             .attr( "transform", "translate(0," + height + ")" )
             .call( d3.axisBottom( x ) );
 
@@ -158,8 +159,8 @@ const cfD3Histogram = {
 
         if ( layout.reBin == true ) {
 
-            xDomMax = d3.max( items, d => d[ data.property ] ) * 1.1; 
-            xDomMin = d3.min( items, d => d[ data.property ] ) * 0.9;
+            xDomMax = d3.max( items, d => d[ data.property ] ) * 1.03; 
+            xDomMin = d3.min( items, d => d[ data.property ] ) * 0.97;
         
         }
 
@@ -207,6 +208,18 @@ const cfD3Histogram = {
                 .call( d3.axisLeft( y ) );
         } else {
             yAxis.transition().call( d3.axisLeft( y ) );
+        }
+
+        if ( layout.reBin == true ) {
+            var xAxis = plotArea.select(".xAxis");
+            if ( xAxis.empty() ) {
+                plotArea.append("g")
+                    .attr( "class", "xAxis")
+                    .attr( "transform", "translate(0," + height + ")" )
+                    .call( d3.axisBottom( x ) );
+            } else {
+                xAxis.transition().call( d3.axisBottom( x ) );
+            }
         }
 
 

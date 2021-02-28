@@ -6787,17 +6787,17 @@ var dbslice = (function (exports) {
 
 	        var xDomMax = d3.max(items, function (d) {
 	            return d[data.property];
-	        }) * 1.1;
+	        }) * 1.03;
 	        plotArea.attr("xDomMax", xDomMax);
 
 	        var xDomMin = d3.min(items, function (d) {
 	            return d[data.property];
-	        }) * 0.9;
+	        }) * 0.97;
 	        plotArea.attr("xDomMin", xDomMin);
 
 	        var x = d3.scaleLinear().domain([xDomMin, xDomMax]).rangeRound([0, width]);
 
-	        plotArea.append("g").attr("transform", "translate(0," + height + ")").call(d3.axisBottom(x));
+	        plotArea.append("g").attr("class", "xAxis").attr("transform", "translate(0," + height + ")").call(d3.axisBottom(x));
 
 	        var brush = d3.brushX().extent([[0, 0], [width, height]]).on("start brush end", brushmoved);
 
@@ -6892,10 +6892,10 @@ var dbslice = (function (exports) {
 
 	            xDomMax = d3.max(items, function (d) {
 	                return d[data.property];
-	            }) * 1.1;
+	            }) * 1.03;
 	            xDomMin = d3.min(items, function (d) {
 	                return d[data.property];
-	            }) * 0.9;
+	            }) * 0.97;
 	        }
 
 	        var x = d3.scaleLinear().domain([xDomMin, xDomMax]).rangeRound([0, width]);
@@ -6937,6 +6937,15 @@ var dbslice = (function (exports) {
 	            plotArea.append("g").attr("class", "yAxis").call(d3.axisLeft(y));
 	        } else {
 	            yAxis.transition().call(d3.axisLeft(y));
+	        }
+
+	        if (layout.reBin == true) {
+	            var xAxis = plotArea.select(".xAxis");
+	            if (xAxis.empty()) {
+	                plotArea.append("g").attr("class", "xAxis").attr("transform", "translate(0," + height + ")").call(d3.axisBottom(x));
+	            } else {
+	                xAxis.transition().call(d3.axisBottom(x));
+	            }
 	        }
 
 	        var yAxisLabel = plotArea.select(".yAxis").select(".yAxisLabel");
