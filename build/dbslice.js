@@ -6887,6 +6887,17 @@ var dbslice = (function (exports) {
 
 	        var xDomMax = plotArea.attr("xDomMax");
 	        var xDomMin = plotArea.attr("xDomMin");
+
+	        if (layout.reBin == true) {
+
+	            xDomMax = d3.max(items, function (d) {
+	                return d[data.property];
+	            }) * 1.1;
+	            xDomMin = d3.min(items, function (d) {
+	                return d[data.property];
+	            }) * 0.9;
+	        }
+
 	        var x = d3.scaleLinear().domain([xDomMin, xDomMax]).rangeRound([0, width]);
 
 	        var histogram = d3.histogram().value(function (d) {
