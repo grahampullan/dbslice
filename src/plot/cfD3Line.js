@@ -1,4 +1,13 @@
-var cfD3Line = {
+import {dbsliceData} from "../core/dbsliceData.js"
+import {fileManager} from "../core/fileManager.js"
+import {builder} from "../core/builder.js"
+import {color} from "../core/color.js"
+import {crossPlotHighlighting} from "../core/crossPlotHighlighting.js";
+import {helpers} from "../core/helpers.js";
+import * as FILE from "../core/fileClasses.js";
+import {plotHelpers} from "./plotHelpers.js"
+
+export var cfD3Line = {
 		// • report to the user info about the data (missing, duplicated, intersect clashes, maybe even the things that will yield the largest addition of data to the screen)
 	
 		name: "cfD3Line",
@@ -70,7 +79,7 @@ var cfD3Line = {
 				
 				// The library will retrieve at most 1 file!
 				let filename = t[ctrl.view.sliceId]
-				let f = fileManager.library.retrieve(line2dFile, filename)
+				let f = fileManager.library.retrieve(FILE.line2dFile, filename)
 				
 				if(f){
 					// Exactly the right file was found. As on-demand filenames will have the same filename and url this should always happen when the file has been loaded. The series is still empty as the selection of the variables has not been made yet.
@@ -725,7 +734,7 @@ var cfD3Line = {
 				// Should direct redrawing be allowed in hte first place??
 				
 				// Transitions
-				ctrl.view.transitions = cfD3Scatter.helpers.transitions.instantaneous()
+				ctrl.view.transitions = cfD3Line.helpers.transitions.instantaneous()
 			  
 				// Uses the scales with updated domains.
 				
@@ -762,7 +771,7 @@ var cfD3Line = {
 				
 				var ctrl = {
 				    plotFunc: cfD3Line,
-					fileClass: line2dFile,
+					fileClass: FILE.line2dFile,
 					figure: undefined,
 					svg: undefined,
 					data: {
@@ -1033,3 +1042,4 @@ var cfD3Line = {
 		} // helpers
 	
 	} // cfD3Line
+	

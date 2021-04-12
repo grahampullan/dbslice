@@ -1,5 +1,4 @@
-// General helpers
-	var helpers = {
+export var helpers = {
 		
 			isIterable: function isIterable(object) {
 			  // https://stackoverflow.com/questions/18884249/checking-whether-something-is-iterable

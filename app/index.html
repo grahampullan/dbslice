@@ -12,42 +12,24 @@
 <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
 
 <!-- CSS -->
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css">
+<link rel="stylesheet" href="/src/style/bootstrap_4.0.0-beta.min.css">
 <link rel="stylesheet" href="/src/style/dbslice.css">
 
 
 
-<!-- Bootstrap requires jQuery! -->
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-
-
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js"></script>
-  
-
-<script src="https://cdn.rawgit.com/crossfilter/crossfilter/master/crossfilter.js"></script>
+<!-- Crossfilter -->
+<script src="/src/outside/crossfilter.js"></script>
 
 <!-- d3 -->
-<script src="https://d3js.org/d3.v5.min.js"></script>
-<script src="https://d3js.org/d3-contour.v1.min.js"></script>
-<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
-
-
-
-
-<!-- Tooltip code -->
-<script src="http://dbslice.org/d3-tip.js"></script>
-
-
-<!-- dbslice source data -->
-<script type='text/javascript' src="/build/dbslice.js"></script>
+<script src="/src/outside/d3.v5.min.js"></script>
+<script src="/src/outside/d3-contour.v1.min.js"></script>
+<script src="/src/outside/d3-scale-chromatic.v1.min.js"></script>
+<script src="/src/outside/d3-tip.js"></script>
 
 
 
 <!-- Add icon library -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="/src/style/font-awesome_4.7.0.min.css">
 
 
 </head>
@@ -78,9 +60,9 @@
 			
 			
 			
-			<div id="sessionOptions" class="btn-group float-right" style="display: inline;">
-				<button id="sessionOptionsButton" type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria=expanded="false">Session options</button>
-				<div class="dropdown-menu">
+			<div class="btn-group float-right" style="display: inline;">
+				<button id="sessionOptionsButton" type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown">Session options</button>
+				<div id="sessionOptionsMenu" class="dropdown-menu">
 					
 				</div>
 			</div>
@@ -104,8 +86,11 @@
 <div id="report-container" class="fullscreen-container" style="display: none;"></div>
 
 
-<script>
+<!-- script type="module" src="/build/dbslice_module.js"></script -->
+<script src="/build/dbslice_compiled.js"></script>
+<script type="module">
 
+	// import * as dbslice from "/build/dbslice_compiled.js"
 
 	var session = { 
 		title : "Axial compressor demo",
@@ -113,7 +98,7 @@
 		elementId: "target"
 	};
 
-	dbslice.initialise (session);
+	dbslice.initialise(session);
 
 </script>
 

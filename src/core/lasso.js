@@ -1,4 +1,4 @@
-var lasso = {
+export var lasso = {
 		
 		/*
 		The 'lasso.add' method requires a specific input lasso object, which contains all hte information required.

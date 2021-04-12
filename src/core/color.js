@@ -1,4 +1,7 @@
-var color = {
+import {dbsliceData} from "./dbsliceData.js";
+import {sessionManager} from "./sessionManager.js";
+
+export var color = {
 		// The color controls should probably be moved to a single location, i.e. a single button on a toolbar somewhere. Maybe create a floating top toolbat to control all general behaviour.
 		
 		// To perform the task it seems it is the simplest if this variable holds the color palette for all other plots to share. The color change effects need then only change the color palette here. Specifically: this palette will replace ctrl.tools.cscale.

@@ -1,4 +1,12 @@
-var cfD3Histogram = {
+import {dbsliceData} from "../core/dbsliceData.js"
+import {builder} from "../core/builder.js"
+import {color} from "../core/color.js"
+import {plotHelpers} from "./plotHelpers.js"
+import {sessionManager} from "../core/sessionManager.js"
+import {crossPlotHighlighting} from "../core/crossPlotHighlighting.js";
+import {filter} from "../core/filter.js";
+
+export var cfD3Histogram = {
           
         name: "cfD3Histogram",
         
@@ -889,8 +897,8 @@ var cfD3Histogram = {
 				
 				update: function update(ctrl){
 					
-					cfD3Scatter.helpers.axes.formatAxesY(ctrl)
-					cfD3Scatter.helpers.axes.formatAxesX(ctrl)
+					cfD3Histogram.helpers.axes.formatAxesY(ctrl)
+					cfD3Histogram.helpers.axes.formatAxesX(ctrl)
 					
 					
 					

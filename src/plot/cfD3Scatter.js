@@ -1,4 +1,11 @@
-var cfD3Scatter = {
+import {dbsliceData} from "../core/dbsliceData.js"
+import {builder} from "../core/builder.js"
+import {color} from "../core/color.js"
+import {crossPlotHighlighting} from "../core/crossPlotHighlighting.js";
+import {plotHelpers} from "./plotHelpers.js"
+import {filter} from "../core/filter.js"
+
+export var cfD3Scatter = {
 		
 			name: "cfD3Scatter",
 		

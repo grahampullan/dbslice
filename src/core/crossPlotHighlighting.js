@@ -1,4 +1,6 @@
-var crossPlotHighlighting = {
+import {dbsliceData} from "../core/dbsliceData.js"
+
+export var crossPlotHighlighting = {
 			
 		on: function on(d, sourcePlotName){
 		

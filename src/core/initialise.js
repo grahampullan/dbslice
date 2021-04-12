@@ -1,4 +1,11 @@
-function initialise(session) {
+import {dbsliceData} from "./dbsliceData.js";
+import {cfDataManager} from "./cfDataManager.js";
+import {sessionManager} from "./sessionManager.js";
+import {fileManager} from "./fileManager.js";
+import {addMenu} from "./addMenu.js";
+import {builder} from "./builder.js";
+
+export function initialise(session) {
 		
 
 		// Initialise the crossfilter.
@@ -63,17 +70,5 @@ function initialise(session) {
 		  ev.preventDefault();
 		} // dragOverHandler
 
-
-
-
-
-
-		// Test loading contour files.
-		var A = new onDemandFile({
-			url: "./data/comp3stg/task_6/rotor1/ent_area2d_exit_rotor1_task_6.json",
-			filename: "./data/comp3stg/task_6/rotor1/ent_area2d_exit_rotor1_task_6.json"
-		})
-		A.load()
-		console.log(A, errors)
 
     } // initialise

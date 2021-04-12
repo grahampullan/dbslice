@@ -1,4 +1,13 @@
-var builder = {
+import {dbsliceData} from "./dbsliceData.js";
+import {addMenu} from "./addMenu.js";
+import {fileManager} from "./fileManager.js";
+import {sessionManager} from "./sessionManager.js";
+import {dbsliceDataCreation} from "./dbsliceDataCreation.js";
+import {positioning} from "./positioning.js";
+import {plotHelpers} from "../plot/plotHelpers.js";
+import {filter} from "./filter.js";
+
+export var builder = {
 		
 		update: {
 			
@@ -79,8 +88,7 @@ var builder = {
 			
 
 			// Add some options.
-			var sessionMenu = d3.select("#sessionOptions")
-			  .select("div.dropdown-menu")
+			var sessionMenu = d3.select("#sessionOptionsMenu")
 			  
 			
 			// Downloading a session file
@@ -102,7 +110,24 @@ var builder = {
 				.html("Metadata")
 				.on("click", dbsliceDataCreation.show )
 			
-
+			
+			// Clicking anywhere else should close it.
+			window.addEventListener("click", function(clickevent){
+			  
+			  let button = d3.select("#sessionOptionsButton").node()
+			  let menu = d3.select("#sessionOptionsMenu").node()
+			  
+			  
+			  if(clickevent.srcElement == button){
+				// Toggle the button.
+				let displayvalue = menu.style.display == "block" ? "" : "block"
+				menu.style.display = displayvalue
+			  
+			  } else {
+				menu.style.display = ""
+			  } // if
+			  
+			}) // addEventListener	
 
 			
 		}, // makeSessionHeader
@@ -285,4 +310,4 @@ var builder = {
 		} // interactivity
 		
 	} // builder
-	
+		

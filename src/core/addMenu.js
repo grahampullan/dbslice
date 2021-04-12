@@ -1,4 +1,10 @@
-var addMenu = {
+import {dbsliceData} from "./dbsliceData.js";
+import {plotRow} from "./plotRow.js";
+import {positioning} from "./positioning.js";
+import {sessionManager} from "../core/sessionManager.js"
+import {filter} from "../core/filter.js";
+
+export var addMenu = {
 
         addPlotControls: {
             

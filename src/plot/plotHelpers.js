@@ -1,4 +1,10 @@
-var plotHelpers = {
+import {addMenu} from "../core/addMenu.js"
+import {sessionManager} from "../core/sessionManager.js"
+import {helpers} from "../core/helpers.js";
+import {positioning} from "../core/positioning.js";
+import {filter} from "../core/filter.js";
+
+export var plotHelpers = {
         
         setupPlot: {
 			
