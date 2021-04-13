@@ -514,11 +514,11 @@ export var plotHelpers = {
 						.attr("fill", "rgb(255,25,255)")
 					background
 						.append("g")
-							.style("display","none")
 							.attr("class","tooltipAnchor")
 						.append("circle")
 								.attr("class", "anchorPoint")
-								.attr("r",1);
+								.attr("r",1)
+								.attr("opacity", 0);
 					
 				
 					svg.select("g.data")

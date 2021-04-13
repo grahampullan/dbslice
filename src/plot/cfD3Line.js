@@ -218,7 +218,6 @@ export var cfD3Line = {
 				allSeries.enter()
 				  .append( "g" )
 				    .attr( "class", "plotSeries")
-				    .attr( "task-id", ctrl.tools.getTaskId)
 				  .append( "path" )
 				    .attr( "class", "line" )
 				    .attr( "d", d=>ctrl.tools.line(d.series) )
@@ -555,7 +554,6 @@ export var cfD3Line = {
 					// Cannot erase these by some property as there will be other tips corresponding to other plots with the same propertry - unless they are given a unique id, which is difficult to keep track of.
 					var tip = d3.tip()
 						.attr('class', 'd3-tip')
-						.attr("type", "cfD3LineLineTooltip")
 						.html(function (d) {
 							return "<span>" + d.task.label + "</span>";
 						});
@@ -957,9 +955,9 @@ export var cfD3Line = {
 				
 				gData
 				  .selectAll("g.plotSeries")
-				  .each(function(){
+				  .each(function(d){
 					  var plotSeries = d3.select(this)
-					  var isSelected = dbsliceData.data.manuallySelectedTasks.includes(plotSeries.attr("task-id"))
+					  var isSelected = dbsliceData.data.manuallySelectedTasks.includes(d.task.taskId)
 					  
 					  if(isSelected){
 						  // paint it orange, and bring it to the front.
@@ -1008,7 +1006,7 @@ export var cfD3Line = {
 				plotSeries.each(function(d){
 					let series = d3.select(this)
 					
-					if(highlightedTaskIds.includes(series.attr("task-id"))){
+					if(highlightedTaskIds.includes(d.task.taskId)){
 						series.selectAll(".line")
 						.style("opacity", 1.0)
 						.style( "stroke", ctrl.tools.getColor ) 

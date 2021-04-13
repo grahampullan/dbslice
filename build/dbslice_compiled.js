@@ -1282,7 +1282,7 @@ var dbslice = (function (exports) {
 
 	        background.append("clipPath").attr("id", "zoomClip").append("rect");
 	        background.append("rect").attr("class", "zoom-area").attr("fill", "rgb(255,25,255)");
-	        background.append("g").style("display", "none").attr("class", "tooltipAnchor").append("circle").attr("class", "anchorPoint").attr("r", 1);
+	        background.append("g").attr("class", "tooltipAnchor").append("circle").attr("class", "anchorPoint").attr("r", 1).attr("opacity", 0);
 	        svg.select("g.data").attr("clip-path", "url(#zoomClip)");
 	      },
 	      // setupPlotBackbone
@@ -5750,7 +5750,7 @@ var dbslice = (function (exports) {
 	        return d.task.taskId;
 	      }); // enter
 
-	      allSeries.enter().append("g").attr("class", "plotSeries").attr("task-id", ctrl.tools.getTaskId).append("path").attr("class", "line").attr("d", function (d) {
+	      allSeries.enter().append("g").attr("class", "plotSeries").append("path").attr("class", "line").attr("d", function (d) {
 	        return ctrl.tools.line(d.series);
 	      }).style("stroke", ctrl.tools.getColor).style("fill", "none").style("stroke-width", 2.5 / ctrl.view.t.k).on("mouseover", cfD3Line.interactivity.addTipOn(ctrl)).on("mouseout", cfD3Line.interactivity.addTipOff(ctrl)).on("click", cfD3Line.interactivity.addSelection); // update:
 
@@ -5977,7 +5977,7 @@ var dbslice = (function (exports) {
 
 	      function createTip() {
 	        // Cannot erase these by some property as there will be other tips corresponding to other plots with the same propertry - unless they are given a unique id, which is difficult to keep track of.
-	        var tip = d3.tip().attr('class', 'd3-tip').attr("type", "cfD3LineLineTooltip").html(function (d) {
+	        var tip = d3.tip().attr('class', 'd3-tip').html(function (d) {
 	          return "<span>" + d.task.label + "</span>";
 	        });
 	        ctrl.figure.select("svg.plotArea").call(tip);
@@ -6263,9 +6263,9 @@ var dbslice = (function (exports) {
 	    // Manual functionality
 	    updateManualSelections: function updateManualSelections(ctrl) {
 	      var gData = ctrl.figure.select("svg.plotArea").select("g.data");
-	      gData.selectAll("g.plotSeries").each(function () {
+	      gData.selectAll("g.plotSeries").each(function (d) {
 	        var plotSeries = d3.select(this);
-	        var isSelected = dbsliceData.data.manuallySelectedTasks.includes(plotSeries.attr("task-id"));
+	        var isSelected = dbsliceData.data.manuallySelectedTasks.includes(d.task.taskId);
 
 	        if (isSelected) {
 	          // paint it orange, and bring it to the front.
@@ -6292,7 +6292,7 @@ var dbslice = (function (exports) {
 	      plotSeries.each(function (d) {
 	        var series = d3.select(this);
 
-	        if (highlightedTaskIds.includes(series.attr("task-id"))) {
+	        if (highlightedTaskIds.includes(d.task.taskId)) {
 	          series.selectAll(".line").style("opacity", 1.0).style("stroke", ctrl.tools.getColor).style("stroke-width", 4 / ctrl.view.t.k);
 	          series.raise();
 	        }
