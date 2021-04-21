@@ -2,6 +2,7 @@ import {dbsliceData} from "./dbsliceData.js";
 import {sessionManager} from "./sessionManager.js";
 import {color} from "./color.js";
 import {helpers} from "./helpers.js";
+import {crossfilter} from "../outside/crossfilter.js";
 
 export var cfDataManager = {
 		

@@ -1,8 +1,11 @@
 // https://crossfilter.github.io/crossfilter/ v1.5.4 Copyright 2020 Mike Bostock
-(function (global, factory) {
+export var crossfilter = (function (global, factory) {
+  /*
   typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
   typeof define === 'function' && define.amd ? define(factory) :
   (global = global || self, global.crossfilter = factory());
+  */
+  return factory()
 }(this, (function () { 'use strict';
 
   let array8 = arrayUntyped,
