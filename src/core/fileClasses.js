@@ -224,8 +224,34 @@ export class dbsliceFile {
 			switch(this.extension){
 				
 				case "csv":
+					loader = function(url){ return d3.text(url).then(function(text){
+						// Filter out any lines that begin with '#', and then parse the rest as csv.
+						let text_ = text
+						  .split("\n")
+						  
+						// Don't directly filter, but instead just remove lines until the first one without a '#'.
+						for(let i=0; i<text_.length; i++){
+							if(text_[0].startsWith("#")){
+								text_.splice(0,1)
+							} else {
+								break;
+							} // if
+						} // for
+						  
+						text_ = text_
+						  .join("\n")
+						  
+						  
+						return d3.csvParse( text_ )
+
+					}) }
+					break;
+				
+				/*
+				case "csv":
 					loader = function(url){ return d3.csv(url) }
 					break;
+				*/
 					
 				case "json":
 					loader = function(url){ return d3.json(url) }

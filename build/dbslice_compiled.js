@@ -134,7 +134,7 @@ var dbslice = (function (exports) {
 	}
 
 	function _iterableToArray(iter) {
-	  if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter)) return Array.from(iter);
+	  if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter);
 	}
 
 	function _unsupportedIterableToArray(o, minLen) {
@@ -1035,7 +1035,7 @@ var dbslice = (function (exports) {
 	      var container = d3.select(f.parent);
 	      var nx = positioning.nx(container);
 	      var dx = positioning.dx(container);
-	      var dy = positioning.dy(container); // Readjust the ix so that the plot is not out of the container.
+	      positioning.dy(container); // Readjust the ix so that the plot is not out of the container.
 
 	      p.ix = p.ix + p.iw > nx ? nx - p.iw : p.ix;
 	      f.wrapper.style("left", f.parent.offsetLeft + p.ix * dx + "px"); // Move this to the individual functions. This allows the contour plot to change both the plot and plot row sizes. The contour plot will also have to move the other plots if necessary!!
@@ -1185,7 +1185,7 @@ var dbslice = (function (exports) {
 	        var container = figure.select(".leftAxisControlGroup");
 	        var s = container.append("select").attr("class", "select-vertical custom-select"); // This is just the text label - it has no impact on the select functionality. Fit the text into a box here.
 
-	        var txt = container.append("text").text(s.node().value).attr("class", "txt-vertical-axis");
+	        container.append("text").text(s.node().value).attr("class", "txt-vertical-axis");
 	        plotHelpers.helpers.adjustAxisSelect(figure);
 	        s.on("change", onChangeFunction);
 	      },
@@ -2619,7 +2619,7 @@ var dbslice = (function (exports) {
 	        var h = cfD3Histogram.interactivity.addBrush;
 	        var x = ctrl.tools.xscale;
 	        var rect = d3.select(rectDOM);
-	        var brush = d3.select(rectDOM.parentNode); // Update teh position of the left edge by the difference of the pointers movement.
+	        d3.select(rectDOM.parentNode); // Update teh position of the left edge by the difference of the pointers movement.
 
 	        var oldWest = Number(rect.attr("x"));
 	        var oldEast = Number(rect.attr("x")) + Number(rect.attr("width"));
@@ -2851,7 +2851,7 @@ var dbslice = (function (exports) {
 	      // update
 	      formatAxesY: function formatAxesY(ctrl) {
 	        var format = plotHelpers.helpers.formatAxisScale(ctrl.tools.yscale);
-	        var gExponent = ctrl.figure.select(".axis--y").selectAll("g.exponent").select("text").attr("fill", format.fill).select("tspan.exp").html(format.exp); // The y axis shows a number of items, which is always an integer. However, integers in scientific notation can have decimal spaces. Therefore pick integers from the original scale, and then transform them into the new scale.
+	        ctrl.figure.select(".axis--y").selectAll("g.exponent").select("text").attr("fill", format.fill).select("tspan.exp").html(format.exp); // The y axis shows a number of items, which is always an integer. However, integers in scientific notation can have decimal spaces. Therefore pick integers from the original scale, and then transform them into the new scale.
 
 	        var yAxisTicks = ctrl.tools.yscale.ticks().filter(function (d) {
 	          return Number.isInteger(d);
@@ -3189,7 +3189,7 @@ var dbslice = (function (exports) {
 
 	    var accessor = h.getAccessors(ctrl); // Refresh point positions
 
-	    var points = ctrl.figure.select("svg.plotArea").select(".data").selectAll("circle").transition().duration(ctrl.view.transitions.duration).attr("r", 5).attr("cx", accessor.x).attr("cy", accessor.y).attr("task-id", accessor.id); // Update the markup lines to follow on zoom
+	    ctrl.figure.select("svg.plotArea").select(".data").selectAll("circle").transition().duration(ctrl.view.transitions.duration).attr("r", 5).attr("cx", accessor.x).attr("cy", accessor.y).attr("task-id", accessor.id); // Update the markup lines to follow on zoom
 
 	    i.groupLine.update(ctrl); // Update the axes
 
@@ -3225,12 +3225,12 @@ var dbslice = (function (exports) {
 	      function assembleButtonMenuOptions() {
 	        // The button menu holds several different options that come from different sources. One is toggling the axis AR of the plot, which has nothing to do with the data. Then the coloring and grouping of points using lines, which relies on metadata categorical variables. Thirdly, the options that are in the files loaded on demand are added in.
 	        // Make a custom option that fires an aspect ratio readjustment.
-	        var arOption = {
+	        ({
 	          name: "AR",
 	          val: undefined,
 	          options: ["User / Unity"],
 	          event: cfD3Scatter.interactivity.toggleAR
-	        }; // arOption
+	        }); // arOption
 	        // Make functionality options for the menu.
 
 	        var codedPlotOptions = [color.settings];
@@ -3962,7 +3962,7 @@ var dbslice = (function (exports) {
 	          var menuContainer = parent.append("div").attr("class", "card card-menu");
 	          menuContainer.append("div").attr("class", "card-header").append("h1").html("Report:"); // Body
 
-	          var varCategories = menuContainer.append("div").attr("class", "card-body").style("overflow-y", "auto").style("overflow-x", "auto").selectAll("div").data(report).enter().append("div").each(function (d) {
+	          menuContainer.append("div").attr("class", "card-body").style("overflow-y", "auto").style("overflow-x", "auto").selectAll("div").data(report).enter().append("div").each(function (d) {
 	            errors.report.builder.build.submenu(d3.select(this), d);
 	          }); // Footer
 
@@ -4044,10 +4044,32 @@ var dbslice = (function (exports) {
 	      switch (this.extension) {
 	        case "csv":
 	          loader = function loader(url) {
-	            return d3.csv(url);
+	            return d3.text(url).then(function (text) {
+	              // Filter out any lines that begin with '#', and then parse the rest as csv.
+	              var text_ = text.split("\n"); // Don't directly filter, but instead just remove lines until the first one without a '#'.
+
+	              for (var i = 0; i < text_.length; i++) {
+	                if (text_[0].startsWith("#")) {
+	                  text_.splice(0, 1);
+	                } else {
+	                  break;
+	                } // if
+
+	              } // for
+
+
+	              text_ = text_.join("\n");
+	              return d3.csvParse(text_);
+	            });
 	          };
 
 	          break;
+
+	        /*
+	        case "csv":
+	        	loader = function(url){ return d3.csv(url) }
+	        	break;
+	        */
 
 	        case "json":
 	          loader = function loader(url) {
@@ -4414,7 +4436,7 @@ var dbslice = (function (exports) {
 	    var testrow = dbsliceFile.testrow(_content.data).row;
 
 	    _content.data.forEach(function (row) {
-	       helpers.arrayEqual(Object.getOwnPropertyNames(testrow), Object.getOwnPropertyNames(row));
+	      helpers.arrayEqual(Object.getOwnPropertyNames(testrow), Object.getOwnPropertyNames(row));
 	    }); // forEach
 
 
@@ -4752,7 +4774,7 @@ var dbslice = (function (exports) {
 	    key: "mutateToMetadata",
 	    value: // test
 	    function mutateToMetadata(obj) {
-	      var mutatedobj = new metadataFile(obj); // Refactor the 
+	      new metadataFile(obj); // Refactor the 
 	    } // mutateToMetadata
 
 	  }]);
@@ -4947,7 +4969,7 @@ var dbslice = (function (exports) {
 	        // MAYBE CHANGE THIS DYNAMIC TO FIND THE NEAREST GAP, WITH ORIGINAL POSITION, GHOST NODES, AND THE END ARE CONSIDERED?? THAT WOULD LIKELY BE MOST ELEGANT.
 	        // Still stick with replaceElement, as for all but the final position it works. Forfinal position undefined can be used, and repositioning can figure that out. And also check if sibling element is replaceElement.
 	        // Only allow the elements to move into an open position
-	        var staticElements = _toConsumableArray(container.querySelectorAll('button.shape-pill'));
+	        _toConsumableArray(container.querySelectorAll('button.shape-pill'));
 
 	        var ghostElements = _toConsumableArray(container.querySelectorAll('button.ghost'));
 
@@ -5652,7 +5674,7 @@ var dbslice = (function (exports) {
 	    // Setup the appropriate connection between individual tasks and the loaded files.
 	    // First establish for which tasks the files are available.
 	    var tasks = dbsliceData.data.taskDim.top(Infinity);
-	    var requiredUrls = tasks.map(function (d) {
+	    tasks.map(function (d) {
 	      return d[ctrl.view.sliceId];
 	    }); // Create an itnernal data object for tasks that have a loaded file, and log those that weren't loaded as missing.
 
@@ -5702,7 +5724,7 @@ var dbslice = (function (exports) {
 	    // plotFunc.update is called in render when coordinating the plots with the crossfilter selection. On-demand plots don't respond to the crossfilter, therefore this function does nothing. In hte future it may report discrepancies between its state and the crossfilter.
 	    // Called on: AR change, color change
 	    // Update the color if necessary.
-	    var allSeries = ctrl.figure.select("svg.plotArea").select("g.data").selectAll("path.line").transition().duration(ctrl.view.transitions.duration).style("stroke", ctrl.tools.getColor); // Maybe just introduce separate draw scales and axis scales??
+	    ctrl.figure.select("svg.plotArea").select("g.data").selectAll("path.line").transition().duration(ctrl.view.transitions.duration).style("stroke", ctrl.tools.getColor); // Maybe just introduce separate draw scales and axis scales??
 	    // Update the axes
 
 	    cfD3Line.helpers.axes.update(ctrl);
@@ -5712,7 +5734,7 @@ var dbslice = (function (exports) {
 	    // Remove all the previously stored promises, so that only the promises required on hte last redraw are retained.
 	    ctrl.data.promises = []; // GETDATAINFO should be launched when new data is loaded for it via the 'refresh' button, and when a different height is selected for it. Otherwise it is just hte data that gets loaded again.
 
-	    var data = cfD3Line.getData(ctrl); // The data must be retrieved here. First initialise the options.
+	    cfD3Line.getData(ctrl); // The data must be retrieved here. First initialise the options.
 
 	    if (ctrl.data.intersect != undefined) {
 	      cfD3Line.setupPlot.updateUiOptions(ctrl);
@@ -6054,14 +6076,14 @@ var dbslice = (function (exports) {
 	      var xscaleDomain = ctrl.tools.xscale.domain();
 	      ctrl.tools.xscale.domain(ctrl.format.domain.x); // Redraw the line in the new AR.
 
-	      var allSeries = ctrl.figure.select("svg.plotArea").select("g.data").selectAll("path.line").transition().duration(ctrl.view.transitions.duration).attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl)).attr("d", ctrl.tools.line);
+	      ctrl.figure.select("svg.plotArea").select("g.data").selectAll("path.line").transition().duration(ctrl.view.transitions.duration).attr("transform", cfD3Line.setupPlot.adjustTransformToData(ctrl)).attr("d", ctrl.tools.line);
 	      ctrl.tools.xscale.domain(xscaleDomain);
 
 	      function calculateAR(ctrl) {
 	        var xRange = ctrl.tools.xscale.range();
-	        var yRange = ctrl.tools.yscale.range();
+	        ctrl.tools.yscale.range();
 	        var xDomain = ctrl.tools.xscale.domain();
-	        var yDomain = ctrl.tools.yscale.domain();
+	        ctrl.tools.yscale.domain();
 	        var xAR = (xRange[1] - xRange[0]) / (xDomain[1] - xDomain[0]);
 	        var yAR = xAR / ctrl.view.viewAR;
 	        return yAR;
@@ -6484,7 +6506,7 @@ var dbslice = (function (exports) {
 	  getData: function getData(ctrl) {
 	    // First establish for which tasks the files are available.
 	    var tasks = dbsliceData.data.taskDim.top(Infinity);
-	    var requiredUrls = tasks.map(function (d) {
+	    tasks.map(function (d) {
 	      return d[ctrl.view.sliceId];
 	    }); // Create an itnernal data object for tasks that have a loaded file, and log those that weren't loaded as missing.
 
@@ -6612,7 +6634,7 @@ var dbslice = (function (exports) {
 	      var h = cfD3Contour2d.resizing;
 	      var f = ctrl.format;
 	      var w = ctrl.format.wrapper;
-	      var dx = positioning.dx(d3.select(f.parent));
+	      positioning.dx(d3.select(f.parent));
 	      var dy = positioning.dy(d3.select(f.parent));
 	      var rightControlSize = w.select("svg.rightControlSVG").node().getBoundingClientRect();
 	      var rightControlY = f.rightControls.format.position.iy * positioning.dy(d3.select(f.rightControls.format.parent)); // Heights of components
@@ -7061,7 +7083,7 @@ var dbslice = (function (exports) {
 
 	      var colorbarAxisTicks = r.colorbar.svg.select("g.gBarAxis").selectAll("text");
 	      var histogramAxisTicks = r.histogram.svg.select("g.gHistAxis").selectAll("text");
-	      var histogramLogNoteText = histogramLogNote.selectAll("tspan");
+	      histogramLogNote.selectAll("tspan");
 	      var minFontSize = d3.min([parseInt(colorbarAxisTicks.style("font-size")), parseInt(histogramAxisTicks.style("font-size")), parseInt(histogramLogNote.style("font-size"))]);
 	      colorbarAxisTicks.style("font-size", minFontSize);
 	      histogramAxisTicks.style("font-size", minFontSize);
@@ -8293,7 +8315,7 @@ var dbslice = (function (exports) {
 	    sorting: {
 	      x: function x(ctrl, variable) {
 	        var dx = positioning.dx(ctrl.figure);
-	        var dy = positioning.dy(ctrl.figure); // Find the appropriate metadata, and the range to plot it to.
+	        positioning.dy(ctrl.figure); // Find the appropriate metadata, and the range to plot it to.
 
 	        var vals = ctrl.tools.trending.members.map(function (d) {
 	          return d.task[variable];
@@ -8311,7 +8333,7 @@ var dbslice = (function (exports) {
 	      },
 	      // x
 	      y: function y(ctrl, variable) {
-	        var dx = positioning.dx(ctrl.figure);
+	        positioning.dx(ctrl.figure);
 	        var dy = positioning.dy(ctrl.figure); // Find the appropriate metadata, and the range to plot it to.
 
 	        var vals = ctrl.tools.trending.members.map(function (d) {
@@ -9313,7 +9335,7 @@ var dbslice = (function (exports) {
 	  makeSessionHeader: function makeSessionHeader() {
 	    // Check if there was a previous session header already existing. 
 	    var element = d3.select("#" + dbsliceData.session.elementId);
-	    var sessionHeader = element.select("#sessionHeader"); // Add interactivity to the title. MOVE TO INIT??
+	    element.select("#sessionHeader"); // Add interactivity to the title. MOVE TO INIT??
 
 	    element.select("#sessionTitle").html(dbsliceData.session.title).each(function () {
 	      this.addEventListener("input", function () {
@@ -9397,7 +9419,7 @@ var dbslice = (function (exports) {
 	    // Buttons
 
 	    newPlotRowsHeader.each(function (plotRowCtrl) {
-	      var removePlotRowButton = d3.select(this).append("button").attr("class", "btn btn-danger float-right removePlotButton").html("x").on("click", builder.interactivity.removePlotRow); // Make the 'add plot' button
+	      d3.select(this).append("button").attr("class", "btn btn-danger float-right removePlotButton").html("x").on("click", builder.interactivity.removePlotRow); // Make the 'add plot' button
 
 	      var addPlotButton = d3.select(this).append("button").attr("style", "display:inline").attr("class", "btn btn-success float-right").html("Add plot");
 	      addMenu.addPlotControls.make(addPlotButton, plotRowCtrl);
@@ -9671,14 +9693,14 @@ var dbslice = (function (exports) {
 	}; // sessionManager
 
 	// https://crossfilter.github.io/crossfilter/ v1.5.4 Copyright 2020 Mike Bostock
-	var crossfilter = function (global, factory) {
+	var crossfilter = function (factory) {
 	  /*
 	  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	  typeof define === 'function' && define.amd ? define(factory) :
 	  (global = global || self, global.crossfilter = factory());
 	  */
 	  return factory();
-	}(undefined, function () {
+	}(function () {
 
 	  var array8 = arrayUntyped,
 	      array16 = arrayUntyped,
@@ -11855,6 +11877,8 @@ var dbslice = (function (exports) {
 	} // initialise
 
 	exports.initialise = initialise;
+
+	Object.defineProperty(exports, '__esModule', { value: true });
 
 	return exports;
 
