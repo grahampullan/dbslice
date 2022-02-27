@@ -1,0 +1,53 @@
+{ metaDataUrl : "https://wandering-successful-ophthalmologist.glitch.me/data/1/metaData.json"
+  title : "3D box of data demo" ,
+  plotRows : [ 
+  { title : "3D box database" ,  
+        plots : [
+            { plotFunc : dbslice.cfD3BarChart ,  
+            data : { cfData : cfData , property : "Simulation type" } ,
+            layout : { title : "Simulation" , colWidth : 4 , height : 300 } } ,
+
+            { plotFunc : dbslice.cfD3BarChart ,  
+            data : { cfData : cfData , property : "Model type" } ,
+            layout : { title : "Model" , colWidth : 4 , height : 300 } } ,
+
+            { plotFunc : dbslice.cfD3Histogram ,  
+            data : { cfData : cfData , property : "Average f" } ,
+            layout : { title : "Average" , colWidth : 4 , height : 300 } } 
+            ] 
+        },
+   {  title : "f(y) at z=0",
+        plots : [],
+        ctrl : { plotFunc : dbslice.d3LineSeries ,  
+            layout : { colWidth : 4 , height : 300 } ,
+            urlTemplate : "./data/f_line_${sliceId}_task_${taskId}.json" ,
+            tasksByFilter : true ,  
+            sliceIds : [ "xstart" , "xmid" , "xend" ] , 
+            maxTasks : 20 ,
+            formatDataFunc : function( rawData ) {
+                var series = [];
+                rawData.forEach( function( line, index ) { series.push( { label : index , data : line } ) } );
+                return { series : series };
+            }
+        }
+    },
+    { title : "f at x=0",
+        plots : [] ,
+        ctrl : { plotFunc : dbslice.d3ContourStruct2d ,  
+            layout : { colWidth : 3 , height : 300 , vScale : [-0.1, 1.2] } , 
+            urlTemplate : "./data/f_area2d_xstart_task_${taskId}.json" ,
+            tasksByFilter : true,
+            maxTasks : 20 ,
+        }
+    },
+    { title : "f at x=0, x=mid, x=end",
+        plots : [] ,
+        ctrl : { plotFunc : dbslice.threeSurf3d ,  
+            layout : { colWidth : 4 , height : 400 , vScale : [-0.1, 1.2]  } , 
+            urlTemplate : "./data/f_area3d_task_${taskId}.json" ,
+            tasksByFilter : true ,
+            maxTasks : 5 ,
+            formatDataFunc : function (rawData) { return dbslice.threeMeshFromStruct( rawData )}
+        }
+    } ]
+}

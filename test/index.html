@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> 
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css">
+<link rel="stylesheet" href="http://dbslice.org/dbslice.css">
+</head>
+
+<body>
+
+<div class="container-fluid" id="target"> </div>
+
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js"></script>
+  
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://cdn.rawgit.com/crossfilter/crossfilter/master/crossfilter.js"></script>
+<script src="https://threejs.org/build/three.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://d3js.org/d3-contour.v1.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<script src="http://dbslice.org/d3-tip.js"></script>
+
+<script src="http://dbslice.org/dbslice.js"></script>
+
+
+<script>
+
+d3.json( "data/metaData.json" , function( metaData ) {
+
+    var cfData = dbslice.cfInit( metaData );
+
+    var session = {
+    title : "3D box of data demo" ,
+    plotRows : [ 
+        { title : "3D box database" ,  // plotRow of charts for filtering
+        plots : [
+            { plotFunc : dbslice.cfD3BarChart ,  // bar chart
+            data : { cfData : cfData , property : "Simulation type" } ,
+            layout : { title : "Simulation" , colWidth : 4 , height : 300 } } ,
+
+            { plotFunc : dbslice.cfD3BarChart ,  // bar chart
+            data : { cfData : cfData , property : "Model type" } ,
+            layout : { title : "Model" , colWidth : 4 , height : 300 } } ,
+
+            { plotFunc : dbslice.cfD3Histogram ,  // histogram
+            data : { cfData : cfData , property : "Average f" } ,
+            layout : { title : "Average" , colWidth : 4 , height : 300 } } 
+            ] 
+        } ]
+    };
+
+    var linePlotRow = {
+        title : "f(y) at z=0",
+        plots : [],
+        ctrl : { plotFunc : dbslice.d3LineSeries ,  // multiple lines on a single plot with d3
+            layout : { colWidth : 4 , height : 300 } ,
+            urlTemplate : "./data/f_line_${sliceId}_task_${taskId}.json" ,
+            tasksByFilter : true ,  // get taskIds array from current filter selection
+            sliceIds : [ "xstart" , "xmid" , "xend" ] , 
+            maxTasks : 20 ,
+            formatDataFunc : function( rawData ) {
+                var series = [];
+                rawData.forEach( function( line, index ) { series.push( { label : index , data : line } ) } );
+                return { series : series };
+            }
+        }
+    };
+    session.plotRows.push( linePlotRow );
+
+
+    var contourPlotRow = {
+        title : "f at x=0",
+        plots : [] ,
+        ctrl : { plotFunc : dbslice.d3ContourStruct2d ,  // contour plot with d3
+            layout : { colWidth : 3 , height : 300 , vScale : [-0.1, 1.2] } , 
+            urlTemplate : "./data/f_area2d_xstart_task_${taskId}.json" ,
+            tasksByFilter : true,
+            maxTasks : 20 ,
+        }
+    };
+    session.plotRows.push( contourPlotRow );
+
+    var surfacePlotRow = {
+        title : "f at x=0, x=mid, x=end",
+        plots : [] ,
+        ctrl : { plotFunc : dbslice.threeSurf3d ,  // surface plot with threejs
+            layout : { colWidth : 4 , height : 400 , vScale : [-0.1, 1.2]  } , 
+            urlTemplate : "./data/f_area3d_task_${taskId}.json" ,
+            tasksByFilter : true ,
+            maxTasks : 5 ,
+            formatDataFunc : function (rawData) { return dbslice.threeMeshFromStruct( rawData )}
+        }
+    };
+    session.plotRows.push( surfacePlotRow );
+
+
+    var config = { plotTasksButton : true };
+    dbslice.render( "target" , session , config );
+
+});
+
+
+</script>
+
+</body>
+</html>

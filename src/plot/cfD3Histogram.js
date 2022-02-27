@@ -62,7 +62,7 @@ const cfD3Histogram = {
 
         // style brush resize handle
         // https://github.com/crossfilter/crossfilter/blob/gh-pages/index.html#L466
-        var brushResizePath = function( d ) {
+        function brushResizePath( d ) {
             var e = +( d.type == "e" ),
                 x = e ? 1 : -1,
                 y = height / 2;
