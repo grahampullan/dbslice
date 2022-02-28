@@ -1,5 +1,6 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
+import * as d3 from 'd3';
 
 const cfD3Scatter = {
 

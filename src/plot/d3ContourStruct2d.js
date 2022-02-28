@@ -1,5 +1,8 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
+import * as d3 from 'd3';
+import { contours } from 'd3-contour'
+
 
 const d3ContourStruct2d = {
 
@@ -181,7 +184,7 @@ const d3ContourStruct2d = {
             });
 
             // initialise contours
-            var contours = d3.contours()
+            var contours = contours()
                 .size([n, m])
                 .smooth(true)
                 .thresholds(thresholds);

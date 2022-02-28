@@ -1,3 +1,5 @@
+import * as d3 from 'd3';
+
 const d3Scatter = {
 
     make : function ( element, data, layout ) {
