@@ -1,7 +1,8 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
 import * as d3 from 'd3';
-import { contours } from 'd3-contour'
+import { contours } from 'd3-contour';
+import { interpolateSpectral } from 'd3-scale-chromatic';
 
 
 const d3ContourStruct2d = {
@@ -129,7 +130,7 @@ const d3ContourStruct2d = {
         var thresholds = d3.range( vMinAll , vMaxAll , ( vMaxAll - vMinAll ) / 21 );
 
         // colour scale 
-        var colour = ( layout.colourMap === undefined ) ? d3.scaleSequential( d3.interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+        var colour = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
         colour.domain(d3.extent(thresholds));
 
         var zoom = d3.zoom()
@@ -200,7 +201,7 @@ const d3ContourStruct2d = {
 
         // colour scale 
         var scaleHeight = svgHeight/2
-        var colourScale = ( layout.colourMap === undefined ) ? d3.scaleSequential( d3.interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+        var colourScale = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
         colourScale.domain( [0, scaleHeight]);
 
         var scaleBars = scaleArea.selectAll(".scaleBar")
