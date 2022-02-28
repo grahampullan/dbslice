@@ -1,6 +1,7 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
 import * as d3 from 'd3';
+import { tip } from 'd3-tip';
 
 const cfD3Scatter = {
 
@@ -119,7 +120,7 @@ const cfD3Scatter = {
         svg.transition().call(zoom.transform, d3.zoomIdentity);
         svg.call(zoom);
 
-        var tip = d3.tip()
+        var tip = tip()
             .attr('class', 'd3-tip')
             .offset([-10, 0])
             .html(function( d ) {
