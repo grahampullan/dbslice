@@ -1,44 +1,20 @@
-import babel from 'rollup-plugin-babel';
-import commonjs from 'rollup-plugin-commonjs';
-import nodeResolve from 'rollup-plugin-node-resolve';
+import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+import replace from '@rollup/plugin-replace';
 
 export default {
-    input: 'src/Dbslice.js',
-    output: {
-        file: 'build/dbslice.js',
-        name: 'dbslice',
-        format: 'iife'
-    },
-   
-    plugins: [ 
-        commonjs({
-            include: 'node_modules/**',
-            extensions: [
-                '.js'
-            ]
-        }),
-
-        nodeResolve({
-            jsnext: true,
-            main: true,
-            browser: true,
-            extensions: [
-                '.js',
-                '.json'
-            ]
-        }),
-
-        babel({
-            babelrc: false,
-            presets: [
-                ['env', { "useBuiltIns": true, "modules":false } ]
-            ]
-        }),
-    ]
-
+	input: 'src/Dbslice.js',
+	output: {
+		file: 'build/dbslice.js',
+		format: 'iife', 
+		sourcemap: true
+	},
+	plugins: [
+		resolve(), 
+		commonjs(), 
+		replace({preventAssignment: true, 'process.env.NODE_ENV': JSON.stringify( 'development' )
+    })
+	]
 };
-
-
-
 
 
