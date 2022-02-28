@@ -1,7 +1,7 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
 import * as d3 from 'd3';
-import { tip } from 'd3-tip';
+import * as tip from 'd3-tip';
 
 const cfD3Scatter = {
 

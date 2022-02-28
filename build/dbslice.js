@@ -8754,7 +8754,7 @@
           svg.transition().call(zoom$1.transform, identity);
           svg.call(zoom$1);
 
-          var tip = undefined()
+          var tip = tip()
               .attr('class', 'd3-tip')
               .offset([-10, 0])
               .html(function( d ) {
@@ -9599,7 +9599,7 @@
           svg.transition().call(zoom$1.transform, identity);
           svg.call(zoom$1);
 
-          var tip = undefined()
+          var tip = tip()
               .attr('class', 'd3-tip')
               .offset([-10, 0])
               .html(function( d ) {
@@ -10502,7 +10502,7 @@ void main() {
           svg.transition().call(zoom$1.transform, identity);
           svg.call(zoom$1);
 
-          var tip = undefined()
+          var tip = tip()
               .attr('class', 'd3-tip')
               .offset([-10, 0])
               .html(function( d ) {
