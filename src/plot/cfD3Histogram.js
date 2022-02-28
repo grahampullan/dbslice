@@ -1,6 +1,7 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
 import { render } from '../core/render.js';
 import { dbsliceData } from '../core/dbsliceData.js';
+import * as d3 from 'd3';
 
 const cfD3Histogram = {
 
