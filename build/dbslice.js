@@ -1,4 +1,4 @@
-(function (exports) {
+var dbslice = (function (exports) {
   'use strict';
 
   class DbsliceData { }

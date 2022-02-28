@@ -6,6 +6,7 @@ export default {
 	input: 'src/Dbslice.js',
 	output: {
 		file: 'build/dbslice.js',
+        name: 'dbslice',
 		format: 'iife', 
 		sourcemap: true
 	},
@@ -15,7 +16,7 @@ export default {
 		replace({preventAssignment: true, 'process.env.NODE_ENV': JSON.stringify( 'development' )
     })
 	]
-    
+
 };
 
 

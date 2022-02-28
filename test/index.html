@@ -34,7 +34,13 @@
 
 <script>
 
-d3.json( "data/metaData.json" , function( metaData ) {
+//d3.json( "data/metaData.json" , function( metaData ) {
+
+fetch("data/metaData.json")
+    .then(response => response.json())
+    .then(metaData => {
+
+    console.log(metaData);
 
     var cfData = dbslice.cfInit( metaData );
 
