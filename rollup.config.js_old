@@ -1,22 +1,44 @@
 import babel from 'rollup-plugin-babel';
-import babelrc from 'babelrc-rollup';
-
-const babelConfig = {
-	'presets' : [ 'env' ]
-}
+import commonjs from 'rollup-plugin-commonjs';
+import nodeResolve from 'rollup-plugin-node-resolve';
 
 export default {
-	plugins: [
-		  babel(babelrc({
-		  	config: babelConfig,
-		  	exclude:'node_modules/**'
-		  }))
-		],
-	input: 'src/Dbslice.js',
-	output: {
-		file: 'build/dbslice.js',
-		format: 'iife',
-		name: 'dbslice'
-	}
+    input: 'src/Dbslice.js',
+    output: {
+        file: 'build/dbslice.js',
+        name: 'dbslice',
+        format: 'iife'
+    },
+   
+    plugins: [ 
+        commonjs({
+            include: 'node_modules/**',
+            extensions: [
+                '.js'
+            ]
+        }),
+
+        nodeResolve({
+            jsnext: true,
+            main: true,
+            browser: true,
+            extensions: [
+                '.js',
+                '.json'
+            ]
+        }),
+
+        babel({
+            babelrc: false,
+            presets: [
+                ['env', { "useBuiltIns": true, "modules":false } ]
+            ]
+        }),
+    ]
+
 };
+
+
+
+
 
