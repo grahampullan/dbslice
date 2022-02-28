@@ -1,6 +1,7 @@
 import { update } from './update.js';
 import { dbsliceData } from './dbsliceData.js';
 import { makeSessionHeader } from './makeSessionHeader.js';
+import * as d3 from 'd3';
 
 function render( elementId, session, config = { plotTasksButton : false } ) {
 

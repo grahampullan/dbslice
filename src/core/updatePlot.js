@@ -1,3 +1,5 @@
+import * as d3 from 'd3';
+
 function updatePlot( plotData, index ) {
 
     var plot = d3.select( this ) // this is the plotBody selection

@@ -24,5 +24,8 @@
   "bugs": {
     "url": "https://github.com/grahampullan/dbslice/issues"
   },
-  "homepage": "https://github.com/grahampullan/dbslice#readme"
+  "homepage": "https://github.com/grahampullan/dbslice#readme",
+  "dependencies": {
+    "d3": "^4.13.0"
+  }
 }

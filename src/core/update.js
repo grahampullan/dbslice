@@ -1,6 +1,7 @@
 import { makeNewPlot } from './makeNewPlot.js';
 import { updatePlot } from './updatePlot.js';
 import { dbsliceData } from '../core/dbsliceData.js';
+import * as d3 from 'd3';
 
 function update( elementId, session ) {
 
