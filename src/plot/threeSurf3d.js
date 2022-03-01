@@ -1,5 +1,7 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three-orbit-controls';
 
 const threeSurf3d = {
 
@@ -110,7 +112,7 @@ const threeSurf3d = {
 		camera.position.z = 2; 
 
 		// Add controls 
-		var controls = new THREE.OrbitControls( camera, renderer.domElement );
+		var controls = new OrbitControls( camera, renderer.domElement );
 		controls.addEventListener( 'change', function(){
     		renderer.render(scene,camera); // re-render if controls move/zoom 
 		} ); 

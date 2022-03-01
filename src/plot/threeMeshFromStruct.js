@@ -1,3 +1,7 @@
+import * as d3 from 'd3';
+import * as THREE from 'three';
+
+
 function threeMeshFromStruct ( data ) {
 	var x, y, z, v, n, m;
    
