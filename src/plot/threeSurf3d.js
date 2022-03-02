@@ -3,7 +3,7 @@ import { render } from '../core/render.js';
 import * as d3 from 'd3';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three';
-//import * as OrbitControls  from 'three-orbit-controls';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 const threeSurf3d = {
 
@@ -114,11 +114,11 @@ const threeSurf3d = {
 		camera.position.z = 2; 
 
 		// Add controls 
-		//var controls = new THREE.OrbitControls( camera, renderer.domElement );
-		//controls.addEventListener( 'change', function(){
-    	//	renderer.render(scene,camera); // re-render if controls move/zoom 
-		//} ); 
-		//controls.enableZoom = true; 
+		var controls = new OrbitControls( camera, renderer.domElement );
+		controls.addEventListener( 'change', function(){
+    		renderer.render(scene,camera); // re-render if controls move/zoom 
+		} ); 
+		controls.enableZoom = true; 
 
 		var ambientLight = new THREE.AmbientLight( 0xaaaaaa );
 		scene.add( ambientLight );
