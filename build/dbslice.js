@@ -5,7 +5,7 @@ var dbslice = (function (exports) {
 
   let dbsliceData = new DbsliceData();
 
-  function ascending$1(a, b) {
+  function ascending$2(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
   }
 
@@ -37,14 +37,14 @@ var dbslice = (function (exports) {
 
   function ascendingComparator(f) {
     return function(d, x) {
-      return ascending$1(f(d), x);
+      return ascending$2(f(d), x);
     };
   }
 
-  var ascendingBisect = bisector(ascending$1);
+  var ascendingBisect = bisector(ascending$2);
   var bisectRight = ascendingBisect.right;
 
-  function extent(values, valueof) {
+  function extent$1(values, valueof) {
     var n = values.length,
         i = -1,
         value,
@@ -82,11 +82,11 @@ var dbslice = (function (exports) {
     return [min, max];
   }
 
-  var array$2 = Array.prototype;
+  var array$3 = Array.prototype;
 
-  var slice$2 = array$2.slice;
+  var slice$3 = array$3.slice;
 
-  function constant$6(x) {
+  function constant$7(x) {
     return function() {
       return x;
     };
@@ -110,11 +110,11 @@ var dbslice = (function (exports) {
     return range;
   }
 
-  var e10 = Math.sqrt(50),
-      e5 = Math.sqrt(10),
-      e2 = Math.sqrt(2);
+  var e10$1 = Math.sqrt(50),
+      e5$1 = Math.sqrt(10),
+      e2$1 = Math.sqrt(2);
 
-  function ticks(start, stop, count) {
+  function ticks$1(start, stop, count) {
     var reverse,
         i = -1,
         n,
@@ -124,7 +124,7 @@ var dbslice = (function (exports) {
     stop = +stop, start = +start, count = +count;
     if (start === stop && count > 0) return [start];
     if (reverse = stop < start) n = start, start = stop, stop = n;
-    if ((step = tickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
+    if ((step = tickIncrement$1(start, stop, count)) === 0 || !isFinite(step)) return [];
 
     if (step > 0) {
       start = Math.ceil(start / step);
@@ -143,22 +143,22 @@ var dbslice = (function (exports) {
     return ticks;
   }
 
-  function tickIncrement(start, stop, count) {
+  function tickIncrement$1(start, stop, count) {
     var step = (stop - start) / Math.max(0, count),
         power = Math.floor(Math.log(step) / Math.LN10),
         error = step / Math.pow(10, power);
     return power >= 0
-        ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
-        : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
+        ? (error >= e10$1 ? 10 : error >= e5$1 ? 5 : error >= e2$1 ? 2 : 1) * Math.pow(10, power)
+        : -Math.pow(10, -power) / (error >= e10$1 ? 10 : error >= e5$1 ? 5 : error >= e2$1 ? 2 : 1);
   }
 
-  function tickStep(start, stop, count) {
+  function tickStep$1(start, stop, count) {
     var step0 = Math.abs(stop - start) / Math.max(0, count),
         step1 = Math.pow(10, Math.floor(Math.log(step0) / Math.LN10)),
         error = step0 / step1;
-    if (error >= e10) step1 *= 10;
-    else if (error >= e5) step1 *= 5;
-    else if (error >= e2) step1 *= 2;
+    if (error >= e10$1) step1 *= 10;
+    else if (error >= e5$1) step1 *= 5;
+    else if (error >= e2$1) step1 *= 2;
     return stop < start ? -step1 : step1;
   }
 
@@ -168,7 +168,7 @@ var dbslice = (function (exports) {
 
   function histogram() {
     var value = identity$5,
-        domain = extent,
+        domain = extent$1,
         threshold = sturges;
 
     function histogram(data) {
@@ -188,7 +188,7 @@ var dbslice = (function (exports) {
 
       // Convert number of thresholds into uniform thresholds.
       if (!Array.isArray(tz)) {
-        tz = tickStep(x0, x1, tz);
+        tz = tickStep$1(x0, x1, tz);
         tz = sequence(Math.ceil(x0 / tz) * tz, Math.floor(x1 / tz) * tz, tz); // exclusive
       }
 
@@ -219,15 +219,15 @@ var dbslice = (function (exports) {
     }
 
     histogram.value = function(_) {
-      return arguments.length ? (value = typeof _ === "function" ? _ : constant$6(_), histogram) : value;
+      return arguments.length ? (value = typeof _ === "function" ? _ : constant$7(_), histogram) : value;
     };
 
     histogram.domain = function(_) {
-      return arguments.length ? (domain = typeof _ === "function" ? _ : constant$6([_[0], _[1]]), histogram) : domain;
+      return arguments.length ? (domain = typeof _ === "function" ? _ : constant$7([_[0], _[1]]), histogram) : domain;
     };
 
     histogram.thresholds = function(_) {
-      return arguments.length ? (threshold = typeof _ === "function" ? _ : Array.isArray(_) ? constant$6(slice$2.call(_)) : constant$6(_), histogram) : threshold;
+      return arguments.length ? (threshold = typeof _ === "function" ? _ : Array.isArray(_) ? constant$7(slice$3.call(_)) : constant$7(_), histogram) : threshold;
     };
 
     return histogram;
@@ -303,7 +303,7 @@ var dbslice = (function (exports) {
     return min;
   }
 
-  var slice$1 = Array.prototype.slice;
+  var slice$2 = Array.prototype.slice;
 
   function identity$4(x) {
     return x;
@@ -431,15 +431,15 @@ var dbslice = (function (exports) {
     };
 
     axis.ticks = function() {
-      return tickArguments = slice$1.call(arguments), axis;
+      return tickArguments = slice$2.call(arguments), axis;
     };
 
     axis.tickArguments = function(_) {
-      return arguments.length ? (tickArguments = _ == null ? [] : slice$1.call(_), axis) : tickArguments.slice();
+      return arguments.length ? (tickArguments = _ == null ? [] : slice$2.call(_), axis) : tickArguments.slice();
     };
 
     axis.tickValues = function(_) {
-      return arguments.length ? (tickValues = _ == null ? null : slice$1.call(_), axis) : tickValues && tickValues.slice();
+      return arguments.length ? (tickValues = _ == null ? null : slice$2.call(_), axis) : tickValues && tickValues.slice();
     };
 
     axis.tickFormat = function(_) {
@@ -477,7 +477,7 @@ var dbslice = (function (exports) {
     return axis(left, scale);
   }
 
-  var noop$1 = {value: function() {}};
+  var noop$2 = {value: function() {}};
 
   function dispatch() {
     for (var i = 0, n = arguments.length, _ = {}, t; i < n; ++i) {
@@ -552,7 +552,7 @@ var dbslice = (function (exports) {
   function set$1(type, name, callback) {
     for (var i = 0, n = type.length; i < n; ++i) {
       if (type[i].name === name) {
-        type[i] = noop$1, type = type.slice(0, i).concat(type.slice(i + 1));
+        type[i] = noop$2, type = type.slice(0, i).concat(type.slice(i + 1));
         break;
       }
     }
@@ -708,7 +708,7 @@ var dbslice = (function (exports) {
     querySelectorAll: function(selector) { return this._parent.querySelectorAll(selector); }
   };
 
-  function constant$5(x) {
+  function constant$6(x) {
     return function() {
       return x;
     };
@@ -797,7 +797,7 @@ var dbslice = (function (exports) {
         parents = this._parents,
         groups = this._groups;
 
-    if (typeof value !== "function") value = constant$5(value);
+    if (typeof value !== "function") value = constant$6(value);
 
     for (var m = groups.length, update = new Array(m), enter = new Array(m), exit = new Array(m), j = 0; j < m; ++j) {
       var parent = parents[j],
@@ -865,7 +865,7 @@ var dbslice = (function (exports) {
   }
 
   function selection_sort(compare) {
-    if (!compare) compare = ascending;
+    if (!compare) compare = ascending$1;
 
     function compareNode(a, b) {
       return a && b ? compare(a.__data__, b.__data__) : !a - !b;
@@ -883,7 +883,7 @@ var dbslice = (function (exports) {
     return new Selection$1(sortgroups, this._parents).order();
   }
 
-  function ascending(a, b) {
+  function ascending$1(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
   }
 
@@ -2035,7 +2035,7 @@ var dbslice = (function (exports) {
     };
   }
 
-  function constant$4(x) {
+  function constant$5(x) {
     return function() {
       return x;
     };
@@ -2055,18 +2055,18 @@ var dbslice = (function (exports) {
 
   function hue(a, b) {
     var d = b - a;
-    return d ? linear$1(a, d > 180 || d < -180 ? d - 360 * Math.round(d / 360) : d) : constant$4(isNaN(a) ? b : a);
+    return d ? linear$1(a, d > 180 || d < -180 ? d - 360 * Math.round(d / 360) : d) : constant$5(isNaN(a) ? b : a);
   }
 
   function gamma(y) {
     return (y = +y) === 1 ? nogamma : function(a, b) {
-      return b - a ? exponential(a, b, y) : constant$4(isNaN(a) ? b : a);
+      return b - a ? exponential(a, b, y) : constant$5(isNaN(a) ? b : a);
     };
   }
 
   function nogamma(a, b) {
     var d = b - a;
-    return d ? linear$1(a, d) : constant$4(isNaN(a) ? b : a);
+    return d ? linear$1(a, d) : constant$5(isNaN(a) ? b : a);
   }
 
   var interpolateRgb = (function rgbGamma(y) {
@@ -2119,7 +2119,7 @@ var dbslice = (function (exports) {
 
   var rgbBasis = rgbSpline(basis$1);
 
-  function array$1(a, b) {
+  function array$2(a, b) {
     var nb = b ? b.length : 0,
         na = a ? Math.min(nb, a.length) : 0,
         x = new Array(na),
@@ -2235,12 +2235,12 @@ var dbslice = (function (exports) {
 
   function interpolateValue(a, b) {
     var t = typeof b, c;
-    return b == null || t === "boolean" ? constant$4(b)
+    return b == null || t === "boolean" ? constant$5(b)
         : (t === "number" ? reinterpolate
         : t === "string" ? ((c = color(b)) ? (b = c, interpolateRgb) : interpolateString)
         : b instanceof color ? interpolateRgb
         : b instanceof Date ? date$1
-        : Array.isArray(b) ? array$1
+        : Array.isArray(b) ? array$2
         : typeof b.valueOf !== "function" && typeof b.toString !== "function" || isNaN(b) ? object
         : reinterpolate)(a, b);
   }
@@ -3330,7 +3330,7 @@ var dbslice = (function (exports) {
   selection.prototype.interrupt = selection_interrupt;
   selection.prototype.transition = selection_transition;
 
-  function constant$3(x) {
+  function constant$4(x) {
     return function() {
       return x;
     };
@@ -3843,11 +3843,11 @@ var dbslice = (function (exports) {
     }
 
     brush.extent = function(_) {
-      return arguments.length ? (extent = typeof _ === "function" ? _ : constant$3([[+_[0][0], +_[0][1]], [+_[1][0], +_[1][1]]]), brush) : extent;
+      return arguments.length ? (extent = typeof _ === "function" ? _ : constant$4([[+_[0][0], +_[0][1]], [+_[1][0], +_[1][1]]]), brush) : extent;
     };
 
     brush.filter = function(_) {
-      return arguments.length ? (filter = typeof _ === "function" ? _ : constant$3(!!_), brush) : filter;
+      return arguments.length ? (filter = typeof _ === "function" ? _ : constant$4(!!_), brush) : filter;
     };
 
     brush.handleSize = function(_) {
@@ -4988,7 +4988,7 @@ var dbslice = (function (exports) {
   var abs = Math.abs;
   var sqrt = Math.sqrt;
 
-  function noop() {}
+  function noop$1() {}
 
   function streamGeometry(geometry, stream) {
     if (geometry && streamGeometryType.hasOwnProperty(geometry.type)) {
@@ -5082,15 +5082,15 @@ var dbslice = (function (exports) {
       y0$3;
 
   var areaStream = {
-    point: noop,
-    lineStart: noop,
-    lineEnd: noop,
+    point: noop$1,
+    lineStart: noop$1,
+    lineEnd: noop$1,
     polygonStart: function() {
       areaStream.lineStart = areaRingStart;
       areaStream.lineEnd = areaRingEnd;
     },
     polygonEnd: function() {
-      areaStream.lineStart = areaStream.lineEnd = areaStream.point = noop;
+      areaStream.lineStart = areaStream.lineEnd = areaStream.point = noop$1;
       areaSum.add(abs(areaRingSum));
       areaRingSum.reset();
     },
@@ -5126,10 +5126,10 @@ var dbslice = (function (exports) {
 
   var boundsStream = {
     point: boundsPoint,
-    lineStart: noop,
-    lineEnd: noop,
-    polygonStart: noop,
-    polygonEnd: noop,
+    lineStart: noop$1,
+    lineEnd: noop$1,
+    polygonStart: noop$1,
+    polygonEnd: noop$1,
     result: function() {
       var bounds = [[x0$2, y0$2], [x1, y1]];
       x1 = y1 = -(y0$2 = x0$2 = Infinity);
@@ -5281,7 +5281,7 @@ var dbslice = (function (exports) {
         }
       }
     },
-    result: noop
+    result: noop$1
   };
 
   var lengthSum = adder(),
@@ -5292,13 +5292,13 @@ var dbslice = (function (exports) {
       y0;
 
   var lengthStream = {
-    point: noop,
+    point: noop$1,
     lineStart: function() {
       lengthStream.point = lengthPointFirst;
     },
     lineEnd: function() {
       if (lengthRing) lengthPoint(x00, y00);
-      lengthStream.point = noop;
+      lengthStream.point = noop$1;
     },
     polygonStart: function() {
       lengthRing = true;
@@ -5464,10 +5464,10 @@ var dbslice = (function (exports) {
     polygonEnd: function() { this.stream.polygonEnd(); }
   };
 
-  var array = Array.prototype;
+  var array$1 = Array.prototype;
 
-  var map = array.map;
-  var slice = array.slice;
+  var map = array$1.map;
+  var slice$1 = array$1.slice;
 
   var implicit = {name: "implicit"};
 
@@ -5476,7 +5476,7 @@ var dbslice = (function (exports) {
         domain = [],
         unknown = implicit;
 
-    range = range == null ? [] : slice.call(range);
+    range = range == null ? [] : slice$1.call(range);
 
     function scale(d) {
       var key = d + "", i = index.get(key);
@@ -5496,7 +5496,7 @@ var dbslice = (function (exports) {
     };
 
     scale.range = function(_) {
-      return arguments.length ? (range = slice.call(_), scale) : range.slice();
+      return arguments.length ? (range = slice$1.call(_), scale) : range.slice();
     };
 
     scale.unknown = function(_) {
@@ -5594,7 +5594,7 @@ var dbslice = (function (exports) {
     return rescale();
   }
 
-  function constant$2(x) {
+  function constant$3(x) {
     return function() {
       return x;
     };
@@ -5609,7 +5609,7 @@ var dbslice = (function (exports) {
   function deinterpolateLinear(a, b) {
     return (b -= (a = +a))
         ? function(x) { return (x - a) / b; }
-        : constant$2(b);
+        : constant$3(b);
   }
 
   function deinterpolateClamp(deinterpolate) {
@@ -5694,11 +5694,11 @@ var dbslice = (function (exports) {
     };
 
     scale.range = function(_) {
-      return arguments.length ? (range = slice.call(_), rescale()) : range.slice();
+      return arguments.length ? (range = slice$1.call(_), rescale()) : range.slice();
     };
 
     scale.rangeRound = function(_) {
-      return range = slice.call(_), interpolate = interpolateRound, rescale();
+      return range = slice$1.call(_), interpolate = interpolateRound, rescale();
     };
 
     scale.clamp = function(_) {
@@ -5715,7 +5715,7 @@ var dbslice = (function (exports) {
   function tickFormat(domain, count, specifier) {
     var start = domain[0],
         stop = domain[domain.length - 1],
-        step = tickStep(start, stop, count == null ? 10 : count),
+        step = tickStep$1(start, stop, count == null ? 10 : count),
         precision;
     specifier = formatSpecifier(specifier == null ? ",f" : specifier);
     switch (specifier.type) {
@@ -5746,7 +5746,7 @@ var dbslice = (function (exports) {
 
     scale.ticks = function(count) {
       var d = domain();
-      return ticks(d[0], d[d.length - 1], count == null ? 10 : count);
+      return ticks$1(d[0], d[d.length - 1], count == null ? 10 : count);
     };
 
     scale.tickFormat = function(count, specifier) {
@@ -5768,16 +5768,16 @@ var dbslice = (function (exports) {
         step = i0, i0 = i1, i1 = step;
       }
 
-      step = tickIncrement(start, stop, count);
+      step = tickIncrement$1(start, stop, count);
 
       if (step > 0) {
         start = Math.floor(start / step) * step;
         stop = Math.ceil(stop / step) * step;
-        step = tickIncrement(start, stop, count);
+        step = tickIncrement$1(start, stop, count);
       } else if (step < 0) {
         start = Math.ceil(start * step) / step;
         stop = Math.floor(stop * step) / step;
-        step = tickIncrement(start, stop, count);
+        step = tickIncrement$1(start, stop, count);
       }
 
       if (step > 0) {
@@ -6840,14 +6840,14 @@ var dbslice = (function (exports) {
         var target = Math.abs(stop - start) / interval,
             i = bisector(function(i) { return i[2]; }).right(tickIntervals, target);
         if (i === tickIntervals.length) {
-          step = tickStep(start / durationYear, stop / durationYear, interval);
+          step = tickStep$1(start / durationYear, stop / durationYear, interval);
           interval = year;
         } else if (i) {
           i = tickIntervals[target / tickIntervals[i - 1][2] < tickIntervals[i][2] / target ? i - 1 : i];
           step = i[1];
           interval = i[0];
         } else {
-          step = Math.max(tickStep(start, stop, interval), 1);
+          step = Math.max(tickStep$1(start, stop, interval), 1);
           interval = millisecond;
         }
       }
@@ -6963,7 +6963,7 @@ var dbslice = (function (exports) {
     return linearish(scale);
   }
 
-  function constant$1(x) {
+  function constant$2(x) {
     return function constant() {
       return x;
     };
@@ -7012,7 +7012,7 @@ var dbslice = (function (exports) {
   function line() {
     var x$1 = x,
         y$1 = y,
-        defined = constant$1(true),
+        defined = constant$2(true),
         context = null,
         curve = curveLinear,
         output = null;
@@ -7038,15 +7038,15 @@ var dbslice = (function (exports) {
     }
 
     line.x = function(_) {
-      return arguments.length ? (x$1 = typeof _ === "function" ? _ : constant$1(+_), line) : x$1;
+      return arguments.length ? (x$1 = typeof _ === "function" ? _ : constant$2(+_), line) : x$1;
     };
 
     line.y = function(_) {
-      return arguments.length ? (y$1 = typeof _ === "function" ? _ : constant$1(+_), line) : y$1;
+      return arguments.length ? (y$1 = typeof _ === "function" ? _ : constant$2(+_), line) : y$1;
     };
 
     line.defined = function(_) {
-      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$1(!!_), line) : defined;
+      return arguments.length ? (defined = typeof _ === "function" ? _ : constant$2(!!_), line) : defined;
     };
 
     line.curve = function(_) {
@@ -7142,7 +7142,7 @@ var dbslice = (function (exports) {
     MonotoneX.prototype.point.call(this, y, x);
   };
 
-  function constant(x) {
+  function constant$1(x) {
     return function() {
       return x;
     };
@@ -7577,19 +7577,19 @@ var dbslice = (function (exports) {
     }
 
     zoom.wheelDelta = function(_) {
-      return arguments.length ? (wheelDelta = typeof _ === "function" ? _ : constant(+_), zoom) : wheelDelta;
+      return arguments.length ? (wheelDelta = typeof _ === "function" ? _ : constant$1(+_), zoom) : wheelDelta;
     };
 
     zoom.filter = function(_) {
-      return arguments.length ? (filter = typeof _ === "function" ? _ : constant(!!_), zoom) : filter;
+      return arguments.length ? (filter = typeof _ === "function" ? _ : constant$1(!!_), zoom) : filter;
     };
 
     zoom.touchable = function(_) {
-      return arguments.length ? (touchable = typeof _ === "function" ? _ : constant(!!_), zoom) : touchable;
+      return arguments.length ? (touchable = typeof _ === "function" ? _ : constant$1(!!_), zoom) : touchable;
     };
 
     zoom.extent = function(_) {
-      return arguments.length ? (extent = typeof _ === "function" ? _ : constant([[+_[0][0], +_[0][1]], [+_[1][0], +_[1][1]]]), zoom) : extent;
+      return arguments.length ? (extent = typeof _ === "function" ? _ : constant$1([[+_[0][0], +_[0][1]], [+_[1][0], +_[1][1]]]), zoom) : extent;
     };
 
     zoom.scaleExtent = function(_) {
@@ -8063,6 +8063,28 @@ var dbslice = (function (exports) {
   	update( elementId, session );
 
   }
+
+  function colors(specifier) {
+    var n = specifier.length / 6 | 0, colors = new Array(n), i = 0;
+    while (i < n) colors[i] = "#" + specifier.slice(i * 6, ++i * 6);
+    return colors;
+  }
+
+  var ramp = scheme => rgbBasis(scheme[scheme.length - 1]);
+
+  var scheme = new Array(3).concat(
+    "fc8d59ffffbf99d594",
+    "d7191cfdae61abdda42b83ba",
+    "d7191cfdae61ffffbfabdda42b83ba",
+    "d53e4ffc8d59fee08be6f59899d5943288bd",
+    "d53e4ffc8d59fee08bffffbfe6f59899d5943288bd",
+    "d53e4ff46d43fdae61fee08be6f598abdda466c2a53288bd",
+    "d53e4ff46d43fdae61fee08bffffbfe6f598abdda466c2a53288bd",
+    "9e0142d53e4ff46d43fdae61fee08be6f598abdda466c2a53288bd5e4fa2",
+    "9e0142d53e4ff46d43fdae61fee08bffffbfe6f598abdda466c2a53288bd5e4fa2"
+  ).map(colors);
+
+  var interpolateSpectral = ramp(scheme);
 
   // threejs.org/license
   const REVISION = '124';
@@ -36968,7 +36990,7 @@ var dbslice = (function (exports) {
 
   		again = false;
 
-  		if ( ! p.steiner && ( equals( p, p.next ) || area( p.prev, p, p.next ) === 0 ) ) {
+  		if ( ! p.steiner && ( equals( p, p.next ) || area$1( p.prev, p, p.next ) === 0 ) ) {
 
   			removeNode( p );
   			p = end = p.prev;
@@ -37061,7 +37083,7 @@ var dbslice = (function (exports) {
   		b = ear,
   		c = ear.next;
 
-  	if ( area( a, b, c ) >= 0 ) return false; // reflex, can't be an ear
+  	if ( area$1( a, b, c ) >= 0 ) return false; // reflex, can't be an ear
 
   	// now make sure we don't have other points inside the potential ear
   	let p = ear.next.next;
@@ -37069,7 +37091,7 @@ var dbslice = (function (exports) {
   	while ( p !== ear.prev ) {
 
   		if ( pointInTriangle( a.x, a.y, b.x, b.y, c.x, c.y, p.x, p.y ) &&
-  			area( p.prev, p, p.next ) >= 0 ) return false;
+  			area$1( p.prev, p, p.next ) >= 0 ) return false;
   		p = p.next;
 
   	}
@@ -37084,7 +37106,7 @@ var dbslice = (function (exports) {
   		b = ear,
   		c = ear.next;
 
-  	if ( area( a, b, c ) >= 0 ) return false; // reflex, can't be an ear
+  	if ( area$1( a, b, c ) >= 0 ) return false; // reflex, can't be an ear
 
   	// triangle bbox; min & max are calculated like this for speed
   	const minTX = a.x < b.x ? ( a.x < c.x ? a.x : c.x ) : ( b.x < c.x ? b.x : c.x ),
@@ -37104,12 +37126,12 @@ var dbslice = (function (exports) {
 
   		if ( p !== ear.prev && p !== ear.next &&
   			pointInTriangle( a.x, a.y, b.x, b.y, c.x, c.y, p.x, p.y ) &&
-  			area( p.prev, p, p.next ) >= 0 ) return false;
+  			area$1( p.prev, p, p.next ) >= 0 ) return false;
   		p = p.prevZ;
 
   		if ( n !== ear.prev && n !== ear.next &&
   			pointInTriangle( a.x, a.y, b.x, b.y, c.x, c.y, n.x, n.y ) &&
-  			area( n.prev, n, n.next ) >= 0 ) return false;
+  			area$1( n.prev, n, n.next ) >= 0 ) return false;
   		n = n.nextZ;
 
   	}
@@ -37119,7 +37141,7 @@ var dbslice = (function (exports) {
 
   		if ( p !== ear.prev && p !== ear.next &&
   			pointInTriangle( a.x, a.y, b.x, b.y, c.x, c.y, p.x, p.y ) &&
-  			area( p.prev, p, p.next ) >= 0 ) return false;
+  			area$1( p.prev, p, p.next ) >= 0 ) return false;
   		p = p.prevZ;
 
   	}
@@ -37129,7 +37151,7 @@ var dbslice = (function (exports) {
 
   		if ( n !== ear.prev && n !== ear.next &&
   			pointInTriangle( a.x, a.y, b.x, b.y, c.x, c.y, n.x, n.y ) &&
-  			area( n.prev, n, n.next ) >= 0 ) return false;
+  			area$1( n.prev, n, n.next ) >= 0 ) return false;
   		n = n.nextZ;
 
   	}
@@ -37334,7 +37356,7 @@ var dbslice = (function (exports) {
   // whether sector in vertex m contains sector in vertex p in the same coordinates
   function sectorContainsSector( m, p ) {
 
-  	return area( m.prev, m, p.prev ) < 0 && area( p.next, m, m.next ) < 0;
+  	return area$1( m.prev, m, p.prev ) < 0 && area$1( p.next, m, m.next ) < 0;
 
   }
 
@@ -37475,13 +37497,13 @@ var dbslice = (function (exports) {
 
   	return a.next.i !== b.i && a.prev.i !== b.i && ! intersectsPolygon( a, b ) && // dones't intersect other edges
   		( locallyInside( a, b ) && locallyInside( b, a ) && middleInside( a, b ) && // locally visible
-  		( area( a.prev, a, b.prev ) || area( a, b.prev, b ) ) || // does not create opposite-facing sectors
-  		equals( a, b ) && area( a.prev, a, a.next ) > 0 && area( b.prev, b, b.next ) > 0 ); // special zero-length case
+  		( area$1( a.prev, a, b.prev ) || area$1( a, b.prev, b ) ) || // does not create opposite-facing sectors
+  		equals( a, b ) && area$1( a.prev, a, a.next ) > 0 && area$1( b.prev, b, b.next ) > 0 ); // special zero-length case
 
   }
 
   // signed area of a triangle
-  function area( p, q, r ) {
+  function area$1( p, q, r ) {
 
   	return ( q.y - p.y ) * ( r.x - q.x ) - ( q.x - p.x ) * ( r.y - q.y );
 
@@ -37497,10 +37519,10 @@ var dbslice = (function (exports) {
   // check if two segments intersect
   function intersects( p1, q1, p2, q2 ) {
 
-  	const o1 = sign( area( p1, q1, p2 ) );
-  	const o2 = sign( area( p1, q1, q2 ) );
-  	const o3 = sign( area( p2, q2, p1 ) );
-  	const o4 = sign( area( p2, q2, q1 ) );
+  	const o1 = sign( area$1( p1, q1, p2 ) );
+  	const o2 = sign( area$1( p1, q1, q2 ) );
+  	const o3 = sign( area$1( p2, q2, p1 ) );
+  	const o4 = sign( area$1( p2, q2, q1 ) );
 
   	if ( o1 !== o2 && o3 !== o4 ) return true; // general case
 
@@ -37545,9 +37567,9 @@ var dbslice = (function (exports) {
   // check if a polygon diagonal is locally inside the polygon
   function locallyInside( a, b ) {
 
-  	return area( a.prev, a, a.next ) < 0 ?
-  		area( a, b, a.next ) >= 0 && area( a, a.prev, b ) >= 0 :
-  		area( a, b, a.prev ) < 0 || area( a, a.next, b ) < 0;
+  	return area$1( a.prev, a, a.next ) < 0 ?
+  		area$1( a, b, a.next ) >= 0 && area$1( a, a.prev, b ) >= 0 :
+  		area$1( a, b, a.prev ) < 0 || area$1( a, a.next, b ) < 0;
 
   }
 
@@ -53070,1009 +53092,7 @@ var dbslice = (function (exports) {
 
   }
 
-  var threeOrbitControls = function( THREE ) {
-  	/**
-  	 * @author qiao / https://github.com/qiao
-  	 * @author mrdoob / http://mrdoob.com
-  	 * @author alteredq / http://alteredqualia.com/
-  	 * @author WestLangley / http://github.com/WestLangley
-  	 * @author erich666 / http://erichaines.com
-  	 */
-
-  // This set of controls performs orbiting, dollying (zooming), and panning.
-  // Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
-  //
-  //    Orbit - left mouse / touch: one finger move
-  //    Zoom - middle mouse, or mousewheel / touch: two finger spread or squish
-  //    Pan - right mouse, or arrow keys / touch: three finter swipe
-
-  	function OrbitControls( object, domElement ) {
-
-  		this.object = object;
-
-  		this.domElement = ( domElement !== undefined ) ? domElement : document;
-
-  		// Set to false to disable this control
-  		this.enabled = true;
-
-  		// "target" sets the location of focus, where the object orbits around
-  		this.target = new THREE.Vector3();
-
-  		// How far you can dolly in and out ( PerspectiveCamera only )
-  		this.minDistance = 0;
-  		this.maxDistance = Infinity;
-
-  		// How far you can zoom in and out ( OrthographicCamera only )
-  		this.minZoom = 0;
-  		this.maxZoom = Infinity;
-
-  		// How far you can orbit vertically, upper and lower limits.
-  		// Range is 0 to Math.PI radians.
-  		this.minPolarAngle = 0; // radians
-  		this.maxPolarAngle = Math.PI; // radians
-
-  		// How far you can orbit horizontally, upper and lower limits.
-  		// If set, must be a sub-interval of the interval [ - Math.PI, Math.PI ].
-  		this.minAzimuthAngle = - Infinity; // radians
-  		this.maxAzimuthAngle = Infinity; // radians
-
-  		// Set to true to enable damping (inertia)
-  		// If damping is enabled, you must call controls.update() in your animation loop
-  		this.enableDamping = false;
-  		this.dampingFactor = 0.25;
-
-  		// This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
-  		// Set to false to disable zooming
-  		this.enableZoom = true;
-  		this.zoomSpeed = 1.0;
-
-  		// Set to false to disable rotating
-  		this.enableRotate = true;
-  		this.rotateSpeed = 1.0;
-
-  		// Set to false to disable panning
-  		this.enablePan = true;
-  		this.keyPanSpeed = 7.0;	// pixels moved per arrow key push
-
-  		// Set to true to automatically rotate around the target
-  		// If auto-rotate is enabled, you must call controls.update() in your animation loop
-  		this.autoRotate = false;
-  		this.autoRotateSpeed = 2.0; // 30 seconds per round when fps is 60
-
-  		// Set to false to disable use of the keys
-  		this.enableKeys = true;
-
-  		// The four arrow keys
-  		this.keys = { LEFT: 37, UP: 38, RIGHT: 39, BOTTOM: 40 };
-
-  		// Mouse buttons
-  		this.mouseButtons = { ORBIT: THREE.MOUSE.LEFT, ZOOM: THREE.MOUSE.MIDDLE, PAN: THREE.MOUSE.RIGHT };
-
-  		// for reset
-  		this.target0 = this.target.clone();
-  		this.position0 = this.object.position.clone();
-  		this.zoom0 = this.object.zoom;
-
-  		//
-  		// public methods
-  		//
-
-  		this.getPolarAngle = function () {
-
-  			return spherical.phi;
-
-  		};
-
-  		this.getAzimuthalAngle = function () {
-
-  			return spherical.theta;
-
-  		};
-
-  		this.reset = function () {
-
-  			scope.target.copy( scope.target0 );
-  			scope.object.position.copy( scope.position0 );
-  			scope.object.zoom = scope.zoom0;
-
-  			scope.object.updateProjectionMatrix();
-  			scope.dispatchEvent( changeEvent );
-
-  			scope.update();
-
-  			state = STATE.NONE;
-
-  		};
-
-  		// this method is exposed, but perhaps it would be better if we can make it private...
-  		this.update = function() {
-
-  			var offset = new THREE.Vector3();
-
-  			// so camera.up is the orbit axis
-  			var quat = new THREE.Quaternion().setFromUnitVectors( object.up, new THREE.Vector3( 0, 1, 0 ) );
-  			var quatInverse = quat.clone().inverse();
-
-  			var lastPosition = new THREE.Vector3();
-  			var lastQuaternion = new THREE.Quaternion();
-
-  			return function update () {
-
-  				var position = scope.object.position;
-
-  				offset.copy( position ).sub( scope.target );
-
-  				// rotate offset to "y-axis-is-up" space
-  				offset.applyQuaternion( quat );
-
-  				// angle from z-axis around y-axis
-  				spherical.setFromVector3( offset );
-
-  				if ( scope.autoRotate && state === STATE.NONE ) {
-
-  					rotateLeft( getAutoRotationAngle() );
-
-  				}
-
-  				spherical.theta += sphericalDelta.theta;
-  				spherical.phi += sphericalDelta.phi;
-
-  				// restrict theta to be between desired limits
-  				spherical.theta = Math.max( scope.minAzimuthAngle, Math.min( scope.maxAzimuthAngle, spherical.theta ) );
-
-  				// restrict phi to be between desired limits
-  				spherical.phi = Math.max( scope.minPolarAngle, Math.min( scope.maxPolarAngle, spherical.phi ) );
-
-  				spherical.makeSafe();
-
-
-  				spherical.radius *= scale;
-
-  				// restrict radius to be between desired limits
-  				spherical.radius = Math.max( scope.minDistance, Math.min( scope.maxDistance, spherical.radius ) );
-
-  				// move target to panned location
-  				scope.target.add( panOffset );
-
-  				offset.setFromSpherical( spherical );
-
-  				// rotate offset back to "camera-up-vector-is-up" space
-  				offset.applyQuaternion( quatInverse );
-
-  				position.copy( scope.target ).add( offset );
-
-  				scope.object.lookAt( scope.target );
-
-  				if ( scope.enableDamping === true ) {
-
-  					sphericalDelta.theta *= ( 1 - scope.dampingFactor );
-  					sphericalDelta.phi *= ( 1 - scope.dampingFactor );
-
-  				} else {
-
-  					sphericalDelta.set( 0, 0, 0 );
-
-  				}
-
-  				scale = 1;
-  				panOffset.set( 0, 0, 0 );
-
-  				// update condition is:
-  				// min(camera displacement, camera rotation in radians)^2 > EPS
-  				// using small-angle approximation cos(x/2) = 1 - x^2 / 8
-
-  				if ( zoomChanged ||
-  					lastPosition.distanceToSquared( scope.object.position ) > EPS ||
-  					8 * ( 1 - lastQuaternion.dot( scope.object.quaternion ) ) > EPS ) {
-
-  					scope.dispatchEvent( changeEvent );
-
-  					lastPosition.copy( scope.object.position );
-  					lastQuaternion.copy( scope.object.quaternion );
-  					zoomChanged = false;
-
-  					return true;
-
-  				}
-
-  				return false;
-
-  			};
-
-  		}();
-
-  		this.dispose = function() {
-
-  			scope.domElement.removeEventListener( 'contextmenu', onContextMenu, false );
-  			scope.domElement.removeEventListener( 'mousedown', onMouseDown, false );
-  			scope.domElement.removeEventListener( 'wheel', onMouseWheel, false );
-
-  			scope.domElement.removeEventListener( 'touchstart', onTouchStart, false );
-  			scope.domElement.removeEventListener( 'touchend', onTouchEnd, false );
-  			scope.domElement.removeEventListener( 'touchmove', onTouchMove, false );
-
-  			document.removeEventListener( 'mousemove', onMouseMove, false );
-  			document.removeEventListener( 'mouseup', onMouseUp, false );
-
-  			window.removeEventListener( 'keydown', onKeyDown, false );
-
-  			//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
-
-  		};
-
-  		//
-  		// internals
-  		//
-
-  		var scope = this;
-
-  		var changeEvent = { type: 'change' };
-  		var startEvent = { type: 'start' };
-  		var endEvent = { type: 'end' };
-
-  		var STATE = { NONE : - 1, ROTATE : 0, DOLLY : 1, PAN : 2, TOUCH_ROTATE : 3, TOUCH_DOLLY : 4, TOUCH_PAN : 5 };
-
-  		var state = STATE.NONE;
-
-  		var EPS = 0.000001;
-
-  		// current position in spherical coordinates
-  		var spherical = new THREE.Spherical();
-  		var sphericalDelta = new THREE.Spherical();
-
-  		var scale = 1;
-  		var panOffset = new THREE.Vector3();
-  		var zoomChanged = false;
-
-  		var rotateStart = new THREE.Vector2();
-  		var rotateEnd = new THREE.Vector2();
-  		var rotateDelta = new THREE.Vector2();
-
-  		var panStart = new THREE.Vector2();
-  		var panEnd = new THREE.Vector2();
-  		var panDelta = new THREE.Vector2();
-
-  		var dollyStart = new THREE.Vector2();
-  		var dollyEnd = new THREE.Vector2();
-  		var dollyDelta = new THREE.Vector2();
-
-  		function getAutoRotationAngle() {
-
-  			return 2 * Math.PI / 60 / 60 * scope.autoRotateSpeed;
-
-  		}
-
-  		function getZoomScale() {
-
-  			return Math.pow( 0.95, scope.zoomSpeed );
-
-  		}
-
-  		function rotateLeft( angle ) {
-
-  			sphericalDelta.theta -= angle;
-
-  		}
-
-  		function rotateUp( angle ) {
-
-  			sphericalDelta.phi -= angle;
-
-  		}
-
-  		var panLeft = function() {
-
-  			var v = new THREE.Vector3();
-
-  			return function panLeft( distance, objectMatrix ) {
-
-  				v.setFromMatrixColumn( objectMatrix, 0 ); // get X column of objectMatrix
-  				v.multiplyScalar( - distance );
-
-  				panOffset.add( v );
-
-  			};
-
-  		}();
-
-  		var panUp = function() {
-
-  			var v = new THREE.Vector3();
-
-  			return function panUp( distance, objectMatrix ) {
-
-  				v.setFromMatrixColumn( objectMatrix, 1 ); // get Y column of objectMatrix
-  				v.multiplyScalar( distance );
-
-  				panOffset.add( v );
-
-  			};
-
-  		}();
-
-  		// deltaX and deltaY are in pixels; right and down are positive
-  		var pan = function() {
-
-  			var offset = new THREE.Vector3();
-
-  			return function pan ( deltaX, deltaY ) {
-
-  				var element = scope.domElement === document ? scope.domElement.body : scope.domElement;
-
-  				if ( scope.object instanceof THREE.PerspectiveCamera ) {
-
-  					// perspective
-  					var position = scope.object.position;
-  					offset.copy( position ).sub( scope.target );
-  					var targetDistance = offset.length();
-
-  					// half of the fov is center to top of screen
-  					targetDistance *= Math.tan( ( scope.object.fov / 2 ) * Math.PI / 180.0 );
-
-  					// we actually don't use screenWidth, since perspective camera is fixed to screen height
-  					panLeft( 2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix );
-  					panUp( 2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix );
-
-  				} else if ( scope.object instanceof THREE.OrthographicCamera ) {
-
-  					// orthographic
-  					panLeft( deltaX * ( scope.object.right - scope.object.left ) / scope.object.zoom / element.clientWidth, scope.object.matrix );
-  					panUp( deltaY * ( scope.object.top - scope.object.bottom ) / scope.object.zoom / element.clientHeight, scope.object.matrix );
-
-  				} else {
-
-  					// camera neither orthographic nor perspective
-  					console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.' );
-  					scope.enablePan = false;
-
-  				}
-
-  			};
-
-  		}();
-
-  		function dollyIn( dollyScale ) {
-
-  			if ( scope.object instanceof THREE.PerspectiveCamera ) {
-
-  				scale /= dollyScale;
-
-  			} else if ( scope.object instanceof THREE.OrthographicCamera ) {
-
-  				scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom * dollyScale ) );
-  				scope.object.updateProjectionMatrix();
-  				zoomChanged = true;
-
-  			} else {
-
-  				console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
-  				scope.enableZoom = false;
-
-  			}
-
-  		}
-
-  		function dollyOut( dollyScale ) {
-
-  			if ( scope.object instanceof THREE.PerspectiveCamera ) {
-
-  				scale *= dollyScale;
-
-  			} else if ( scope.object instanceof THREE.OrthographicCamera ) {
-
-  				scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom / dollyScale ) );
-  				scope.object.updateProjectionMatrix();
-  				zoomChanged = true;
-
-  			} else {
-
-  				console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
-  				scope.enableZoom = false;
-
-  			}
-
-  		}
-
-  		//
-  		// event callbacks - update the object state
-  		//
-
-  		function handleMouseDownRotate( event ) {
-
-  			//console.log( 'handleMouseDownRotate' );
-
-  			rotateStart.set( event.clientX, event.clientY );
-
-  		}
-
-  		function handleMouseDownDolly( event ) {
-
-  			//console.log( 'handleMouseDownDolly' );
-
-  			dollyStart.set( event.clientX, event.clientY );
-
-  		}
-
-  		function handleMouseDownPan( event ) {
-
-  			//console.log( 'handleMouseDownPan' );
-
-  			panStart.set( event.clientX, event.clientY );
-
-  		}
-
-  		function handleMouseMoveRotate( event ) {
-
-  			//console.log( 'handleMouseMoveRotate' );
-
-  			rotateEnd.set( event.clientX, event.clientY );
-  			rotateDelta.subVectors( rotateEnd, rotateStart );
-
-  			var element = scope.domElement === document ? scope.domElement.body : scope.domElement;
-
-  			// rotating across whole screen goes 360 degrees around
-  			rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientWidth * scope.rotateSpeed );
-
-  			// rotating up and down along whole screen attempts to go 360, but limited to 180
-  			rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight * scope.rotateSpeed );
-
-  			rotateStart.copy( rotateEnd );
-
-  			scope.update();
-
-  		}
-
-  		function handleMouseMoveDolly( event ) {
-
-  			//console.log( 'handleMouseMoveDolly' );
-
-  			dollyEnd.set( event.clientX, event.clientY );
-
-  			dollyDelta.subVectors( dollyEnd, dollyStart );
-
-  			if ( dollyDelta.y > 0 ) {
-
-  				dollyIn( getZoomScale() );
-
-  			} else if ( dollyDelta.y < 0 ) {
-
-  				dollyOut( getZoomScale() );
-
-  			}
-
-  			dollyStart.copy( dollyEnd );
-
-  			scope.update();
-
-  		}
-
-  		function handleMouseMovePan( event ) {
-
-  			//console.log( 'handleMouseMovePan' );
-
-  			panEnd.set( event.clientX, event.clientY );
-
-  			panDelta.subVectors( panEnd, panStart );
-
-  			pan( panDelta.x, panDelta.y );
-
-  			panStart.copy( panEnd );
-
-  			scope.update();
-
-  		}
-
-  		function handleMouseWheel( event ) {
-
-  			//console.log( 'handleMouseWheel' );
-
-  			if ( event.deltaY < 0 ) {
-
-  				dollyOut( getZoomScale() );
-
-  			} else if ( event.deltaY > 0 ) {
-
-  				dollyIn( getZoomScale() );
-
-  			}
-
-  			scope.update();
-
-  		}
-
-  		function handleKeyDown( event ) {
-
-  			//console.log( 'handleKeyDown' );
-
-  			switch ( event.keyCode ) {
-
-  				case scope.keys.UP:
-  					pan( 0, scope.keyPanSpeed );
-  					scope.update();
-  					break;
-
-  				case scope.keys.BOTTOM:
-  					pan( 0, - scope.keyPanSpeed );
-  					scope.update();
-  					break;
-
-  				case scope.keys.LEFT:
-  					pan( scope.keyPanSpeed, 0 );
-  					scope.update();
-  					break;
-
-  				case scope.keys.RIGHT:
-  					pan( - scope.keyPanSpeed, 0 );
-  					scope.update();
-  					break;
-
-  			}
-
-  		}
-
-  		function handleTouchStartRotate( event ) {
-
-  			//console.log( 'handleTouchStartRotate' );
-
-  			rotateStart.set( event.touches[ 0 ].pageX, event.touches[ 0 ].pageY );
-
-  		}
-
-  		function handleTouchStartDolly( event ) {
-
-  			//console.log( 'handleTouchStartDolly' );
-
-  			var dx = event.touches[ 0 ].pageX - event.touches[ 1 ].pageX;
-  			var dy = event.touches[ 0 ].pageY - event.touches[ 1 ].pageY;
-
-  			var distance = Math.sqrt( dx * dx + dy * dy );
-
-  			dollyStart.set( 0, distance );
-
-  		}
-
-  		function handleTouchStartPan( event ) {
-
-  			//console.log( 'handleTouchStartPan' );
-
-  			panStart.set( event.touches[ 0 ].pageX, event.touches[ 0 ].pageY );
-
-  		}
-
-  		function handleTouchMoveRotate( event ) {
-
-  			//console.log( 'handleTouchMoveRotate' );
-
-  			rotateEnd.set( event.touches[ 0 ].pageX, event.touches[ 0 ].pageY );
-  			rotateDelta.subVectors( rotateEnd, rotateStart );
-
-  			var element = scope.domElement === document ? scope.domElement.body : scope.domElement;
-
-  			// rotating across whole screen goes 360 degrees around
-  			rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientWidth * scope.rotateSpeed );
-
-  			// rotating up and down along whole screen attempts to go 360, but limited to 180
-  			rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight * scope.rotateSpeed );
-
-  			rotateStart.copy( rotateEnd );
-
-  			scope.update();
-
-  		}
-
-  		function handleTouchMoveDolly( event ) {
-
-  			//console.log( 'handleTouchMoveDolly' );
-
-  			var dx = event.touches[ 0 ].pageX - event.touches[ 1 ].pageX;
-  			var dy = event.touches[ 0 ].pageY - event.touches[ 1 ].pageY;
-
-  			var distance = Math.sqrt( dx * dx + dy * dy );
-
-  			dollyEnd.set( 0, distance );
-
-  			dollyDelta.subVectors( dollyEnd, dollyStart );
-
-  			if ( dollyDelta.y > 0 ) {
-
-  				dollyOut( getZoomScale() );
-
-  			} else if ( dollyDelta.y < 0 ) {
-
-  				dollyIn( getZoomScale() );
-
-  			}
-
-  			dollyStart.copy( dollyEnd );
-
-  			scope.update();
-
-  		}
-
-  		function handleTouchMovePan( event ) {
-
-  			//console.log( 'handleTouchMovePan' );
-
-  			panEnd.set( event.touches[ 0 ].pageX, event.touches[ 0 ].pageY );
-
-  			panDelta.subVectors( panEnd, panStart );
-
-  			pan( panDelta.x, panDelta.y );
-
-  			panStart.copy( panEnd );
-
-  			scope.update();
-
-  		}
-
-  		//
-  		// event handlers - FSM: listen for events and reset state
-  		//
-
-  		function onMouseDown( event ) {
-
-  			if ( scope.enabled === false ) return;
-
-  			event.preventDefault();
-
-  			if ( event.button === scope.mouseButtons.ORBIT ) {
-
-  				if ( scope.enableRotate === false ) return;
-
-  				handleMouseDownRotate( event );
-
-  				state = STATE.ROTATE;
-
-  			} else if ( event.button === scope.mouseButtons.ZOOM ) {
-
-  				if ( scope.enableZoom === false ) return;
-
-  				handleMouseDownDolly( event );
-
-  				state = STATE.DOLLY;
-
-  			} else if ( event.button === scope.mouseButtons.PAN ) {
-
-  				if ( scope.enablePan === false ) return;
-
-  				handleMouseDownPan( event );
-
-  				state = STATE.PAN;
-
-  			}
-
-  			if ( state !== STATE.NONE ) {
-
-  				document.addEventListener( 'mousemove', onMouseMove, false );
-  				document.addEventListener( 'mouseup', onMouseUp, false );
-
-  				scope.dispatchEvent( startEvent );
-
-  			}
-
-  		}
-
-  		function onMouseMove( event ) {
-
-  			if ( scope.enabled === false ) return;
-
-  			event.preventDefault();
-
-  			if ( state === STATE.ROTATE ) {
-
-  				if ( scope.enableRotate === false ) return;
-
-  				handleMouseMoveRotate( event );
-
-  			} else if ( state === STATE.DOLLY ) {
-
-  				if ( scope.enableZoom === false ) return;
-
-  				handleMouseMoveDolly( event );
-
-  			} else if ( state === STATE.PAN ) {
-
-  				if ( scope.enablePan === false ) return;
-
-  				handleMouseMovePan( event );
-
-  			}
-
-  		}
-
-  		function onMouseUp( event ) {
-
-  			if ( scope.enabled === false ) return;
-
-  			document.removeEventListener( 'mousemove', onMouseMove, false );
-  			document.removeEventListener( 'mouseup', onMouseUp, false );
-
-  			scope.dispatchEvent( endEvent );
-
-  			state = STATE.NONE;
-
-  		}
-
-  		function onMouseWheel( event ) {
-
-  			if ( scope.enabled === false || scope.enableZoom === false || ( state !== STATE.NONE && state !== STATE.ROTATE ) ) return;
-
-  			event.preventDefault();
-  			event.stopPropagation();
-
-  			handleMouseWheel( event );
-
-  			scope.dispatchEvent( startEvent ); // not sure why these are here...
-  			scope.dispatchEvent( endEvent );
-
-  		}
-
-  		function onKeyDown( event ) {
-
-  			if ( scope.enabled === false || scope.enableKeys === false || scope.enablePan === false ) return;
-
-  			handleKeyDown( event );
-
-  		}
-
-  		function onTouchStart( event ) {
-
-  			if ( scope.enabled === false ) return;
-
-  			switch ( event.touches.length ) {
-
-  				case 1:	// one-fingered touch: rotate
-
-  					if ( scope.enableRotate === false ) return;
-
-  					handleTouchStartRotate( event );
-
-  					state = STATE.TOUCH_ROTATE;
-
-  					break;
-
-  				case 2:	// two-fingered touch: dolly
-
-  					if ( scope.enableZoom === false ) return;
-
-  					handleTouchStartDolly( event );
-
-  					state = STATE.TOUCH_DOLLY;
-
-  					break;
-
-  				case 3: // three-fingered touch: pan
-
-  					if ( scope.enablePan === false ) return;
-
-  					handleTouchStartPan( event );
-
-  					state = STATE.TOUCH_PAN;
-
-  					break;
-
-  				default:
-
-  					state = STATE.NONE;
-
-  			}
-
-  			if ( state !== STATE.NONE ) {
-
-  				scope.dispatchEvent( startEvent );
-
-  			}
-
-  		}
-
-  		function onTouchMove( event ) {
-
-  			if ( scope.enabled === false ) return;
-
-  			event.preventDefault();
-  			event.stopPropagation();
-
-  			switch ( event.touches.length ) {
-
-  				case 1: // one-fingered touch: rotate
-
-  					if ( scope.enableRotate === false ) return;
-  					if ( state !== STATE.TOUCH_ROTATE ) return; // is this needed?...
-
-  					handleTouchMoveRotate( event );
-
-  					break;
-
-  				case 2: // two-fingered touch: dolly
-
-  					if ( scope.enableZoom === false ) return;
-  					if ( state !== STATE.TOUCH_DOLLY ) return; // is this needed?...
-
-  					handleTouchMoveDolly( event );
-
-  					break;
-
-  				case 3: // three-fingered touch: pan
-
-  					if ( scope.enablePan === false ) return;
-  					if ( state !== STATE.TOUCH_PAN ) return; // is this needed?...
-
-  					handleTouchMovePan( event );
-
-  					break;
-
-  				default:
-
-  					state = STATE.NONE;
-
-  			}
-
-  		}
-
-  		function onTouchEnd( event ) {
-
-  			if ( scope.enabled === false ) return;
-
-  			scope.dispatchEvent( endEvent );
-
-  			state = STATE.NONE;
-
-  		}
-
-  		function onContextMenu( event ) {
-
-  			event.preventDefault();
-
-  		}
-
-  		//
-
-  		scope.domElement.addEventListener( 'contextmenu', onContextMenu, false );
-
-  		scope.domElement.addEventListener( 'mousedown', onMouseDown, false );
-  		scope.domElement.addEventListener( 'wheel', onMouseWheel, false );
-
-  		scope.domElement.addEventListener( 'touchstart', onTouchStart, false );
-  		scope.domElement.addEventListener( 'touchend', onTouchEnd, false );
-  		scope.domElement.addEventListener( 'touchmove', onTouchMove, false );
-
-  		window.addEventListener( 'keydown', onKeyDown, false );
-
-  		// force an update at start
-
-  		this.update();
-
-  	}
-  	OrbitControls.prototype = Object.create( THREE.EventDispatcher.prototype );
-  	OrbitControls.prototype.constructor = OrbitControls;
-
-  	Object.defineProperties( OrbitControls.prototype, {
-
-  		center: {
-
-  			get: function () {
-
-  				console.warn( 'THREE.OrbitControls: .center has been renamed to .target' );
-  				return this.target;
-
-  			}
-
-  		},
-
-  		// backward compatibility
-
-  		noZoom: {
-
-  			get: function () {
-
-  				console.warn( 'THREE.OrbitControls: .noZoom has been deprecated. Use .enableZoom instead.' );
-  				return ! this.enableZoom;
-
-  			},
-
-  			set: function ( value ) {
-
-  				console.warn( 'THREE.OrbitControls: .noZoom has been deprecated. Use .enableZoom instead.' );
-  				this.enableZoom = ! value;
-
-  			}
-
-  		},
-
-  		noRotate: {
-
-  			get: function () {
-
-  				console.warn( 'THREE.OrbitControls: .noRotate has been deprecated. Use .enableRotate instead.' );
-  				return ! this.enableRotate;
-
-  			},
-
-  			set: function ( value ) {
-
-  				console.warn( 'THREE.OrbitControls: .noRotate has been deprecated. Use .enableRotate instead.' );
-  				this.enableRotate = ! value;
-
-  			}
-
-  		},
-
-  		noPan: {
-
-  			get: function () {
-
-  				console.warn( 'THREE.OrbitControls: .noPan has been deprecated. Use .enablePan instead.' );
-  				return ! this.enablePan;
-
-  			},
-
-  			set: function ( value ) {
-
-  				console.warn( 'THREE.OrbitControls: .noPan has been deprecated. Use .enablePan instead.' );
-  				this.enablePan = ! value;
-
-  			}
-
-  		},
-
-  		noKeys: {
-
-  			get: function () {
-
-  				console.warn( 'THREE.OrbitControls: .noKeys has been deprecated. Use .enableKeys instead.' );
-  				return ! this.enableKeys;
-
-  			},
-
-  			set: function ( value ) {
-
-  				console.warn( 'THREE.OrbitControls: .noKeys has been deprecated. Use .enableKeys instead.' );
-  				this.enableKeys = ! value;
-
-  			}
-
-  		},
-
-  		staticMoving : {
-
-  			get: function () {
-
-  				console.warn( 'THREE.OrbitControls: .staticMoving has been deprecated. Use .enableDamping instead.' );
-  				return ! this.enableDamping;
-
-  			},
-
-  			set: function ( value ) {
-
-  				console.warn( 'THREE.OrbitControls: .staticMoving has been deprecated. Use .enableDamping instead.' );
-  				this.enableDamping = ! value;
-
-  			}
-
-  		},
-
-  		dynamicDampingFactor : {
-
-  			get: function () {
-
-  				console.warn( 'THREE.OrbitControls: .dynamicDampingFactor has been renamed. Use .dampingFactor instead.' );
-  				return this.dampingFactor;
-
-  			},
-
-  			set: function ( value ) {
-
-  				console.warn( 'THREE.OrbitControls: .dynamicDampingFactor has been renamed. Use .dampingFactor instead.' );
-  				this.dampingFactor = value;
-
-  			}
-
-  		}
-
-  	} );
-
-  	return OrbitControls;
-  };
+  //import * as OrbitControls  from 'three-orbit-controls';
 
   const threeSurf3d = {
 
@@ -54084,7 +53104,7 @@ var dbslice = (function (exports) {
 
   	update : function (element, geometry, layout ) {
 
-  		var container = d3.select(element);
+  		var container = select(element);
 
   		if ( layout.highlightTasks == true ) {
 
@@ -54126,7 +53146,7 @@ var dbslice = (function (exports) {
           }
 
 
-          var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( d3.interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+          var color = ( layout.colourMap === undefined ) ? sequential( interpolateSpectral ) : sequential( layout.colourMap );
           color.domain( vScale );
 
           geometry.faces.forEach(function(face, index) {
@@ -54183,12 +53203,11 @@ var dbslice = (function (exports) {
   		camera.position.z = 2; 
 
   		// Add controls 
-  		var controls = new threeOrbitControls.OrbitControls( camera, renderer.domElement );
-  		controls.addEventListener( 'change', function(){
-      		renderer.render(scene,camera); // re-render if controls move/zoom 
-  		} ); 
-  		controls.enableZoom = true; 
-   
+  		//var controls = new THREE.OrbitControls( camera, renderer.domElement );
+  		//controls.addEventListener( 'change', function(){
+      	//	renderer.render(scene,camera); // re-render if controls move/zoom 
+  		//} ); 
+  		//controls.enableZoom = true; 
 
   		var ambientLight = new AmbientLight( 0xaaaaaa );
   		scene.add( ambientLight );
@@ -54343,27 +53362,352 @@ var dbslice = (function (exports) {
 
   }
 
-  function colors(specifier) {
-    var n = specifier.length / 6 | 0, colors = new Array(n), i = 0;
-    while (i < n) colors[i] = "#" + specifier.slice(i * 6, ++i * 6);
-    return colors;
+  function count(values, valueof) {
+    let count = 0;
+    if (valueof === undefined) {
+      for (let value of values) {
+        if (value != null && (value = +value) >= value) {
+          ++count;
+        }
+      }
+    } else {
+      let index = -1;
+      for (let value of values) {
+        if ((value = valueof(value, ++index, values)) != null && (value = +value) >= value) {
+          ++count;
+        }
+      }
+    }
+    return count;
   }
 
-  var ramp = scheme => rgbBasis(scheme[scheme.length - 1]);
+  function extent(values, valueof) {
+    let min;
+    let max;
+    if (valueof === undefined) {
+      for (const value of values) {
+        if (value != null) {
+          if (min === undefined) {
+            if (value >= value) min = max = value;
+          } else {
+            if (min > value) min = value;
+            if (max < value) max = value;
+          }
+        }
+      }
+    } else {
+      let index = -1;
+      for (let value of values) {
+        if ((value = valueof(value, ++index, values)) != null) {
+          if (min === undefined) {
+            if (value >= value) min = max = value;
+          } else {
+            if (min > value) min = value;
+            if (max < value) max = value;
+          }
+        }
+      }
+    }
+    return [min, max];
+  }
 
-  var scheme = new Array(3).concat(
-    "fc8d59ffffbf99d594",
-    "d7191cfdae61abdda42b83ba",
-    "d7191cfdae61ffffbfabdda42b83ba",
-    "d53e4ffc8d59fee08be6f59899d5943288bd",
-    "d53e4ffc8d59fee08bffffbfe6f59899d5943288bd",
-    "d53e4ff46d43fdae61fee08be6f598abdda466c2a53288bd",
-    "d53e4ff46d43fdae61fee08bffffbfe6f598abdda466c2a53288bd",
-    "9e0142d53e4ff46d43fdae61fee08be6f598abdda466c2a53288bd5e4fa2",
-    "9e0142d53e4ff46d43fdae61fee08bffffbfe6f598abdda466c2a53288bd5e4fa2"
-  ).map(colors);
+  var e10 = Math.sqrt(50),
+      e5 = Math.sqrt(10),
+      e2 = Math.sqrt(2);
 
-  var interpolateSpectral = ramp(scheme);
+  function ticks(start, stop, count) {
+    var reverse,
+        i = -1,
+        n,
+        ticks,
+        step;
+
+    stop = +stop, start = +start, count = +count;
+    if (start === stop && count > 0) return [start];
+    if (reverse = stop < start) n = start, start = stop, stop = n;
+    if ((step = tickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
+
+    if (step > 0) {
+      let r0 = Math.round(start / step), r1 = Math.round(stop / step);
+      if (r0 * step < start) ++r0;
+      if (r1 * step > stop) --r1;
+      ticks = new Array(n = r1 - r0 + 1);
+      while (++i < n) ticks[i] = (r0 + i) * step;
+    } else {
+      step = -step;
+      let r0 = Math.round(start * step), r1 = Math.round(stop * step);
+      if (r0 / step < start) ++r0;
+      if (r1 / step > stop) --r1;
+      ticks = new Array(n = r1 - r0 + 1);
+      while (++i < n) ticks[i] = (r0 + i) / step;
+    }
+
+    if (reverse) ticks.reverse();
+
+    return ticks;
+  }
+
+  function tickIncrement(start, stop, count) {
+    var step = (stop - start) / Math.max(0, count),
+        power = Math.floor(Math.log(step) / Math.LN10),
+        error = step / Math.pow(10, power);
+    return power >= 0
+        ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
+        : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
+  }
+
+  function tickStep(start, stop, count) {
+    var step0 = Math.abs(stop - start) / Math.max(0, count),
+        step1 = Math.pow(10, Math.floor(Math.log(step0) / Math.LN10)),
+        error = step0 / step1;
+    if (error >= e10) step1 *= 10;
+    else if (error >= e5) step1 *= 5;
+    else if (error >= e2) step1 *= 2;
+    return stop < start ? -step1 : step1;
+  }
+
+  function thresholdSturges(values) {
+    return Math.ceil(Math.log(count(values)) / Math.LN2) + 1;
+  }
+
+  var array = Array.prototype;
+
+  var slice = array.slice;
+
+  function ascending(a, b) {
+    return a - b;
+  }
+
+  function area(ring) {
+    var i = 0, n = ring.length, area = ring[n - 1][1] * ring[0][0] - ring[n - 1][0] * ring[0][1];
+    while (++i < n) area += ring[i - 1][1] * ring[i][0] - ring[i - 1][0] * ring[i][1];
+    return area;
+  }
+
+  var constant = x => () => x;
+
+  function contains(ring, hole) {
+    var i = -1, n = hole.length, c;
+    while (++i < n) if (c = ringContains(ring, hole[i])) return c;
+    return 0;
+  }
+
+  function ringContains(ring, point) {
+    var x = point[0], y = point[1], contains = -1;
+    for (var i = 0, n = ring.length, j = n - 1; i < n; j = i++) {
+      var pi = ring[i], xi = pi[0], yi = pi[1], pj = ring[j], xj = pj[0], yj = pj[1];
+      if (segmentContains(pi, pj, point)) return 0;
+      if (((yi > y) !== (yj > y)) && ((x < (xj - xi) * (y - yi) / (yj - yi) + xi))) contains = -contains;
+    }
+    return contains;
+  }
+
+  function segmentContains(a, b, c) {
+    var i; return collinear(a, b, c) && within(a[i = +(a[0] === b[0])], c[i], b[i]);
+  }
+
+  function collinear(a, b, c) {
+    return (b[0] - a[0]) * (c[1] - a[1]) === (c[0] - a[0]) * (b[1] - a[1]);
+  }
+
+  function within(p, q, r) {
+    return p <= q && q <= r || r <= q && q <= p;
+  }
+
+  function noop() {}
+
+  var cases = [
+    [],
+    [[[1.0, 1.5], [0.5, 1.0]]],
+    [[[1.5, 1.0], [1.0, 1.5]]],
+    [[[1.5, 1.0], [0.5, 1.0]]],
+    [[[1.0, 0.5], [1.5, 1.0]]],
+    [[[1.0, 1.5], [0.5, 1.0]], [[1.0, 0.5], [1.5, 1.0]]],
+    [[[1.0, 0.5], [1.0, 1.5]]],
+    [[[1.0, 0.5], [0.5, 1.0]]],
+    [[[0.5, 1.0], [1.0, 0.5]]],
+    [[[1.0, 1.5], [1.0, 0.5]]],
+    [[[0.5, 1.0], [1.0, 0.5]], [[1.5, 1.0], [1.0, 1.5]]],
+    [[[1.5, 1.0], [1.0, 0.5]]],
+    [[[0.5, 1.0], [1.5, 1.0]]],
+    [[[1.0, 1.5], [1.5, 1.0]]],
+    [[[0.5, 1.0], [1.0, 1.5]]],
+    []
+  ];
+
+  function contours() {
+    var dx = 1,
+        dy = 1,
+        threshold = thresholdSturges,
+        smooth = smoothLinear;
+
+    function contours(values) {
+      var tz = threshold(values);
+
+      // Convert number of thresholds into uniform thresholds.
+      if (!Array.isArray(tz)) {
+        const e = extent(values), ts = tickStep(e[0], e[1], tz);
+        tz = ticks(Math.floor(e[0] / ts) * ts, Math.floor(e[1] / ts - 1) * ts, tz);
+      } else {
+        tz = tz.slice().sort(ascending);
+      }
+
+      return tz.map(value => contour(values, value));
+    }
+
+    // Accumulate, smooth contour rings, assign holes to exterior rings.
+    // Based on https://github.com/mbostock/shapefile/blob/v0.6.2/shp/polygon.js
+    function contour(values, value) {
+      var polygons = [],
+          holes = [];
+
+      isorings(values, value, function(ring) {
+        smooth(ring, values, value);
+        if (area(ring) > 0) polygons.push([ring]);
+        else holes.push(ring);
+      });
+
+      holes.forEach(function(hole) {
+        for (var i = 0, n = polygons.length, polygon; i < n; ++i) {
+          if (contains((polygon = polygons[i])[0], hole) !== -1) {
+            polygon.push(hole);
+            return;
+          }
+        }
+      });
+
+      return {
+        type: "MultiPolygon",
+        value: value,
+        coordinates: polygons
+      };
+    }
+
+    // Marching squares with isolines stitched into rings.
+    // Based on https://github.com/topojson/topojson-client/blob/v3.0.0/src/stitch.js
+    function isorings(values, value, callback) {
+      var fragmentByStart = new Array,
+          fragmentByEnd = new Array,
+          x, y, t0, t1, t2, t3;
+
+      // Special case for the first row (y = -1, t2 = t3 = 0).
+      x = y = -1;
+      t1 = values[0] >= value;
+      cases[t1 << 1].forEach(stitch);
+      while (++x < dx - 1) {
+        t0 = t1, t1 = values[x + 1] >= value;
+        cases[t0 | t1 << 1].forEach(stitch);
+      }
+      cases[t1 << 0].forEach(stitch);
+
+      // General case for the intermediate rows.
+      while (++y < dy - 1) {
+        x = -1;
+        t1 = values[y * dx + dx] >= value;
+        t2 = values[y * dx] >= value;
+        cases[t1 << 1 | t2 << 2].forEach(stitch);
+        while (++x < dx - 1) {
+          t0 = t1, t1 = values[y * dx + dx + x + 1] >= value;
+          t3 = t2, t2 = values[y * dx + x + 1] >= value;
+          cases[t0 | t1 << 1 | t2 << 2 | t3 << 3].forEach(stitch);
+        }
+        cases[t1 | t2 << 3].forEach(stitch);
+      }
+
+      // Special case for the last row (y = dy - 1, t0 = t1 = 0).
+      x = -1;
+      t2 = values[y * dx] >= value;
+      cases[t2 << 2].forEach(stitch);
+      while (++x < dx - 1) {
+        t3 = t2, t2 = values[y * dx + x + 1] >= value;
+        cases[t2 << 2 | t3 << 3].forEach(stitch);
+      }
+      cases[t2 << 3].forEach(stitch);
+
+      function stitch(line) {
+        var start = [line[0][0] + x, line[0][1] + y],
+            end = [line[1][0] + x, line[1][1] + y],
+            startIndex = index(start),
+            endIndex = index(end),
+            f, g;
+        if (f = fragmentByEnd[startIndex]) {
+          if (g = fragmentByStart[endIndex]) {
+            delete fragmentByEnd[f.end];
+            delete fragmentByStart[g.start];
+            if (f === g) {
+              f.ring.push(end);
+              callback(f.ring);
+            } else {
+              fragmentByStart[f.start] = fragmentByEnd[g.end] = {start: f.start, end: g.end, ring: f.ring.concat(g.ring)};
+            }
+          } else {
+            delete fragmentByEnd[f.end];
+            f.ring.push(end);
+            fragmentByEnd[f.end = endIndex] = f;
+          }
+        } else if (f = fragmentByStart[endIndex]) {
+          if (g = fragmentByEnd[startIndex]) {
+            delete fragmentByStart[f.start];
+            delete fragmentByEnd[g.end];
+            if (f === g) {
+              f.ring.push(end);
+              callback(f.ring);
+            } else {
+              fragmentByStart[g.start] = fragmentByEnd[f.end] = {start: g.start, end: f.end, ring: g.ring.concat(f.ring)};
+            }
+          } else {
+            delete fragmentByStart[f.start];
+            f.ring.unshift(start);
+            fragmentByStart[f.start = startIndex] = f;
+          }
+        } else {
+          fragmentByStart[startIndex] = fragmentByEnd[endIndex] = {start: startIndex, end: endIndex, ring: [start, end]};
+        }
+      }
+    }
+
+    function index(point) {
+      return point[0] * 2 + point[1] * (dx + 1) * 4;
+    }
+
+    function smoothLinear(ring, values, value) {
+      ring.forEach(function(point) {
+        var x = point[0],
+            y = point[1],
+            xt = x | 0,
+            yt = y | 0,
+            v0,
+            v1 = values[yt * dx + xt];
+        if (x > 0 && x < dx && xt === x) {
+          v0 = values[yt * dx + xt - 1];
+          point[0] = x + (value - v0) / (v1 - v0) - 0.5;
+        }
+        if (y > 0 && y < dy && yt === y) {
+          v0 = values[(yt - 1) * dx + xt];
+          point[1] = y + (value - v0) / (v1 - v0) - 0.5;
+        }
+      });
+    }
+
+    contours.contour = contour;
+
+    contours.size = function(_) {
+      if (!arguments.length) return [dx, dy];
+      var _0 = Math.floor(_[0]), _1 = Math.floor(_[1]);
+      if (!(_0 >= 0 && _1 >= 0)) throw new Error("invalid size");
+      return dx = _0, dy = _1, contours;
+    };
+
+    contours.thresholds = function(_) {
+      return arguments.length ? (threshold = typeof _ === "function" ? _ : Array.isArray(_) ? constant(slice.call(_)) : constant(_), contours) : threshold;
+    };
+
+    contours.smooth = function(_) {
+      return arguments.length ? (smooth = _ ? smoothLinear : noop, contours) : smooth === smoothLinear;
+    };
+
+    return contours;
+  }
 
   const d3ContourStruct2d = {
 
@@ -54491,7 +53835,7 @@ var dbslice = (function (exports) {
 
           // colour scale 
           var colour = ( layout.colourMap === undefined ) ? sequential( interpolateSpectral ) : sequential( layout.colourMap );
-          colour.domain(extent(thresholds));
+          colour.domain(extent$1(thresholds));
 
           var zoom$1 = zoom()
               .scaleExtent([0.5, Infinity])
@@ -54545,14 +53889,14 @@ var dbslice = (function (exports) {
               });
 
               // initialise contours
-              var contours = contours()
+              var conts = contours()
                   .size([n, m])
                   .smooth(true)
                   .thresholds(thresholds);
 
               // make and project the contours
               plotArea.selectAll("path")
-                  .data(contours(v))
+                  .data(conts(v))
                   .enter().append("path")
                       .attr("d", index(projection))
                       .attr("fill", function(d) { return colour(d.value); });        
@@ -54575,7 +53919,7 @@ var dbslice = (function (exports) {
                   .style("fill", function(d, i ) { return colourScale(d); });
 
           var cscale = linear()
-              .domain( extent(thresholds) )
+              .domain( extent$1(thresholds) )
               .range( [scaleHeight, 0]);
 
           var cAxis = axisRight( cscale ).ticks(5);
@@ -54614,6 +53958,8 @@ var dbslice = (function (exports) {
           data.newData = false;
       }
   };
+
+  //import * as tip from 'd3-tip';
 
   const d3LineSeries = {
 
@@ -54925,10 +54271,10 @@ var dbslice = (function (exports) {
 
           var xscale = linear()
               .range( [0, width] )
-              .domain( extent( data.points, function (d) { return d.x; } ) );
+              .domain( extent$1( data.points, function (d) { return d.x; } ) );
           var yscale = linear()
               .range( [height, 0] )
-              .domain( extent( data.points, function (d) { return d.y; } ) );
+              .domain( extent$1( data.points, function (d) { return d.y; } ) );
 
           var colour = ( layout.colourMap === undefined ) ? ordinal( category10 ) : ordinal( layout.colourMap );
 
@@ -56450,13 +55796,13 @@ void main() {
           const yData = cutLine.map(d => d[0][1]);
 
           if ( layout.xRange === undefined ) {
-              var xRange = extent(xData);
+              var xRange = extent$1(xData);
           } else {
               var xRange = layout.xRange;
           }
 
           if ( layout.yRange === undefined ) {
-              var yRange = extent(yData);
+              var yRange = extent$1(yData);
           } else {
               var yRange = layout.yRange;
           }

@@ -1,7 +1,9 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
+import * as d3 from 'd3';
+import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three';
-import { OrbitControls } from 'three-orbit-controls';
+//import * as OrbitControls  from 'three-orbit-controls';
 
 const threeSurf3d = {
 
@@ -55,7 +57,7 @@ const threeSurf3d = {
         }
 
 
-        var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( d3.interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+        var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
         color.domain( vScale );
 
         geometry.faces.forEach(function(face, index) {
@@ -112,12 +114,11 @@ const threeSurf3d = {
 		camera.position.z = 2; 
 
 		// Add controls 
-		var controls = new OrbitControls( camera, renderer.domElement );
-		controls.addEventListener( 'change', function(){
-    		renderer.render(scene,camera); // re-render if controls move/zoom 
-		} ); 
-		controls.enableZoom = true; 
- 
+		//var controls = new THREE.OrbitControls( camera, renderer.domElement );
+		//controls.addEventListener( 'change', function(){
+    	//	renderer.render(scene,camera); // re-render if controls move/zoom 
+		//} ); 
+		//controls.enableZoom = true; 
 
 		var ambientLight = new THREE.AmbientLight( 0xaaaaaa );
 		scene.add( ambientLight );

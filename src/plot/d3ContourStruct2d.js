@@ -185,14 +185,14 @@ const d3ContourStruct2d = {
             });
 
             // initialise contours
-            var contours = contours()
+            var conts = contours()
                 .size([n, m])
                 .smooth(true)
                 .thresholds(thresholds);
 
             // make and project the contours
             plotArea.selectAll("path")
-                .data(contours(v))
+                .data(conts(v))
                 .enter().append("path")
                     .attr("d", d3.geoPath(projection))
                     .attr("fill", function(d) { return colour(d.value); });        
