@@ -1,4 +1,5 @@
 import { dbsliceData } from './dbsliceData.js'
+import crossfilter from 'crossfilter2'
 
 function cfInit( metaData ) {
 
