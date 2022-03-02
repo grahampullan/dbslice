@@ -1,7 +1,7 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { render } from '../core/render.js';
 import * as d3 from 'd3';
-//import * as tip from 'd3-tip';
+import d3tip from 'd3-tip';
 
 const d3LineSeries = {
 
@@ -152,7 +152,7 @@ const d3LineSeries = {
         svg.transition().call(zoom.transform, d3.zoomIdentity);
         svg.call(zoom);
 
-        var tip = tip()
+        var tip = d3tip()
             .attr('class', 'd3-tip')
             .offset([-10, 0])
             .html(function( d ) {
