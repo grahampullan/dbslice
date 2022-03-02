@@ -1,5 +1,6 @@
 //import 'babel-polyfill';
 //import 'whatwg-fetch';
+//import 'bootstrap';
 export { threeSurf3d } from './plot/threeSurf3d.js' ;
 export { threeMeshFromStruct } from './plot/threeMeshFromStruct.js' ;
 export { d3ContourStruct2d } from './plot/d3ContourStruct2d.js';

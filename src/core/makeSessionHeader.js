@@ -33,7 +33,8 @@ function makeSessionHeader( element, title, subtitle, config ) {
 			.attr( "class" , "filteredTaskCount" );	
 
 
-	$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows() } );
+	document.getElementById("refreshTasks").onclick = function() { refreshTasksInPlotRows() };
+	//$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows() } );
 
 }
    
