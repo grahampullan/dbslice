@@ -34,15 +34,15 @@ fetch("data/metaData.json")
         plots : [
             { plotFunc : dbslice.cfD3BarChart ,  // bar chart
             data : { cfData : cfData , property : "Simulation type" } ,
-            layout : { title : "Simulation" , colWidth : 4 , height : 300 } } ,
+            layout : { title : "Simulation" , colWidth : 4 , height : 300 , highlightTasks:true } } ,
 
             { plotFunc : dbslice.cfD3BarChart ,  // bar chart
             data : { cfData : cfData , property : "Model type" } ,
-            layout : { title : "Model" , colWidth : 4 , height : 300 } } ,
+            layout : { title : "Model" , colWidth : 4 , height : 300 , highlightTasks:true } } ,
 
             { plotFunc : dbslice.cfD3Histogram ,  // histogram
             data : { cfData : cfData , property : "Average f" } ,
-            layout : { title : "Average" , colWidth : 4 , height : 300 } } 
+            layout : { title : "Average" , colWidth : 4 , height : 300 , highlightTasks:true } } 
             ] 
         } ]
     };
@@ -51,14 +51,14 @@ fetch("data/metaData.json")
         title : "f(y) at z=0",
         plots : [],
         ctrl : { plotFunc : dbslice.d3LineSeries ,  // multiple lines on a single plot with d3
-            layout : { colWidth : 4 , height : 300 } ,
+            layout : { colWidth : 4 , height : 300 , highlightTasks:true } ,
             urlTemplate : "./data/f_line_${sliceId}_task_${taskId}.json" ,
             tasksByFilter : true ,  // get taskIds array from current filter selection
             sliceIds : [ "xstart" , "xmid" , "xend" ] , 
             maxTasks : 20 ,
-            formatDataFunc : function( rawData ) {
+            formatDataFunc : function( rawData , tasks ) {
                 var series = [];
-                rawData.forEach( function( line, index ) { series.push( { label : index , data : line } ) } );
+                rawData.forEach( function( line, index ) { series.push( { label : index , data : line, taskId:tasks[index] } ) } );
                 return { series : series };
             }
         }
@@ -70,7 +70,7 @@ fetch("data/metaData.json")
         title : "f at x=0",
         plots : [] ,
         ctrl : { plotFunc : dbslice.d3ContourStruct2d ,  // contour plot with d3
-            layout : { colWidth : 3 , height : 300 , vScale : [-0.1, 1.2] } , 
+            layout : { colWidth : 3 , height : 300 , vScale : [-0.1, 1.2] , highlightTasks:true } , 
             urlTemplate : "./data/f_area2d_xstart_task_${taskId}.json" ,
             tasksByFilter : true,
             maxTasks : 20 ,
@@ -82,7 +82,7 @@ fetch("data/metaData.json")
         title : "f at x=0, x=mid, x=end",
         plots : [] ,
         ctrl : { plotFunc : dbslice.threeSurf3d ,  // surface plot with threejs
-            layout : { colWidth : 4 , height : 400 , vScale : [-0.1, 1.2]  } , 
+            layout : { colWidth : 4 , height : 400 , vScale : [-0.1, 1.2] , highlightTasks:true  } , 
             urlTemplate : "./data/f_area3d_task_${taskId}.json" ,
             tasksByFilter : true ,
             maxTasks : 5 ,

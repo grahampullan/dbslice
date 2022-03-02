@@ -54394,7 +54394,7 @@ var dbslice = (function (exports) {
 
                   dbsliceData.highlightTasks.forEach( function (taskId) {
 
-                  	console.log(layout.taskId);
+                  	//console.log(layout.taskId);
 
                       if ( taskId == layout.taskId ) {
                       
