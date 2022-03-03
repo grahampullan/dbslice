@@ -1,4 +1,8 @@
 import { dbsliceData } from '../core/dbsliceData.js';
+import * as d3 from 'd3';
+import { interpolateSpectral } from 'd3-scale-chromatic';
+import * as twgl from 'twgl.js/dist/4.x/twgl-full.module.js';
+
 
 const triMesh2dRender = {
 
@@ -123,7 +127,7 @@ const triMesh2dRender = {
     		.attr("transform", "translate(" + scaleMargin.left + "," + scaleMargin.top + ")");
 
     	let scaleHeight = 100;
-    	let colourScale = d3.scaleSequential( d3.interpolateSpectral );
+    	let colourScale = d3.scaleSequential( interpolateSpectral );
         colourScale.domain( [0, scaleHeight]);
         const scaleBars = scaleArea.selectAll(".scaleBar")
             .data(d3.range(scaleHeight), function(d) { return d; })
