@@ -63381,7 +63381,7 @@ void main() {
           svg.transition().call(zoom$1.transform, identity);
           svg.call(zoom$1);
 
-          var tip = tip()
+          var tip = d3tip()
               .attr('class', 'd3-tip')
               .offset([-10, 0])
               .html(function( d ) {
