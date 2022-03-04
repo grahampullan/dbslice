@@ -29,7 +29,7 @@ async function start( elementId, session ) {
     dbsliceData.session = session;
 	dbsliceData.elementId = elementId;
 
-
+    update( dbsliceData.elementId , dbsliceData.session );
 
 }
 
