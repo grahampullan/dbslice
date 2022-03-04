@@ -1,4 +1,3 @@
-import { render } from './render.js'
 import { dbsliceData } from './dbsliceData.js'
 
 function cfUpdateFilters( crossfilter ) {

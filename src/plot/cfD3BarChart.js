@@ -1,5 +1,5 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
-import { render } from '../core/render.js';
+import { update } from '../core/update.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import * as d3 from 'd3';
 
@@ -124,7 +124,7 @@ const cfD3BarChart = {
                 }
 
                 cfUpdateFilters(data.cfData);
-                render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
+                update( dbsliceData.elementId , dbsliceData.session );
 
             })
             .attr( "height", y.bandwidth() )
