@@ -8190,9 +8190,7 @@ var dbslice = (function (exports) {
 
   	Promise.all( plotRowPromises ).then( function() {
 
-  		//console.log("rendering....");
-
-  		render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+  		update( dbsliceData.elementId, dbsliceData.session );
 
   	});
 
@@ -56168,9 +56166,6 @@ var dbslice = (function (exports) {
           dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
       }
 
-
-      //render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
-
   }
 
   const cfD3BarChart = {
@@ -56466,7 +56461,7 @@ var dbslice = (function (exports) {
                   handle.attr( "display", "none" );
                   data.cfData.histogramSelectedRanges[ dimId ] = [];
                   cfUpdateFilters(data.cfData);
-                  if ( brushInit == false ) render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
+                  if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
               } else {
                   var sx = s.map( x.invert );
                   handle.attr( "display", null ).attr( "transform", function( d, i ) {
@@ -56474,7 +56469,7 @@ var dbslice = (function (exports) {
                   } );
                   data.cfData.histogramSelectedRanges[ dimId ] = sx;
                   cfUpdateFilters(data.cfData);
-                  if ( brushInit == false ) render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
+                  if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
               }
           }
 
@@ -56858,7 +56853,7 @@ var dbslice = (function (exports) {
               tip.show( d );
               if ( layout.highlightTasks == true ) {
                   dbsliceData.highlightTasks = [ d.taskId ];
-                  render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                  update( dbsliceData.elementId, dbsliceData.session );
               }
           }
 
@@ -56869,7 +56864,7 @@ var dbslice = (function (exports) {
               tip.hide();
               if ( layout.highlightTasks == true ) {
                   dbsliceData.highlightTasks = [];
-                  render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                  update( dbsliceData.elementId, dbsliceData.session );
               }
           }
       }

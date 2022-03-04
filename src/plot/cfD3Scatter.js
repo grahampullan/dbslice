@@ -1,5 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { render } from '../core/render.js';
+import { update } from '../core/update.js';
 import * as d3 from 'd3';
 import d3tip from 'd3-tip';
 
@@ -231,7 +231,7 @@ const cfD3Scatter = {
             tip.show( d );
             if ( layout.highlightTasks == true ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
-                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                update( dbsliceData.elementId, dbsliceData.session );
             }
         }
 
@@ -242,7 +242,7 @@ const cfD3Scatter = {
             tip.hide();
             if ( layout.highlightTasks == true ) {
                 dbsliceData.highlightTasks = [];
-                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                update( dbsliceData.elementId, dbsliceData.session );
             }
         }
     }
