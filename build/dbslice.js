@@ -7914,344 +7914,6 @@ var dbslice = (function (exports) {
 
   }
 
-  function makePlotsFromPlotRowCtrl( ctrl ) {
-
-  	var plotPromises = [];
-
-  	if ( ctrl.sliceIds === undefined ) {
-
-  		var nTasks = ctrl.taskIds.length;
-
-  		if ( ctrl.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.maxTasks );
-
-  		for ( var index = 0; index < nTasks; ++index ) {
-
-  			if ( ctrl.urlTemplate == null ) {
-
-  				var url = ctrl.taskIds[ index ];
-
-  			} else {
-
-  				var url = ctrl.urlTemplate.replace( "${taskId}", ctrl.taskIds[ index ] );
-
-  			}
-
-  			var title = ctrl.taskLabels[ index ];
-
-         		var plotPromise = makePromiseTaskPlot( ctrl, url, title, ctrl.taskIds[ index ] ); 
-
-          	plotPromises.push( plotPromise );
-
-          }
-
-      } else {
-
-      	ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
-
-      		var plotPromise = makePromiseSlicePlot ( ctrl, sliceId, sliceIndex );
-
-      		plotPromises.push( plotPromise );
-
-      	});
-      }
-
-  	return Promise.all(plotPromises);
-
-  }
-
-
-  function makePromiseTaskPlot( ctrl, url, title, taskId ) { 
-
-  	return fetch(url)
-
-  	.then(function( response ) {
-
-          if ( ctrl.csv === undefined ) {
-
-              return response.json();
-
-          }
-
-          if ( ctrl.csv == true ) {
-
-              return response.text() ;
-
-          }
-
-      })
-
-      .then(function( responseJson ) {
-
-          if ( ctrl.csv == true ) {
-
-              responseJson = d3.csvParse( responseJson );
-
-          }
-
-      	var plot = {};
-
-      	if (ctrl.formatDataFunc !== undefined) {
-
-      		plot.data = ctrl.formatDataFunc( responseJson, taskId ); 
-
-      	} else {
-
-      		plot.data = responseJson;
-
-          }
-
-          plot.layout = Object.assign( {}, ctrl.layout );
-
-          plot.plotFunc = ctrl.plotFunc;
-
-          plot.layout.title = title;
-
-          plot.layout.taskId = taskId;
-
-          plot.data.newData = true;
-
-          return plot;
-
-      } );
-
-  }
-
-  function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
-
-  	var slicePromisesPerPlot = [];
-      var tasksOnPlot = [];
-
-  	var nTasks = ctrl.taskIds.length;
-
-  	if ( ctrl.maxTasks !== undefined ) Math.min( nTasks, ctrl.maxTasks );
-
-  	for ( var index = 0; index < nTasks; ++index ) {
-
-          tasksOnPlot.push( ctrl.taskIds[index] );
-
-  		var url = ctrl.urlTemplate
-  			.replace( "${taskId}", ctrl.taskIds[ index ] )
-  			.replace( "${sliceId}", sliceId );
-
-              //console.log(url);
-
-  			var slicePromise = fetch(url).then( function( response ) {
-
-  				if ( ctrl.csv === undefined ) {
-
-                      return response.json();
-
-                  }
-
-                  if ( ctrl.csv == true ) {
-
-                      return response.text() ;
-
-                  }
-
-  			});
-
-  		slicePromisesPerPlot.push( slicePromise );
-
-  	}
-
-      // slicePromises.push( slicePromisesPerPlot );
-
-      return Promise.all( slicePromisesPerPlot ).then( function ( responseJson ) {
-
-          if ( ctrl.csv == true ) {
-
-              var responseCsv = [];
-
-              responseJson.forEach( function(d) {
-
-                  responseCsv.push( d3.csvParse(d) );
-
-              });
-
-              responseJson = responseCsv;
-
-          }
-
-      	var plot = {};
-
-      	if (ctrl.formatDataFunc !== undefined) {
-
-      		plot.data = ctrl.formatDataFunc( responseJson, tasksOnPlot );
-
-      	} else {
-
-      		plot.data = responseJson;
-
-      	}
-
-      	plot.layout = Object.assign({}, ctrl.layout);
-
-          plot.layout.title = sliceId;
-
-          if (ctrl.layout.xRange !== undefined) {
-
-              if (ctrl.layout.xRange[1].length !== undefined) {
-
-                  plot.layout.xRange = ctrl.layout.xRange[sliceIndex];
-
-              }
-
-          }
-
-          if (ctrl.layout.yRange !== undefined) {
-
-              if (ctrl.layout.yRange[1].length !== undefined) {
-
-                  plot.layout.yRange = ctrl.layout.yRange[sliceIndex];
-
-              }
-
-          }
-
-          if (ctrl.layout.xAxisLabel !== undefined) {
-
-              if ( Array.isArray(ctrl.layout.xAxisLabel) ) {
-
-                  plot.layout.xAxisLabel = ctrl.layout.xAxisLabel[sliceIndex];
-
-              }
-
-          }
-
-          if (ctrl.layout.yAxisLabel !== undefined) {
-
-              if ( Array.isArray(ctrl.layout.yAxisLabel) ) {
-
-                  plot.layout.yAxisLabel = ctrl.layout.yAxisLabel[sliceIndex];
-
-              }
-
-          }
-
-          if (ctrl.layout.title !== undefined) {
-
-              if ( Array.isArray(ctrl.layout.title) ) {
-
-                  plot.layout.title = ctrl.layout.title[sliceIndex];
-
-              }
-
-          }
-
-      	plot.plotFunc = ctrl.plotFunc;
-
-      	plot.data.newData = true;
-
-      	return plot;
-
-      });
-
-  }
-
-  function refreshTasksInPlotRows() {
-
-  	var plotRows = dbsliceData.session.plotRows;
-
-  	var plotRowPromises = [];
-
-  	plotRows.forEach( function( plotRow ) {
-
-  		if (plotRow.ctrl !== undefined ) {
-
-  			var ctrl = plotRow.ctrl;
-
-  			if (ctrl.plotFunc !== undefined ) {
-
-  				if ( ctrl.tasksByFilter ) {
-
-  					ctrl.taskIds = dbsliceData.filteredTaskIds;
-  					ctrl.taskLabels = dbsliceData.filteredTaskLabels;
-  					
-  				}
-
-  				if ( ctrl.tasksByList ) {
-
-  					ctrl.taskIds = dbsliceData.manualListTaskIds;
-
-  				}
-
-  				var plotRowPromise = makePlotsFromPlotRowCtrl( ctrl ).then( function ( plots ){
-  					plotRow.plots = plots;
-  				});
-
-  				plotRowPromises.push( plotRowPromise );
-
-  			}
-
-  		}
-
-  	});
-
-  	Promise.all( plotRowPromises ).then( function() {
-
-  		update( dbsliceData.elementId, dbsliceData.session );
-
-  	});
-
-
-
-  }
-
-  function makeSessionHeader( element, title, subtitle, config ) {
-
-  	element.append( "div" )
-  		.attr( "class" , "row sessionHeader" )
-  		.append( "div" )
-  			.attr( "class" , "col-md-12 sessionTitle" );
-
-  	var titleHtml = "<br/><h1 style='display:inline'>" + title + "</h1>";
-
-  	if ( config.plotTasksButton ) {
-
-  		titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
-
-  	} else {
-  		titleHtml += "<br/>";
-  	} 
-
-  	if ( subtitle === undefined ) {
-
-  		titleHtml += "<br/>";
-
-  	} else {
-
-  		titleHtml += "<p>" + subtitle + "</p>";
-
-  	}
-
-  	element.select( ".sessionTitle" )
-  		.html( titleHtml )
-  		.append( "div" )
-  			.attr( "class" , "filteredTaskCount" );	
-
-
-  	document.getElementById("refreshTasks").onclick = function() { refreshTasksInPlotRows(); };
-  	//$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows() } );
-
-  }
-
-  function render( elementId, session, config = { plotTasksButton : false } ) {
-
-  	dbsliceData.session = session;
-  	dbsliceData.elementId = elementId;
-  	dbsliceData.config = config;
-
-  	var element = select( "#" + elementId );
-
-  	var sessionHeader = element.select(".sessionHeader");
-
-      if ( sessionHeader.empty() ) makeSessionHeader( element, session.title, session.subtitle, config );
-
-  	update( elementId, session );
-
-  }
-
   function colors(specifier) {
     var n = specifier.length / 6 | 0, colors = new Array(n), i = 0;
     while (i < n) colors[i] = "#" + specifier.slice(i * 6, ++i * 6);
@@ -54705,7 +54367,7 @@ var dbslice = (function (exports) {
                       .style("outline-offset","-4px")
                       .raise();
                   dbsliceData.highlightTasks = [layout.taskId];
-                  render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                  update( dbsliceData.elementId, dbsliceData.session );
               }
           }
 
@@ -54713,7 +54375,7 @@ var dbslice = (function (exports) {
               if ( layout.highlightTasks == true ) {
                   container.style("outline-width","0px");
                   dbsliceData.highlightTasks = [];
-                  render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                  update( dbsliceData.elementId, dbsliceData.session );
               }
           }
 
@@ -55406,7 +55068,7 @@ var dbslice = (function (exports) {
                       .style("outline-offset","-4px")
                       .raise();
                   dbsliceData.highlightTasks = [layout.taskId];
-                  render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                  update( dbsliceData.elementId, dbsliceData.session );
               }
           }
 
@@ -55414,7 +55076,7 @@ var dbslice = (function (exports) {
               if ( layout.highlightTasks == true ) {
                   container.style("outline-width","0px");
                   dbsliceData.highlightTasks = [];
-                  render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                  update( dbsliceData.elementId, dbsliceData.session );
               }
           }
 
@@ -55999,7 +55661,7 @@ var dbslice = (function (exports) {
               tip.show( d , focus.node() );
               if ( layout.highlightTasks == true ) {
                   dbsliceData.highlightTasks = [ d.taskId ];
-                  render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                  update( dbsliceData.elementId, dbsliceData.session );
               }
           }
 
@@ -56010,7 +55672,7 @@ var dbslice = (function (exports) {
               tip.hide();
               if ( layout.highlightTasks == true ) {
                   dbsliceData.highlightTasks = [];
-                  render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                  update( dbsliceData.elementId, dbsliceData.session );
               }
           }
 
@@ -56981,6 +56643,344 @@ var dbslice = (function (exports) {
       }
 
   };
+
+  function makePlotsFromPlotRowCtrl( ctrl ) {
+
+  	var plotPromises = [];
+
+  	if ( ctrl.sliceIds === undefined ) {
+
+  		var nTasks = ctrl.taskIds.length;
+
+  		if ( ctrl.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.maxTasks );
+
+  		for ( var index = 0; index < nTasks; ++index ) {
+
+  			if ( ctrl.urlTemplate == null ) {
+
+  				var url = ctrl.taskIds[ index ];
+
+  			} else {
+
+  				var url = ctrl.urlTemplate.replace( "${taskId}", ctrl.taskIds[ index ] );
+
+  			}
+
+  			var title = ctrl.taskLabels[ index ];
+
+         		var plotPromise = makePromiseTaskPlot( ctrl, url, title, ctrl.taskIds[ index ] ); 
+
+          	plotPromises.push( plotPromise );
+
+          }
+
+      } else {
+
+      	ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
+
+      		var plotPromise = makePromiseSlicePlot ( ctrl, sliceId, sliceIndex );
+
+      		plotPromises.push( plotPromise );
+
+      	});
+      }
+
+  	return Promise.all(plotPromises);
+
+  }
+
+
+  function makePromiseTaskPlot( ctrl, url, title, taskId ) { 
+
+  	return fetch(url)
+
+  	.then(function( response ) {
+
+          if ( ctrl.csv === undefined ) {
+
+              return response.json();
+
+          }
+
+          if ( ctrl.csv == true ) {
+
+              return response.text() ;
+
+          }
+
+      })
+
+      .then(function( responseJson ) {
+
+          if ( ctrl.csv == true ) {
+
+              responseJson = d3.csvParse( responseJson );
+
+          }
+
+      	var plot = {};
+
+      	if (ctrl.formatDataFunc !== undefined) {
+
+      		plot.data = ctrl.formatDataFunc( responseJson, taskId ); 
+
+      	} else {
+
+      		plot.data = responseJson;
+
+          }
+
+          plot.layout = Object.assign( {}, ctrl.layout );
+
+          plot.plotFunc = ctrl.plotFunc;
+
+          plot.layout.title = title;
+
+          plot.layout.taskId = taskId;
+
+          plot.data.newData = true;
+
+          return plot;
+
+      } );
+
+  }
+
+  function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
+
+  	var slicePromisesPerPlot = [];
+      var tasksOnPlot = [];
+
+  	var nTasks = ctrl.taskIds.length;
+
+  	if ( ctrl.maxTasks !== undefined ) Math.min( nTasks, ctrl.maxTasks );
+
+  	for ( var index = 0; index < nTasks; ++index ) {
+
+          tasksOnPlot.push( ctrl.taskIds[index] );
+
+  		var url = ctrl.urlTemplate
+  			.replace( "${taskId}", ctrl.taskIds[ index ] )
+  			.replace( "${sliceId}", sliceId );
+
+              //console.log(url);
+
+  			var slicePromise = fetch(url).then( function( response ) {
+
+  				if ( ctrl.csv === undefined ) {
+
+                      return response.json();
+
+                  }
+
+                  if ( ctrl.csv == true ) {
+
+                      return response.text() ;
+
+                  }
+
+  			});
+
+  		slicePromisesPerPlot.push( slicePromise );
+
+  	}
+
+      // slicePromises.push( slicePromisesPerPlot );
+
+      return Promise.all( slicePromisesPerPlot ).then( function ( responseJson ) {
+
+          if ( ctrl.csv == true ) {
+
+              var responseCsv = [];
+
+              responseJson.forEach( function(d) {
+
+                  responseCsv.push( d3.csvParse(d) );
+
+              });
+
+              responseJson = responseCsv;
+
+          }
+
+      	var plot = {};
+
+      	if (ctrl.formatDataFunc !== undefined) {
+
+      		plot.data = ctrl.formatDataFunc( responseJson, tasksOnPlot );
+
+      	} else {
+
+      		plot.data = responseJson;
+
+      	}
+
+      	plot.layout = Object.assign({}, ctrl.layout);
+
+          plot.layout.title = sliceId;
+
+          if (ctrl.layout.xRange !== undefined) {
+
+              if (ctrl.layout.xRange[1].length !== undefined) {
+
+                  plot.layout.xRange = ctrl.layout.xRange[sliceIndex];
+
+              }
+
+          }
+
+          if (ctrl.layout.yRange !== undefined) {
+
+              if (ctrl.layout.yRange[1].length !== undefined) {
+
+                  plot.layout.yRange = ctrl.layout.yRange[sliceIndex];
+
+              }
+
+          }
+
+          if (ctrl.layout.xAxisLabel !== undefined) {
+
+              if ( Array.isArray(ctrl.layout.xAxisLabel) ) {
+
+                  plot.layout.xAxisLabel = ctrl.layout.xAxisLabel[sliceIndex];
+
+              }
+
+          }
+
+          if (ctrl.layout.yAxisLabel !== undefined) {
+
+              if ( Array.isArray(ctrl.layout.yAxisLabel) ) {
+
+                  plot.layout.yAxisLabel = ctrl.layout.yAxisLabel[sliceIndex];
+
+              }
+
+          }
+
+          if (ctrl.layout.title !== undefined) {
+
+              if ( Array.isArray(ctrl.layout.title) ) {
+
+                  plot.layout.title = ctrl.layout.title[sliceIndex];
+
+              }
+
+          }
+
+      	plot.plotFunc = ctrl.plotFunc;
+
+      	plot.data.newData = true;
+
+      	return plot;
+
+      });
+
+  }
+
+  function refreshTasksInPlotRows() {
+
+  	var plotRows = dbsliceData.session.plotRows;
+
+  	var plotRowPromises = [];
+
+  	plotRows.forEach( function( plotRow ) {
+
+  		if (plotRow.ctrl !== undefined ) {
+
+  			var ctrl = plotRow.ctrl;
+
+  			if (ctrl.plotFunc !== undefined ) {
+
+  				if ( ctrl.tasksByFilter ) {
+
+  					ctrl.taskIds = dbsliceData.filteredTaskIds;
+  					ctrl.taskLabels = dbsliceData.filteredTaskLabels;
+  					
+  				}
+
+  				if ( ctrl.tasksByList ) {
+
+  					ctrl.taskIds = dbsliceData.manualListTaskIds;
+
+  				}
+
+  				var plotRowPromise = makePlotsFromPlotRowCtrl( ctrl ).then( function ( plots ){
+  					plotRow.plots = plots;
+  				});
+
+  				plotRowPromises.push( plotRowPromise );
+
+  			}
+
+  		}
+
+  	});
+
+  	Promise.all( plotRowPromises ).then( function() {
+
+  		update( dbsliceData.elementId, dbsliceData.session );
+
+  	});
+
+
+
+  }
+
+  function makeSessionHeader( element, title, subtitle, config ) {
+
+  	element.append( "div" )
+  		.attr( "class" , "row sessionHeader" )
+  		.append( "div" )
+  			.attr( "class" , "col-md-12 sessionTitle" );
+
+  	var titleHtml = "<br/><h1 style='display:inline'>" + title + "</h1>";
+
+  	if ( config.plotTasksButton ) {
+
+  		titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
+
+  	} else {
+  		titleHtml += "<br/>";
+  	} 
+
+  	if ( subtitle === undefined ) {
+
+  		titleHtml += "<br/>";
+
+  	} else {
+
+  		titleHtml += "<p>" + subtitle + "</p>";
+
+  	}
+
+  	element.select( ".sessionTitle" )
+  		.html( titleHtml )
+  		.append( "div" )
+  			.attr( "class" , "filteredTaskCount" );	
+
+
+  	document.getElementById("refreshTasks").onclick = function() { refreshTasksInPlotRows(); };
+  	//$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows() } );
+
+  }
+
+  function render( elementId, session, config = { plotTasksButton : false } ) {
+
+  	dbsliceData.session = session;
+  	dbsliceData.elementId = elementId;
+  	dbsliceData.config = config;
+
+  	var element = select( "#" + elementId );
+
+  	var sessionHeader = element.select(".sessionHeader");
+
+      if ( sessionHeader.empty() ) makeSessionHeader( element, session.title, session.subtitle, config );
+
+  	update( elementId, session );
+
+  }
 
   let array8 = arrayUntyped,
       array16 = arrayUntyped,

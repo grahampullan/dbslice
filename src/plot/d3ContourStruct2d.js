@@ -1,5 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { render } from '../core/render.js';
+import { update } from '../core/update.js';
 import * as d3 from 'd3';
 import { contours } from 'd3-contour';
 import { interpolateSpectral } from 'd3-scale-chromatic';
@@ -239,7 +239,7 @@ const d3ContourStruct2d = {
                     .style("outline-offset","-4px")
                     .raise();
                 dbsliceData.highlightTasks = [layout.taskId];
-                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                update( dbsliceData.elementId, dbsliceData.session );
             }
         }
 
@@ -247,7 +247,7 @@ const d3ContourStruct2d = {
             if ( layout.highlightTasks == true ) {
                 container.style("outline-width","0px")
                 dbsliceData.highlightTasks = [];
-                render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+                update( dbsliceData.elementId, dbsliceData.session );
             }
         }
 
