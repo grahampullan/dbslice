@@ -1,5 +1,5 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
-import { render } from '../core/render.js';
+import { update } from '../core/update.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import * as d3 from 'd3';
 
@@ -90,7 +90,7 @@ const cfD3Histogram = {
                 handle.attr( "display", "none" );
                 data.cfData.histogramSelectedRanges[ dimId ] = [];
                 cfUpdateFilters(data.cfData);
-                if ( brushInit == false ) render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
+                if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
             } else {
                 var sx = s.map( x.invert );
                 handle.attr( "display", null ).attr( "transform", function( d, i ) {
@@ -98,7 +98,7 @@ const cfD3Histogram = {
                 } );
                 data.cfData.histogramSelectedRanges[ dimId ] = sx;
                 cfUpdateFilters(data.cfData);
-                if ( brushInit == false ) render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
+                if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
             }
         }
 

@@ -56294,7 +56294,7 @@ var dbslice = (function (exports) {
                   }
 
                   cfUpdateFilters(data.cfData);
-                  render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
+                  update( dbsliceData.elementId , dbsliceData.session );
 
               })
               .attr( "height", y.bandwidth() )

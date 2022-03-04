@@ -38,9 +38,6 @@ function cfUpdateFilters( crossfilter ) {
         dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
     }
 
-
-    //render( dbsliceData.elementId , dbsliceData.session , dbsliceData.config );
-
 }
 
 export { cfUpdateFilters };
