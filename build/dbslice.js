@@ -63128,7 +63128,7 @@ void main() {
             select(this).attr("d",line()(barCoords));
             const thisLine = getCut ({indices:tm.indices, vertices, values}, zp, zpCut);
             dbsliceData.xCut=thisLine.map(d=>d.map(e=>([e[1],e[2]])));
-            render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+            update( dbsliceData.elementId, dbsliceData.session );
 
          }
 

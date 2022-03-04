@@ -1,5 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { render } from '../core/render.js';
+import { update } from '../core/update.js';
 import * as d3 from 'd3';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as twgl from 'twgl.js/dist/4.x/twgl-full.module.js';
@@ -186,7 +186,7 @@ const triMesh2dRenderXBar = {
           d3.select(this).attr("d",d3.line()(barCoords));
           const thisLine = getCut ({indices:tm.indices, vertices, values}, zp, zpCut);
           dbsliceData.xCut=thisLine.map(d=>d.map(e=>([e[1],e[2]])));
-          render( dbsliceData.elementId, dbsliceData.session, dbsliceData.config );
+          update( dbsliceData.elementId, dbsliceData.session );
 
        }
 
