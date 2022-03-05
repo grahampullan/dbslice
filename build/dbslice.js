@@ -3,7 +3,7 @@ var dbslice = (function (exports) {
 
   class DbsliceData { }
 
-  let dbsliceData = new DbsliceData();
+  let dbsliceData$1 = new DbsliceData();
 
   function ascending$2(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
@@ -7855,9 +7855,9 @@ var dbslice = (function (exports) {
 
   	var element = select( "#" + elementId );
 
-      if (dbsliceData.filteredTaskIds !== undefined){
+      if (dbsliceData$1.filteredTaskIds !== undefined){
           element.select(".filteredTaskCount")
-              .html("<p> Number of Tasks in Filter = " + dbsliceData.filteredTaskIds.length + "</p>" );
+              .html("<p> Number of Tasks in Filter = " + dbsliceData$1.filteredTaskIds.length + "</p>" );
       } else {
           element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
       }
@@ -54233,7 +54233,7 @@ var dbslice = (function (exports) {
 
   		if ( layout.highlightTasks == true ) {
 
-              if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+              if (dbsliceData$1.highlightTasks === undefined || dbsliceData$1.highlightTasks.length == 0) {
 
                   container.style("outline-width","0px");
    
@@ -54241,7 +54241,7 @@ var dbslice = (function (exports) {
 
                   container.style("outline-width","0px");
 
-                  dbsliceData.highlightTasks.forEach( function (taskId) {
+                  dbsliceData$1.highlightTasks.forEach( function (taskId) {
 
                   	//console.log(layout.taskId);
 
@@ -54366,16 +54366,16 @@ var dbslice = (function (exports) {
                       .style("outline-width","4px")
                       .style("outline-offset","-4px")
                       .raise();
-                  dbsliceData.highlightTasks = [layout.taskId];
-                  update( dbsliceData.elementId, dbsliceData.session );
+                  dbsliceData$1.highlightTasks = [layout.taskId];
+                  update( dbsliceData$1.elementId, dbsliceData$1.session );
               }
           }
 
           function tipOff() {
               if ( layout.highlightTasks == true ) {
                   container.style("outline-width","0px");
-                  dbsliceData.highlightTasks = [];
-                  update( dbsliceData.elementId, dbsliceData.session );
+                  dbsliceData$1.highlightTasks = [];
+                  update( dbsliceData$1.elementId, dbsliceData$1.session );
               }
           }
 
@@ -54848,7 +54848,7 @@ var dbslice = (function (exports) {
 
           if ( layout.highlightTasks == true ) {
 
-              if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+              if (dbsliceData$1.highlightTasks === undefined || dbsliceData$1.highlightTasks.length == 0) {
 
                   container.style("outline-width","0px");
    
@@ -54856,7 +54856,7 @@ var dbslice = (function (exports) {
 
                   container.style("outline-width","0px");
 
-                  dbsliceData.highlightTasks.forEach( function (taskId) {
+                  dbsliceData$1.highlightTasks.forEach( function (taskId) {
 
                       if ( taskId == layout.taskId ) {
                       
@@ -55067,16 +55067,16 @@ var dbslice = (function (exports) {
                       .style("outline-width","4px")
                       .style("outline-offset","-4px")
                       .raise();
-                  dbsliceData.highlightTasks = [layout.taskId];
-                  update( dbsliceData.elementId, dbsliceData.session );
+                  dbsliceData$1.highlightTasks = [layout.taskId];
+                  update( dbsliceData$1.elementId, dbsliceData$1.session );
               }
           }
 
           function tipOff() {
               if ( layout.highlightTasks == true ) {
                   container.style("outline-width","0px");
-                  dbsliceData.highlightTasks = [];
-                  update( dbsliceData.elementId, dbsliceData.session );
+                  dbsliceData$1.highlightTasks = [];
+                  update( dbsliceData$1.elementId, dbsliceData$1.session );
               }
           }
 
@@ -55451,7 +55451,7 @@ var dbslice = (function (exports) {
           var lines = plotArea.selectAll(".line");
 
           if ( layout.highlightTasks == true ) {
-              if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+              if (dbsliceData$1.highlightTasks === undefined || dbsliceData$1.highlightTasks.length == 0) {
                   lines
                       //.style( "opacity" , 1.0 )
                       .style( "stroke-width", "2.5px" )
@@ -55461,7 +55461,7 @@ var dbslice = (function (exports) {
                       //.style( "opacity" , 0.2)
                       .style( "stroke-width", "2.5px" )
                       .style( "stroke", "#d3d3d3" ); 
-                  dbsliceData.highlightTasks.forEach( function (taskId) {
+                  dbsliceData$1.highlightTasks.forEach( function (taskId) {
                       lines.filter( (d,i) => d.taskId == taskId)
                           //.style( "opacity" , 1.0)
                           .style( "stroke", function( d ) { return colour( d.cKey ); } ) 
@@ -55660,8 +55660,8 @@ var dbslice = (function (exports) {
                   .attr( "cy" , mouse(this)[1] );
               tip.show( d , focus.node() );
               if ( layout.highlightTasks == true ) {
-                  dbsliceData.highlightTasks = [ d.taskId ];
-                  update( dbsliceData.elementId, dbsliceData.session );
+                  dbsliceData$1.highlightTasks = [ d.taskId ];
+                  update( dbsliceData$1.elementId, dbsliceData$1.session );
               }
           }
 
@@ -55671,8 +55671,8 @@ var dbslice = (function (exports) {
                   .style( "stroke-width", "2.5px" );
               tip.hide();
               if ( layout.highlightTasks == true ) {
-                  dbsliceData.highlightTasks = [];
-                  update( dbsliceData.elementId, dbsliceData.session );
+                  dbsliceData$1.highlightTasks = [];
+                  update( dbsliceData$1.elementId, dbsliceData$1.session );
               }
           }
 
@@ -55817,15 +55817,15 @@ var dbslice = (function (exports) {
       var currentMetaData = crossfilter.metaDims[0].top(Infinity);
 
 
-      dbsliceData.filteredTaskIds = currentMetaData.map(function(d){return d.taskId});
+      dbsliceData$1.filteredTaskIds = currentMetaData.map(function(d){return d.taskId});
 
       if ( currentMetaData[0].label !== undefined ) {
 
-          dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.label});
+          dbsliceData$1.filteredTaskLabels = currentMetaData.map(function(d){return d.label});
 
       } else {
 
-          dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
+          dbsliceData$1.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
       }
 
   }
@@ -55845,7 +55845,7 @@ var dbslice = (function (exports) {
           svgWidth - margin.left - margin.right;
           svgHeight - margin.top - margin.bottom;
 
-          var dimId = dbsliceData.session.cfData.metaDataProperties.indexOf( data.property );
+          var dimId = dbsliceData$1.session.cfData.metaDataProperties.indexOf( data.property );
 
           container.append("svg")
               .attr("width", svgWidth)
@@ -55877,14 +55877,14 @@ var dbslice = (function (exports) {
           var plotArea = svg.select(".plotArea");
           var dimId = plotArea.attr("dimId");
 
-          const cfData = dbsliceData.session.cfData;
+          const cfData = dbsliceData$1.session.cfData;
           var dim = cfData.metaDims[ dimId ];
 
           var bars = plotArea.selectAll("rect");
 
           if ( layout.highlightTasks == true ) {
 
-              if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+              if (dbsliceData$1.highlightTasks === undefined || dbsliceData$1.highlightTasks.length == 0) {
 
                   bars.style( "stroke-width", "0px" );
                         
@@ -55893,7 +55893,7 @@ var dbslice = (function (exports) {
                   bars
                       .style( "stroke-width", "0px" )
                       .style( "stroke", "red" ); 
-                  dbsliceData.highlightTasks.forEach( function (taskId) {
+                  dbsliceData$1.highlightTasks.forEach( function (taskId) {
                   	let keyNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][data.property];
                   	bars.filter( (d,i) => d.key == keyNow)
                           .style( "stroke-width", "4px" );
@@ -55953,7 +55953,7 @@ var dbslice = (function (exports) {
                   }
 
                   cfUpdateFilters(cfData);
-                  update( dbsliceData.elementId , dbsliceData.session );
+                  update( dbsliceData$1.elementId , dbsliceData$1.session );
 
               })
               .attr( "height", y.bandwidth() )
@@ -56053,7 +56053,7 @@ var dbslice = (function (exports) {
           var width = svgWidth - margin.left - margin.right;
           var height = svgHeight - margin.top - margin.bottom;
 
-          const cfData = dbsliceData.session.cfData;
+          const cfData = dbsliceData$1.session.cfData;
           var dimId = cfData.dataProperties.indexOf( data.property );
 
           var svg = container.append("svg")
@@ -56126,7 +56126,7 @@ var dbslice = (function (exports) {
                   handle.attr( "display", "none" );
                   cfData.histogramSelectedRanges[ dimId ] = [];
                   cfUpdateFilters(cfData);
-                  if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
+                  if ( brushInit == false ) update( dbsliceData$1.elementId , dbsliceData$1.session );
               } else {
                   var sx = s.map( x.invert );
                   handle.attr( "display", null ).attr( "transform", function( d, i ) {
@@ -56134,7 +56134,7 @@ var dbslice = (function (exports) {
                   } );
                   cfData.histogramSelectedRanges[ dimId ] = sx;
                   cfUpdateFilters(cfData);
-                  if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
+                  if ( brushInit == false ) update( dbsliceData$1.elementId , dbsliceData$1.session );
               }
           }
 
@@ -56160,7 +56160,7 @@ var dbslice = (function (exports) {
 
           var plotArea = svg.select(".plotArea");
           var dimId = plotArea.attr("dimId");
-          const cfData = dbsliceData.session.cfData;
+          const cfData = dbsliceData$1.session.cfData;
           var dim = cfData.dataDims[ dimId ];
           //var cf = data.cfData.cf;
           var property = data.property;
@@ -56169,7 +56169,7 @@ var dbslice = (function (exports) {
 
           if ( layout.highlightTasks == true ) {
 
-              if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+              if (dbsliceData$1.highlightTasks === undefined || dbsliceData$1.highlightTasks.length == 0) {
 
                   bars.style( "stroke-width", "0px" );
                         
@@ -56178,7 +56178,7 @@ var dbslice = (function (exports) {
                   bars
                       .style( "stroke-width", "0px" )
                       .style( "stroke", "red" ); 
-                  dbsliceData.highlightTasks.forEach( function (taskId) {
+                  dbsliceData$1.highlightTasks.forEach( function (taskId) {
                       let valueNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][data.property];
                       bars.filter( (d,i) => (d.x0 <= valueNow && d.x1 > valueNow) )
                           .style( "stroke-width", "4px" );
@@ -56306,7 +56306,7 @@ var dbslice = (function (exports) {
           svgWidth - margin.left - margin.right;
           svgHeight - margin.top - margin.bottom;
 
-          var dimId = data.cfData.dataProperties.indexOf( data.xProperty );
+          var dimId = dbsliceData$1.session.cfData.dataProperties.indexOf( data.xProperty );
 
           container.append("svg")
               .attr("width", svgWidth)
@@ -56342,12 +56342,13 @@ var dbslice = (function (exports) {
           var plotArea = svg.select(".plotArea");
           var dimId = plotArea.attr("dimId");
 
-          data.cfData.cf;
+          //var cf = data.cfData.cf;
           var xProperty = data.xProperty;
           var yProperty = data.yProperty;
           var cProperty = data.cProperty;
 
-          var dim = data.cfData.dataDims[ dimId ];
+          const cfData = dbsliceData$1.session.cfData;
+          var dim = cfData.dataDims[ dimId ];
           var pointData = dim.top( Infinity );
 
           if ( layout.xRange === undefined) {
@@ -56389,7 +56390,7 @@ var dbslice = (function (exports) {
               .domain( yRange );
 
           var colour = ( layout.colourMap === undefined ) ? ordinal( category10 ) : ordinal( layout.colourMap );
-          colour.domain( data.cfData.metaDataUniqueValues[ cProperty ] );
+          colour.domain( cfData.metaDataUniqueValues[ cProperty ] );
 
           var opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
 
@@ -56478,7 +56479,7 @@ var dbslice = (function (exports) {
 
 
           if ( layout.highlightTasks == true ) {
-              if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+              if (dbsliceData$1.highlightTasks === undefined || dbsliceData$1.highlightTasks.length == 0) {
                   points
                       .style( "opacity" , opacity )
                       .style( "stroke-width", "0px")
@@ -56486,7 +56487,7 @@ var dbslice = (function (exports) {
               } else {
                   //points.style( "opacity" , 0.2);
                   points.style( "fill" , "#d3d3d3");
-                  dbsliceData.highlightTasks.forEach( function (taskId) {
+                  dbsliceData$1.highlightTasks.forEach( function (taskId) {
                       points.filter( (d,i) => d.taskId == taskId)
                           .style( "fill", function( d ) { return colour( d[ cProperty ] ); } )
                           .style( "opacity" , opacity)
@@ -56518,8 +56519,8 @@ var dbslice = (function (exports) {
                   .attr( "r", 7 );
               tip.show( d );
               if ( layout.highlightTasks == true ) {
-                  dbsliceData.highlightTasks = [ d.taskId ];
-                  update( dbsliceData.elementId, dbsliceData.session );
+                  dbsliceData$1.highlightTasks = [ d.taskId ];
+                  update( dbsliceData$1.elementId, dbsliceData$1.session );
               }
           }
 
@@ -56529,8 +56530,8 @@ var dbslice = (function (exports) {
                   .attr( "r", 5 );
               tip.hide();
               if ( layout.highlightTasks == true ) {
-                  dbsliceData.highlightTasks = [];
-                  update( dbsliceData.elementId, dbsliceData.session );
+                  dbsliceData$1.highlightTasks = [];
+                  update( dbsliceData$1.elementId, dbsliceData$1.session );
               }
           }
       }
@@ -70629,12 +70630,12 @@ var dbslice = (function (exports) {
               .style("height", height+'px')
               .attr("class", "plotArea");
 
-          var dimId = data.cfData.dataProperties.indexOf( data.property );
+          var dimId = dbsliceData.session.cfData.dataProperties.indexOf( data.property );
 
-          data.cfData.cf;
+          //var cf = data.cfData.cf;
           var property = data.property;
 
-          var dim = data.cfData.metaDims[ dimId ];
+          var dim = dbsliceData.session.cfData.metaDims[ dimId ];
           var items = dim.top( Infinity );
 
           var map = leafletSrc.exports.map('mapnow');
@@ -72658,7 +72659,7 @@ var dbslice = (function (exports) {
 
       });
 
-      dbsliceData.filteredTaskIds = taskIds;
+      dbsliceData$1.filteredTaskIds = taskIds;
 
       return cfData;
 
@@ -72901,7 +72902,7 @@ var dbslice = (function (exports) {
 
   function refreshTasksInPlotRows() {
 
-  	var plotRows = dbsliceData.session.plotRows;
+  	var plotRows = dbsliceData$1.session.plotRows;
 
   	var plotRowPromises = [];
 
@@ -72915,14 +72916,14 @@ var dbslice = (function (exports) {
 
   				if ( ctrl.tasksByFilter ) {
 
-  					ctrl.taskIds = dbsliceData.filteredTaskIds;
-  					ctrl.taskLabels = dbsliceData.filteredTaskLabels;
+  					ctrl.taskIds = dbsliceData$1.filteredTaskIds;
+  					ctrl.taskLabels = dbsliceData$1.filteredTaskLabels;
   					
   				}
 
   				if ( ctrl.tasksByList ) {
 
-  					ctrl.taskIds = dbsliceData.manualListTaskIds;
+  					ctrl.taskIds = dbsliceData$1.manualListTaskIds;
 
   				}
 
@@ -72940,7 +72941,7 @@ var dbslice = (function (exports) {
 
   	Promise.all( plotRowPromises ).then( function() {
 
-  		update( dbsliceData.elementId, dbsliceData.session );
+  		update( dbsliceData$1.elementId, dbsliceData$1.session );
 
   	});
 
@@ -73008,18 +73009,18 @@ var dbslice = (function (exports) {
   	let sessionHeader = element.select(".sessionHeader");
       if ( sessionHeader.empty() ) makeSessionHeader( element, session.title, session.subtitle, session.config );
 
-      dbsliceData.session = session;
-  	dbsliceData.elementId = elementId;
+      dbsliceData$1.session = session;
+  	dbsliceData$1.elementId = elementId;
 
-      update( dbsliceData.elementId , dbsliceData.session );
+      update( dbsliceData$1.elementId , dbsliceData$1.session );
 
   }
 
   function render( elementId, session, config = { plotTasksButton : false } ) {
 
-  	dbsliceData.session = session;
-  	dbsliceData.elementId = elementId;
-  	dbsliceData.config = config;
+  	dbsliceData$1.session = session;
+  	dbsliceData$1.elementId = elementId;
+  	dbsliceData$1.config = config;
 
   	var element = select( "#" + elementId );
 
@@ -73033,13 +73034,13 @@ var dbslice = (function (exports) {
 
   function getFilteredTaskIds() {
 
-  	return dbsliceData.filteredTaskIds;
+  	return dbsliceData$1.filteredTaskIds;
 
   }
 
   function getFilteredTaskLabels() {
 
-  	return dbsliceData.filteredTaskLabels;
+  	return dbsliceData$1.filteredTaskLabels;
 
   }
 
@@ -76926,14 +76927,14 @@ var dbslice = (function (exports) {
 
   		if ( layout.highlightTasks == true ) {
      
-              if (!Array.isArray(dbsliceData.highlightTasks)) {
+              if (!Array.isArray(dbsliceData$1.highlightTasks)) {
 
               	values = new Float32Array(tm.values.buffer,0,nVerts);
               	vertices = new Float32Array(tm.vertices.buffer,0,2*nVerts);
               
-              } else if (dbsliceData.highlightTasks.length != 0) {
+              } else if (dbsliceData$1.highlightTasks.length != 0) {
        
-       			let taskId = dbsliceData.highlightTasks[0];
+       			let taskId = dbsliceData$1.highlightTasks[0];
        			let nOffset;
 
        			if ( data.taskIdMap === undefined) {
@@ -77099,14 +77100,14 @@ void main() {
 
   		if ( layout.highlightTasks == true ) {
      
-              if (!Array.isArray(dbsliceData.highlightTasks)) {
+              if (!Array.isArray(dbsliceData$1.highlightTasks)) {
 
               	values = new Float32Array(tm.values.buffer,0,nVerts);
               	vertices = new Float32Array(tm.vertices.buffer,0,2*nVerts);
               
-              } else if (dbsliceData.highlightTasks.length != 0) {
+              } else if (dbsliceData$1.highlightTasks.length != 0) {
        
-       			let taskId = dbsliceData.highlightTasks[0];
+       			let taskId = dbsliceData$1.highlightTasks[0];
        			let nOffset;
 
        			if ( data.taskIdMap === undefined) {
@@ -77226,8 +77227,8 @@ void main() {
             barCoords = [[xScale(zpCut),0],[xScale(zpCut),height]];
             select(this).attr("d",line()(barCoords));
             const thisLine = getCut ({indices:tm.indices, vertices, values}, zp, zpCut);
-            dbsliceData.xCut=thisLine.map(d=>d.map(e=>([e[1],e[2]])));
-            update( dbsliceData.elementId, dbsliceData.session );
+            dbsliceData$1.xCut=thisLine.map(d=>d.map(e=>([e[1],e[2]])));
+            update( dbsliceData$1.elementId, dbsliceData$1.session );
 
          }
 
@@ -77239,7 +77240,7 @@ void main() {
 
 
           const thisLine = getCut ({indices:tm.indices, vertices, values}, zp, zpCut);
-          dbsliceData.xCut=thisLine.map(d=>d.map(e=>([e[1],e[2]])));
+          dbsliceData$1.xCut=thisLine.map(d=>d.map(e=>([e[1],e[2]])));
 
           function getCut( tm, zp, zpCut) {
             let cutTris = findCutTrisLine(data.qTree,zpCut);
@@ -77407,7 +77408,7 @@ void main() {
           var width = svgWidth - margin.left - margin.right;
           var height = svgHeight - margin.top - margin.bottom;
 
-          const cutLine=dbsliceData.xCut;
+          const cutLine=dbsliceData$1.xCut;
 
           const xData = cutLine.map(d => d[0][0]);
           const yData = cutLine.map(d => d[0][1]);
