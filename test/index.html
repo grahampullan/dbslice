@@ -21,10 +21,6 @@ fetch("data/metaData.json")
     .then(response => response.json())
     .then(metaData => {
 
-    //console.log(metaData);
-
-    //var cfData = dbslice.cfInit( metaData );
-
     var session = {
     metaData : metaData,
     title : "3D box of data demo" ,
