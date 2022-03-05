@@ -31,6 +31,7 @@
     "d3-contour": "^3.0.1",
     "d3-scale-chromatic": "^3.0.0",
     "d3-tip": "^0.9.1",
+    "leaflet": "^1.7.1",
     "three": "^0.124.0",
     "twgl.js": "^4.21.2"
   }

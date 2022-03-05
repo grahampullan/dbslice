@@ -17,8 +17,6 @@
 
 <script>
 
-//d3.json( "data/metaData.json" , function( metaData ) {
-
 fetch("data/metaData.json")
     .then(response => response.json())
     .then(metaData => {
@@ -28,6 +26,7 @@ fetch("data/metaData.json")
     var cfData = dbslice.cfInit( metaData );
 
     var session = {
+    metaData : metaData,
     title : "3D box of data demo" ,
     plotRows : [ 
         { title : "3D box database" ,  // plotRow of charts for filtering
@@ -92,8 +91,8 @@ fetch("data/metaData.json")
     session.plotRows.push( surfacePlotRow );
 
 
-    var config = { plotTasksButton : true };
-    dbslice.render( "target" , session , config );
+    session.config = { plotTasksButton : true };
+    dbslice.start( "target" , session );
 
 });
 
