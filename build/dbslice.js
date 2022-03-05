@@ -56053,7 +56053,8 @@ var dbslice = (function (exports) {
           var width = svgWidth - margin.left - margin.right;
           var height = svgHeight - margin.top - margin.bottom;
 
-          var dimId = data.cfData.dataProperties.indexOf( data.property );
+          const cfData = dbsliceData.session.cfData;
+          var dimId = cfData.dataProperties.indexOf( data.property );
 
           var svg = container.append("svg")
               .attr("width", svgWidth)
@@ -56064,7 +56065,7 @@ var dbslice = (function (exports) {
               .attr( "class", "plotArea" )
               .attr( "dimId", dimId);
 
-          var dim = data.cfData.dataDims[ dimId ];       
+          var dim = cfData.dataDims[ dimId ];       
           var items = dim.top( Infinity );
 
           var xDomMax = max( items, d => d[ data.property ] ) * 1.03; 
@@ -56123,16 +56124,16 @@ var dbslice = (function (exports) {
               var s = event.selection;
               if ( s == null ) {
                   handle.attr( "display", "none" );
-                  data.cfData.histogramSelectedRanges[ dimId ] = [];
-                  cfUpdateFilters(data.cfData);
+                  cfData.histogramSelectedRanges[ dimId ] = [];
+                  cfUpdateFilters(cfData);
                   if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
               } else {
                   var sx = s.map( x.invert );
                   handle.attr( "display", null ).attr( "transform", function( d, i ) {
                       return "translate(" + [ s[ i ], -height / 4 ] + ")";
                   } );
-                  data.cfData.histogramSelectedRanges[ dimId ] = sx;
-                  cfUpdateFilters(data.cfData);
+                  cfData.histogramSelectedRanges[ dimId ] = sx;
+                  cfUpdateFilters(cfData);
                   if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
               }
           }
@@ -56159,8 +56160,9 @@ var dbslice = (function (exports) {
 
           var plotArea = svg.select(".plotArea");
           var dimId = plotArea.attr("dimId");
-          var dim = data.cfData.dataDims[ dimId ];
-          data.cfData.cf;
+          const cfData = dbsliceData.session.cfData;
+          var dim = cfData.dataDims[ dimId ];
+          //var cf = data.cfData.cf;
           var property = data.property;
 
           var bars = plotArea.selectAll("rect");

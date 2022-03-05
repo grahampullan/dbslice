@@ -23,7 +23,7 @@ fetch("data/metaData.json")
 
     //console.log(metaData);
 
-    var cfData = dbslice.cfInit( metaData );
+    //var cfData = dbslice.cfInit( metaData );
 
     var session = {
     metaData : metaData,
@@ -40,7 +40,7 @@ fetch("data/metaData.json")
             layout : { title : "Model" , colWidth : 4 , height : 300 , highlightTasks:true } } ,
 
             { plotFunc : dbslice.cfD3Histogram ,  // histogram
-            data : { cfData : cfData , property : "Average f" } ,
+            data : { property : "Average f" } ,
             layout : { title : "Average" , colWidth : 4 , height : 300 , highlightTasks:true } } 
             ] 
         } ]
