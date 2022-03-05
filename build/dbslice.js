@@ -55845,7 +55845,7 @@ var dbslice = (function (exports) {
           svgWidth - margin.left - margin.right;
           svgHeight - margin.top - margin.bottom;
 
-          var dimId = data.cfData.metaDataProperties.indexOf( data.property );
+          var dimId = dbsliceData.session.cfData.metaDataProperties.indexOf( data.property );
 
           container.append("svg")
               .attr("width", svgWidth)
@@ -55876,7 +55876,9 @@ var dbslice = (function (exports) {
 
           var plotArea = svg.select(".plotArea");
           var dimId = plotArea.attr("dimId");
-          var dim = data.cfData.metaDims[ dimId ];
+
+          const cfData = dbsliceData.session.cfData;
+          var dim = cfData.metaDims[ dimId ];
 
           var bars = plotArea.selectAll("rect");
 
@@ -55901,7 +55903,7 @@ var dbslice = (function (exports) {
 
           } 
 
-          data.cfData.cf;
+          //var cf = data.cfData.cf;
           var property = data.property;
 
           //var dim = data.cfData.metaDims[ dimId ];
@@ -55924,7 +55926,7 @@ var dbslice = (function (exports) {
               .align([0.5]);
 
           var colour = ( layout.colourMap === undefined ) ? ordinal().range( ["cornflowerblue"] ) : ordinal( layout.colourMap );
-          colour.domain( data.cfData.metaDataUniqueValues[ property ] );
+          colour.domain( cfData.metaDataUniqueValues[ property ] );
 
           bars = plotArea.selectAll( "rect" )
               .data( items, v => v.key );
@@ -55933,24 +55935,24 @@ var dbslice = (function (exports) {
               .append( "rect" )
               .on( "click", ( selectedItem ) => {
 
-                  if ( data.cfData.filterSelected[ dimId ] === undefined ) {
-                       data.cfData.filterSelected[ dimId ] = [];
+                  if ( cfData.filterSelected[ dimId ] === undefined ) {
+                       cfData.filterSelected[ dimId ] = [];
                   }
 
                   // check if current filter is already active
-                  if ( data.cfData.filterSelected[ dimId ].indexOf( selectedItem.key ) !== -1 ) {
+                  if ( cfData.filterSelected[ dimId ].indexOf( selectedItem.key ) !== -1 ) {
 
                       // already active
-                      var ind = data.cfData.filterSelected[ dimId ].indexOf( selectedItem.key );
-                      data.cfData.filterSelected[ dimId ].splice( ind, 1 );
+                      var ind = cfData.filterSelected[ dimId ].indexOf( selectedItem.key );
+                      cfData.filterSelected[ dimId ].splice( ind, 1 );
 
                   } else {
 
-                      data.cfData.filterSelected[ dimId ].push( selectedItem.key );
+                      cfData.filterSelected[ dimId ].push( selectedItem.key );
 
                   }
 
-                  cfUpdateFilters(data.cfData);
+                  cfUpdateFilters(cfData);
                   update( dbsliceData.elementId , dbsliceData.session );
 
               })
@@ -55971,13 +55973,13 @@ var dbslice = (function (exports) {
               .attr( "opacity", ( v ) => {
 
                   // if no filters then all are selected
-                  if ( data.cfData.filterSelected[ dimId ] === undefined || data.cfData.filterSelected[ dimId ].length === 0 ) {
+                  if ( cfData.filterSelected[ dimId ] === undefined || cfData.filterSelected[ dimId ].length === 0 ) {
 
                       return 1;
 
                   } else {
 
-                      return data.cfData.filterSelected[ dimId ].indexOf( v.key ) === -1 ? 0.2 : 1;
+                      return cfData.filterSelected[ dimId ].indexOf( v.key ) === -1 ? 0.2 : 1;
 
                   }
 

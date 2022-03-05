@@ -32,11 +32,11 @@ fetch("data/metaData.json")
         { title : "3D box database" ,  // plotRow of charts for filtering
         plots : [
             { plotFunc : dbslice.cfD3BarChart ,  // bar chart
-            data : { cfData : cfData , property : "Simulation type" } ,
+            data : { property : "Simulation type" } ,
             layout : { title : "Simulation" , colWidth : 4 , height : 300 , highlightTasks:true } } ,
 
             { plotFunc : dbslice.cfD3BarChart ,  // bar chart
-            data : { cfData : cfData , property : "Model type" } ,
+            data : { property : "Model type" } ,
             layout : { title : "Model" , colWidth : 4 , height : 300 , highlightTasks:true } } ,
 
             { plotFunc : dbslice.cfD3Histogram ,  // histogram
