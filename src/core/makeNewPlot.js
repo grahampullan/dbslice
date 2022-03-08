@@ -1,4 +1,5 @@
-import * as d3 from "d3";
+import * as d3 from 'd3';
+import { getPlotFunc } from '../plot/getPlotFunc.js';
 
 function makeNewPlot( plotData, index ) {
 
@@ -21,7 +22,12 @@ function makeNewPlot( plotData, index ) {
     	.attr( "plot-row-index", plotRowIndex)
     	.attr( "plot-index", index);
 
-    plotData.plotFunc.make(plotBody.node(),plotData.data,plotData.layout);
+	let plotFunc = plotData.plotFunc;
+	if ( plotData.plotType !== undefined ) {
+		plotFunc = getPlotFunc(plotData.plotType); 
+	}
+	
+    plotFunc.make(plotBody.node(),plotData.data,plotData.layout);
 
 }
 

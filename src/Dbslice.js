@@ -26,3 +26,4 @@ export { getFilteredTaskLabels } from './core/getFilteredTaskLabels.js';
 export { triMesh2dRender } from './plot/triMesh2dRender.js';
 export { triMesh2dRenderXBar } from './plot/triMesh2dRenderXBar.js';
 export { d3CutLine } from './plot/d3CutLine.js';
+export { getPlotFunc } from './plot/getPlotFunc.js';

@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { getPlotFunc } from '../plot/getPlotFunc.js';
 
 function updatePlot( plotData, index ) {
 
@@ -9,7 +10,12 @@ function updatePlot( plotData, index ) {
 
     //var plotBody = plot.append( "div" ).attr( "class", "plot");
 
-    plotData.plotFunc.update(plot.node(),plotData.data,plotData.layout);
+    let plotFunc = plotData.plotFunc;
+	if ( plotData.plotType !== undefined ) {
+		plotFunc = getPlotFunc(plotData.plotType); 
+	}
+
+    plotFunc.update(plot.node(),plotData.data,plotData.layout);
 
 }
 

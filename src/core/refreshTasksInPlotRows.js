@@ -15,7 +15,7 @@ function refreshTasksInPlotRows() {
 
 			var ctrl = plotRow.ctrl;
 
-			if (ctrl.plotFunc !== undefined ) {
+			if (ctrl.plotFunc !== undefined || ctrl.plotType !== undefined ) {
 
 				if ( ctrl.tasksByFilter ) {
 

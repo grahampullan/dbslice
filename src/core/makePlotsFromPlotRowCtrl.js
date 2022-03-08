@@ -89,6 +89,7 @@ function makePromiseTaskPlot( ctrl, url, title, taskId ) {
         plot.layout = Object.assign( {}, ctrl.layout );
 
         plot.plotFunc = ctrl.plotFunc;
+        plot.plotType = ctrl.plotType;
 
         plot.layout.title = title;
 
@@ -226,6 +227,7 @@ function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
         }
 
     	plot.plotFunc = ctrl.plotFunc;
+        plot.plotType = ctrl.plotType;
 
     	plot.data.newData = true;
 
