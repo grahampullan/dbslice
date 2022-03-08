@@ -77209,6 +77209,10 @@ void main() {
 
   }
 
+  function getDataFilterFunc(dataFilterType) {
+
+  }
+
   function makePlotsFromPlotRowCtrl( ctrl ) {
 
   	var plotPromises = [];
@@ -77284,10 +77288,30 @@ void main() {
           }
 
       	var plot = {};
+          
+          let dataFilterFunc;
 
-      	if (ctrl.formatDataFunc !== undefined) {
+          if (ctrl.dataFilterFunc !== undefined) {
 
-      		plot.data = ctrl.formatDataFunc( responseJson, taskId ); 
+              dataFilterFunc = ctrl.dataFilterFunc;
+
+          }
+
+          if (ctrl.formatDataFunc !== undefined) {
+
+              dataFilterFunc = ctrl.formatDataFunc;
+              
+          }
+
+          if (ctrl.dataFilterType !== undefined) {
+
+              dataFilterFunc = getDataFilterFunc(ctrl.dataFilterType);
+
+          }
+
+      	if (dataFilterFunc !== undefined ) {
+
+      		plot.data = dataFilterFunc( responseJson, taskId ); 
 
       	} else {
 
@@ -77371,9 +77395,29 @@ void main() {
 
       	var plot = {};
 
-      	if (ctrl.formatDataFunc !== undefined) {
+          let dataFilterFunc;
 
-      		plot.data = ctrl.formatDataFunc( responseJson, tasksOnPlot );
+          if (ctrl.dataFilterFunc !== undefined) {
+
+              dataFilterFunc = ctrl.dataFilterFunc;
+
+          }
+
+          if (ctrl.formatDataFunc !== undefined) {
+
+              dataFilterFunc = ctrl.formatDataFunc;
+              
+          }
+
+          if (ctrl.dataFilterType !== undefined) {
+
+              dataFilterFunc = getDataFilterFunc(ctrl.dataFilterType);
+
+          }
+
+      	if (dataFilterFunc !== undefined ) {
+
+      		plot.data = dataFilterFunc( responseJson, tasksOnPlot );
 
       	} else {
 
