@@ -81,7 +81,7 @@ fetch("data/metaData.json")
             urlTemplate : "./data/f_area3d_task_${taskId}.json" ,
             tasksByFilter : true ,
             maxTasks : 5 ,
-            formatDataFunc : function (rawData) { return dbslice.threeMeshFromStruct( rawData )}
+            dataFilterType : "threeMeshFromStruct"
         }
     };
     session.plotRows.push( surfacePlotRow );

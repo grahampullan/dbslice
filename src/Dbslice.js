@@ -2,7 +2,7 @@
 //import 'whatwg-fetch';
 //import 'bootstrap';
 export { threeSurf3d } from './plot/threeSurf3d.js' ;
-export { threeMeshFromStruct } from './plot/threeMeshFromStruct.js' ;
+export { threeMeshFromStruct } from './filters/threeMeshFromStruct.js' ;
 export { d3ContourStruct2d } from './plot/d3ContourStruct2d.js';
 export { d3LineSeries } from './plot/d3LineSeries.js';
 export { d3Scatter } from './plot/d3Scatter.js';
@@ -27,3 +27,4 @@ export { triMesh2dRender } from './plot/triMesh2dRender.js';
 export { triMesh2dRenderXBar } from './plot/triMesh2dRenderXBar.js';
 export { d3CutLine } from './plot/d3CutLine.js';
 export { getPlotFunc } from './plot/getPlotFunc.js';
+export { getDataFilterFunc } from './filters/getDataFilterFunc.js';

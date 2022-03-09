@@ -77211,6 +77211,12 @@ void main() {
 
   function getDataFilterFunc(dataFilterType) {
 
+      const lookup = {
+          'threeMeshFromStruct'     : threeMeshFromStruct 
+      };
+      
+      return lookup[dataFilterType];
+      
   }
 
   function makePlotsFromPlotRowCtrl( ctrl ) {
@@ -77645,6 +77651,7 @@ void main() {
   exports.d3CutLine = d3CutLine;
   exports.d3LineSeries = d3LineSeries;
   exports.d3Scatter = d3Scatter;
+  exports.getDataFilterFunc = getDataFilterFunc;
   exports.getFilteredTaskIds = getFilteredTaskIds;
   exports.getFilteredTaskLabels = getFilteredTaskLabels;
   exports.getPlotFunc = getPlotFunc;
