@@ -6,21 +6,21 @@
         "plots" : [
             { "plotType" : "cfD3BarChart" ,  
             "data" : { "property" : "Simulation type" } ,
-            "layout" : { "title" : "Simulation" , "colWidth" : 4 , "height" : 300 } } ,
+            "layout" : { "title" : "Simulation" , "colWidth" : 4 , "height" : 300, "highlightTasks" : true } } ,
 
             { "plotType" : "cfD3BarChart" ,  
             "data" : { "property" : "Model type" } ,
-            "layout" : { "title" : "Model" , "colWidth" : 4 , "height" : 300 } } ,
+            "layout" : { "title" : "Model" , "colWidth" : 4 , "height" : 300, "highlightTasks" : true } } ,
 
             { "plotType" : "cfD3Histogram" ,  
             "data" : { "property" : "Average f" } ,
-            "layout" : { "title" : "Average" , "colWidth" : 4 , "height" : 300 } } 
+            "layout" : { "title" : "Average" , "colWidth" : 4 , "height" : 300, "highlightTasks" : true } } 
             ] 
         },
    {  "title" : "f(y) at z=0",
         "plots" : [],
         "ctrl" : { "plotType" : "d3LineSeries" ,  
-            "layout" : { "colWidth" : 4 , "height" : 300 } ,
+            "layout" : { "colWidth" : 4 , "height" : 300 , "highlightTasks" : true} ,
             "urlTemplate" : "./data/f_line_${sliceId}_task_${taskId}.json" ,
             "tasksByFilter" : true ,  
             "sliceIds" : [ "xstart" , "xmid" , "xend" ] , 
@@ -31,7 +31,7 @@
     { "title" : "f at x=0",
         "plots" : [] ,
         "ctrl" : { "plotType" : "d3ContourStruct2d" ,  
-            "layout" : { "colWidth" : 3 , "height" : 300 , "vScale" : [-0.1, 1.2] } , 
+            "layout" : { "colWidth" : 3 , "height" : 300 , "vScale" : [-0.1, 1.2] , "highlightTasks" : true } , 
             "urlTemplate" : "./data/f_area2d_xstart_task_${taskId}.json" ,
             "tasksByFilter" : true,
             "maxTasks" : 20 
@@ -40,7 +40,7 @@
     { "title" : "f at x=0, x=mid, x=end",
         "plots" : [] ,
         "ctrl" : { "plotType" : "threeSurf3d" ,  
-            "layout" : { "colWidth" : 4 , "height" : 400 , "vScale" : [-0.1, 1.2]  } , 
+            "layout" : { "colWidth" : 4 , "height" : 400 , "vScale" : [-0.1, 1.2] , "highlightTasks" : true } , 
             "urlTemplate" : "./data/f_area3d_task_${taskId}.json" ,
             "tasksByFilter" : true ,
             "maxTasks" : 5 ,
