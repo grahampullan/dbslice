@@ -17,10 +17,10 @@
 
 <script>
 
-fetch("data/metaData.json")
+/* fetch("data/metaData.json")
     .then(response => response.json())
     .then(metaData => {
-
+ 
     var session = {
     metaData : metaData,
     title : "3D box of data demo" ,
@@ -85,8 +85,10 @@ fetch("data/metaData.json")
     session.config = { plotTasksButton : true };
     dbslice.start( "target" , session );
 
-});
+}); */
 
+
+dbslice.start( "target" , "./session.json");
 
 </script>
 
