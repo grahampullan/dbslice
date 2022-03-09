@@ -28547,9 +28547,7 @@ void main() {
 
   function makeNewPlot( plotData, index ) {
 
-  	
   	let plotRowIndex = select(this._parent).attr("plot-row-index");
-  	console.log(plotRowIndex);
 
       var plot = select( this )
       	.append( "div" ).attr( "class", "col-md-"+plotData.layout.colWidth+" plotWrapper" )
