@@ -2,7 +2,7 @@
   "name": "dbslice",
   "version": "1.1.0",
   "description": "hierarchical data vis",
-  "main": "rollup.config.js",
+  "main": "build/dbslice.js",
   "directories": {
     "test": "test"
   },
