@@ -13,6 +13,7 @@ import { triMesh2dRenderXBar } from './triMesh2dRenderXBar.js';
 function getPlotFunc(plotType) {
 
     const lookup = {
+
         'cfD3BarChart'            : cfD3BarChart ,
         'cfD3Histogram'           : cfD3Histogram ,
         'cfD3Scatter'             : cfD3Scatter ,
@@ -24,6 +25,7 @@ function getPlotFunc(plotType) {
         'threeSurf3d'             : threeSurf3d ,
         'triMesh2dRender'         : triMesh2dRender ,
         'triMesh2dRenderXBar'     : triMesh2dRenderXBar
+        
     };
 
     return lookup[plotType];

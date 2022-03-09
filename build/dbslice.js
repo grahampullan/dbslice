@@ -28526,6 +28526,7 @@ void main() {
   function getPlotFunc(plotType) {
 
       const lookup = {
+
           'cfD3BarChart'            : cfD3BarChart ,
           'cfD3Histogram'           : cfD3Histogram ,
           'cfD3Scatter'             : cfD3Scatter ,
@@ -28537,6 +28538,7 @@ void main() {
           'threeSurf3d'             : threeSurf3d ,
           'triMesh2dRender'         : triMesh2dRender ,
           'triMesh2dRenderXBar'     : triMesh2dRenderXBar
+          
       };
 
       return lookup[plotType];
@@ -77209,10 +77211,26 @@ void main() {
 
   }
 
+  function lineSeriesFromLines( rawData , tasks ) {
+
+      const series = [];
+
+      rawData.forEach( function( line, index ) { 
+          
+          series.push( { label : index , data : line, taskId:tasks[index] } ); 
+      
+      } );
+      
+      return { series : series };
+  }
+
   function getDataFilterFunc(dataFilterType) {
 
       const lookup = {
-          'threeMeshFromStruct'     : threeMeshFromStruct 
+
+          'threeMeshFromStruct'     : threeMeshFromStruct,
+          'lineSeriesFromLines'     : lineSeriesFromLines
+          
       };
       
       return lookup[dataFilterType];

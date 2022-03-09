@@ -51,11 +51,7 @@ fetch("data/metaData.json")
             tasksByFilter : true ,  // get taskIds array from current filter selection
             sliceIds : [ "xstart" , "xmid" , "xend" ] , 
             maxTasks : 20 ,
-            formatDataFunc : function( rawData , tasks ) {
-                var series = [];
-                rawData.forEach( function( line, index ) { series.push( { label : index , data : line, taskId:tasks[index] } ) } );
-                return { series : series };
-            }
+            dataFilterType : "lineSeriesFromLines"
         }
     };
     session.plotRows.push( linePlotRow );
