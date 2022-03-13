@@ -28591,7 +28591,7 @@ void main() {
 
   }
 
-  function update( elementId, session ) {
+  function update( elementId = dbsliceData$1.elementId, session = dbsliceData$1.session ) {
 
   	var element = select( "#" + elementId );
 

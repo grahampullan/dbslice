@@ -3,7 +3,7 @@ import { updatePlot } from './updatePlot.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import * as d3 from 'd3';
 
-function update( elementId, session ) {
+function update( elementId = dbsliceData.elementId, session = dbsliceData.session ) {
 
 	var element = d3.select( "#" + elementId );
 
