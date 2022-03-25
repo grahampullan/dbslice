@@ -6,15 +6,19 @@
         "plots" : [
             { "plotType" : "cfD3BarChart" ,  
             "data" : { "property" : "Simulation type" } ,
-            "layout" : { "title" : "Simulation" , "colWidth" : 4 , "height" : 300, "highlightTasks" : true } } ,
+            "layout" : { "title" : "Simulation" , "colWidth" : 3 , "height" : 300, "highlightTasks" : true } } ,
 
             { "plotType" : "cfD3BarChart" ,  
             "data" : { "property" : "Model type" } ,
-            "layout" : { "title" : "Model" , "colWidth" : 4 , "height" : 300, "highlightTasks" : true } } ,
+            "layout" : { "title" : "Model" , "colWidth" : 3 , "height" : 300, "highlightTasks" : true } } ,
+
+            { "plotType" : "cfD3Scatter" ,  
+                "data" : { "xProperty" : "Average f", "yProperty" : "Std dev f", "cProperty" : "Model type" } ,
+                "layout" : { "title" : "Std dev f" , "colWidth" : 3 , "height" : 300, "highlightTasks" : true } } ,
 
             { "plotType" : "cfD3Histogram" ,  
             "data" : { "property" : "Average f" } ,
-            "layout" : { "title" : "Average" , "colWidth" : 4 , "height" : 300, "highlightTasks" : true } } 
+            "layout" : { "title" : "Average" , "colWidth" :3 , "height" : 300, "highlightTasks" : true } } 
             ] 
         },
    {  "title" : "f(y) at z=0",
