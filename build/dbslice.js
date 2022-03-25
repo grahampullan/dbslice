@@ -8770,6 +8770,11 @@ var dbslice = (function (exports) {
 
           svg.call(tip);
 
+          var focus = plotArea.append("g")
+              .style("display","none")
+              .append("circle")
+                  .attr("r",1);
+
           var points = plotArea.selectAll( "circle" )
               .data( pointData );
 
@@ -8869,6 +8874,10 @@ var dbslice = (function (exports) {
               select(this)
                   .style( "opacity" , 1.0)
                   .attr( "r", 7 );
+              focus
+                  .attr( "cx" , mouse(this)[0] )
+                  .attr( "cy" , mouse(this)[1] );
+              tip.show( d , focus.node() );
               tip.show( d );
               if ( layout.highlightTasks == true ) {
                   dbsliceData$1.highlightTasks = [ d.taskId ];

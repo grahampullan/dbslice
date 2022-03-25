@@ -130,6 +130,11 @@ const cfD3Scatter = {
 
         svg.call(tip);
 
+        var focus = plotArea.append("g")
+            .style("display","none")
+            .append("circle")
+                .attr("r",1);
+
         var points = plotArea.selectAll( "circle" )
             .data( pointData );
 
@@ -229,6 +234,10 @@ const cfD3Scatter = {
             d3.select(this)
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
+            focus
+                .attr( "cx" , d3.mouse(this)[0] )
+                .attr( "cy" , d3.mouse(this)[1] );
+            tip.show( d , focus.node() );
             tip.show( d );
             if ( layout.highlightTasks == true ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
