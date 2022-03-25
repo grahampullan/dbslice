@@ -8775,11 +8775,12 @@ var dbslice = (function (exports) {
               .append("circle")
                   .attr("r",1);
 
-          var points = plotArea.selectAll( "circle" )
+          var points = plotArea.selectAll( ".point" )
               .data( pointData );
 
           points.enter()
               .append( "circle" )
+              .attr( "class", "point")
               .attr( "r", 5 )
               .attr( "cx", function( d ) { return xscale( d[ xProperty ] ); } )
               .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } )
@@ -8878,7 +8879,6 @@ var dbslice = (function (exports) {
                   .attr( "cx" , mouse(this)[0] )
                   .attr( "cy" , mouse(this)[1] );
               tip.show( d , focus.node() );
-              tip.show( d );
               if ( layout.highlightTasks == true ) {
                   dbsliceData$1.highlightTasks = [ d.taskId ];
                   update( dbsliceData$1.elementId, dbsliceData$1.session );
