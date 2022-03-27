@@ -1,10 +1,14 @@
+import { dbsliceData } from '../core/dbsliceData.js';
+
 function lineSeriesFromLines( rawData , tasks ) {
 
     const series = [];
 
     rawData.forEach( function( line, index ) { 
-        
-        series.push( { label : index , data : line, taskId:tasks[index] } ) 
+
+        let taskId = tasks[index];
+        let label = dbsliceData.session.metaData.data.find( d => d.taskId==taskId).label;
+        series.push( { label : label , data : line, taskId : taskId } ) 
     
     } );
     

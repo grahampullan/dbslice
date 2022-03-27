@@ -8703,6 +8703,8 @@ var dbslice = (function (exports) {
           var dim = cfData.dataDims[ dimId ];
           var pointData = dim.top( Infinity );
 
+          //console.log(pointData);
+
           if ( layout.xRange === undefined) {
               var xMin = min( pointData, function (d) { return d[ xProperty ]; } );
               var xMax = max( pointData, function (d) { return d[ xProperty ]; } );
@@ -8863,13 +8865,13 @@ var dbslice = (function (exports) {
               yscale.domain(t.rescaleY(yscale0).domain());
               gX.call(xAxis);
               gY.call(yAxis);
-              plotArea.selectAll("circle")
+              plotArea.selectAll(".point")
                   .attr( "cx", function( d ) { return xscale( d[ xProperty ] ); } )
                   .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } );
           }
 
           function tipOn( d ) {
-              console.log("mouse on");
+              //console.log("mouse on")
               points.style( "opacity" , 0.2);
               //points.style( "fill" , "#d3d3d3");
               select(this)
@@ -77223,8 +77225,10 @@ void main() {
       const series = [];
 
       rawData.forEach( function( line, index ) { 
-          
-          series.push( { label : index , data : line, taskId:tasks[index] } ); 
+
+          let taskId = tasks[index];
+          let label = dbsliceData$1.session.metaData.data.find( d => d.taskId==taskId).label;
+          series.push( { label : label , data : line, taskId : taskId } ); 
       
       } );
       

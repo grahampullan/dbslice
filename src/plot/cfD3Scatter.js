@@ -63,6 +63,8 @@ const cfD3Scatter = {
         var dim = cfData.dataDims[ dimId ];
         var pointData = dim.top( Infinity );
 
+        //console.log(pointData);
+
         if ( layout.xRange === undefined) {
             var xMin = d3.min( pointData, function (d) { return d[ xProperty ]; } );
             var xMax = d3.max( pointData, function (d) { return d[ xProperty ]; } );
@@ -223,13 +225,13 @@ const cfD3Scatter = {
             yscale.domain(t.rescaleY(yscale0).domain());
             gX.call(xAxis);
             gY.call(yAxis);
-            plotArea.selectAll("circle")
+            plotArea.selectAll(".point")
                 .attr( "cx", function( d ) { return xscale( d[ xProperty ] ); } )
                 .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } );
         }
 
         function tipOn( d ) {
-            console.log("mouse on")
+            //console.log("mouse on")
             points.style( "opacity" , 0.2);
             //points.style( "fill" , "#d3d3d3");
             d3.select(this)
