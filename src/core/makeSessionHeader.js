@@ -1,4 +1,5 @@
 import { refreshTasksInPlotRows } from './refreshTasksInPlotRows.js';
+import { downloadCurrentTasks } from './downloadCurrentTasks.js';
 
 function makeSessionHeader( element, title, subtitle, config ) {
 
@@ -11,12 +12,18 @@ function makeSessionHeader( element, title, subtitle, config ) {
 
 	if ( config.plotTasksButton ) {
 
-		titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
+		titleHtml += "<button class='btn btn-success mr-1 float-right' id='refreshTasks'>Plot Selected Tasks</button>";
 
-	} else {
-		titleHtml += "<br/>";
-	} 
+	}
 
+	if ( config.saveTasksButton ) {
+
+		titleHtml += "<button class='btn btn-success mr-1 float-right' id='downloadTasks'>Save Selected Tasks</button>";
+
+	}
+
+	titleHtml += "<br/>";
+	
 	if ( subtitle === undefined ) {
 
 		titleHtml += "<br/>";
@@ -34,9 +41,8 @@ function makeSessionHeader( element, title, subtitle, config ) {
 
 
 	document.getElementById("refreshTasks").onclick = function() { refreshTasksInPlotRows() };
-	//$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows() } );
+	document.getElementById("downloadTasks").onclick = function() { downloadCurrentTasks() };
 
 }
-   
 
 export { makeSessionHeader };

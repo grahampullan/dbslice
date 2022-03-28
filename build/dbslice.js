@@ -77599,6 +77599,16 @@ void main() {
 
   }
 
+  function downloadCurrentTasks() {
+
+      let a = document.createElement("a");
+      let file = new Blob([JSON.stringify(dbsliceData$1.filteredTaskIds)], {type: "text/plain"});
+      a.href = URL.createObjectURL(file);
+      a.download = "taskIds.json";
+      a.click();
+
+  }
+
   function makeSessionHeader( element, title, subtitle, config ) {
 
   	element.append( "div" )
@@ -77610,12 +77620,18 @@ void main() {
 
   	if ( config.plotTasksButton ) {
 
-  		titleHtml += "<button class='btn btn-success float-right' id='refreshTasks'>Plot Selected Tasks</button><br/>";
+  		titleHtml += "<button class='btn btn-success mr-1 float-right' id='refreshTasks'>Plot Selected Tasks</button>";
 
-  	} else {
-  		titleHtml += "<br/>";
-  	} 
+  	}
 
+  	if ( config.saveTasksButton ) {
+
+  		titleHtml += "<button class='btn btn-success mr-1 float-right' id='downloadTasks'>Save Selected Tasks</button>";
+
+  	}
+
+  	titleHtml += "<br/>";
+  	
   	if ( subtitle === undefined ) {
 
   		titleHtml += "<br/>";
@@ -77633,7 +77649,7 @@ void main() {
 
 
   	document.getElementById("refreshTasks").onclick = function() { refreshTasksInPlotRows(); };
-  	//$( "#refreshTasks" ).on( "click" , function() { refreshTasksInPlotRows() } );
+  	document.getElementById("downloadTasks").onclick = function() { downloadCurrentTasks(); };
 
   }
 

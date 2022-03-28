@@ -1,6 +1,6 @@
 { "metaData" : "./data/metaData.json" ,
   "title" : "3D box of data demo" ,
-  "config" : { "plotTasksButton" : true },
+  "config" : { "plotTasksButton" : true, "saveTasksButton" : true },
   "plotRows" : [ 
   { "title" : "3D box database" ,  
         "plots" : [
