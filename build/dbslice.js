@@ -23875,7 +23875,20 @@ var dbslice = (function (exports) {
           var plotArea = svg.select(".plotArea");
 
           var colour = ( layout.colourMap === undefined ) ? ordinal( category10 ) : ordinal( layout.colourMap );
-          if ( layout.cSet !== undefined) colour.domain( layout.cSet );
+
+          if ( layout.cSet !== undefined) {
+              
+              if ( Array.isArray( layout.cSet ) ) {
+
+                  colour.domain( layout.cSet );
+
+              } else {
+
+                  colour.domain( dbsliceData$1.session.cfData.metaDataUniqueValues[ layout.cSet ] );
+
+              }
+
+          }
 
           var lines = plotArea.selectAll(".line");
 
@@ -77220,7 +77233,7 @@ void main() {
 
   }
 
-  function lineSeriesFromLines( rawData , tasks ) {
+  function lineSeriesFromLines( rawData , tasks, config ) {
 
       const series = [];
 
@@ -77228,7 +77241,19 @@ void main() {
 
           let taskId = tasks[index];
           let label = dbsliceData$1.session.metaData.data.find( d => d.taskId==taskId).label;
-          series.push( { label : label , data : line, taskId : taskId } ); 
+          let seriesNow = { label : label , data : line, taskId : taskId };
+
+          if ( config != undefined ) {
+
+              if ( config.cProperty != undefined ) {
+
+                  seriesNow.cKey = dbsliceData$1.session.metaData.data.find( d => d.taskId==taskId)[config.cProperty];
+
+              }
+
+          }
+
+          series.push( seriesNow ); 
       
       } );
       
@@ -77346,7 +77371,7 @@ void main() {
 
       	if (dataFilterFunc !== undefined ) {
 
-      		plot.data = dataFilterFunc( responseJson, taskId ); 
+      		plot.data = dataFilterFunc( responseJson, taskId, ctrl.dataFilterConfig ); 
 
       	} else {
 
@@ -77452,7 +77477,7 @@ void main() {
 
       	if (dataFilterFunc !== undefined ) {
 
-      		plot.data = dataFilterFunc( responseJson, tasksOnPlot );
+      		plot.data = dataFilterFunc( responseJson, tasksOnPlot, ctrl.dataFilterConfig );
 
       	} else {
 

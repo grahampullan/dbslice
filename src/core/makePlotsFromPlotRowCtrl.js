@@ -100,7 +100,7 @@ function makePromiseTaskPlot( ctrl, url, title, taskId ) {
 
     	if (dataFilterFunc !== undefined ) {
 
-    		plot.data = dataFilterFunc( responseJson, taskId ); 
+    		plot.data = dataFilterFunc( responseJson, taskId, ctrl.dataFilterConfig ); 
 
     	} else {
 
@@ -206,7 +206,7 @@ function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
 
     	if (dataFilterFunc !== undefined ) {
 
-    		plot.data = dataFilterFunc( responseJson, tasksOnPlot );
+    		plot.data = dataFilterFunc( responseJson, tasksOnPlot, ctrl.dataFilterConfig );
 
     	} else {
 

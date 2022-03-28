@@ -36,7 +36,20 @@ const d3LineSeries = {
         var plotArea = svg.select(".plotArea");
 
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
-        if ( layout.cSet !== undefined) colour.domain( layout.cSet )
+
+        if ( layout.cSet !== undefined) {
+            
+            if ( Array.isArray( layout.cSet ) ) {
+
+                colour.domain( layout.cSet )
+
+            } else {
+
+                colour.domain( dbsliceData.session.cfData.metaDataUniqueValues[ layout.cSet ] )
+
+            }
+
+        }
 
         var lines = plotArea.selectAll(".line");
 

@@ -1,6 +1,6 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 
-function lineSeriesFromLines( rawData , tasks ) {
+function lineSeriesFromLines( rawData , tasks, config ) {
 
     const series = [];
 
@@ -8,7 +8,19 @@ function lineSeriesFromLines( rawData , tasks ) {
 
         let taskId = tasks[index];
         let label = dbsliceData.session.metaData.data.find( d => d.taskId==taskId).label;
-        series.push( { label : label , data : line, taskId : taskId } ) 
+        let seriesNow = { label : label , data : line, taskId : taskId };
+
+        if ( config != undefined ) {
+
+            if ( config.cProperty != undefined ) {
+
+                seriesNow.cKey = dbsliceData.session.metaData.data.find( d => d.taskId==taskId)[config.cProperty];
+
+            }
+
+        }
+
+        series.push( seriesNow ) 
     
     } );
     

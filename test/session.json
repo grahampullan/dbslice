@@ -24,12 +24,13 @@
    {  "title" : "f(y) at z=0",
         "plots" : [],
         "ctrl" : { "plotType" : "d3LineSeries" ,  
-            "layout" : { "colWidth" : 4 , "height" : 300 , "highlightTasks" : true} ,
+            "layout" : { "colWidth" : 4 , "height" : 300 , "highlightTasks" : true, "cSet" : "Model type"} ,
             "urlTemplate" : "./data/f_line_${sliceId}_task_${taskId}.json" ,
             "tasksByFilter" : true ,  
             "sliceIds" : [ "xstart" , "xmid" , "xend" ] , 
             "maxTasks" : 20 ,
-            "dataFilterType" : "lineSeriesFromLines"
+            "dataFilterType" : "lineSeriesFromLines" ,
+            "dataFilterConfig" : { "cProperty" : "Model type"}
         }
     },
     { "title" : "f at x=0",
