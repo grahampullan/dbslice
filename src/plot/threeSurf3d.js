@@ -128,7 +128,7 @@ const threeSurf3d = {
 			let validator = {
 				set: function(target, key, value) {
 					camera[key].copy(value);
-					console.log(camera[key]);
+					//console.log(camera[key]);
 					renderer.render(scene,camera);
 					return true;
 				}
@@ -152,6 +152,7 @@ const threeSurf3d = {
 					//console.log(plot);
 					if (indx != plotIndex) {
 						//console.log(camera.rotation);
+						console.log(indx);
 						plot.layout.watchedCamera.position = camera.position;
 						plot.layout.watchedCamera.rotation = camera.rotation;
 					}
