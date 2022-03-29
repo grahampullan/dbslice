@@ -45,7 +45,7 @@
     { "title" : "f at x=0, x=mid, x=end",
         "plots" : [] ,
         "ctrl" : { "plotType" : "threeSurf3d" ,  
-            "layout" : { "colWidth" : 4 , "height" : 400 , "vScale" : [-0.1, 1.2] , "highlightTasks" : true } , 
+            "layout" : { "colWidth" : 4 , "height" : 400 , "vScale" : [-0.1, 1.2] , "highlightTasks" : true, "cameraSync" : true } , 
             "urlTemplate" : "./data/f_area3d_task_${taskId}.json" ,
             "tasksByFilter" : true ,
             "maxTasks" : 5 ,

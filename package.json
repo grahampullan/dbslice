@@ -1,6 +1,6 @@
 {
   "name": "dbslice",
-  "version": "1.1.6", 
+  "version": "1.1.6",
   "description": "hierarchical data vis",
   "main": "build/dbslice.js",
   "directories": {
@@ -32,6 +32,7 @@
     "d3-scale-chromatic": "^3.0.0",
     "d3-tip": "^0.9.1",
     "leaflet": "^1.7.1",
+    "on-change": "^4.0.0",
     "three": "^0.124.0",
     "twgl.js": "^4.21.2"
   }

@@ -75069,10 +75069,50 @@ void main() {
   		var camera = new PerspectiveCamera( 60, 1, 0.1, 10 );
   		camera.position.z = 2; 
 
+  		if ( layout.cameraSync ) {
+
+  			let plotRowIndex = container.attr("plot-row-index");
+  			let plotIndex = container.attr("plot-index");
+
+  			console.log(plotRowIndex);
+  			console.log(dbsliceData$1.session.plotRows[plotRowIndex].plots.length);
+
+  			let plotRow = dbsliceData$1.session.plotRows[plotRowIndex];
+
+  			plotRow.plots[plotIndex].layout.camera = {position: camera.position, rotation: camera.rotation};
+
+  			let validator = {
+  				set: function(target, key, value) {
+  					camera[key].copy(value);
+  					console.log(camera[key]);
+  					renderer.render(scene,camera);
+  					return true;
+  				}
+  			};
+  			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, validator);
+  			plotRow.plots[plotIndex].layout.watchedCamera = watchedCamera;
+
+  		}
+
+
   		// Add controls 
   		var controls = new OrbitControls( camera, renderer.domElement );
   		controls.addEventListener( 'change', function(){
       		renderer.render(scene,camera); // re-render if controls move/zoom 
+  			if ( layout.cameraSync ) {
+  				let plotRowIndex = container.attr("plot-row-index");
+  				let plotIndex = container.attr("plot-index");
+  				let plots = dbsliceData$1.session.plotRows[plotRowIndex].plots;
+  				//console.log(camera.rotation);
+  				plots.forEach( (plot, indx) =>  {
+  					//console.log(plot);
+  					if (indx != plotIndex) {
+  						//console.log(camera.rotation);
+  						plot.layout.watchedCamera.position = camera.position;
+  						plot.layout.watchedCamera.rotation = camera.rotation;
+  					}
+  				});
+  			}
   		} ); 
   		controls.enableZoom = true; 
 
