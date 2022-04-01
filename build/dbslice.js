@@ -8765,17 +8765,22 @@ var dbslice = (function (exports) {
 
           var tip = d3tip()
               .attr('class', 'd3-tip')
-              .offset([-10, 0])
+              .offset([-20, 0])
               .html(function( d ) {
                   return "<span>"+d.label+"</span>";
           });
 
           svg.call(tip);
 
-          var focus = plotArea.append("g")
-              .style("display","none")
-              .append("circle")
+          //plotArea.append("g")
+          //    .style("display","none")
+          let focus = plotArea.select(".focus");
+          if ( focus.empty() ) {
+              plotArea.append("circle")
+                  .attr("class","focus")
+                  .attr("fill","none")
                   .attr("r",1);
+          }
 
           var points = plotArea.selectAll( ".point" )
               .data( pointData );
@@ -8877,10 +8882,16 @@ var dbslice = (function (exports) {
               select(this)
                   .style( "opacity" , 1.0)
                   .attr( "r", 7 );
-              focus
-                  .attr( "cx" , mouse(this)[0] )
-                  .attr( "cy" , mouse(this)[1] );
+              let focus = plotArea.select(".focus");
+              focus.attr( "cx" , select(this).attr("cx") )
+                   .attr( "cy" , select(this).attr("cy") );
               tip.show( d , focus.node() );
+              //tip.show( d );
+              console.log(d);
+              console.log(this);
+              console.log(focus);
+              console.log(mouse(this));
+              console.log(focus.node());
               if ( layout.highlightTasks == true ) {
                   dbsliceData$1.highlightTasks = [ d.taskId ];
                   update( dbsliceData$1.elementId, dbsliceData$1.session );
@@ -24006,17 +24017,20 @@ var dbslice = (function (exports) {
 
           var tip = d3tip()
               .attr('class', 'd3-tip')
-              .offset([-10, 0])
+              .offset([-20, 0])
               .html(function( d ) {
                   return "<span>"+d.label+"</span>";
           });
 
           svg.call(tip);
 
-          var focus = plotArea.append("g")
-              .style("display","none")
-              .append("circle")
+          let focus = plotArea.select(".focus");
+          if ( focus.empty() ) {
+              plotArea.append("circle")
+                  .attr("class","focus")
+                  .attr("fill","none")
                   .attr("r",1);
+          }
 
           var allSeries = plotArea.selectAll( ".plotSeries" ).data( data.series );
 
@@ -24097,6 +24111,7 @@ var dbslice = (function (exports) {
               select(this)
                   .style( "opacity" , 1.0)
                   .style( "stroke-width", "4px" );
+              let focus = plotArea.select(".focus");
               focus
                   .attr( "cx" , mouse(this)[0] )
                   .attr( "cy" , mouse(this)[1] );

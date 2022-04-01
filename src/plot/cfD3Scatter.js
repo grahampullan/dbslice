@@ -125,17 +125,22 @@ const cfD3Scatter = {
 
         var tip = d3tip()
             .attr('class', 'd3-tip')
-            .offset([-10, 0])
+            .offset([-20, 0])
             .html(function( d ) {
                 return "<span>"+d.label+"</span>";
         });
 
         svg.call(tip);
 
-        var focus = plotArea.append("g")
-            .style("display","none")
-            .append("circle")
+        //plotArea.append("g")
+        //    .style("display","none")
+        let focus = plotArea.select(".focus");
+        if ( focus.empty() ) {
+            plotArea.append("circle")
+                .attr("class","focus")
+                .attr("fill","none")
                 .attr("r",1);
+        }
 
         var points = plotArea.selectAll( ".point" )
             .data( pointData );
@@ -237,10 +242,16 @@ const cfD3Scatter = {
             d3.select(this)
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
-            focus
-                .attr( "cx" , d3.mouse(this)[0] )
-                .attr( "cy" , d3.mouse(this)[1] );
+            let focus = plotArea.select(".focus");
+            focus.attr( "cx" , d3.select(this).attr("cx") )
+                 .attr( "cy" , d3.select(this).attr("cy") );
             tip.show( d , focus.node() );
+            //tip.show( d );
+            console.log(d);
+            console.log(this);
+            console.log(focus);
+            console.log(d3.mouse(this));
+            console.log(focus.node());
             if ( layout.highlightTasks == true ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
                 update( dbsliceData.elementId, dbsliceData.session );

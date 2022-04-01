@@ -167,17 +167,20 @@ const d3LineSeries = {
 
         var tip = d3tip()
             .attr('class', 'd3-tip')
-            .offset([-10, 0])
+            .offset([-20, 0])
             .html(function( d ) {
                 return "<span>"+d.label+"</span>";
         });
 
         svg.call(tip);
 
-        var focus = plotArea.append("g")
-            .style("display","none")
-            .append("circle")
+        let focus = plotArea.select(".focus");
+        if ( focus.empty() ) {
+            plotArea.append("circle")
+                .attr("class","focus")
+                .attr("fill","none")
                 .attr("r",1);
+        }
 
         var allSeries = plotArea.selectAll( ".plotSeries" ).data( data.series );
 
@@ -258,6 +261,7 @@ const d3LineSeries = {
             d3.select(this)
                 .style( "opacity" , 1.0)
                 .style( "stroke-width", "4px" );
+            let focus = plotArea.select(".focus");
             focus
                 .attr( "cx" , d3.mouse(this)[0] )
                 .attr( "cy" , d3.mouse(this)[1] );
