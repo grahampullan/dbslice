@@ -77704,8 +77704,13 @@ void main() {
   			.attr( "class" , "filteredTaskCount" );	
 
 
-  	document.getElementById("refreshTasks").onclick = function() { refreshTasksInPlotRows(); };
-  	document.getElementById("downloadTasks").onclick = function() { downloadCurrentTasks(); };
+  	if ( config.plotTasksButton ) {
+  		document.getElementById("refreshTasks").onclick = function() { refreshTasksInPlotRows(); };
+  	}
+
+  	if ( config.downloadCurrentTasks) {
+  		document.getElementById("downloadTasks").onclick = function() { downloadCurrentTasks(); };
+  	}
 
   }
 
