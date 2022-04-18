@@ -8091,10 +8091,13 @@ var dbslice = (function (exports) {
           var dim = cfData.dataDims[ dimId ];       
           var items = dim.top( Infinity );
 
-          var xDomMax = max( items, d => d[ data.property ] ) * 1.03; 
+          let itemExtent = extent$1( items, d => d[data.property]);
+          let itemRange = itemExtent[1] - itemExtent[0];
+
+          var xDomMax = itemExtent[1] + 0.05*itemRange; 
           plotArea.attr( "xDomMax", xDomMax);
 
-          var xDomMin = min( items, d => d[ data.property ] ) * 0.97;
+          var xDomMin = itemExtent[0] - 0.05*itemRange;
           plotArea.attr( "xDomMin", xDomMin);
 
           var x = linear()
@@ -8220,8 +8223,11 @@ var dbslice = (function (exports) {
 
           if ( layout.reBin == true ) {
 
-              xDomMax = max( items, d => d[ data.property ] ) * 1.03; 
-              xDomMin = min( items, d => d[ data.property ] ) * 0.97;
+              let itemExtent = extent$1( items, d => d[data.property]);
+              let itemRange = itemExtent[1] - itemExtent[0];
+      
+              xDomMax = itemExtent[1] + 0.05*itemRange; 
+              xDomMin = itemExtent[0] - 0.05*itemRange;
           
           }
 

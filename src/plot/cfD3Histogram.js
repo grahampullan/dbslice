@@ -33,10 +33,13 @@ const cfD3Histogram = {
         var dim = cfData.dataDims[ dimId ];       
         var items = dim.top( Infinity );
 
-        var xDomMax = d3.max( items, d => d[ data.property ] ) * 1.03; 
+        let itemExtent = d3.extent( items, d => d[data.property]);
+        let itemRange = itemExtent[1] - itemExtent[0];
+
+        var xDomMax = itemExtent[1] + 0.05*itemRange; 
         plotArea.attr( "xDomMax", xDomMax);
 
-        var xDomMin = d3.min( items, d => d[ data.property ] ) * 0.97;
+        var xDomMin = itemExtent[0] - 0.05*itemRange;
         plotArea.attr( "xDomMin", xDomMin);
 
         var x = d3.scaleLinear()
@@ -162,8 +165,11 @@ const cfD3Histogram = {
 
         if ( layout.reBin == true ) {
 
-            xDomMax = d3.max( items, d => d[ data.property ] ) * 1.03; 
-            xDomMin = d3.min( items, d => d[ data.property ] ) * 0.97;
+            let itemExtent = d3.extent( items, d => d[data.property]);
+            let itemRange = itemExtent[1] - itemExtent[0];
+    
+            xDomMax = itemExtent[1] + 0.05*itemRange; 
+            xDomMin = itemExtent[0] - 0.05*itemRange;
         
         }
 
