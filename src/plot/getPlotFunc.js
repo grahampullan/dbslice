@@ -7,6 +7,7 @@ import { d3CutLine } from './d3CutLine.js';
 import { d3LineSeries } from './d3LineSeries.js';
 import { d3Scatter } from './d3Scatter.js';
 import { threeSurf3d } from './threeSurf3d.js';
+import { threeTriMesh } from './threeTriMesh.js';
 import { triMesh2dRender } from './triMesh2dRender.js';
 import { triMesh2dRenderXBar } from './triMesh2dRenderXBar.js';
 
@@ -23,6 +24,7 @@ function getPlotFunc(plotType) {
         'd3LineSeries'            : d3LineSeries ,
         'd3Scatter'               : d3Scatter ,
         'threeSurf3d'             : threeSurf3d ,
+        'threeTriMesh'            : threeTriMesh ,
         'triMesh2dRender'         : triMesh2dRender ,
         'triMesh2dRenderXBar'     : triMesh2dRenderXBar
         

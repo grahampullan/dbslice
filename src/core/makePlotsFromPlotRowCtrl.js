@@ -54,7 +54,7 @@ function makePromiseTaskPlot( ctrl, url, title, taskId ) {
 
 	.then(function( response ) {
 
-        if ( ctrl.csv === undefined ) {
+        if ( ctrl.csv === undefined && ctrl.buffer === undefined ) {
 
             return response.json();
 
@@ -63,6 +63,12 @@ function makePromiseTaskPlot( ctrl, url, title, taskId ) {
         if ( ctrl.csv == true ) {
 
             return response.text() ;
+
+        }
+
+        if ( ctrl.buffer == true ) {
+
+            return response.arrayBuffer() ;
 
         }
 
@@ -117,7 +123,7 @@ function makePromiseTaskPlot( ctrl, url, title, taskId ) {
 
         plot.layout.taskId = taskId;
 
-        plot.data.newData = true;
+        plot.layout.newData = true;
 
         return plot;
 
@@ -271,7 +277,7 @@ function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
     	plot.plotFunc = ctrl.plotFunc;
         plot.plotType = ctrl.plotType;
 
-    	plot.data.newData = true;
+    	plot.layout.newData = true;
 
     	return plot;
 
