@@ -2,8 +2,8 @@ import { dbsliceData } from '../core/dbsliceData.js';
 import { update } from '../core/update.js';
 import * as d3 from 'd3';
 import { interpolateSpectral } from 'd3-scale-chromatic';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import * as THREE from 'three124';
+import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
 
 const threeSurf3d = {
 
