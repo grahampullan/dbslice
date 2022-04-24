@@ -120185,13 +120185,13 @@ void main() {
 
   	.then(function( response ) {
 
-          if ( ctrl.csv === undefined && ctrl.buffer === undefined ) {
+          if ( ctrl.csv === undefined && ctrl.text === undefined && ctrl.buffer === undefined ) {
 
               return response.json();
 
           }
 
-          if ( ctrl.csv == true ) {
+          if ( ctrl.csv == true || ctrl.text == true ) {
 
               return response.text() ;
 
@@ -120283,13 +120283,13 @@ void main() {
 
   			var slicePromise = fetch(url).then( function( response ) {
 
-  				if ( ctrl.csv === undefined ) {
+  				if ( ctrl.csv === undefined && ctrl.text === undefined && ctrl.buffer === undefined ) {
 
                       return response.json();
 
                   }
 
-                  if ( ctrl.csv == true ) {
+                  if ( ctrl.csv == true || ctrl.text == true ) {
 
                       return response.text() ;
 
