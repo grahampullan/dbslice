@@ -1,4 +1,5 @@
 import { getDataFilterFunc } from '../filters/getDataFilterFunc.js';
+import * as d3 from 'd3';
 
 function makePlotsFromPlotRowCtrl( ctrl ) {
 
@@ -212,7 +213,15 @@ function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
 
     	if (dataFilterFunc !== undefined ) {
 
-    		plot.data = dataFilterFunc( responseJson, tasksOnPlot, ctrl.dataFilterConfig );
+            let dataFilterConfig = ctrl.dataFilterConfig;
+
+            if ( Array.isArray (dataFilterConfig) ) {
+
+                dataFilterConfig = dataFilterConfig[sliceIndex];
+
+            }
+
+    		plot.data = dataFilterFunc( responseJson, tasksOnPlot, dataFilterConfig );
 
     	} else {
 

@@ -4402,7 +4402,9 @@ var dbslice = (function (exports) {
     };
   }
 
-  dsv(",");
+  var csv = dsv(",");
+
+  var csvParse = csv.parse;
 
   dsv("\t");
 
@@ -120120,12 +120122,49 @@ void main() {
       return { series : series };
   }
 
+  function lineSeriesFromCsv( rawData , tasks, config ) {
+
+      const series = [];
+
+      rawData.forEach( function( dataText, index ) { 
+
+          let dataTextLines = dataText.split("\n");
+
+          if ( config.skipFirstLine == true ) {
+              dataTextLines = dataTextLines.slice(1);
+          }
+
+          dataTextLines[0] = dataTextLines[0].split(",").map(d => d.trim() ).join();
+          let dataTextClean = dataTextLines.join("\n");
+
+          let data = csvParse(dataTextClean);
+
+          let line = data.map( d => ({x: +d[config.xProperty], y: +d[config.yProperty] }));
+
+          let taskId = tasks[index];
+          let label = dbsliceData$1.session.metaData.data.find( d => d.taskId==taskId).label;
+          let seriesNow = { label : label , data : line, taskId : taskId };
+
+          if ( config.cProperty != undefined ) {
+
+              seriesNow.cKey = dbsliceData$1.session.metaData.data.find( d => d.taskId==taskId)[config.cProperty];
+
+          }
+
+          series.push( seriesNow ); 
+      
+      } );
+      
+      return { series : series };
+  }
+
   function getDataFilterFunc(dataFilterType) {
 
       const lookup = {
 
           'threeMeshFromStruct'     : threeMeshFromStruct,
-          'lineSeriesFromLines'     : lineSeriesFromLines
+          'lineSeriesFromLines'     : lineSeriesFromLines,
+          'lineSeriesFromCsv'       : lineSeriesFromCsv
           
       };
       
@@ -120209,7 +120248,7 @@ void main() {
 
           if ( ctrl.csv == true ) {
 
-              responseJson = d3.csvParse( responseJson );
+              responseJson = csvParse( responseJson );
 
           }
 
@@ -120311,7 +120350,7 @@ void main() {
 
               responseJson.forEach( function(d) {
 
-                  responseCsv.push( d3.csvParse(d) );
+                  responseCsv.push( csvParse(d) );
 
               });
 
@@ -120343,7 +120382,15 @@ void main() {
 
       	if (dataFilterFunc !== undefined ) {
 
-      		plot.data = dataFilterFunc( responseJson, tasksOnPlot, ctrl.dataFilterConfig );
+              let dataFilterConfig = ctrl.dataFilterConfig;
+
+              if ( Array.isArray (dataFilterConfig) ) {
+
+                  dataFilterConfig = dataFilterConfig[sliceIndex];
+
+              }
+
+      		plot.data = dataFilterFunc( responseJson, tasksOnPlot, dataFilterConfig );
 
       	} else {
 
