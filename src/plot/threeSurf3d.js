@@ -46,7 +46,7 @@ const threeSurf3d = {
             }
         }
 
-		if (geometry.newData == false) {
+		if (layout.newData == false) {
             return
         }
 
@@ -206,7 +206,7 @@ const threeSurf3d = {
             }
         }
 
-		geometry.newData = false;
+		layout.newData = false;
 
 	}
 

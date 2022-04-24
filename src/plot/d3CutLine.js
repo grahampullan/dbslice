@@ -34,7 +34,7 @@ const d3CutLine = {
         var svg = container.select("svg");
         var plotArea = svg.select(".plotArea");
 
-        //if (data.newData == false) {
+        //if (layout.newData == false) {
         //    return
         //}
 
@@ -197,7 +197,7 @@ const d3CutLine = {
         }
 
 
-        data.newData = false;
+        layout.newData = false;
     }
 };
 

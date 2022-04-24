@@ -45,7 +45,7 @@ const d3ContourStruct2d = {
         }
 
 
-        if (data.newData == false) {
+        if (layout.newData == false) {
             return
         }
 
@@ -251,7 +251,7 @@ const d3ContourStruct2d = {
             }
         }
 
-        data.newData = false;
+        layout.newData = false;
     }
 }
 

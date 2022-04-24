@@ -76,7 +76,7 @@ const d3LineSeries = {
             }
         }
 
-        if (data.newData == false) {
+        if (layout.newData == false) {
             return
         }
 
@@ -283,7 +283,7 @@ const d3LineSeries = {
             }
         }
 
-        data.newData = false;
+        layout.newData = false;
     }
 };
 

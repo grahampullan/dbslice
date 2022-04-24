@@ -23450,7 +23450,7 @@ var dbslice = (function (exports) {
           }
 
 
-          if (data.newData == false) {
+          if (layout.newData == false) {
               return
           }
 
@@ -23656,7 +23656,7 @@ var dbslice = (function (exports) {
               }
           }
 
-          data.newData = false;
+          layout.newData = false;
       }
   };
 
@@ -23692,7 +23692,7 @@ var dbslice = (function (exports) {
           var svg = container.select("svg");
           var plotArea = svg.select(".plotArea");
 
-          //if (data.newData == false) {
+          //if (layout.newData == false) {
           //    return
           //}
 
@@ -23855,7 +23855,7 @@ var dbslice = (function (exports) {
           }
 
 
-          data.newData = false;
+          layout.newData = false;
       }
   };
 
@@ -23932,7 +23932,7 @@ var dbslice = (function (exports) {
               }
           }
 
-          if (data.newData == false) {
+          if (layout.newData == false) {
               return
           }
 
@@ -24139,7 +24139,7 @@ var dbslice = (function (exports) {
               }
           }
 
-          data.newData = false;
+          layout.newData = false;
       }
   };
 
@@ -117821,7 +117821,7 @@ void main() {
               }
           }
 
-  		if (geometry.newData == false) {
+  		if (layout.newData == false) {
               return
           }
 
@@ -117981,7 +117981,7 @@ void main() {
               }
           }
 
-  		geometry.newData = false;
+  		layout.newData = false;
 
   	}
 
@@ -120408,7 +120408,7 @@ void main() {
       	plot.plotFunc = ctrl.plotFunc;
           plot.plotType = ctrl.plotType;
 
-      	plot.data.newData = true;
+      	plot.layout.newData = true;
 
       	return plot;
 
