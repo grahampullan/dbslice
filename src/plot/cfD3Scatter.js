@@ -246,12 +246,7 @@ const cfD3Scatter = {
             focus.attr( "cx" , d3.select(this).attr("cx") )
                  .attr( "cy" , d3.select(this).attr("cy") );
             tip.show( d , focus.node() );
-            //tip.show( d );
-            console.log(d);
-            console.log(this);
-            console.log(focus);
-            console.log(d3.mouse(this));
-            console.log(focus.node());
+            //tip.show( d );s
             if ( layout.highlightTasks == true ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
                 update( dbsliceData.elementId, dbsliceData.session );

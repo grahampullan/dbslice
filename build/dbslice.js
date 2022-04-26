@@ -8894,12 +8894,7 @@ var dbslice = (function (exports) {
               focus.attr( "cx" , select(this).attr("cx") )
                    .attr( "cy" , select(this).attr("cy") );
               tip.show( d , focus.node() );
-              //tip.show( d );
-              console.log(d);
-              console.log(this);
-              console.log(focus);
-              console.log(mouse(this));
-              console.log(focus.node());
+              //tip.show( d );s
               if ( layout.highlightTasks == true ) {
                   dbsliceData$1.highlightTasks = [ d.taskId ];
                   update( dbsliceData$1.elementId, dbsliceData$1.session );
