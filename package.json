@@ -31,6 +31,7 @@
     "d3-contour": "^3.0.1",
     "d3-scale-chromatic": "^3.0.0",
     "d3-tip": "^0.9.1",
+    "d3v7": "npm:d3@^7.4.4",
     "leaflet": "^1.7.1",
     "on-change": "^4.0.0",
     "three": "^0.139.2",
