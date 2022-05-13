@@ -1,4 +1,5 @@
-import { dbsliceData } from './dbsliceData.js'
+import { dbsliceData } from './dbsliceData.js';
+import * as d3 from 'd3v7';
 
 function cfUpdateFilters( crossfilter ) {
 
