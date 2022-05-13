@@ -38,6 +38,9 @@ function cfUpdateFilters( crossfilter ) {
         dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
     }
 
+    let element = d3.select( "#" + dbsliceData.elementId );
+    element.property('value', dbsliceData.filteredTaskIds).dispatch('input');
+
 }
 
 export { cfUpdateFilters };

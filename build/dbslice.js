@@ -7853,6 +7853,9 @@ var dbslice = (function (exports) {
           dbsliceData$1.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
       }
 
+      let element = d3.select( "#" + dbsliceData$1.elementId );
+      element.property('value', dbsliceData$1.filteredTaskIds).dispatch('input');
+
   }
 
   const cfD3BarChart = {
