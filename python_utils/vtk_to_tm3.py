@@ -2,7 +2,9 @@ import xml.etree.ElementTree as ET
 import base64
 import numpy as np
 
-def read_vtp(fname, prop):
+def read_vtp_vtu(fname, prop):
+
+    file_type = fname[-3::]
 
     tree = ET.parse(fname)
     root = tree.getroot()
@@ -34,12 +36,53 @@ def read_vtp(fname, prop):
             data = np.frombuffer( buffer, dtype=np.int64, offset=8)
             data_array['data'] = np.int32(data)
 
+    if ( file_type == "vtp"):
+        polys = root.find("./PolyData/Piece/Polys")
 
-    polys = root.find("./PolyData/Piece/Polys")
-    polys_connectivity_data_array = polys.find("DataArray")
-    polys_connectivity_offset = int(polys_connectivity_data_array.attrib['offset'])
+    if ( file_type == "vtu"):
+        polys = root.find("./UnstructuredGrid/Piece/Cells")
 
-    indices = [ d for d in data_arrays if d['offset'] == polys_connectivity_offset][0]['data']
+    for data_array in polys.iter('DataArray'):
+        d = data_array.attrib
+        if (d['Name'] == "connectivity"):
+            polys_connectivity_offset = int(d['offset'])
+        if (d['Name'] == "offsets"):
+            polys_offsets_offset = int(d['offset'])
+
+    indices = []
+    offsets = [ d for d in data_arrays if d['offset'] == polys_offsets_offset][0]['data']
+    connectivity = [ d for d in data_arrays if d['offset'] == polys_connectivity_offset][0]['data']
+    offset_last = 0
+    for offset_now in offsets:
+        nverts_now = offset_now - offset_last
+        if (nverts_now == 3):
+            # triangle
+            indices.append(connectivity[offset_last])
+            indices.append(connectivity[offset_last+1])
+            indices.append(connectivity[offset_last+2])
+        if (nverts_now == 4):
+            # quad - split into 2 triangles
+            indices.append(connectivity[offset_last])
+            indices.append(connectivity[offset_last+1])
+            indices.append(connectivity[offset_last+2])
+            indices.append(connectivity[offset_last])
+            indices.append(connectivity[offset_last+2])
+            indices.append(connectivity[offset_last+3])
+        if (nverts_now == 5):
+            # pent - split into 3 triangles
+            indices.append(connectivity[offset_last])
+            indices.append(connectivity[offset_last+1])
+            indices.append(connectivity[offset_last+2])
+            indices.append(connectivity[offset_last])
+            indices.append(connectivity[offset_last+2])
+            indices.append(connectivity[offset_last+3])
+            indices.append(connectivity[offset_last])
+            indices.append(connectivity[offset_last+3])
+            indices.append(connectivity[offset_last+4])
+        offset_last = offset_now
+
+    indices = np.asarray(indices, dtype=np.int32)
+
     if ( np.size(indices) == 0 ):
         return 0, 0, np.array([]), np.array([]), np.array([])
     vertices = [ d for d in data_arrays if d['name'] == 'Points'][0]['data']
@@ -104,20 +147,20 @@ def read_vtm(fname):
       
     return file_names
 
-def vtm_to_tm3(vtmfile_and_prop_array):
-  
-    n_surfaces = len(vtmfile_and_prop_array) # currently works for only one surface
+def vtm_to_tm3(vtmfiles, output_file="output.tm3"):
 
-    for fp in vtmfile_and_prop_array:
+    n_surfaces = len(vtmfiles) # currently works for only one surface
+
+    for indx_vtm, fp in enumerate(vtmfiles):
         vtm_file = fp['fname']
         selected_prop = fp['prop']
         vtp_file_names = read_vtm(vtm_file)
         
-        for indx, file_name in enumerate(vtp_file_names):
-            if (indx == 0):
-                nverts, ntris, vertices, indices, values = read_vtp(file_name, selected_prop)
+        for indx_vtp, file_name in enumerate(vtp_file_names):
+            if (indx_vtp == 0 and indx_vtm == 0):
+                nverts, ntris, vertices, indices, values = read_vtp_vtu(file_name, selected_prop)
             else:
-                nverts_now, ntris_now, vertices_now, indices_now, values_now = read_vtp(file_name, selected_prop)
+                nverts_now, ntris_now, vertices_now, indices_now, values_now = read_vtp_vtu(file_name, selected_prop)
                 if (nverts_now == 0):
                     continue
                 indices_now += nverts
@@ -127,10 +170,10 @@ def vtm_to_tm3(vtmfile_and_prop_array):
                 indices = np.concatenate((indices,indices_now))
                 values = np.concatenate((values,values_now))
        
-        vertices, rmax, x_min_max, y_min_max, z_min_max = centre_vertices(vertices)
-        values, v_min_max = normalise(values)
+    vertices, rmax, x_min_max, y_min_max, z_min_max = centre_vertices(vertices)
+    values, v_min_max = normalise(values)
 
-    f = open(vtm_file[:-3]+"tm3","wb")
+    f = open(output_file,"wb")
     f.write(np.int32(1).tobytes())
     f.write(nverts.tobytes())
     f.write(ntris.tobytes())
@@ -145,9 +188,3 @@ def vtm_to_tm3(vtmfile_and_prop_array):
     f.write(values.tobytes())
     f.close()
 
-
-# to do
-# add x range, y range, z range to tm3
-# make module so just take list of vtm files and list of props - array of dictionaries
-# main method is vtm_to_tm3
-# (could also add vtu_to_tm3 later)
