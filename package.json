@@ -33,7 +33,8 @@
     "d3-tip": "^0.9.1",
     "d3v7": "npm:d3@^7.4.4",
     "leaflet": "^1.7.1",
-    "on-change": "^4.0.0",
+    "nd4js": "^1.3.0",
+    "simple-statistics": "^7.7.5",
     "three": "^0.139.2",
     "three124": "npm:three@^0.124.0",
     "twgl.js": "^4.21.2"

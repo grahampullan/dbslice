@@ -9,6 +9,7 @@ export { d3Scatter } from './plot/d3Scatter.js';
 export { cfD3BarChart } from './plot/cfD3BarChart.js';
 export { cfD3Histogram } from './plot/cfD3Histogram.js';
 export { cfD3Scatter } from './plot/cfD3Scatter.js';
+export { cfD3ResSurfScatter } from './plot/cfD3ResSurfScatter.js'
 export { cfLeafletMapWithMarkers } from './plot/cfLeafletMapWithMarkers.js';
 export { cfAddPlot } from './plot/cfAddPlot.js';
 export { threeTriMesh } from './plot/threeTriMesh.js' ;
