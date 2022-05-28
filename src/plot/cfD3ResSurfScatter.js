@@ -148,12 +148,12 @@ const cfD3ResSurfScatter = {
                 .attr("width", width)
                 .attr("height", height);
 
-        var zoom = d3.zoom()
-            .scaleExtent([0.01, Infinity])
-            .on("zoom", zoomed);
+        //var zoom = d3.zoom()
+        //    .scaleExtent([0.01, Infinity])
+        //    .on("zoom", zoomed);
 
-        svg.transition().call(zoom.transform, d3.zoomIdentity);
-        svg.call(zoom);
+        //svg.transition().call(zoom.transform, d3.zoomIdentity);
+        //svg.call(zoom);
 
         var tip = d3tip()
             .attr('class', 'd3-tip')

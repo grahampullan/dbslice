@@ -1,4 +1,5 @@
 import { cfD3BarChart } from './cfD3BarChart.js';
+import { cfD3RankCorrBar } from './cfD3RankCorrBar.js';
 import { cfD3Histogram } from './cfD3Histogram.js';
 import { cfD3Scatter } from './cfD3Scatter.js';
 import { cfD3ResSurfScatter } from './cfD3ResSurfScatter.js';
@@ -17,6 +18,7 @@ function getPlotFunc(plotType) {
     const lookup = {
 
         'cfD3BarChart'            : cfD3BarChart ,
+        'cfD3RankCorrBar'         : cfD3RankCorrBar ,
         'cfD3Histogram'           : cfD3Histogram ,
         'cfD3Scatter'             : cfD3Scatter ,
         'cfD3ResSurfScatter'      : cfD3ResSurfScatter ,
