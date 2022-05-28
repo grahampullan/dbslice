@@ -151,7 +151,6 @@ const cfD3ResSurfScatter = {
         // var zoom = d3.zoom()
         //    .scaleExtent([0.01, Infinity])
         //    .on("zoom", zoomed);
-
         //svg.transition().call(zoom.transform, d3.zoomIdentity);
         //svg.call(zoom);
 
