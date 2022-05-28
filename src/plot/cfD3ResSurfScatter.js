@@ -35,7 +35,7 @@ const cfD3ResSurfScatter = {
 
     update : function ( element, data, layout ) {
 
-        console.log(data);
+        //console.log(data);
 
         var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
         var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
@@ -90,6 +90,11 @@ const cfD3ResSurfScatter = {
         
         const scatterPlotData = pointData.map( (d,indx) => ( { x : d[xProperty], y : resSurfResult[indx], c : d[cProperty], taskId : d.taskId, label:d.label } ) );
 
+        let sumErrorSq = d3.sum( scatterPlotData.map(d => ((d.y - d.x)**2) ));
+        let m = d3.mean( scatterPlotData.map(d => d.x));
+        let sumSq = d3.sum( scatterPlotData.map(d => ((d.x-m)**2) ));
+        let r2 = 1 - sumErrorSq/sumSq;
+
         //console.log(pointData);
 
         if ( layout.xRange === undefined) {
@@ -103,16 +108,16 @@ const cfD3ResSurfScatter = {
             var xRange = layout.xRange;
         }
 
-        if ( layout.yRange === undefined) {
-            var yMin = d3.min( scatterPlotData, d => d.y  );
-            var yMax = d3.max( scatterPlotData, d => d.x  );
-            var yDiff = yMax - yMin;
-            yMin -= 0.1 * yDiff;
-            yMax += 0.1 * yDiff;
-            var yRange = [yMin, yMax];
-        } else {
-            var yRange = layout.yRange;
-        }
+        //if ( layout.yRange === undefined) {
+        //    var yMin = d3.min( scatterPlotData, d => d.y  );
+        //    var yMax = d3.max( scatterPlotData, d => d.x  );
+        //    var yDiff = yMax - yMin;
+        //    yMin -= 0.1 * yDiff;
+        //    yMax += 0.1 * yDiff;
+        //    var yRange = [yMin, yMax];
+        //} else {
+        //    var yRange = layout.yRange;
+        //}
 
         var xscale = d3.scaleLinear()
             .range( [0, width] )
@@ -124,11 +129,11 @@ const cfD3ResSurfScatter = {
 
         var yscale = d3.scaleLinear()
             .range( [height, 0] )
-            .domain( yRange );
+            .domain( xRange );
 
         var yscale0 = d3.scaleLinear()
             .range( [height, 0] )
-            .domain( yRange );
+            .domain( xRange );
 
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
         colour.domain( cfData.metaDataUniqueValues[ cProperty ] );
@@ -229,6 +234,36 @@ const cfD3ResSurfScatter = {
             gY.transition().call( yAxis );
         }
 
+        let exactLine = plotArea.select(".exact-line");
+        if ( exactLine.empty() ) {
+            plotArea.append("line")
+                .attr("class","exact-line")
+                .attr("x1", xscale(xRange[0]) )
+                .attr("y1", yscale(xRange[0]) )
+                .attr("x2", xscale(xRange[1]) )
+                .attr("y2", yscale(xRange[1]) )
+                .style("stroke", "steelblue")
+                .style("stroke-width", 4)
+                .style("opacity", 0.5);
+        } else {
+            exactLine.attr("x1", xscale(xRange[0]) )
+            .attr("y1", yscale(xRange[0]) )
+            .attr("x2", xscale(xRange[1]) )
+            .attr("y2", yscale(xRange[1]) );
+        }
+
+        let r2text = plotArea.select(".r2-text");
+        if ( r2text.empty() ) {
+            plotArea.append("text")
+                .attr("class", "r2-text")
+                .attr("fill", "#000")
+                .attr("x", 10)
+                .attr("y", 10)
+                .text("R2 = " + r2.toFixed(2) );
+        } else {
+            r2text.text("R2 = " + r2.toFixed(2) );
+        }
+        
 
         if ( layout.highlightTasks == true ) {
             if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
