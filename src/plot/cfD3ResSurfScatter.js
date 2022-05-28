@@ -148,7 +148,7 @@ const cfD3ResSurfScatter = {
                 .attr("width", width)
                 .attr("height", height);
 
-        //var zoom = d3.zoom()
+        // var zoom = d3.zoom()
         //    .scaleExtent([0.01, Infinity])
         //    .on("zoom", zoomed);
 
