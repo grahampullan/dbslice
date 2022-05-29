@@ -37,8 +37,6 @@ const cfD3ResSurfContour = {
 
     update : function ( element, data, layout ) {
 
-        //console.log(data);
-
         var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
         var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
@@ -59,7 +57,6 @@ const cfD3ResSurfContour = {
         var plotArea = svg.select(".plotArea");
         var dimId = plotArea.attr("dimId");
 
-        //var cf = data.cfData.cf;
         const xProperty = data.xProperty;
         const yProperty = data.yProperty;
         const outputProperty = data.outputProperty;
@@ -139,7 +136,6 @@ const cfD3ResSurfContour = {
                 xCont.push( xNow );
                 yCont.push( yNow );
                 k++;
-                //console.log(xNow,yNow,vNow);
             }
         }
 
