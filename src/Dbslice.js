@@ -7,6 +7,7 @@ export { d3ContourStruct2d } from './plot/d3ContourStruct2d.js';
 export { d3LineSeries } from './plot/d3LineSeries.js';
 export { d3Scatter } from './plot/d3Scatter.js';
 export { cfD3BarChart } from './plot/cfD3BarChart.js';
+export { cfD3RankCorrBar } from './plot/cfD3RankCorrBar.js'
 export { cfD3Histogram } from './plot/cfD3Histogram.js';
 export { cfD3Scatter } from './plot/cfD3Scatter.js';
 export { cfD3ResSurfScatter } from './plot/cfD3ResSurfScatter.js'
