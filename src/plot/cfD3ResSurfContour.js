@@ -155,9 +155,16 @@ const cfD3ResSurfContour = {
             .range( [height, 0] )
             .domain( yRange );
         
+        let colourPoints;
+        if ( cfData.metaDataProperties.includes(cProperty) ) {
+            colourPoints = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+            colourPoints.domain( cfData.metaDataUniqueValues[ cProperty ] );
+        }
 
-        var colourPoints = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
-        colourPoints.domain( cfData.metaDataUniqueValues[ cProperty ] );
+        if ( cfData.dataProperties.includes(cProperty) ) {
+            colourPoints = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+            colourPoints.domain( [vMin, vMax ] );
+        }
 
         var opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
 
@@ -165,7 +172,7 @@ const cfD3ResSurfContour = {
 
         var thresholds = d3.range( vMin , vMax , ( vMax - vMin ) / 21 );
         var colourCont = d3.scaleSequential( interpolateSpectral );
-        colourCont.domain(d3.extent(thresholds));
+        colourCont.domain([vMin, vMax]);
 
         // configure a projection to map the contour coordinates returned by
 		// d3.contours (px,py) to the input data (xgrid,ygrid)
