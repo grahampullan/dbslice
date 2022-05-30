@@ -30,6 +30,12 @@ function cfUpdateFilters( crossfilter ) {
 
     dbsliceData.filteredTaskIds = currentMetaData.map(function(d){return d.taskId});
 
+    if ( dbsliceData.session.addRefTaskId !== undefined && dbsliceData.session.addRefTaskId == true ) {
+
+      dbsliceData.filteredTaskIds = [ dbsliceData.session.refTaskId, ...dbsliceData.filteredTaskIds ];
+
+    }
+
     if ( currentMetaData[0].label !== undefined ) {
 
         dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.label});
@@ -37,6 +43,12 @@ function cfUpdateFilters( crossfilter ) {
     } else {
 
         dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
+    }
+
+    if ( dbsliceData.session.addRefTaskId !== undefined && dbsliceData.session.addRefTaskId == true ) {
+
+      dbsliceData.filteredTaskLabels = [ dbsliceData.session.refTaskId, ...dbsliceData.filteredTaskLabels ];
+
     }
 
     let element = d3.select( "#" + dbsliceData.elementId );
