@@ -118,6 +118,21 @@ const cfD3ResSurfContour = {
             var vMax = vRange[1];
         }
 
+        if ( cfData.dataProperties.includes(cProperty) ) {
+            if ( layout.cRange === undefined) {
+                var cMin = d3.min( pointData, d => d[cProperty]  );
+                var cMax = d3.max( pointData, d => d[cProperty]  );
+                var cDiff = cMax - cMin;
+                cMin -= 0.1 * cDiff;
+                cMax += 0.1 * cDiff;
+                var cRange = [cMin, cMax];
+            } else {
+                var cRange = layout.cRange;
+                var cMin = cRange[0];
+                var cMax = cRange[1];
+            }
+        }
+
 
         const n = 21;
         const m = 21;
@@ -163,7 +178,7 @@ const cfD3ResSurfContour = {
 
         if ( cfData.dataProperties.includes(cProperty) ) {
             colourPoints = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
-            colourPoints.domain( [vMin, vMax ] );
+            colourPoints.domain( [cMin, cMax ] );
         }
 
         var opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
