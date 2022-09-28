@@ -10,7 +10,29 @@ function lineSeriesFromCsv( rawData , tasks, config ) {
         let dataTextLines = dataText.split("\n");
 
         if ( config.skipFirstLine == true ) {
-            dataTextLines = dataTextLines.slice(1)
+            dataTextLines = dataTextLines.slice(1);
+        }
+
+        if ( config.skipFirstNLines !== undefined ) {
+            dataTextLines = dataTextLines.slice(skipFirstNLines);
+        }
+
+        if ( config.skipCommentLines == true ) {
+            let commentChar;
+            if ( config.skipCommentChar !== undefined ) {
+                commentChar = config.skipCommentChar;
+            } else {
+                commentChar = '#';
+            }
+            let nSlice = 0;
+            for (let i = 0; i < dataTextLines.length; i++) {
+                if (dataTextLines[i][0]==commentChar){
+                  nSlice++;
+                } else {
+                  break;
+                }
+            }
+            dataTextLines = dataTextLines.slice(nSlice);
         }
 
         dataTextLines[0] = dataTextLines[0].split(",").map(d => d.trim() ).join();
