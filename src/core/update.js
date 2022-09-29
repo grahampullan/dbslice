@@ -36,7 +36,7 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
         });
 
     var newPlotRowsBody = newPlotRows
-    	.append( "div" ).attr( "class", "row no-gutters plotRowBody" )
+    	.append( "div" ).attr( "class", "row no-gutters g-1 plotRowBody" )
         .attr ("plot-row-index", function(d, i) { return i; });
 
     var newPlots = newPlotRowsBody.selectAll( ".plot")
