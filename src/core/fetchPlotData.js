@@ -95,7 +95,7 @@ function fetchPlotData( fetchData ) {
 
 	    let nTasks = fetchData.taskIds.length;
 
-	    if ( fetchData.maxTasks !== undefined ) Math.min( nTasks, fetchData.maxTasks );
+	    if ( fetchData.maxTasks !== undefined ) nTasks = Math.min( nTasks, fetchData.maxTasks );
 
 	    for ( let index = 0; index < nTasks; ++index ) {
 
