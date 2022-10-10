@@ -5,6 +5,8 @@ import { makePlotsFromPlotRowCtrl } from './makePlotsFromPlotRowCtrl.js';
 
 function refreshTasksInPlotRows() {
 
+	dbsliceData.fetchDataIsRequested = true;
+
 	var plotRows = dbsliceData.session.plotRows;
 
 	var plotRowPromises = [];
@@ -45,6 +47,7 @@ function refreshTasksInPlotRows() {
 	Promise.all( plotRowPromises ).then( function() {
 
 		update( dbsliceData.elementId, dbsliceData.session );
+		dbsliceData.fetchDataIsRequested = false;
 
 	});
 
