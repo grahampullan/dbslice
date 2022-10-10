@@ -7,6 +7,8 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 
 	var element = d3.select( "#" + elementId );
 
+
+	// Update the exploration session title.
     if (dbsliceData.filteredTaskIds !== undefined){
         element.select(".filteredTaskCount")
             .html("<p> Number of Tasks in Filter = " + dbsliceData.filteredTaskIds.length + "</p>" );
@@ -14,23 +16,28 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
         element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
     }
 
+
+	// First add/remove entire plot-rows.
     var plotRows = element.selectAll( ".plotRow" )
     	.data( session.plotRows, k => k._id ); 
 
     var newPlotRows = plotRows.enter()
-    	.append( "div" ).attr( "class", "card bg-light plotRow" )
-    	.attr( "style" , "margin-bottom:20px")
-        .attr( "plot-row-index", function(d, i) { return i; } );
+    	.append( "div" )
+		    .attr( "class", "card bg-light plotRow" )
+    	    .attr( "style" , "margin-bottom:20px")
+            .attr( "plot-row-index", function(d, i) { return i; } );
 
 
     var newPlotRowsHeader = newPlotRows	
-    	.append( "div" ).attr( "class", "card-header plotRowTitle" )
-    	.call( function(selection) {
-    		selection.html( function(d) {
+    	.append( "div" )
+		  .attr( "class", "card-header plotRowTitle" )
+    	  .call( function(selection) {
+    		  selection.html( function(d) {
                 let html = "<h3 style='display:inline'>" + d.title + "</h3>";
                 if ( d.headerButton !== undefined ){
                     html += "<button class='btn btn-success float-right' id='" + d.headerButton.id + "'>" + d.headerButton.label +"</button>"
                 }
+				
                 return html;
             });
         });
@@ -38,7 +45,25 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
     var newPlotRowsBody = newPlotRows
     	.append( "div" ).attr( "class", "row no-gutters g-1 plotRowBody" )
         .attr ("plot-row-index", function(d, i) { return i; });
+		
+		
+	// Update the plot row addPlot functionality
+	// html += "<button class='btn btn-success addPlot' style='float: right'>Add plot</button>"
+	newPlotRowsHeader
+	  .append("button")
+	  .attr("class", "btn btn-success addPlot")
+	  .attr("data-bs-toggle","modal")
+	  .attr("data-bs-target","#addPlotModal")
+	  .style("float", "right")
+	  .html("Add plot")
+	  .on("click", function(d){
+		  console.log("add new plot")
+		  dbsliceData.modal.currentPlotRow = d;
+		  dbsliceData.modal.show();
+	  })
+	 
 
+	// After the plot rows have been handled update the actual plots.
     var newPlots = newPlotRowsBody.selectAll( ".plot")
     	.data( d => d.plots, k => k._id ) 
     	.enter().each( makeNewPlot );
@@ -51,13 +76,23 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
     	.data( d => d.plots, k => k._id  )
     	.each( updatePlot );
 
+
+	// Update the plot titles
    	var plotRowPlotWrappers = plotRows.selectAll( ".plotWrapper")
    		.data( d => d.plots, k => k._id  )
    		.each( function( plotData, index ) {
    			var plotWrapper = d3.select (this);
-   			var plotTitle = plotWrapper.select(".plotTitle")
+   			var plotTitleText = plotWrapper.select(".plotTitleText")
     	 	.html( plotData.layout.title );
    		});
+	
+	
+	
+	
+	
+	
+	
+	
 
     plotRows.exit().remove();
     plotRowPlotWrappers.exit().remove();
@@ -65,6 +100,14 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 
 
 }
+
+
+
+
+
+
+
+
 
 
 

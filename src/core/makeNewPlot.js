@@ -2,6 +2,31 @@ import * as d3 from 'd3';
 import { getPlotFunc } from '../plot/getPlotFunc.js';
 import { fetchPlotData } from './fetchPlotData.js';
 
+
+// Importing dbsliceData gives access to it here. Because dbsliceData is adjusted in other parts of the application the changes, including any added plot data, are available here.
+// Update is required to execute the remove plot interaction.
+import { dbsliceData } from '../core/dbsliceData.js';
+import { update } from './update.js';
+
+
+/* HTML BACKBONE
+<div class="col-md-${colWidth} plotWrapper">
+  <div class="card">
+    <div class="card-header plotTitle">
+	</div>
+	<div class="plot">
+	</div>
+  </div>
+</div>
+*/
+
+
+/*
+
+*/
+
+
+
 function makeNewPlot( plotData, index ) {
 
 	let plotRowIndex = d3.select(this._parent).attr("plot-row-index");
@@ -14,7 +39,37 @@ function makeNewPlot( plotData, index ) {
         .attr( "class", "card-header plotTitle")
         .style("padding","2px")
         .style("padding-left","5px")
+		
+	// Separate div for title so that it can be changed in isolation
+	plotHeader.append("div")
+		.attr("class", "plotTitleText")
+	    .style("float", "left")
     	.html( plotData.layout.title );
+		
+	// Insert a button
+	plotHeader.append("button")
+	    .attr("class", "btn btn-danger removePlot")
+		.style("float", "right")
+		.html("x")
+		.on("click", function(){
+
+			// data has to come from div.plot, which is the one that gets its data actually updated.
+			let d = this.parentElement.parentElement.querySelector("div.plot").__data__;
+			
+			// Use the plot row index to select the plot row.
+			let plotRow = dbsliceData.session.plotRows[plotRowIndex];
+			let plotInd = plotRow.plots.indexOf(d);
+			
+			// indexOf will return -1 if plot is not found, and splice will remove from the end. This is a safety feature so that this doesn't happen.
+			if(plotInd>-1){
+				plotRow.plots.splice(plotInd, 1)
+			}
+			
+						
+			update( dbsliceData.elementId , dbsliceData.session );
+			
+			console.log(dbsliceData.session.plotRows[0].plots, d, plotInd)
+		});
 
     var plotBody = plot.append( "div" )
     	.attr( "class", "plot")

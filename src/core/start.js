@@ -4,6 +4,11 @@ import { dbsliceData } from './dbsliceData.js';
 import { makeSessionHeader } from './makeSessionHeader.js';
 import * as d3 from 'd3v7';
 
+// Import the modal.
+import addPlotModal from './addPlotModal.js';
+
+
+
 async function start( elementId, session ) {
 
     if ( typeof(session) == 'string' ) {
@@ -38,6 +43,9 @@ async function start( elementId, session ) {
             }
         }
     }
+	
+	
+	
 
     session.cfData = cfInit( session.metaData );
 
@@ -59,6 +67,48 @@ async function start( elementId, session ) {
 
     dbsliceData.session = session;
 	dbsliceData.elementId = elementId;
+	
+	
+	
+	
+	var modalConfig = {
+					
+		plotType: ["select", "plotType", ["cfD3BarChart", "cfD3Scatter", "cfD3Histogram"]],
+		
+		data: {
+			cfD3BarChart: [
+				["select", "property", session.metaData.header.metaDataProperties]
+			],
+			
+			cfD3Histogram: [
+				["select", "property", session.metaData.header.dataProperties]
+			],
+			
+			cfD3Scatter: [
+				["select", "xProperty", session.metaData.header.dataProperties],
+				["select", "yProperty", session.metaData.header.dataProperties]
+			],
+		},
+		
+		layout: [
+			["text", "title", ""],
+			["number", "colWidth", [1,12], 3],
+			["number", "height", [100, 600], 300],
+			["checkbox", "highlightTasks", "", true]
+		]
+		
+	} // modalConfig
+	
+	// Add the modal in. Modal needs to wait for data.
+	let modal = new addPlotModal( modalConfig );
+	document.getElementById( elementId ).appendChild( modal.node );
+	dbsliceData.modal = modal;
+	
+	modal.onsubmit = function(){
+		update( dbsliceData.elementId , dbsliceData.session );
+	}
+	
+	
 
     update( dbsliceData.elementId , dbsliceData.session );
 
