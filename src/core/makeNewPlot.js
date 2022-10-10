@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 import { getPlotFunc } from '../plot/getPlotFunc.js';
+import { fetchPlotData } from './fetchPlotData.js';
 
 function makeNewPlot( plotData, index ) {
 
@@ -25,7 +26,14 @@ function makeNewPlot( plotData, index ) {
 		plotFunc = getPlotFunc(plotData.plotType); 
 	}
 	
-    plotFunc.make(plotBody.node(),plotData.data,plotData.layout);
+	if ( plotData.fetchData !== undefined ) {
+		fetchPlotData(plotData.fetchData).then( (data) => {
+			plotData.data = data;
+			plotFunc.make(plotBody.node(),plotData.data,plotData.layout);
+		})
+	} else {
+    	plotFunc.make(plotBody.node(),plotData.data,plotData.layout);
+	}
 
 }
 

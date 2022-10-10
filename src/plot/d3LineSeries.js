@@ -25,6 +25,11 @@ const d3LineSeries = {
                 .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
                 .attr( "class", "plotArea" );
 
+        if ( data == null || data == undefined ) {
+            console.log ("in line plot - no data");
+            return
+        }
+
         d3LineSeries.update( element, data, layout );
 
     },
