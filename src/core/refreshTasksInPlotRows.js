@@ -34,6 +34,11 @@ function refreshTasksInPlotRows() {
 
 				var plotRowPromise = makePlotsFromPlotRowCtrl( ctrl ).then( function ( plots ){
 					plotRow.plots = plots;
+					session._maxPlotRowId = 0;
+					plotRow.plots.forEach( (plot) => {
+						++plotRow._maxPlotId;
+						plot._id = plotRow._maxPlotId;
+					} );
 				});
 
 				plotRowPromises.push( plotRowPromise );

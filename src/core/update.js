@@ -40,19 +40,19 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
         .attr ("plot-row-index", function(d, i) { return i; });
 
     var newPlots = newPlotRowsBody.selectAll( ".plot")
-    	.data( function( d ) { return d.plots; } ) 
+    	.data( d => d.plots, k => k._id ) 
     	.enter().each( makeNewPlot );
 
     plotRows.selectAll( ".plotRowBody" ).selectAll( ".plot" )
-		.data( function( d ) { return d.plots; } )
+		.data( d => d.plots, k => k._id  )
 		.enter().each( makeNewPlot );
 
     var plotRowPlots = plotRows.selectAll( ".plot" )
-    	.data( function( d ) { return d.plots; } )
+    	.data( d => d.plots, k => k._id  )
     	.each( updatePlot );
 
    	var plotRowPlotWrappers = plotRows.selectAll( ".plotWrapper")
-   		.data( function( d ) { return d.plots; } )
+   		.data( d => d.plots, k => k._id  )
    		.each( function( plotData, index ) {
    			var plotWrapper = d3.select (this);
    			var plotTitle = plotWrapper.select(".plotTitle")
