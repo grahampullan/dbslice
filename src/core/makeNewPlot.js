@@ -50,7 +50,9 @@ function makeNewPlot( plotData, index ) {
 	plotHeader.append("button")
 	    .attr("class", "btn btn-danger removePlot")
 		.style("float", "right")
-		.html("x")
+		.style("cursor", "pointer")
+		.style("padding", "2px 1.5px 0px 2px")
+		.html("<i class='bx bx-x'></i>")
 		.on("click", function(){
 
 			// data has to come from div.plot, which is the one that gets its data actually updated.

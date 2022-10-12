@@ -55,9 +55,9 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	  .attr("data-bs-toggle","modal")
 	  .attr("data-bs-target","#addPlotModal")
 	  .style("float", "right")
-	  .html("Add plot")
+	  .style("cursor", "pointer")
+	  .html("<i class='bx bx-plus-medical'></i>")
 	  .on("click", function(d){
-		  console.log("add new plot")
 		  dbsliceData.modal.currentPlotRow = d;
 		  dbsliceData.modal.show();
 	  })
