@@ -15,7 +15,7 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
     }
 
     var plotRows = element.selectAll( ".plotRow" )
-    	.data( session.plotRows ); 
+    	.data( session.plotRows, k => k._id ); 
 
     var newPlotRows = plotRows.enter()
     	.append( "div" ).attr( "class", "card bg-light plotRow" )

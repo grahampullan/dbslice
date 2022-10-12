@@ -45,21 +45,6 @@ async function start( elementId, session ) {
 	let sessionHeader = element.select(".sessionHeader");
     if ( sessionHeader.empty() ) makeSessionHeader( element, session.title, session.subtitle, session.config );
 
-    // temporary lines
-    sessionHeader = element.select(".sessionHeader");
-    sessionHeader.append("div").html("<button class='btn btn-success mr-1' id='removeplot'>Remove a plot</button>");
-    document.getElementById("removeplot").onclick = function() {
-        console.log("pressed");
-        let plotsNow = dbsliceData.session.plotRows[0].plots;
-        console.log(plotsNow);
-        let plotsNew = plotsNow.slice(1);
-        console.log(plotsNew);
-        dbsliceData.session.plotRows[0].plots = plotsNew;
-        update();
-    };
-    // end temp lines
-
-
     session._maxPlotRowId = 0;
     session.plotRows.forEach( (plotRow) => {
         ++session._maxPlotRowId;
