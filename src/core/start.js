@@ -86,7 +86,8 @@ async function start( elementId, session ) {
 			
 			cfD3Scatter: [
 				["select", "xProperty", session.metaData.header.dataProperties],
-				["select", "yProperty", session.metaData.header.dataProperties]
+				["select", "yProperty", session.metaData.header.dataProperties],
+				["select", "cProperty", session.metaData.header.metaDataProperties]
 			],
 		},
 		
@@ -107,7 +108,7 @@ async function start( elementId, session ) {
 	modal.onsubmit = function(){
 		update( dbsliceData.elementId , dbsliceData.session );
 	}
-	
+	console.log(dbsliceData)
 	
 
     update( dbsliceData.elementId , dbsliceData.session );

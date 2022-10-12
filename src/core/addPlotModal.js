@@ -241,6 +241,11 @@ export default class addPlotModal{
 
 
 
+		// We are using d3 to continually merge the plot data object to the corresponding DOM. To prevent plots migrating between DOMs they are joined using the unique '_id' key. This also has to be assigned here therefore, and the plotRow max '_id' needs to be adjusted also.
+		c._id = obj.currentPlotRow._maxPlotId + 1;
+		obj.currentPlotRow._maxPlotId = c._id;
+
+
 
 		// Add this plot to the current plot row.	
 		obj.currentPlotRow.plots.push( c );
