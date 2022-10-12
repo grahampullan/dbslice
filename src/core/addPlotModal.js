@@ -1,29 +1,3 @@
-/*
-<!-- Button trigger modal -->
-<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
-  Launch demo modal
-</button>
-
-<!-- Modal -->
-<div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        ...
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary">Save changes</button>
-      </div>
-    </div>
-  </div>
-</div>
-*/
-
 function html2element(html){
   let template = document.createElement('template'); 
   template.innerHTML = html.trim(); // Never return a text node of whitespace as the result
@@ -41,19 +15,16 @@ let modalTemplate = `
         <h5 class="modal-title"> Configure new plot </h5>
       </div>
 	  
-      <div class="modal-body">
+      <div class="modal-body" style="margin: 0px auto;">
 	    
 		<h6>Plot type</h6>
-        <div class="static" style="padding-left: 20px;">
-		</div>
+        <table class="static" style="margin-left: 30px;"></table>
 		
 		<h6>Data</h6>
-		<div class="dynamic" style="padding-left: 20px;">
-		</div>
+		<table class="dynamic" style="margin-left: 30px;"></table>
 		
 		<h6>Layout</h6>
-		<div class="optional" style="padding-left: 20px;">
-		</div>
+		<table class="optional" style="margin-left: 30px;"></table>
       </div>
       
 	  <div class="modal-footer">
@@ -127,7 +98,7 @@ export default class addPlotModal{
 		
 		// Create the static and optional menus here. Update will only handle the dynamic menus.
 		let pt = new inputObject( obj.config.plotType );
-		obj.node.querySelector("div.static").appendChild( pt.node );
+		obj.node.querySelector("table.static").appendChild( pt.node );
 		pt.node.onchange = function(){
 			obj.update();
 		} // onchange
@@ -138,7 +109,7 @@ export default class addPlotModal{
 		// The optional menus should be at the bottom.
 		obj.config.layout.forEach(d=>{
 			let m = new inputObject(d);
-			obj.node.querySelector("div.optional").appendChild( m.node );
+			obj.node.querySelector("table.optional").appendChild( m.node );
 			d.inputobj = m;
 		}) // forEach
 		
@@ -175,7 +146,7 @@ export default class addPlotModal{
 		
 		// Now collect all the menus that are required
 		obj.requiredSelections = [];
-		obj.node.querySelector("div.static").querySelectorAll("select").forEach(m=>{
+		obj.node.querySelector("table.static").querySelectorAll("select").forEach(m=>{
 			obj.requiredSelections = obj.requiredSelections.concat( obj.config.data[m.value] )
 		})
 		
@@ -185,7 +156,7 @@ export default class addPlotModal{
 		// Now make them
 		obj.requiredSelections.forEach(d=>{
 			let m = new inputObject(d);
-			obj.node.querySelector("div.dynamic").appendChild( m.node );
+			obj.node.querySelector("table.dynamic").appendChild( m.node );
 			d.inputobj = m;
 		})
 		
@@ -195,7 +166,7 @@ export default class addPlotModal{
 	
 	clear(){
 		let obj = this;
-		let div = obj.node.querySelector("div.dynamic");
+		let div = obj.node.querySelector("table.dynamic");
 		while(div.firstChild){
 			div.removeChild(div.firstChild);
 		} // while
@@ -272,7 +243,7 @@ class inputObject{
 		
 		obj.type = d[0];
 		
-		let m = "";
+		let m;
 		switch(d[0]){
 			case "select":
 				let options = d[2].map(n=>obj.getOption(n));
@@ -288,15 +259,16 @@ class inputObject{
 			  break;
 			  
 			case "checkbox":
-			    m =`<input type="checkbox" value="${ d[3] }"></input>`;
+			    m =`<input type="checkbox" ${ d[3] ? "checked" : "" }></input>`;
 			  break;
 		} // switch
 		
 		
-		obj.node = html2element(  `<div>
-		  <label>${ d[1] }</label>
-		  ${ m }
-		</div>` );
+		
+		obj.node = html2element(  `<tr>
+		  <td style="padding-right: 10px;"><label>${ d[1] }</label></td>
+		  <td>${ m }</td>
+		</tr>` );
 			
 	} // constructor
 	
@@ -306,7 +278,12 @@ class inputObject{
 	
 	get value(){
 		let obj = this;
-		let v = obj.node.querySelector( ["number", "text", "checkbox"].includes( obj.type ) ? "input" : "select" ).value;
+		
+		
+		let n = obj.node.querySelector( ["number", "text", "checkbox"].includes( obj.type ) ? "input" : "select" );
+		let v = obj.type == "checkbox" ? n.checked : n.value; 
+		
+		
 		return Number(v) ? Number(v) : v;
 	}
 	
