@@ -51,12 +51,12 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	// html += "<button class='btn btn-success addPlot' style='float: right'>Add plot</button>"
 	newPlotRowsHeader
 	  .append("button")
-	  .attr("class", "btn btn-success addPlot")
+	  .attr("class", "btn addPlot")
 	  .attr("data-bs-toggle","modal")
 	  .attr("data-bs-target","#addPlotModal")
 	  .style("float", "right")
 	  .style("cursor", "pointer")
-	  .html("<i class='bx bx-plus-medical'></i>")
+	  .html("<i class='bx bx-plus'></i>")
 	  .on("click", function(d){
 		  dbsliceData.modal.currentPlotRow = d;
 		  dbsliceData.modal.show();
