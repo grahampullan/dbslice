@@ -30,6 +30,7 @@ import { update } from './update.js';
 function makeNewPlot( plotData, index ) {
 
 	let plotRowIndex = d3.select(this._parent).attr("plot-row-index");
+	let plotRow = dbsliceData.session.plotRows[plotRowIndex];
 
     var plot = d3.select( this )
     	.append( "div" ).attr( "class", "col-md-"+plotData.layout.colWidth+" plotWrapper" )
@@ -46,7 +47,8 @@ function makeNewPlot( plotData, index ) {
 	    .style("float", "left")
     	.html( plotData.layout.title );
 		
-	// Insert a button
+	// Remove plot button option can be explicitly stated by the user as true/false, if not specified thedecision falls back on whether the plot row is metadata or on-demand.
+	if( plotData.layout.removePlotButton == undefined ? !plotRow.ctrl : plotData.layout.removePlotButton ){
 	plotHeader.append("button")
 	    .attr("class", "btn removePlot")
 		.style("float", "right")
@@ -57,9 +59,6 @@ function makeNewPlot( plotData, index ) {
 
 			// data has to come from div.plot, which is the one that gets its data actually updated.
 			let d = this.parentElement.parentElement.querySelector("div.plot").__data__;
-			
-			// Use the plot row index to select the plot row.
-			let plotRow = dbsliceData.session.plotRows[plotRowIndex];
 			let plotInd = plotRow.plots.indexOf(d);
 			
 			// indexOf will return -1 if plot is not found, and splice will remove from the end. This is a safety feature so that this doesn't happen.
@@ -70,8 +69,8 @@ function makeNewPlot( plotData, index ) {
 						
 			update( dbsliceData.elementId , dbsliceData.session );
 			
-			console.log(dbsliceData.session.plotRows[0].plots, d, plotInd)
 		});
+	} // if
 
     var plotBody = plot.append( "div" )
     	.attr( "class", "plot")

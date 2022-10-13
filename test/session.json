@@ -23,7 +23,7 @@
           "data" : { "property" : "Average f" } ,
           "layout" : { "title" : "Average" , "colWidth" :3 , "height" : 300, "highlightTasks" : true } 
 		} 
-    ] 
+    ]
   },
   
   { "title" : "f(y) at z=0",
