@@ -8,9 +8,32 @@ import * as d3 from 'd3v7';
 import addPlotModal from './addPlotModal.js';
 
 
+// I could only get this type of loading work for local files.
+// External files are handled below.
+import * as sheet from '../../build/dbslice.css';
+
+
+// Import the box icons.
+import 'boxicons';
+
 
 async function start( elementId, session ) {
-
+	
+	
+	// Local styles can be attached like this.
+	let style = document.createElement("style");
+	style.textContent = sheet.default;
+	document.getElementById( elementId ).appendChild( style )
+	
+	// External styles can be attached like this.
+	var imported = document.createElement("link");
+	imported.setAttribute("rel", "stylesheet");
+	imported.setAttribute("type", "text/css");
+	imported.setAttribute("href", "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css");
+	document.getElementById( elementId ).appendChild(imported);
+	
+	
+	// Start evaluating session.
     if ( typeof(session) == 'string' ) {
         let sessionUrl = session;
         let response = await fetch(sessionUrl);
@@ -70,7 +93,7 @@ async function start( elementId, session ) {
 	
 	
 	
-	
+	// Add in the config for the type of plots that should be supported. Could be moved to external file.
 	var modalConfig = {
 					
 		plotType: ["select", "plotType", ["cfD3BarChart", "cfD3Scatter", "cfD3Histogram"]],
@@ -108,9 +131,12 @@ async function start( elementId, session ) {
 	modal.onsubmit = function(){
 		update( dbsliceData.elementId , dbsliceData.session );
 	}
-	console.log(dbsliceData)
+	
 	
 
+
+
+	// Start the session.
     update( dbsliceData.elementId , dbsliceData.session );
 
 }

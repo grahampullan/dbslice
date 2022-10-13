@@ -2,6 +2,8 @@ import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import replace from '@rollup/plugin-replace';
 
+import css from 'rollup-plugin-import-css';
+
 export default {
 	input: 'src/Dbslice.js',
 	output: {
@@ -13,8 +15,8 @@ export default {
 	plugins: [
 		resolve(), 
 		commonjs(), 
-		replace({preventAssignment: true, 'process.env.NODE_ENV': JSON.stringify( 'development' )
-    })
+		replace({preventAssignment: true, 'process.env.NODE_ENV': JSON.stringify( 'development' )}),
+		css()
 	]
 
 };
