@@ -47,9 +47,9 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
         .attr ("plot-row-index", function(d, i) { return i; });
 		
 		
-	// Update the plot row addPlot functionality
-	// html += "<button class='btn btn-success addPlot' style='float: right'>Add plot</button>"
+	// ADD PLOT BUTTON
 	newPlotRowsHeader
+	  .filter(d=>!d.ctrl)
 	  .append("button")
 	  .attr("class", "btn addPlot")
 	  .attr("data-bs-toggle","modal")
