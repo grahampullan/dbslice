@@ -48,7 +48,7 @@ function makeNewPlot( plotData, index ) {
     	.html( plotData.layout.title );
 		
 	// Remove plot button option can be explicitly stated by the user as true/false, if not specified thedecision falls back on whether the plot row is metadata or on-demand.
-	if( [true,false,1,0].includes(plotData.layout.removePlotButton) ? plotData.layout.removePlotButton : !plotRow.ctrl ){
+	if( plotData.layout.removePlotButton == undefined ? !plotRow.ctrl : plotData.layout.removePlotButton ){
 	plotHeader.append("button")
 	    .attr("class", "btn removePlot")
 		.style("float", "right")

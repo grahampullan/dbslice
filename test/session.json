@@ -6,7 +6,7 @@
     "plots" : [
         { "plotType" : "cfD3BarChart" ,  
           "data" : { "property" : "Simulation type" } ,
-          "layout" : { "title" : "Simulation" , "colWidth" : 3 , "height" : 300, "highlightTasks" : true, "removePlotButton": false } 
+          "layout" : { "title" : "Simulation" , "colWidth" : 3 , "height" : 300, "highlightTasks" : true } 
 		},
 
         { "plotType" : "cfD3BarChart" ,  
@@ -23,8 +23,7 @@
           "data" : { "property" : "Average f" } ,
           "layout" : { "title" : "Average" , "colWidth" :3 , "height" : 300, "highlightTasks" : true } 
 		} 
-    ],
-	"addPlotButton": false
+    ]
   },
   
   { "title" : "f(y) at z=0",
@@ -38,8 +37,7 @@
         "maxTasks" : 20 ,
         "dataFilterType" : "lineSeriesFromLines" ,
         "dataFilterConfig" : { "cProperty" : "Model type"}
-    },
-	"addPlotButton": true
+    }
   },
     
   { "title" : "f at x=0",
