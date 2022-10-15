@@ -46,7 +46,7 @@ const threeTriMesh = {
             }
         }
 
-		if (layout.newData == false) {
+		if (layout.newData == false && dbsliceData.windowResize == false) {
             return
         }
 
