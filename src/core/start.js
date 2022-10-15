@@ -64,7 +64,6 @@ async function start( elementId, session ) {
         } );
     } );
 
-
     dbsliceData.session = session;
 	dbsliceData.elementId = elementId;
 	
@@ -108,10 +107,24 @@ async function start( elementId, session ) {
 	modal.onsubmit = function(){
 		update( dbsliceData.elementId , dbsliceData.session );
 	}
-	console.log(dbsliceData)
 	
+    function resizeEnd(func){
+        var timer;
+        return function(event){
+          if(timer) clearTimeout(timer);
+          timer = setTimeout(func,100,event);
+        };
+    }
 
-    update( dbsliceData.elementId , dbsliceData.session );
+    dbsliceData.windowResize = false;
+
+	window.onresize = resizeEnd( function() {
+        dbsliceData.windowResize = true;
+        update();
+        dbsliceData.windowResize = false;
+    });
+
+    update();
 
 }
 

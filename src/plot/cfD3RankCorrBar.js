@@ -42,8 +42,10 @@ const cfD3RankCorrBar = {
 
         var svg = container.select("svg");
 
-        var svgWidth = svg.attr("width");
-        var svgHeight = svg.attr("height");
+        var svgWidth = container.node().offsetWidth,
+            svgHeight = layout.height;
+
+        svg.attr("width", svgWidth).attr("height", svgHeight);
 
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
@@ -132,6 +134,7 @@ const cfD3RankCorrBar = {
                 .attr( "class", "xAxis")
                 .call( d3.axisBottom( x ) )
                 .append("text")
+                    .attr("class","x-axis-text")
                     .attr("fill", "#000")
                     .attr("x", width)
                     .attr("y", margin.bottom-2)
@@ -139,6 +142,7 @@ const cfD3RankCorrBar = {
                     .text("Rank correlation");
         } else {
             xAxis.attr( "transform", "translate(0," + height + ")" ).transition().call( d3.axisBottom( x ) );
+            xAxis.select(".x-axis-text").attr("x", width);
         }
 
         var yAxis = plotArea.select(".yAxis");

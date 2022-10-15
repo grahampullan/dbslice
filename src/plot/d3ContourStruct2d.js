@@ -45,7 +45,7 @@ const d3ContourStruct2d = {
         }
 
 
-        if (layout.newData == false) {
+        if (layout.newData == false && dbsliceData.windowResize == false ) {
             return
         }
 
