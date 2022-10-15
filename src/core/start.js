@@ -64,9 +64,6 @@ async function start( elementId, session ) {
         } );
     } );
 
-
-    session.windowResize = false;
-
     dbsliceData.session = session;
 	dbsliceData.elementId = elementId;
 	
@@ -119,11 +116,12 @@ async function start( elementId, session ) {
         };
     }
 
+    dbsliceData.windowResize = false;
 
 	window.onresize = resizeEnd( function() {
-        dbsliceData.session.windowResize = true;
+        dbsliceData.windowResize = true;
         update();
-        dbsliceData.session.windowResize = false;
+        dbsliceData.windowResize = false;
     });
 
     update();

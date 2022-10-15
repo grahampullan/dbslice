@@ -262,7 +262,7 @@ const cfD3Histogram = {
         }
 
 
-        if (dbsliceData.session.windowResize ) {
+        if (dbsliceData.windowResize ) {
             const brush = d3.brushX()
                 .extent( [
                     [ 0, 0 ],

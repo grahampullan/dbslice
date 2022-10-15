@@ -81,7 +81,7 @@ const d3LineSeries = {
             }
         }
 
-        if (layout.newData == false) {
+        if (layout.newData == false && dbsliceData.windowResize == false) {
             return
         }
 
@@ -92,8 +92,8 @@ const d3LineSeries = {
         let plotIndex = container.attr("plot-index");
         let clipId = "clip-"+plotRowIndex+"-"+plotIndex; 
 
-        var svgWidth = svg.attr("width");
-        var svgHeight = svg.attr("height");
+        var svgWidth = container.node().offsetWidth,
+        svgHeight = layout.height;
 
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
@@ -157,11 +157,18 @@ const d3LineSeries = {
             .x( function( d ) { return xscale( d.x ); } )
             .y( function( d ) { return yscale( d.y ); } );
 
-        var clip = svg.append("defs").append("clipPath")
+        let clipRect = svg.select(".clip-rect");
+
+        if ( clipRect.empty() ) {
+            svg.append("defs").append("clipPath")
             .attr("id", clipId)
             .append("rect")
+                .attr("class","clip-rect")
                 .attr("width", width)
                 .attr("height", height);
+        } else {
+            clipRect.attr("width", width)
+        }
 
         var zoom = d3.zoom()
            .scaleExtent([0.5, Infinity])
@@ -227,6 +234,7 @@ const d3LineSeries = {
                 .attr( "class", "axis--x")
                 .call( xAxis );
             gX.append("text")
+                .attr("class","x-axis-text")
                 .attr("fill", "#000")
                 .attr("x", width)
                 .attr("y", margin.bottom-2)
@@ -234,6 +242,7 @@ const d3LineSeries = {
                 .text(layout.xAxisLabel);
         } else {
             gX.transition().call( xAxis );
+            gX.select(".x-axis-text").attr("x", width)
         }
 
         var gY = plotArea.select(".axis--y");
