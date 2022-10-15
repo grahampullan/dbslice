@@ -112,11 +112,18 @@ const cfD3Scatter = {
 
         var plotArea = svg.select(".plotArea");
 
-        var clip = svg.append("clipPath")
+        let clipRect = svg.select(".clip-rect");
+
+        if ( clipRect.empty() ) {
+            svg.append("defs").append("clipPath")
             .attr("id", clipId)
             .append("rect")
+                .attr("class","clip-rect")
                 .attr("width", width)
                 .attr("height", height);
+        } else {
+            clipRect.attr("width", width)
+        }
 
         var zoom = d3.zoom()
             .scaleExtent([0.01, Infinity])
