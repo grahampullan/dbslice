@@ -74,7 +74,7 @@ const cfD3Histogram = {
             return "M" + ( .5 * x ) + "," + y + "A6,6 0 0 " + e + " " + ( 6.5 * x ) + "," + ( y + 6 ) + "V" + ( 2 * y - 6 ) + "A6,6 0 0 " + e + " " + ( .5 * x ) + "," + ( 2 * y ) + "Z" + "M" + ( 2.5 * x ) + "," + ( y + 8 ) + "V" + ( 2 * y - 8 ) + "M" + ( 4.5 * x ) + "," + ( y + 8 ) + "V" + ( 2 * y - 8 );
         }
 
-        var handle = gBrush.selectAll( "handleCustom" )
+        var handle = gBrush.selectAll( ".handleCustom" )
             .data( [ { type: "w" } , { type: "e" } ] )
             .enter().append( "path" )
                 .attr( "class", "handleCustom" )
@@ -120,11 +120,15 @@ const cfD3Histogram = {
 
         var svg = container.select("svg");
 
-        var svgWidth = svg.attr("width");
-        var svgHeight = svg.attr("height");
+        var svgWidth = container.node().offsetWidth,
+            svgHeight = layout.height;
 
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
+
+        var svg = container.select("svg");
+
+        svg.attr("width", svgWidth).attr("height", svgHeight);
 
         var plotArea = svg.select(".plotArea");
         var dimId = plotArea.attr("dimId");
@@ -219,7 +223,7 @@ const cfD3Histogram = {
             yAxis.transition().call( d3.axisLeft( y ) );
         }
 
-        if ( layout.reBin == true ) {
+        //if ( layout.reBin == true ) {
             var xAxis = plotArea.select(".xAxis");
             if ( xAxis.empty() ) {
                 plotArea.append("g")
@@ -229,7 +233,7 @@ const cfD3Histogram = {
             } else {
                 xAxis.transition().call( d3.axisBottom( x ) );
             }
-        }
+        //}
 
 
         var yAxisLabel = plotArea.select(".yAxis").select(".yAxisLabel");
@@ -241,7 +245,7 @@ const cfD3Histogram = {
                 .attr("x", 0)
                 .attr("y", -25)
                 .attr("text-anchor", "end")
-                .text("Number of tasks");
+                .text("Number of Cases");
             }
 
         var xAxisLabel = plotArea.select(".yAxis").select(".xAxisLabel");
@@ -253,9 +257,53 @@ const cfD3Histogram = {
                 .attr("y", height+margin.bottom-2)
                 .attr("text-anchor", "end")
                 .text(property);
+        } else {
+            xAxisLabel.attr("x",width);
         }
 
+
+        if (dbsliceData.session.windowResize ) {
+            const brush = d3.brushX()
+                .extent( [
+                    [ 0, 0 ],
+                    [ width, height ]
+                ] )
+                .on( "start brush end", brushmoved );
          
+            const gBrush = svg.select(".brush");
+            
+            gBrush.call(brush);
+    
+            const handle = gBrush.selectAll( ".handleCustom" );
+            const s = cfData.histogramSelectedRanges[ dimId ].map( r => x(r) );
+
+            var brushInit = true;
+            gBrush.call( brush.move, s );
+            brushInit = false;
+
+            handle.attr( "display", null ).attr( "transform", function( d, i ) {
+                return "translate(" + [ s[ i ], -height / 4 ] + ")";
+                } );
+        
+        
+            function brushmoved() {
+                var s = d3.event.selection;
+                if ( s == null ) {
+                    handle.attr( "display", "none" );
+                    cfData.histogramSelectedRanges[ dimId ] = [];
+                    cfUpdateFilters(cfData);
+                    if ( brushInit == false ) update();
+                } else {
+                    var sx = s.map( x.invert );
+                    handle.attr( "display", null ).attr( "transform", function( d, i ) {
+                        return "translate(" + [ s[ i ], -height / 4 ] + ")";
+                    } );
+                    cfData.histogramSelectedRanges[ dimId ] = sx;
+                    cfUpdateFilters(cfData);
+                    if ( brushInit == false ) update();
+                }
+            }
+        }
 
 
     }

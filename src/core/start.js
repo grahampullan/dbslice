@@ -65,6 +65,8 @@ async function start( elementId, session ) {
     } );
 
 
+    session.windowResize = false;
+
     dbsliceData.session = session;
 	dbsliceData.elementId = elementId;
 	
@@ -108,10 +110,23 @@ async function start( elementId, session ) {
 	modal.onsubmit = function(){
 		update( dbsliceData.elementId , dbsliceData.session );
 	}
-	console.log(dbsliceData)
 	
+    function resizeEnd(func){
+        var timer;
+        return function(event){
+          if(timer) clearTimeout(timer);
+          timer = setTimeout(func,100,event);
+        };
+    }
 
-    update( dbsliceData.elementId , dbsliceData.session );
+
+	window.onresize = resizeEnd( function() {
+        dbsliceData.session.windowResize = true;
+        update();
+        dbsliceData.session.windowResize = false;
+    });
+
+    update();
 
 }
 
