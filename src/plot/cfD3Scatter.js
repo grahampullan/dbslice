@@ -39,17 +39,19 @@ const cfD3Scatter = {
 
         var container = d3.select(element);
 
-        let plotRowIndex = container.attr("plot-row-index");
-        let plotIndex = container.attr("plot-index");
-        let clipId = "clip-"+plotRowIndex+"-"+plotIndex;
-
-        var svg = container.select("svg");
-
-        var svgWidth = svg.attr("width");
-        var svgHeight = svg.attr("height");
+        var svgWidth = container.node().offsetWidth,
+        svgHeight = layout.height;
 
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
+
+        var svg = container.select("svg");
+
+        svg.attr("width", svgWidth).attr("height", svgHeight);
+
+        let plotRowIndex = container.attr("plot-row-index");
+        let plotIndex = container.attr("plot-index");
+        let clipId = "clip-"+plotRowIndex+"-"+plotIndex;
 
         var plotArea = svg.select(".plotArea");
         var dimId = plotArea.attr("dimId");
@@ -110,11 +112,18 @@ const cfD3Scatter = {
 
         var plotArea = svg.select(".plotArea");
 
-        var clip = svg.append("clipPath")
+        let clipRect = svg.select(".clip-rect");
+
+        if ( clipRect.empty() ) {
+            svg.append("defs").append("clipPath")
             .attr("id", clipId)
             .append("rect")
+                .attr("class","clip-rect")
                 .attr("width", width)
                 .attr("height", height);
+        } else {
+            clipRect.attr("width", width)
+        }
 
         var zoom = d3.zoom()
             .scaleExtent([0.01, Infinity])
@@ -177,6 +186,7 @@ const cfD3Scatter = {
                 .attr( "class", "axis--x")
                 .call( xAxis );
             gX.append("text")
+                .attr("class","x-axis-text")
                 .attr("fill", "#000")
                 .attr("x", width)
                 .attr("y", margin.bottom-2)
@@ -184,6 +194,7 @@ const cfD3Scatter = {
                 .text(xProperty);
         } else {
             gX.transition().call( xAxis );
+            gX.select(".x-axis-text").attr("x",width);
         }
 
         var gY = plotArea.select(".axis--y");

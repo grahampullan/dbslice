@@ -87,7 +87,6 @@ async function start( elementId, session ) {
         } );
     } );
 
-
     dbsliceData.session = session;
 	dbsliceData.elementId = elementId;
 	
@@ -132,12 +131,28 @@ async function start( elementId, session ) {
 		update( dbsliceData.elementId , dbsliceData.session );
 	}
 	
-	
 
 
 
-	// Start the session.
-    update( dbsliceData.elementId , dbsliceData.session );
+
+    function resizeEnd(func){
+        var timer;
+        return function(event){
+          if(timer) clearTimeout(timer);
+          timer = setTimeout(func,100,event);
+        };
+    }
+
+    dbsliceData.windowResize = false;
+
+	window.onresize = resizeEnd( function() {
+        dbsliceData.windowResize = true;
+        update();
+        dbsliceData.windowResize = false;
+    });
+
+    update();
+
 
 }
 
