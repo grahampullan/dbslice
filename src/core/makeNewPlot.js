@@ -54,7 +54,7 @@ function makeNewPlot( plotData, index ) {
 		.style("float", "right")
 		.style("cursor", "pointer")
 		.style("padding", "2px 1.5px 0px 2px")
-		.html("<i class='bx bx-trash'></i>")
+		.html('<box-icon name="trash" size="xs"></box-icon>')
 		.on("click", function(){
 
 			// data has to come from div.plot, which is the one that gets its data actually updated.
