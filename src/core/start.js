@@ -52,22 +52,32 @@ async function start( elementId, session ) {
             let metaData = await d3.csv( metaDataUrl, d3.autoType );
             if ( session.metaDataFilter == true ) {
                 metaData = metaData.filter( d => d[session.metaDataFilterKey] == session.metaDataFilterValue);
-                const metaDataProperties = [];
-                const dataProperties = [];
-                Object.entries(metaData[0]).forEach(entry => {
-                    if (typeof(entry[1])=="string") {
-                        metaDataProperties.push(entry[0]);
-                    }
-                    if (typeof(entry[1])=="number") {
-                        dataProperties.push(entry[0]);
-                    }
-                });
-                session.metaData = { data: metaData, header: {metaDataProperties, dataProperties} };
             }
+            const metaDataProperties = [];
+            const dataProperties = [];
+            Object.entries(metaData[0]).forEach(entry => {
+                if (typeof(entry[1])=="string") {
+                    metaDataProperties.push(entry[0]);
+                }
+                if (typeof(entry[1])=="number") {
+                    dataProperties.push(entry[0]);
+                }
+            });
+            session.metaData = { data: metaData, header: {metaDataProperties, dataProperties} };
         }
     }
-	
-	
+
+    if ( session.generateTaskIds ) {
+
+        const f = d3.format(session.taskIdFormat);
+        session.metaData.data.forEach( (d, index ) => {
+            let taskId = session.taskIdRoot + f(index);
+            session.metaData.data[index] = {...d, taskId:taskId};
+            if (session.setLabelsToTaskIds) {
+                session.metaData.data[index] = {...d, taskId:taskId, label:taskId};
+            }
+        });
+    }
 	
 
     session.cfData = cfInit( session.metaData );
