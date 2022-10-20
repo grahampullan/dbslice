@@ -1,4 +1,9 @@
-{ "metaData" : "./data/metaData.json" ,
+{ "metaData" : "./data/metaData.csv" ,
+  "metaDataCsv" : true ,
+  "generateTaskIds" : true ,
+  "taskIdRoot" : "" ,
+  "taskIdFormat" : "d" ,
+  "setLabelsToTaskIds" : true ,
   "title" : "3D box of data demo" ,
   "config" : { "plotTasksButton" : true, "saveTasksButton" : false },
   "plotRows" : [ 
