@@ -1,7 +1,7 @@
 { "metaData" : "./data/metaData.csv" ,
   "metaDataCsv" : true ,
   "generateTaskIds" : true ,
-  "taskIdRoot" : "" ,
+  "taskIdRoot" : "case_" ,
   "taskIdFormat" : "d" ,
   "setLabelsToTaskIds" : true ,
   "title" : "3D box of data demo" ,
@@ -36,7 +36,7 @@
     "ctrl" : { 
 		"plotType" : "d3LineSeries" ,  
         "layout" : { "colWidth" : 4 , "height" : 300 , "highlightTasks" : true, "cSet" : "Model type"} ,
-        "urlTemplate" : "./data/f_line_${sliceId}_task_${taskId}.json" ,
+        "urlTemplate" : "./data/${taskId}/f_line_${sliceId}.json" ,
         "tasksByFilter" : true ,  
         "sliceIds" : [ "xstart" , "xmid" , "xend" ] , 
         "maxTasks" : 20 ,
@@ -44,12 +44,12 @@
         "dataFilterConfig" : { "cProperty" : "Model type"}
     }
   },
-    
+  
   { "title" : "f at x=0",
     "plots" : [] ,
     "ctrl" : { "plotType" : "d3ContourStruct2d" ,  
         "layout" : { "colWidth" : 3 , "height" : 300 , "vScale" : [-0.1, 1.2] , "highlightTasks" : true } , 
-        "urlTemplate" : "./data/f_area2d_xstart_task_${taskId}.json" ,
+        "urlTemplate" : "./data/${taskId}/f_area2d_xstart.json" ,
         "tasksByFilter" : true,
         "maxTasks" : 20 
     }
@@ -59,7 +59,7 @@
     "plots" : [] ,
     "ctrl" : { "plotType" : "threeSurf3d" ,  
         "layout" : { "colWidth" : 4 , "height" : 400 , "vScale" : [-0.1, 1.2] , "highlightTasks" : true, "cameraSync" : true } , 
-        "urlTemplate" : "./data/f_area3d_task_${taskId}.json" ,
+        "urlTemplate" : "./data/${taskId}/f_area3d.json" ,
         "tasksByFilter" : true ,
         "maxTasks" : 5 ,
         "dataFilterType" : "threeMeshFromStruct"

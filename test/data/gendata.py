@@ -1,5 +1,6 @@
 import numpy
 import json
+import os
 
 simType=["Red", "Orange", "Yellow", "Green", "Blue", "Purple"]
 nSims=len(simType)
@@ -27,8 +28,6 @@ yv=numpy.linspace(0.,1.,ny)
 zv=numpy.linspace(0.,1.,nz)
 [z,y,x]=numpy.meshgrid(zv,yv,xv,indexing='ij')
 
-print numpy.shape(z)
-
 r2=(y-0.5)**2 + (z-0.5)**2
 shape=numpy.exp(-10*r2)
 
@@ -37,6 +36,8 @@ exitf=numpy.random.random(ndsets)
 peak=numpy.random.random(ndsets)
 
 background = numpy.zeros(nx)
+
+dir_name_root = "case_"
 
 for n in range(ndsets):
     background=x*(exitf[n]-inletf[n]) + inletf[n]
@@ -52,6 +53,8 @@ for n in range(ndsets):
     datum["label"] = "Box "+str(n)
     metaData["data"].append(datum)
 
+    os.mkdir(dir_name_root+str(n))
+    os.chdir(dir_name_root+str(n))
     zmid=(nz-1)/2
     points = []
     for i in range(ny):
@@ -59,7 +62,7 @@ for n in range(ndsets):
         point["x"]=y[zmid,i,0]
         point["y"]=f[zmid,i,0]
         points.append(point)
-    fname="f_line_xstart_task_"+str(n)+".json"
+    fname="f_line_xstart.json"
     with open(fname, 'w') as outfile:
         json.dump(points, outfile)
 
@@ -69,7 +72,7 @@ for n in range(ndsets):
         point["x"]=y[zmid,i,1]
         point["y"]=f[zmid,i,1]
         points.append(point)
-    fname="f_line_xmid_task_"+str(n)+".json"
+    fname="f_line_xmid.json"
     with open(fname, 'w') as outfile:
         json.dump(points, outfile)
 
@@ -79,7 +82,7 @@ for n in range(ndsets):
         point["x"]=y[zmid,i,2]
         point["y"]=f[zmid,i,2]
         points.append(point)
-    fname="f_line_xend_task_"+str(n)+".json"
+    fname="f_line_xend.json"
     with open(fname, 'w') as outfile:
         json.dump(points, outfile)
 
@@ -100,7 +103,7 @@ for n in range(ndsets):
     surface["size"]=[ny,nz]
     dataout["surfaces"]=[]
     dataout["surfaces"].append(surface)
-    fname="f_area2d_xstart_task_"+str(n)+".json"
+    fname="f_area2d_xstart.json"
     with open(fname, 'w') as outfile:
         json.dump(dataout, outfile)
 
@@ -161,9 +164,11 @@ for n in range(ndsets):
     dataout["surfaces"].append(surface)
 
 
-    fname="f_area3d_task_"+str(n)+".json"
+    fname="f_area3d.json"
     with open(fname, 'w') as outfile:
         json.dump(dataout, outfile)
+
+    os.chdir("..")
 
 
 
