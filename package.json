@@ -10,7 +10,6 @@
     "@rollup/plugin-commonjs": "^21.0.2",
     "@rollup/plugin-node-resolve": "^13.1.3",
     "@rollup/plugin-replace": "^4.0.0",
-    "bootstrap": "^5.2.2",
     "rollup": "^2.68.0",
     "rollup-plugin-postcss": "^4.0.2"
   },
@@ -30,6 +29,7 @@
   },
   "homepage": "https://github.com/grahampullan/dbslice#readme",
   "dependencies": {
+    "bootstrap": "^5.2.2",
     "boxicons": "^2.1.4",
     "crossfilter2": "^1.5.4",
     "d3": "^4.13.0",
