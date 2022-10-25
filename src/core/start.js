@@ -31,19 +31,35 @@ async function start( elementId, session ) {
     if ( typeof(session.metaData) == 'string') {
 
         let metaDataUrl = session.metaData;
-        if ( session.metaDataCsv == undefined ) {
+        if ( !session.metaDataCsv ) {
             let response = await fetch(metaDataUrl);
             session.metaData = await response.json();
         }
 
-        if ( session.metaDataCsv == true ) {
+        if ( session.metaDataCsv ) {
             let metaData = await d3.csv( metaDataUrl, d3.autoType );
-            if ( session.metaDataFilter == true ) {
-                metaData = metaData.filter( d => d[session.metaDataFilterKey] == session.metaDataFilterValue);
-            }
+            session.metaData = {data: metaData};
+        }
+
+        if ( session.generateTaskIds ) {
+            const f = d3.format(session.taskIdFormat);
+            session.metaData.data.forEach( (d, index ) => {
+                let taskId = session.taskIdRoot + f(index);
+                session.metaData.data[index] = {...d, taskId:taskId};
+                if (session.setLabelsToTaskIds) {
+                    session.metaData.data[index] = {...d, taskId:taskId, label:taskId};
+                }
+            });
+        }
+        
+        if ( session.metaDataFilter ) {
+            session.metaData.data = session.metaData.data.filter( d => d[session.metaDataFilterKey] == session.metaDataFilterValue);
+        }
+
+        if ( session.metaDataCsv ) {
             const metaDataProperties = [];
             const dataProperties = [];
-            Object.entries(metaData[0]).forEach(entry => {
+            Object.entries(session.metaData.data[0]).forEach(entry => {
                 if (typeof(entry[1])=="string") {
                     metaDataProperties.push(entry[0]);
                 }
@@ -51,21 +67,11 @@ async function start( elementId, session ) {
                     dataProperties.push(entry[0]);
                 }
             });
-            session.metaData = { data: metaData, header: {metaDataProperties, dataProperties} };
+            session.metaData.header = {metaDataProperties, dataProperties};
         }
     }
 
-    if ( session.generateTaskIds ) {
 
-        const f = d3.format(session.taskIdFormat);
-        session.metaData.data.forEach( (d, index ) => {
-            let taskId = session.taskIdRoot + f(index);
-            session.metaData.data[index] = {...d, taskId:taskId};
-            if (session.setLabelsToTaskIds) {
-                session.metaData.data[index] = {...d, taskId:taskId, label:taskId};
-            }
-        });
-    }
 	
 
     session.cfData = cfInit( session.metaData );
