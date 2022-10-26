@@ -12,7 +12,8 @@ function updatePlot( plotData, index ) {
 		plotFunc = getPlotFunc(plotData.plotType); 
 	}
 
-    if ( plotData.fetchData !== undefined && dbsliceData.fetchDataIsRequested == true) {
+    if (  (plotData.fetchData !== undefined && dbsliceData.fetchDataIsRequested )  ||
+		(plotData.fetchData !== undefined && plotData.fetchData.autoFetchOnFilterChange && dbsliceData.allowAutoFetch) ){
 		fetchPlotData(plotData.fetchData).then( (data) => {
 			plotData.data = data;
             plotData.layout.newData = true;

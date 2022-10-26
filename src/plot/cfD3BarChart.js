@@ -128,7 +128,9 @@ const cfD3BarChart = {
                 }
 
                 cfUpdateFilters(cfData);
+                dbsliceData.allowAutoFetch = true;
                 update( dbsliceData.elementId , dbsliceData.session );
+                dbsliceData.allowAutoFetch = false;
 
             })
             .attr( "height", y.bandwidth() )
