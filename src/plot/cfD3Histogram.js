@@ -57,7 +57,8 @@ const cfD3Histogram = {
                 [ 0, 0 ],
                 [ width, height ]
             ] )
-            .on( "start brush end", brushmoved );
+            .on( "start brush", brushmoved )
+            .on( "end", brushend )
 
         var gBrush = svg.append( "g" )
             .attr( "transform", "translate(" + margin.left + "," + margin.top + ")" )
@@ -104,6 +105,12 @@ const cfD3Histogram = {
                 cfUpdateFilters(cfData);
                 if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
             }
+        }
+
+        function brushend() {
+            dbsliceData.allowAutoFetch = true;
+            if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
+            dbsliceData.allowAutoFetch = false;
         }
 
 

@@ -194,7 +194,7 @@ const d3LineSeries = {
                 .attr("r",1);
         }
 
-        var allSeries = plotArea.selectAll( ".plotSeries" ).data( data.series );
+        var allSeries = plotArea.selectAll( ".plotSeries" ).data( data.series, k => k.taskId );
 
         allSeries.enter()
             .each( function() {
