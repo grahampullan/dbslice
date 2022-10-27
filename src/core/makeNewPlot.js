@@ -49,7 +49,7 @@ function makeNewPlot( plotData, index ) {
 		
 	// Remove plot button option can be explicitly stated by the user as true/false, if not specified thedecision falls back on whether the plot row is metadata or on-demand.
 	if( plotData.layout.removePlotButton == undefined ? !plotRow.ctrl : plotData.layout.removePlotButton ){
-	plotHeader.append("button")
+	  plotHeader.append("button")
 	    .attr("class", "btn removePlot")
 		.style("float", "right")
 		.style("cursor", "pointer")
@@ -71,6 +71,52 @@ function makeNewPlot( plotData, index ) {
 			
 		});
 	} // if
+	
+	
+	
+	if( plotData.layout.configurePlotButton == undefined ? !plotRow.ctrl : plotData.layout.configurePlotButton ){
+		// Button to change the plot config.
+		plotHeader.append("button")
+			.attr("class", "btn configurePlot")
+			.style("float", "right")
+			.style("cursor", "pointer")
+			.style("padding", "2px 1.5px 0px 2px")
+			.html('<box-icon name="cog" size="xs"></box-icon>')
+			.on("click", function(){
+
+				// data has to come from div.plot, which is the one that gets its data actually updated.
+				let d = this.parentElement.parentElement.querySelector("div.plot").__data__;
+				
+				
+				// Try using the existing add plot modal, but just fill it in with the current selections.
+				// A dummy plotRow object is added to the modal for this operation to capture the config.
+				let dummyPlotRowObj = {plots: [], _maxPlotId: undefined};
+				
+				
+				dbsliceData.modal.currentPlotRow = dummyPlotRowObj;
+				dbsliceData.modal.populateFrom(d);
+				dbsliceData.modal.show();
+
+				console.log("Bring up modal to change the plot config.", d)
+				dbsliceData.modal.onsubmit = function(){
+					// On submission hte returned config needs to populate the existing object.
+					console.log("Populate actual obj.")
+					dbsliceData.modal.populateTo(d);
+					
+					// Then delete the onsubmit function added here.
+					dbsliceData.modal.onsubmit = function(){}; //
+					update(  dbsliceData.elementId , dbsliceData.session );
+				} // onsubmit
+				
+			});
+	} // if
+	
+	
+	
+	
+	
+	
+	
 
     var plotBody = plot.append( "div" )
     	.attr( "class", "plot")

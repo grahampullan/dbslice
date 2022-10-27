@@ -59,6 +59,7 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	  .style("cursor", "pointer")
 	  .html('<box-icon name="plus" size="sm"></box-icon>')
 	  .on("click", function(d){
+		  dbsliceData.modal.update();
 		  dbsliceData.modal.currentPlotRow = d;
 		  dbsliceData.modal.show();
 	  })

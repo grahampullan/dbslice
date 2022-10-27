@@ -134,7 +134,7 @@ async function start( elementId, session ) {
 	modal.onsubmit = function(){
 		update( dbsliceData.elementId , dbsliceData.session );
 	}
-	
+	console.log(dbsliceData)
 
 
 

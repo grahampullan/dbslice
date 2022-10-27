@@ -29,7 +29,7 @@ let modalTemplate = `
       
 	  <div class="modal-footer">
         <button type="button" class="btn btn-secondary closeModal" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary addPlot">Add plot</button>
+        <button type="button" class="btn btn-primary addPlot">Submit</button>
       </div>
 	  
     </div>
@@ -142,8 +142,6 @@ export default class addPlotModal{
 	update(){
 		let obj = this;
 		
-		console.log("update")
-		
 		// Now collect all the menus that are required
 		obj.requiredSelections = [];
 		obj.node.querySelector("table.static").querySelectorAll("select").forEach(m=>{
@@ -162,6 +160,52 @@ export default class addPlotModal{
 		
 		
 	} // update
+	
+	
+	populateFrom(c){
+		let obj = this;
+		
+		// Run through the properties provided by c, and set existing corresponding menus to that value. This class expects a plotType, a layout, and data to be set.
+		obj.config.plotType.inputobj.value = c.plotType;
+		
+		
+		
+		// Data selections
+		obj.update();
+		obj.requiredSelections.forEach(d=>{
+			d.inputobj.value = c.data[d[1]];
+		}) // forEach
+		
+		
+		
+		// Optional selections
+		obj.config.layout.forEach(d=>{
+			// d = [input type, variable name, default value]
+			d.inputobj.value = c.layout[d[1]];
+		}) // forEach
+		
+		
+	} // populateFrom
+	
+	
+	populateTo(c){
+		let obj = this;
+		
+		c.plotType = obj.config.plotType.inputobj.value;
+		
+		
+		obj.requiredSelections.forEach(d=>{
+			c.data[d[1]] = d.inputobj.value;
+		}) // forEach
+		
+		
+		obj.config.layout.forEach(d=>{
+			// d = [input type, variable name, default value]
+			c.layout[d[1]] = d.inputobj.value;
+		}) // forEach
+		
+		
+	} // populateTo
 	
 	
 	clear(){
@@ -275,6 +319,17 @@ class inputObject{
 	getOption(n){
 		return `<option value="${n}">${n}</option>`
 	}
+	
+	set value(v){
+		let obj = this;
+		
+		let n = obj.node.querySelector( ["number", "text", "checkbox"].includes( obj.type ) ? "input" : "select" );
+		if(obj.type == "checkbox"){
+			n.checked = v;
+		} else {
+			n.value = v;
+		} // if
+	} // set value
 	
 	get value(){
 		let obj = this;
