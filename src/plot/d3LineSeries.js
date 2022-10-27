@@ -209,7 +209,7 @@ const d3LineSeries = {
                         .style( "stroke", function( d ) { return colour( d.cKey ); } )    
                         .style( "fill", "none" )
                         .style( "stroke-width", "2.5px" )
-                        //.attr( "clip-path", "url(#clip)")
+                        .attr( "clip-path", "url(#clip)")
                         .on( "mouseover", tipOn )
                         .on( "mouseout", tipOff );
         } );
