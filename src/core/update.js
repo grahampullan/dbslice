@@ -39,8 +39,14 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
                 }
 				
                 return html;
-            });
-        });
+              });
+          })
+		  .on("click", function(){
+			  // Add in the functionality to collapse/expand the corresponding plotRowBody.
+			  let elementToCollapse = this.parentElement.querySelector("div.plotRowBody");
+			  elementToCollapse.style.display = elementToCollapse.style.display === "none" ? "" : "none";
+			  update()
+		  })
 
     var newPlotRowsBody = newPlotRows
     	.append( "div" ).attr( "class", "row no-gutters g-1 plotRowBody" )
@@ -59,6 +65,7 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	  .style("cursor", "pointer")
 	  .html('<box-icon name="plus" size="sm"></box-icon>')
 	  .on("click", function(d){
+		  d3.event.stopPropagation();
 		  dbsliceData.modal.currentPlotRow = d;
 		  dbsliceData.modal.show();
 	  })
@@ -73,8 +80,14 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 		.data( d => d.plots, k => k._id  )
 		.enter().each( makeNewPlot );
 
+	
     var plotRowPlots = plotRows.selectAll( ".plot" )
     	.data( d => d.plots, k => k._id  )
+		.filter(function(){
+			// Existing plots may have been collapsed, which will impact rendering. Filter them out so they are not being updated when collapsed.
+			let parentPlotRow = this.parentElement.parentElement.parentElement;
+			return parentPlotRow.style.display != "none"
+		})
     	.each( updatePlot );
 
 
