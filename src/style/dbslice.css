@@ -26,9 +26,3 @@
   top: 100%;
   left: 0;
 }
-
-
-/* hover effect to show plot rows can be collapsed. */
-.plotRowTitle:hover {
-  background-color: gainsboro;
-}

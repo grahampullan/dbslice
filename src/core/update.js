@@ -40,13 +40,7 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 				
                 return html;
               });
-          })
-		  .on("click", function(){
-			  // Add in the functionality to collapse/expand the corresponding plotRowBody.
-			  let elementToCollapse = this.parentElement.querySelector("div.plotRowBody");
-			  elementToCollapse.style.display = elementToCollapse.style.display === "none" ? "" : "none";
-			  update()
-		  })
+          });
 
     var newPlotRowsBody = newPlotRows
     	.append( "div" ).attr( "class", "row no-gutters g-1 plotRowBody" )
@@ -69,6 +63,29 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 		  dbsliceData.modal.currentPlotRow = d;
 		  dbsliceData.modal.show();
 	  })
+	  
+	  
+	// ADD COLLAPSE BUTTON
+	newPlotRowsHeader.append("button")
+	    .attr("class", "btn collapseRow")
+		.style("float", "right")
+		.style("cursor", "pointer")
+		.style("padding", "2px 1.5px 0px 2px")
+		.html('<box-icon name="collapse-alt" size="xs"></box-icon>')
+		.on("click", function(){
+
+			// Add in the functionality to collapse/expand the corresponding plotRowBody.
+			let elementToCollapse = this.parentElement.parentElement.querySelector("div.plotRowBody");
+			let isHidden = elementToCollapse.style.display === "none";
+			elementToCollapse.style.display = isHidden ? "" : "none";
+			
+			// Change the button icon
+			this.querySelector("box-icon").setAttribute("name", isHidden ? "collapse-alt" : "expand-alt");
+			
+			
+			update()
+			
+		});
 	 
 
 	// After the plot rows have been handled update the actual plots.
