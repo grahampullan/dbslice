@@ -91,17 +91,21 @@ function makeNewPlot( plotData, index ) {
 				// Try using the existing add plot modal, but just fill it in with the current selections.
 				// A dummy plotRow object is added to the modal for this operation to capture the config.
 				let dummyPlotRowObj = {plots: [], _maxPlotId: undefined};
-				
+				let configureConfig = {
+					plotType: false,
+					data: true,
+					layout: true
+				}
 				
 				dbsliceData.modal.currentPlotRow = dummyPlotRowObj;
 				dbsliceData.modal.populateFrom(d);
+				dbsliceData.modal.disableEnableOptionGroups(configureConfig);
 				dbsliceData.modal.show();
 
-				console.log("Bring up modal to change the plot config.", d)
 				dbsliceData.modal.onsubmit = function(){
 					// On submission hte returned config needs to populate the existing object.
-					console.log("Populate actual obj.")
 					dbsliceData.modal.populateTo(d);
+					dbsliceData.modal.disableEnableOptionGroups({});
 					
 					// Then delete the onsubmit function added here.
 					dbsliceData.modal.onsubmit = function(){}; //

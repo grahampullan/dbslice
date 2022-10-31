@@ -47,41 +47,39 @@ let modalTemplate = `
 		"threeSurf3d"
 */
 
-
+/*
 var dataProperties = ["Average f", "Std dev f"];
 var metaDataProperties = ["Simulation type", "Model type"];
 
 var modalConfig = {
+					
+	plotType: ["select", "plotType", ["cfD3BarChart", "cfD3Scatter", "cfD3Histogram"]],
 	
-	// Maybe this should be as below, name + options for the statis part.
-	dynamic: [["select", "plot type", ["cfD3BarChart", "cfD3Scatter", "cfD3Histogram"], undefined]],
+	data: {
+		cfD3BarChart: [
+			["select", "property", session.metaData.header.metaDataProperties]
+		],
+		
+		cfD3Histogram: [
+			["select", "property", session.metaData.header.dataProperties]
+		],
+		
+		cfD3Scatter: [
+			["select", "xProperty", session.metaData.header.dataProperties],
+			["select", "yProperty", session.metaData.header.dataProperties],
+			["select", "cProperty", session.metaData.header.metaDataProperties]
+		],
+	},
 	
-	// [type, name, options, default]
-	cfD3BarChart: [
-		["select", "property", metaDataProperties, undefined]
-	],
-	
-	cfD3Histogram: [
-		["select", "property", dataProperties, undefined]
-	],
-	
-	cfD3Scatter: [
-		["select", "xProperty", dataProperties, undefined],
-		["select", "yProperty", dataProperties, undefined]
-	],
-	
-	
-	optional: [
-		["text", "title", "", undefined],
+	layout: [
+		["text", "title", ""],
 		["number", "colWidth", [1,12], 3],
-		["number", "height", [0, 600], 300],
+		["number", "height", [100, 600], 300],
 		["checkbox", "highlightTasks", "", true]
 	]
 	
 } // modalConfig
-
-
-
+*/
 
 
 export default class addPlotModal{
@@ -94,6 +92,7 @@ export default class addPlotModal{
 		obj.node = html2element( modalTemplate );
 		
 		obj.config = config;
+		
 		
 		
 		// Create the static and optional menus here. Update will only handle the dynamic menus.
@@ -139,8 +138,13 @@ export default class addPlotModal{
 		
 	} // constructor
 	
+	
 	update(){
 		let obj = this;
+		
+		
+		
+		// The idea is that teh top most statis menu may have several selections that need to be made. Based on those selections the dynamic options should update accordingly. The required selections must therefore be obtained based on the users interaction.
 		
 		// Now collect all the menus that are required
 		obj.requiredSelections = [];
@@ -149,20 +153,36 @@ export default class addPlotModal{
 		})
 		
 		
-		obj.clear();
+		// Now update the options.
+		obj.updateDynamicOptions();
 		
-		// Now make them
-		obj.requiredSelections.forEach(d=>{
-			let m = new inputObject(d);
-			obj.node.querySelector("table.dynamic").appendChild( m.node );
-			d.inputobj = m;
-		})
 		
+		obj.updateLayout();
+		
+		// Turn all the options on.
+		obj.disableEnableOptionGroups({});
 		
 	} // update
 	
 	
+	disableEnableOptionGroups(disabled){
+		let obj = this;
+		
+		obj.config.plotType.inputobj.disable( disabled.plotType );
+		
+		obj.requiredSelections.forEach(d=>{
+			d.inputobj.disable( disabled.data );
+		})
+	
+		obj.config.layout.forEach(d=>{
+			d.inputobj.disable( disabled.layout );
+		}) // forEach
+		
+	} // disableOptionGroups
+	
+	
 	populateFrom(c){
+		// Reconfigure plot config 'c', but only allow the option groups (plottype, data, layout) specified in 'config' to be adjusted.
 		let obj = this;
 		
 		// Run through the properties provided by c, and set existing corresponding menus to that value. This class expects a plotType, a layout, and data to be set.
@@ -208,13 +228,34 @@ export default class addPlotModal{
 	} // populateTo
 	
 	
-	clear(){
+	updateDynamicOptions(){
+		// Update the dynamic options based on the selections made by the user.
 		let obj = this;
+		
+		// Clear the dynamic menus.
 		let div = obj.node.querySelector("table.dynamic");
 		while(div.firstChild){
 			div.removeChild(div.firstChild);
 		} // while
-	}
+		
+		
+		// Now make them
+		obj.requiredSelections.forEach(d=>{
+			let m = new inputObject(d);
+			obj.node.querySelector("table.dynamic").appendChild( m.node );
+			d.inputobj = m;
+		})
+	} // updateDynamicOptions
+	
+	
+	updateLayout(){
+		let obj = this;
+		
+		obj.config.layout.forEach(d=>{
+			d.inputobj.value = d[3];
+		}) // forEach
+	} // updateLayout
+	
 	
 	show(){
 		let obj = this;
@@ -316,6 +357,11 @@ class inputObject{
 			
 	} // constructor
 	
+	disable(v){
+		let obj = this;
+		obj.inputNode.disabled = v == undefined ? false : !v;
+	} // disable
+	
 	getOption(n){
 		return `<option value="${n}">${n}</option>`
 	}
@@ -323,24 +369,23 @@ class inputObject{
 	set value(v){
 		let obj = this;
 		
-		let n = obj.node.querySelector( ["number", "text", "checkbox"].includes( obj.type ) ? "input" : "select" );
 		if(obj.type == "checkbox"){
-			n.checked = v;
+			obj.inputNode.checked = v;
 		} else {
-			n.value = v;
+			obj.inputNode.value = v;
 		} // if
 	} // set value
 	
 	get value(){
 		let obj = this;
-		
-		
-		let n = obj.node.querySelector( ["number", "text", "checkbox"].includes( obj.type ) ? "input" : "select" );
-		let v = obj.type == "checkbox" ? n.checked : n.value; 
-		
-		
+		let v = obj.type == "checkbox" ? obj.inputNode.checked : obj.inputNode.value; 
 		return Number(v) ? Number(v) : v;
 	}
+	
+	get inputNode(){
+		let obj = this;
+		return obj.node.querySelector( ["number", "text", "checkbox"].includes( obj.type ) ? "input" : "select" );
+	};
 	
 } // inputObject
 
