@@ -39,8 +39,8 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
                 }
 				
                 return html;
-            });
-        });
+              });
+          });
 
     var newPlotRowsBody = newPlotRows
     	.append( "div" ).attr( "class", "row no-gutters g-1 plotRowBody" )
@@ -59,9 +59,33 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	  .style("cursor", "pointer")
 	  .html('<box-icon name="plus" size="sm"></box-icon>')
 	  .on("click", function(d){
+		  d3.event.stopPropagation();
 		  dbsliceData.modal.currentPlotRow = d;
 		  dbsliceData.modal.show();
 	  })
+	  
+	  
+	// ADD COLLAPSE BUTTON
+	newPlotRowsHeader.append("button")
+	    .attr("class", "btn collapseRow")
+		.style("float", "right")
+		.style("cursor", "pointer")
+		.style("padding", "2px 1.5px 0px 2px")
+		.html('<box-icon name="collapse-alt" size="xs"></box-icon>')
+		.on("click", function(){
+
+			// Add in the functionality to collapse/expand the corresponding plotRowBody.
+			let elementToCollapse = this.parentElement.parentElement.querySelector("div.plotRowBody");
+			let isHidden = elementToCollapse.style.display === "none";
+			elementToCollapse.style.display = isHidden ? "" : "none";
+			
+			// Change the button icon
+			this.querySelector("box-icon").setAttribute("name", isHidden ? "collapse-alt" : "expand-alt");
+			
+			
+			update()
+			
+		});
 	 
 
 	// After the plot rows have been handled update the actual plots.
@@ -73,8 +97,14 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 		.data( d => d.plots, k => k._id  )
 		.enter().each( makeNewPlot );
 
+	
     var plotRowPlots = plotRows.selectAll( ".plot" )
     	.data( d => d.plots, k => k._id  )
+		.filter(function(){
+			// Existing plots may have been collapsed, which will impact rendering. Filter them out so they are not being updated when collapsed.
+			let parentPlotRow = this.parentElement.parentElement.parentElement;
+			return parentPlotRow.style.display != "none"
+		})
     	.each( updatePlot );
 
 

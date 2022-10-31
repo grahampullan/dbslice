@@ -142,8 +142,6 @@ export default class addPlotModal{
 	update(){
 		let obj = this;
 		
-		console.log("update")
-		
 		// Now collect all the menus that are required
 		obj.requiredSelections = [];
 		obj.node.querySelector("table.static").querySelectorAll("select").forEach(m=>{
