@@ -53,8 +53,7 @@ function makeNewPlot( plotData, index ) {
 	    .attr("class", "btn removePlot")
 		.style("float", "right")
 		.style("cursor", "pointer")
-		.style("padding", "2px 1.5px 0px 2px")
-		.html('<box-icon name="trash" size="xs"></box-icon>')
+		.html('<box-icon name="trash" size="xs" style="vertical-align: top;"></box-icon>')
 		.on("click", function(){
 
 			// data has to come from div.plot, which is the one that gets its data actually updated.
