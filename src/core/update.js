@@ -57,6 +57,8 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	  .attr("data-bs-target","#addPlotModal")
 	  .style("float", "right")
 	  .style("cursor", "pointer")
+	  .style("border", "2px solid gray")
+	  .style("padding", "3px 6px 3px 6px")
 	  .html('<box-icon name="plus" size="sm"></box-icon>')
 	  .on("click", function(d){
 		  d3.event.stopPropagation();
@@ -70,8 +72,9 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	    .attr("class", "btn collapseRow")
 		.style("float", "right")
 		.style("cursor", "pointer")
-		.style("padding", "2px 1.5px 0px 2px")
-		.html('<box-icon name="collapse-alt" size="xs"></box-icon>')
+		.style("border", "2px solid gray")
+	    .style("padding", "3px 6px 3px 6px")
+		.html('<box-icon name="collapse-alt" size="sm"></box-icon>')
 		.on("click", function(){
 
 			// Add in the functionality to collapse/expand the corresponding plotRowBody.
