@@ -38,7 +38,8 @@
             "colWidth": 3,
             "height": 300,
             "highlightTasks": true,
-            "removePlotButton": false
+            "removePlotButton": false,
+            "colourByProperty": true
           }
         },
         {

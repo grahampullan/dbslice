@@ -100,7 +100,26 @@ const cfD3BarChart = {
             .padding( [0.2] )
             .align([0.5]);
 
-        var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal().range( ["cornflowerblue"] ) : d3.scaleOrdinal( layout.colourMap );
+        let colour;
+
+        if ( !layout.colourByProperty ) {
+    
+            if ( !layout.colour ) {
+                colour = d3.scaleOrdinal( [ "cornflowerblue" ] );
+            } else {
+                colour = d3.scaleOrdinal( [ layout.colour ] );
+            }
+    
+        } else {
+    
+            if ( !layout.colourMap ) {
+                colour = d3.scaleOrdinal( d3.schemeCategory10 );
+            } else {
+                 colour = d3.scaleOrdinal( layout.colourMap );
+            }
+                
+        }
+    
         colour.domain( cfData.metaDataUniqueValues[ property ] );
 
         bars = plotArea.selectAll( "rect" )
