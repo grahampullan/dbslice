@@ -6,7 +6,7 @@ function fetchPlotData( fetchData ) {
 
     if ( fetchData.url !== undefined ) {
 
-        fetch(fetchData.url)
+        let taskPromise = fetch(fetchData.url)
 
         .then(function( response ) {
 
@@ -28,9 +28,9 @@ function fetchPlotData( fetchData ) {
     
             }
     
-        })
+        });
 
-        .then(function( responseJson ) {
+        return taskPromise.then(function( responseJson ) {
 
             if ( fetchData.csv == true ) {
     
