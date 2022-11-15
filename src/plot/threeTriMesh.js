@@ -70,7 +70,7 @@ const threeTriMesh = {
 				let nVerts = ints[0];
 				let nTris = ints[1];
 				let nValues = ints[2];
-				console.log(surfName, nVerts, nTris, nValues);
+				//console.log(surfName, nVerts, nTris, nValues);
 				let floats = new Float32Array(buffer,ii,7);
 				ii += 28;
 				let rMax = floats[0];
@@ -113,7 +113,7 @@ const threeTriMesh = {
         	var vScale = layout.vScale;
         }
 
-		var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+		var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
         color.domain( vScale );
 
 		const textureWidth = 256;
@@ -140,18 +140,18 @@ const threeTriMesh = {
 			.on( "mouseover", tipOn )
 			.on( "mouseout", tipOff );
 
-		div.append("input")
-			.attr("class", "time-slider")
-			.attr("type","range")
-			.attr("id","time")
-			.attr("name","time")
-			.attr("min",0)
-			.attr("value",0)
-			.attr("max",nSteps-1)
-			.attr("step",1)
-			.on( "input", updateTimeStep );
-
-		
+		if ( nSteps > 0 ){
+			div.append("input")
+				.attr("class", "form-range time-slider")
+				.attr("type","range")
+				.attr("id","time")
+				.attr("name","time")
+				.attr("min",0)
+				.attr("value",0)
+				.attr("max",nSteps-1)
+				.attr("step",1)
+				.on( "input change", timeStepSliderChange );
+		}
 
 		var width = container.node().offsetWidth,
 			height = layout.height;
@@ -159,8 +159,6 @@ const threeTriMesh = {
 		// Initialise threejs scene
 		const scene = new THREE.Scene();
 		scene.background = new THREE.Color( 0xefefef );
-		
-
 			
 		// Create renderer
 		var renderer = new THREE.WebGLRenderer({alpha:true, antialias:true}); 
@@ -237,25 +235,30 @@ const threeTriMesh = {
 		camera.position.z = zMid;
 
 		if ( layout.cameraSync ) {
-
-			let plotRowIndex = container.attr("plot-row-index");
-			let plotIndex = container.attr("plot-index");
-
-			let plotRow = dbsliceData.session.plotRows[plotRowIndex];
-
-			plotRow.plots[plotIndex].layout.camera = {position: camera.position, rotation: camera.rotation};
-
-			let validator = {
+			let handler = {
 				set: function(target, key, value) {
 					camera[key].copy(value);
-					//console.log(camera[key]);
 					renderer.render(scene,camera);
 					return true;
 				}
 			};
-			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, validator);
-			plotRow.plots[plotIndex].layout.watchedCamera = watchedCamera;
+			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, handler);
+			layout.watchedCamera = watchedCamera;
+		}
 
+		if ( layout.timeSync ) {
+			let handler = {
+				set: function(target, key, value) {
+					target[key] = value;
+					if (key = 'iStep') {
+						div.select(".time-slider").attr("value",value);
+						updateSurfaces(value);
+					}
+					return true;
+				}
+			};
+			let watchedTime = new Proxy({iStep}, handler);
+			layout.watchedTime = watchedTime;
 		}
 
 
@@ -292,8 +295,22 @@ const threeTriMesh = {
 		renderer.render( scene, camera );
 
 
-		function updateTimeStep() {
-			let iStep = this.value;
+		function timeStepSliderChange() {
+			iStep = this.value;
+			if ( layout.timeSync ) {
+				let plotRowIndex = container.attr("plot-row-index");
+				let plotIndex = container.attr("plot-index");
+				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
+				plots.forEach( (plot, indx) =>  {
+					if (indx != plotIndex) {
+						plot.layout.watchedTime.iStep = iStep;
+					}
+				});
+			}
+			updateSurfaces(iStep);
+		}
+
+		function updateSurfaces(iStep) {
 			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
 				let thisSurface=offsets[iStep][iSurf];
 				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
