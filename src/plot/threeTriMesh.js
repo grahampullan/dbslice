@@ -29,8 +29,6 @@ const threeTriMesh = {
 
                 dbsliceData.highlightTasks.forEach( function (taskId) {
 
-                	//console.log(layout.taskId);
-
                     if ( taskId == layout.taskId ) {
                     
                         container
@@ -50,27 +48,69 @@ const threeTriMesh = {
             return
         }
 
+		// parse arrayBuffer to make lookup offsets object
+		let ii = 0 // byte index
+		const nSteps = new Int32Array(buffer,ii,1)[0];
+		ii += 4;
+		let nSurfsNow = new Int32Array(buffer,ii,1)[0];
+		ii += 4;
+		const offsets = [];
+		for (let iStep = 0; iStep < nSteps; iStep++) {
+			let surfaces = [];
+			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+				let surfNameBytes = new Int8Array(buffer,ii,96);
+				ii += 96;
+				let surfName = String.fromCharCode(...surfNameBytes).trim().split('\u0000')[0];
+				let ints = new Int32Array(buffer,ii,3);
+				ii += 12;
+				let nVerts = ints[0];
+				let nTris = ints[1];
+				let nValues = ints[2];
+				//console.log(surfName, nVerts, nTris, nValues);
+				let floats = new Float32Array(buffer,ii,7);
+				ii += 28;
+				let rMax = floats[0];
+				let xRange = floats.slice(1,3);
+				let yRange = floats.slice(3,5);
+				let zRange = floats.slice(5,7);
+				//console.log(xRange,yRange,zRange);
+				let verticesOffset;
+				let indicesOffset;
+				if ( nVerts > 0 && nTris == 0 && iStep > 0 ) { // this is a fixed vertices check
+					verticesOffset = offsets[0][iSurf].verticesOffset;
+					indicesOffset = offsets[0][iSurf].indicesOffset;
+					nTris = offsets[0][iSurf].nTris;
+				} else {
+					verticesOffset = ii;
+					ii += nVerts*3*4;
+					indicesOffset = ii;
+					ii += nTris*3*4;
+				}
+				let valuesList = [];
+				for (let iValue = 0; iValue < nValues; iValue++) {
+					let valueNameBytes = new Int8Array(buffer,ii,96);
+					ii += 96;
+					let valueName = String.fromCharCode(...valueNameBytes).trim().split('\u0000')[0];
+					let valueRange = new Float32Array(buffer,ii,2);
+					ii +=8;
+					let valuesOffset = ii;
+					ii += nVerts*4;
+					valuesList.push( { name : valueName, range : valueRange, offset : valuesOffset });
+				}
+				surfaces.push( {name : surfName, nVerts, nTris, nValues, rMax, xRange, yRange, zRange, 
+					verticesOffset, indicesOffset, values : valuesList });
+			}
+			offsets.push(surfaces);
+		}
+
+
         if (layout.vScale === undefined) {
         	var vScale = [0,1];
         } else {
         	var vScale = layout.vScale;
         }
 
-		// extract data from binary buffer
-		const intsHeader = new Int32Array(buffer,0,4);
-		const nSurfs=intsHeader[0];
-		const nVerts=intsHeader[1];
-		const nTris = intsHeader[2];
-		const nValues = intsHeader[3];
-		const rmax = new Float32Array(buffer,16,1)[0];
-		const xyzRanges = new Float32Array(buffer,20,6);
-		const vertices = new Float32Array(buffer,44,nVerts*3);
-		const indices = new Uint32Array(buffer,44 + nVerts*4*3,nTris*3);
-		const valuesRange = new Float32Array(buffer, 44 + nVerts*4*3 + nTris*4*3, 2);
-		const values = new Float32Array(buffer,44+ nVerts*4*3 + nTris*4*3 + 8, nVerts*nValues);
-		const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
-
-        var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+		var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
         color.domain( vScale );
 
 		const textureWidth = 256;
@@ -92,76 +132,139 @@ const threeTriMesh = {
 
 		container.select(".plotArea").remove();
 
-        var div = container.append("div")
-        	.attr("class", "plotArea")
-        	.on( "mouseover", tipOn )
-            .on( "mouseout", tipOff );
+		var div = container.append("div")
+			.attr("class", "plotArea")
+			.on( "mouseover", tipOn )
+			.on( "mouseout", tipOff );
 
+		if ( nSteps > 1 ){
+			div.append("input")
+				.attr("class", "form-range time-slider")
+				.attr("type","range")
+				.attr("id","time")
+				.attr("name","time")
+				.attr("min",0)
+				.attr("value",0)
+				.attr("max",nSteps-1)
+				.attr("step",1)
+				.on( "input change", timeStepSliderChange );
+		}
 
 		var width = container.node().offsetWidth,
 			height = layout.height;
-    
-		const geometry = new THREE.BufferGeometry();
-		geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
-		geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-		geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-		if (xyzRanges[1]-xyzRanges[0]==0.) {
-			geometry.rotateY(Math.PI/2);
-		}
 
-		const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-			
 		// Initialise threejs scene
 		const scene = new THREE.Scene();
 		scene.background = new THREE.Color( 0xefefef );
-		scene.add( new THREE.Mesh( geometry, material ) );
-    
+			
 		// Create renderer
 		var renderer = new THREE.WebGLRenderer({alpha:true, antialias:true}); 
 		renderer.setPixelRatio( window.devicePixelRatio );
-		renderer.setSize( width , height );
+		renderer.setSize( width , height )
 
+		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		const material = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+
+		// use size of first surface to set camera and lights
+		let iStep = 0;
+		let iSurface = 0;
+		let thisSurface=offsets[iStep][iSurface];
+		let xRange = thisSurface.xRange;
+		let yRange = thisSurface.yRange;
+		let zRange = thisSurface.zRange;
+		let xMid = 0.5*( xRange[0] + xRange[1] );
+		let yMid = 0.5*( yRange[0] + yRange[1] );
+		let zMid = 0.5*( zRange[0] + zRange[1] );
+		let rMax = thisSurface.rMax;
+
+		const light1 = new THREE.PointLight( 0xffffff, 0.8 );
+		light1.position.set( xMid, yMid, zMid + 10*rMax );
+		const light2 = new THREE.PointLight( 0xffffff, 0.8 );
+		light2.position.set( xMid, yMid, zMid - 10*rMax );
+		const light3 = new THREE.PointLight( 0xffffff, 0.8 );
+		light3.position.set( xMid + 10*rMax, yMid, zMid  );
+		const light4 = new THREE.PointLight( 0xffffff, 0.8 );
+		light4.position.set( xMid - 10*rMax, yMid, zMid );
+		const light5 = new THREE.PointLight( 0xffffff, 0.8 );
+		light5.position.set( xMid, yMid + 10*rMax, zMid  );
+		const light6 = new THREE.PointLight( 0xffffff, 0.8 );
+		light6.position.set( xMid, yMid - 10*rMax, zMid );
+
+		scene.add( light1 );
+		scene.add( light2 );
+		scene.add( light3 );
+		scene.add( light4 );
+		scene.add( light5 );
+		scene.add( light6 );
+
+		// add all surfaces (at iStep = 0) to scene
+		layout._meshUuids = [];
+		for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+			let thisSurface=offsets[iStep][iSurf];
+			const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
+			const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
+			const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
+			const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
+			let xRange = thisSurface.xRange;
+
+			const geometry = new THREE.BufferGeometry();
+			geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
+			geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
+			geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+			geometry.computeVertexNormals();
+
+			const mesh = new THREE.Mesh( geometry, material );
+			layout._meshUuids.push( mesh.uuid );
+			scene.add( mesh );
+		}
+	
 		// Set target DIV for rendering
 		//var container = document.getElementById( elementId );
 		div.node().appendChild( renderer.domElement );
 
 		// Define the camera
 		var camera = new THREE.PerspectiveCamera( 45, width/height, 0.0001, 1000. );
-		camera.position.z = 2*rmax; 
+		camera.position.x = xMid + 2*rMax;
+		camera.position.y = yMid;
+		camera.position.z = zMid;
 
 		if ( layout.cameraSync ) {
-
-			let plotRowIndex = container.attr("plot-row-index");
-			let plotIndex = container.attr("plot-index");
-
-			//console.log(plotRowIndex);
-			//console.log(dbsliceData.session.plotRows[plotRowIndex].plots.length);
-
-			let plotRow = dbsliceData.session.plotRows[plotRowIndex];
-
-			plotRow.plots[plotIndex].layout.camera = {position: camera.position, rotation: camera.rotation};
-
-			let validator = {
+			let handler = {
 				set: function(target, key, value) {
 					camera[key].copy(value);
-					//console.log(camera[key]);
 					renderer.render(scene,camera);
 					return true;
 				}
 			};
-			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, validator);
-			plotRow.plots[plotIndex].layout.watchedCamera = watchedCamera;
+			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, handler);
+			layout.watchedCamera = watchedCamera;
+		}
 
+		if ( layout.timeSync ) {
+			let handler = {
+				set: function(target, key, value) {
+					target[key] = value;
+					if (key = 'iStep') {
+						div.select(".time-slider").attr("value",value);
+						updateSurfaces(value);
+					}
+					return true;
+				}
+			};
+			let watchedTime = new Proxy({iStep}, handler);
+			layout.watchedTime = watchedTime;
 		}
 
 
 		// Add controls 
+		
+		camera.up.set(0,0,1);
 		const controls = new OrbitControls( camera, renderer.domElement );
-		if (xyzRanges[1]-xyzRanges[0]==0.) {
-			controls.minAzimuthAngle = 0.;
-			controls.maxAzimuthAngle = 0.;
-			controls.minPolarAngle = Math.PI/2;
-			controls.maxPolarAngle = Math.PI/2;
+		controls.target.set( xMid, yMid, zMid );
+		controls.enabled = true;
+		controls.update();
+		if (xRange[1]-xRange[0]==0.) {
+			controls.enableRotate = false;
 		}
 		controls.addEventListener( 'change', function(){
     		renderer.render(scene,camera); // re-render if controls move/zoom 
@@ -169,12 +272,8 @@ const threeTriMesh = {
 				let plotRowIndex = container.attr("plot-row-index");
 				let plotIndex = container.attr("plot-index");
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
-				//console.log(camera.rotation);
 				plots.forEach( (plot, indx) =>  {
-					//console.log(plot);
 					if (indx != plotIndex) {
-						//console.log(camera.rotation);
-						//console.log(indx);
 						plot.layout.watchedCamera.position = camera.position;
 						plot.layout.watchedCamera.rotation = camera.rotation;
 					}
@@ -182,9 +281,52 @@ const threeTriMesh = {
 			}
 		} ); 
 		controls.enableZoom = true; 
-
+		
 		// Make initial call to render scene
 		renderer.render( scene, camera );
+
+
+		function timeStepSliderChange() {
+			iStep = this.value;
+			if ( layout.timeSync ) {
+				let plotRowIndex = container.attr("plot-row-index");
+				let plotIndex = container.attr("plot-index");
+				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
+				plots.forEach( (plot, indx) =>  {
+					if (indx != plotIndex) {
+						plot.layout.watchedTime.iStep = iStep;
+					}
+				});
+			}
+			updateSurfaces(iStep);
+		}
+
+		function updateSurfaces(iStep) {
+			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+				let thisSurface=offsets[iStep][iSurf];
+				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
+				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
+				const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
+				const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
+				let xRange = thisSurface.xRange;
+			
+				const geometry = new THREE.BufferGeometry();
+				geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
+				geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
+				geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+				geometry.computeVertexNormals();
+
+				const oldMesh = scene.getObjectByProperty('uuid',layout._meshUuids[iSurf]);
+				oldMesh.geometry.dispose();
+				oldMesh.material.dispose();
+    			scene.remove(oldMesh);
+
+				const newMesh = new THREE.Mesh( geometry, material );
+				layout._meshUuids[iSurf] = newMesh.uuid;
+				scene.add( newMesh );
+			}
+			renderer.render(scene,camera);
+		}
 
 		function tipOn() {
             if ( layout.highlightTasks == true ) {

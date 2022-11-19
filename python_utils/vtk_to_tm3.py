@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import base64
 import numpy as np
+import os
 
 def read_vtp_vtu(fname, prop):
 
@@ -103,11 +104,11 @@ def centre_vertices(vertices):
     ymid = np.mean(yvert)
     zmid = np.mean(zvert)
 
-    xvert -= xmid
-    yvert -= ymid
-    zvert -= zmid
+    #xvert -= xmid
+    #yvert -= ymid
+    #zvert -= zmid
 
-    rmax = np.sqrt(np.max(xvert**2 + yvert**2 + zvert**2))
+    rmax = np.sqrt(np.max((xvert-xmid)**2 + (yvert-ymid)**2 + (zvert-zmid)**2))
 
     xmin = np.min(xvert) 
     xmax = np.max(xvert)
@@ -147,44 +148,86 @@ def read_vtm(fname):
       
     return file_names
 
-def vtm_to_tm3(vtmfiles, output_file="output.tm3"):
+def vtm_to_tm3(config):
 
-    n_surfaces = len(vtmfiles) # currently works for only one surface
+    f = open(config['output_file'],"wb")
 
-    for indx_vtm, fp in enumerate(vtmfiles):
-        vtm_file = fp['fname']
-        selected_prop = fp['prop']
-        vtp_file_names = read_vtm(vtm_file)
+    steps = config['steps']
+
+    steady = False
+    if ( steps == None ):
+        steady = True
+
+    if ( steady ):
+        f.write(np.int32(1).tobytes())
+    else:
+        f.write(np.int32(len(steps)).tobytes())
+
+    surfaces = config['surfaces']
+    f.write(np.int32(len(surfaces)).tobytes())
+
+    if ( steps == None ):
+        steps = ["steady"]
+
+    cwd = os.getcwd()
+
+    istep = 0
+    for step in steps:
+
+        for surface in surfaces:
+            f.write(np.array(surface['name'],dtype='S96').tobytes())
+            files = surface['files']
+
+            for indx_vtm, fp in enumerate(files):
+
+                if ( steady ):
+                    vtm_file = fp['fname']
+                else:
+                    template = fp['fname_root']+"{:"+fp['fname_fmt']+"}.vtm"
+                    vtm_file = template.format(step)
+                    print(vtm_file)
+
+                os.chdir(fp['path'])
+                selected_props = fp['props'] # list but current version only uses first entry
+                vtp_file_names = read_vtm(vtm_file)
         
-        for indx_vtp, file_name in enumerate(vtp_file_names):
-            if (indx_vtp == 0 and indx_vtm == 0):
-                nverts, ntris, vertices, indices, values = read_vtp_vtu(file_name, selected_prop)
-            else:
-                nverts_now, ntris_now, vertices_now, indices_now, values_now = read_vtp_vtu(file_name, selected_prop)
-                if (nverts_now == 0):
-                    continue
-                indices_now += nverts
-                nverts += nverts_now
-                ntris += ntris_now
-                vertices = np.concatenate((vertices, vertices_now))
-                indices = np.concatenate((indices,indices_now))
-                values = np.concatenate((values,values_now))
-       
-    vertices, rmax, x_min_max, y_min_max, z_min_max = centre_vertices(vertices)
-    values, v_min_max = normalise(values)
+                for indx_vtp, file_name in enumerate(vtp_file_names):
+                    if (indx_vtp == 0 and indx_vtm == 0):
+                        nverts, ntris, vertices, indices, values = read_vtp_vtu(file_name, selected_props[0])
+                    else:
+                        nverts_now, ntris_now, vertices_now, indices_now, values_now = read_vtp_vtu(file_name, selected_props[0])
+                        if (nverts_now == 0):
+                            continue
+                        indices_now += nverts
+                        nverts += nverts_now
+                        ntris += ntris_now
+                        vertices = np.concatenate((vertices, vertices_now))
+                        indices = np.concatenate((indices,indices_now))
+                        values = np.concatenate((values,values_now))
 
-    f = open(output_file,"wb")
-    f.write(np.int32(1).tobytes())
-    f.write(nverts.tobytes())
-    f.write(ntris.tobytes())
-    f.write(np.int32(1).tobytes())
-    f.write(rmax.tobytes())
-    f.write(x_min_max.tobytes())
-    f.write(y_min_max.tobytes())
-    f.write(z_min_max.tobytes())
-    f.write(vertices.tobytes())
-    f.write(indices.tobytes())
-    f.write(v_min_max.tobytes())
-    f.write(values.tobytes())
+                os.chdir(cwd)
+       
+            vertices, rmax, x_min_max, y_min_max, z_min_max = centre_vertices(vertices)
+            values, v_min_max = normalise(values)
+
+            f.write(nverts.tobytes())
+            if ( istep > 0 and fp['fixed_vertices'] ):
+                f.write(np.int32(0).tobytes()) # write ntris=0 if fixed vertices
+            else:
+                f.write(ntris.tobytes())
+            f.write(np.int32(1).tobytes())  # only one property for now
+            f.write(rmax.tobytes())
+            f.write(x_min_max.tobytes())
+            f.write(y_min_max.tobytes())
+            f.write(z_min_max.tobytes())
+            if ( istep == 0 or not fp['fixed_vertices'] ):
+                f.write(vertices.tobytes())
+                f.write(indices.tobytes())
+            f.write(np.array(files[0]['props'][0],dtype='S96').tobytes())
+            f.write(v_min_max.tobytes())
+            f.write(values.tobytes())
+
+            istep += 1
+
     f.close()
 
