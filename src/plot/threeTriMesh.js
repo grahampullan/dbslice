@@ -4,8 +4,6 @@ import * as d3 from 'd3';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three';
 import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
-import { TrackballControls } from 'three124/examples/jsm/controls/TrackBallControls';
-
 
 const threeTriMesh = {
 
@@ -30,8 +28,6 @@ const threeTriMesh = {
                 container.style("outline-width","0px")
 
                 dbsliceData.highlightTasks.forEach( function (taskId) {
-
-                	//console.log(layout.taskId);
 
                     if ( taskId == layout.taskId ) {
                     
@@ -77,6 +73,7 @@ const threeTriMesh = {
 				let xRange = floats.slice(1,3);
 				let yRange = floats.slice(3,5);
 				let zRange = floats.slice(5,7);
+				//console.log(xRange,yRange,zRange);
 				let verticesOffset;
 				let indicesOffset;
 				if ( nVerts > 0 && nTris == 0 && iStep > 0 ) { // this is a fixed vertices check
@@ -140,7 +137,7 @@ const threeTriMesh = {
 			.on( "mouseover", tipOn )
 			.on( "mouseout", tipOff );
 
-		if ( nSteps > 0 ){
+		if ( nSteps > 1 ){
 			div.append("input")
 				.attr("class", "form-range time-slider")
 				.attr("type","range")
@@ -215,9 +212,6 @@ const threeTriMesh = {
 			geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
 			geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 			geometry.computeVertexNormals();
-			if (xRange[1]-xRange[0]==0.) {
-				geometry.rotateY(Math.PI/2);
-			}
 
 			const mesh = new THREE.Mesh( geometry, material );
 			layout._meshUuids.push( mesh.uuid );
@@ -230,7 +224,7 @@ const threeTriMesh = {
 
 		// Define the camera
 		var camera = new THREE.PerspectiveCamera( 45, width/height, 0.0001, 1000. );
-		camera.position.x = xMid + 2*(xRange[1]-xRange[0]);
+		camera.position.x = xMid + 2*rMax;
 		camera.position.y = yMid;
 		camera.position.z = zMid;
 
@@ -270,10 +264,7 @@ const threeTriMesh = {
 		controls.enabled = true;
 		controls.update();
 		if (xRange[1]-xRange[0]==0.) {
-			controls.minAzimuthAngle = 0.;
-			controls.maxAzimuthAngle = 0.;
-			controls.minPolarAngle = Math.PI/2;
-			controls.maxPolarAngle = Math.PI/2;
+			controls.enableRotate = false;
 		}
 		controls.addEventListener( 'change', function(){
     		renderer.render(scene,camera); // re-render if controls move/zoom 
@@ -324,9 +315,6 @@ const threeTriMesh = {
 				geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
 				geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 				geometry.computeVertexNormals();
-				if (xRange[1]-xRange[0]==0.) {
-					geometry.rotateY(Math.PI/2);
-				}
 
 				const oldMesh = scene.getObjectByProperty('uuid',layout._meshUuids[iSurf]);
 				oldMesh.geometry.dispose();

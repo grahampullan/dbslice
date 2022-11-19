@@ -167,7 +167,7 @@ def vtm_to_tm3(config):
     f.write(np.int32(len(surfaces)).tobytes())
 
     if ( steps == None ):
-        steps = "steady"
+        steps = ["steady"]
 
     cwd = os.getcwd()
 
