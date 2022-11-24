@@ -1,7 +1,6 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { update } from '../core/update.js';
-import * as d3 from 'd3';
-import d3tip from 'd3-tip';
+import * as d3 from 'd3v7';
 
 const cfD3Scatter = {
 
@@ -28,11 +27,20 @@ const cfD3Scatter = {
                 .attr( "class", "plotArea" )
                 .attr( "dimId", dimId);
 
+        container.append("div")
+            .attr("class", "tool-tip")
+            .style("opacity", 0);
+
         cfD3Scatter.update( element, data, layout );
 
     }, 
 
     update : function ( element, data, layout ) {
+
+        if (layout._noUpdate) {
+            layout._noUpdate = false;
+            return;
+        }
 
         var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
         var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
@@ -131,15 +139,14 @@ const cfD3Scatter = {
 
         svg.transition().call(zoom.transform, d3.zoomIdentity);
         svg.call(zoom);
+        //svg.call(zoom).call(zoom.transform, d3.zoomIdentity);
 
-        var tip = d3tip()
-            .attr('class', 'd3-tip')
-            .offset([-20, 0])
-            .html(function( d ) {
-                return "<span>"+d.label+"</span>";
-        });
-
-        svg.call(tip);
+       // const tip = d3tip()
+       //     .attr('class', 'd3-tip')
+       //     .offset([-20, 0])
+       //     .html( function(event,d){ return "<span>"+d.label+"</span>"});
+   
+       // svg.call(tip);
 
         //plotArea.append("g")
         //    .style("display","none")
@@ -175,6 +182,34 @@ const cfD3Scatter = {
             .attr( "task-id", function( d ) { return d.taskId; } );
 
         points.exit().remove();
+
+        const line = d3.line()
+            .x( d => xscale( d[xProperty] ))
+            .y( d => yscale( d[yProperty] ));
+
+        if ( layout.groupBy !== undefined ) {
+            const keys = layout.groupBy.map( v => (d => d[v]) );
+            const group = d3.group(pointData, ...keys);
+            const joiningLines = getLines(group);
+            let sortedJoiningLines;
+            if ( layout.orderBy !== undefined ) {
+                sortedJoiningLines = joiningLines.map( d => d3.sort(d, d=>d[layout.orderBy]));
+            } else {
+                sortedJoiningLines = joiningLines.map( d => d3.sort(d, d=>d[xProperty]));
+            }
+            plotArea.selectAll(".joining-line").remove();
+            const lines = plotArea.selectAll(".joining-lines").data(sortedJoiningLines);
+
+            lines.enter()
+                .append( "path" )
+                .attr( "class", "joining-line" )
+                    .attr( "d", d => line(d))
+                    .style( "stroke", "#848484" )    
+                    .style( "fill", "none" )
+                    .style( "stroke-width", "2.5px" )
+                    .attr( "clip-path", "url(#"+clipId+")")
+                    .lower();
+        }
 
         var xAxis = d3.axisBottom( xscale );
         var yAxis = d3.axisLeft( yscale );
@@ -221,7 +256,7 @@ const cfD3Scatter = {
                     .style( "stroke-width", "0px")
                     .style( "fill", function( d ) { return colour( d[ cProperty ] ); } );
             } else {
-                //points.style( "opacity" , 0.2);
+                points.style( "opacity" , 0.2);
                 points.style( "fill" , "#d3d3d3");
                 dbsliceData.highlightTasks.forEach( function (taskId) {
                     points.filter( (d,i) => d.taskId == taskId)
@@ -235,8 +270,8 @@ const cfD3Scatter = {
         }
 
 
-        function zoomed() {
-            var t = d3.event.transform;
+        function zoomed(event) {
+            var t = event.transform;
             xscale.domain(t.rescaleX(xscale0).domain());
             yscale.domain(t.rescaleY(yscale0).domain());
             gX.call(xAxis);
@@ -244,35 +279,52 @@ const cfD3Scatter = {
             plotArea.selectAll(".point")
                 .attr( "cx", function( d ) { return xscale( d[ xProperty ] ); } )
                 .attr( "cy", function( d ) { return yscale( d[ yProperty ] ); } );
+            plotArea.selectAll(".joining-line").attr( "d", d => line(d) );
         }
 
-        function tipOn( d ) {
-            //console.log("mouse on")
-            points.style( "opacity" , 0.2);
-            //points.style( "fill" , "#d3d3d3");
-            d3.select(this)
+        function tipOn( event, d ) {
+            plotArea.selectAll( ".point" ).style( "opacity" , 0.2);
+            let target = d3.select(event.target);
+            target
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
-            let focus = plotArea.select(".focus");
-            focus.attr( "cx" , d3.select(this).attr("cx") )
-                 .attr( "cy" , d3.select(this).attr("cy") );
-            tip.show( d , focus.node() );
-            //tip.show( d );s
+            container.select(".tool-tip")
+                .style("opacity", 1.0)
+                .html("<span>"+d.label+"</span>")
+                .style("left", target.attr("cx")+ "px")
+                .style("top", target.attr("cy") + "px");
+       
             if ( layout.highlightTasks == true ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
+                layout._noUpdate = true;
                 update( dbsliceData.elementId, dbsliceData.session );
             }
         }
 
-        function tipOff() {
-            points.style( "opacity" , opacity );
-            d3.select(this)
+        function tipOff(event, d) {
+            plotArea.selectAll( ".point" ).style( "opacity" , opacity );
+            d3.select(event.target)
                 .attr( "r", 5 );
-            tip.hide();
+            //tip.hide();
+            container.select(".tool-tip").style("opacity", 0.0)
             if ( layout.highlightTasks == true ) {
                 dbsliceData.highlightTasks = [];
                 update( dbsliceData.elementId, dbsliceData.session );
             }
+        }
+        
+        function getLines(map) {
+            let lines=[];
+            map.forEach( d => {
+              if (d instanceof Map) {
+                lines=[...lines,...getLines(d)];
+              } else {
+                if (d.length>1) {
+                  lines.push(d);
+                }
+              }
+            });
+            return lines;          
         }
     }
 };
