@@ -27,6 +27,20 @@
   left: 0;
 }
 
+.tool-tip {
+  position: absolute;
+  text-align: center;
+  box-sizing: border-box;
+  display: inline-block;
+  line-height: 1;
+  padding: 6px;
+  font-size: 12px;
+  background: rgba(100,149,237,0.5);
+  border-radius: 2px;
+  pointer-events: none;
+  color: black;
+}
+
 
 /* Box-icons */
 box-icon {
