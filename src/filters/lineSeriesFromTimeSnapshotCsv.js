@@ -39,7 +39,7 @@ function lineSeriesFromTimeSnapshotCsv( dataText , config ) {
     let data = d3.csvParse(dataTextClean);
 
     if ( config.yProperty !== undefined ) {
-        let nSteps = d3.max(Object.keys(data[0]).filter(d => d !== config.yProperty).map(d => +d));
+        let nSteps = d3.max(Object.keys(data[0]).filter(d => d !== config.yProperty).map(d => +d)) + 1; // first step at t=0
         for ( let iStep=0; iStep<nSteps; iStep++) {
             let line = data.map( d => ({x: +d[iStep], y: +d[config.yProperty] }));
             let label = 'iStep = '+iStep;

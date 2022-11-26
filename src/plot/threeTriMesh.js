@@ -103,7 +103,6 @@ const threeTriMesh = {
 			offsets.push(surfaces);
 		}
 
-
         if (layout.vScale === undefined) {
         	var vScale = [0,1];
         } else {

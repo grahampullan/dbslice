@@ -18,23 +18,6 @@ const d3LineSeries = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-        //let nSteps = 1;
-        //if ( layout.timeSync ){
-        //    nSteps = data.series.length;
-        //}
-        //if ( nSteps > 1 ){
-		//	container.append("input")
-		//		.attr("class", "form-range time-slider")
-		//		.attr("type","range")
-		//		.attr("id","time")
-		//		.attr("name","time")
-		//		.attr("min",0)
-		//		.attr("value",0)
-		//		.attr("max",nSteps-1)
-		//		.attr("step",1);
-		//		//.on( "input change", timeStepSliderChange );
-		//}
-
         var svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
