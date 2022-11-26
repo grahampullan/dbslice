@@ -141,13 +141,13 @@ const threeTriMesh = {
 			div.append("input")
 				.attr("class", "form-range time-slider")
 				.attr("type","range")
-				.attr("id","time")
-				.attr("name","time")
+				//.attr("id","time")
+				//.attr("name","time")
 				.attr("min",0)
 				.attr("value",0)
 				.attr("max",nSteps-1)
 				.attr("step",1)
-				.on( "input change", timeStepSliderChange );
+				.on( "input", timeStepSliderChange );
 		}
 
 		var width = container.node().offsetWidth,
@@ -242,11 +242,11 @@ const threeTriMesh = {
 
 		if ( layout.timeSync ) {
 			let handler = {
-				set: function(target, key, value) {
-					target[key] = value;
+				set: function(target, key, valueset) {
+					target[key] = valueset;
 					if (key = 'iStep') {
-						div.select(".time-slider").attr("value",value);
-						updateSurfaces(value);
+						div.select(".time-slider").node().value = valueset;
+						updateSurfaces(valueset);
 					}
 					return true;
 				}

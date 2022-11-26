@@ -18,6 +18,23 @@ const d3LineSeries = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
+        //let nSteps = 1;
+        //if ( layout.timeSync ){
+        //    nSteps = data.series.length;
+        //}
+        //if ( nSteps > 1 ){
+		//	container.append("input")
+		//		.attr("class", "form-range time-slider")
+		//		.attr("type","range")
+		//		.attr("id","time")
+		//		.attr("name","time")
+		//		.attr("min",0)
+		//		.attr("value",0)
+		//		.attr("max",nSteps-1)
+		//		.attr("step",1);
+		//		//.on( "input change", timeStepSliderChange );
+		//}
+
         var svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
@@ -63,7 +80,7 @@ const d3LineSeries = {
                 lines
                     //.style( "opacity" , 1.0 )
                     .style( "stroke-width", "2.5px" )
-                    .style( "stroke", function( d ) { return colour( d.cKey ); } );   
+                    .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } );   
             } else {
                 lines
                     //.style( "opacity" , 0.2)
@@ -72,7 +89,7 @@ const d3LineSeries = {
                 dbsliceData.highlightTasks.forEach( function (taskId) {
                     lines.filter( (d,i) => d.taskId == taskId)
                         //.style( "opacity" , 1.0)
-                        .style( "stroke", function( d ) { return colour( d.cKey ); } ) 
+                        .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } ) 
                         .style( "stroke-width", "4px" )
                         .each(function() {
                             this.parentNode.parentNode.appendChild(this.parentNode);
@@ -98,14 +115,42 @@ const d3LineSeries = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-        var nseries = data.series.length;
+        var nSeries = data.series.length;
+
+        if ( layout.timeSync ) {
+            let timeSlider = container.select(".time-slider");
+            if ( timeSlider.empty() ) {
+			    container.insert("input",":first-child")
+				    .attr("class", "form-range time-slider")
+				    .attr("type","range")
+
+				    .attr("min",0)
+				    .attr("value",0)
+				    .attr("max",nSeries-1)
+				    .attr("step",1)
+				    .on( "input", timeStepSliderChange );
+                
+                let handler = {
+                    set: function(target, key, valueset) {
+                        target[key] = valueset;
+                        if (key = 'iStep') {
+                            container.select(".time-slider").node().value=valueset;
+                            highlightTimeStep(valueset);
+                        }
+                        return true;
+                    }
+                };
+                let watchedTime = new Proxy({iStep:0}, handler);
+                layout.watchedTime = watchedTime;
+            }
+		}
 
         var xmin = d3.min( data.series[0].data, function(d) { return d.x; } );
         var xmax = d3.max( data.series[0].data, function(d) { return d.x; } );
         var ymin = d3.min( data.series[0].data, function(d) { return d.y; } );
         var ymax = d3.max( data.series[0].data, function(d) { return d.y; } );
 
-        for (var n = 1; n < nseries; ++n) {
+        for (var n = 1; n < nSeries; ++n) {
             var xminNow =  d3.min( data.series[n].data, function(d) { return d.x; } );
             ( xminNow < xmin ) ? xmin = xminNow : xmin = xmin;
             var xmaxNow =  d3.max( data.series[n].data, function(d) { return d.x; } );
@@ -206,7 +251,7 @@ const d3LineSeries = {
                     .append( "path" )
                         .attr( "class", "line" )
                         .attr( "d", function( d ) { return line( d.data ); } )
-                        .style( "stroke", function( d ) { return colour( d.cKey ); } )    
+                        .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )    
                         .style( "fill", "none" )
                         .style( "stroke-width", "2.5px" )
                         .attr( "clip-path", "url(#clip)")
@@ -219,7 +264,7 @@ const d3LineSeries = {
             var seriesLine = series.select( "path.line" );
             seriesLine.transition()
                 .attr( "d", function( d ) { return line( d.data ); } )
-                .style( "stroke", function( d ) { return colour( d.cKey ); } )  ;
+                .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )  ;
         } );
 
         allSeries.exit().remove();
@@ -261,6 +306,39 @@ const d3LineSeries = {
             gY.transition().call( yAxis );
         }
 
+        if ( layout.timeSync ) {
+            highlightTimeStep(0);
+        }
+
+        function highlightTimeStep(iStep) {
+            let lines = plotArea.selectAll(".line");
+            lines
+                .style( "stroke" , "#d3d3d3")
+                .style( "stroke-width", "2.5px" );
+            let currentLine = lines.filter( d => d.taskId == iStep);
+            currentLine
+                .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; })
+                .style( "stroke-width", "4px" )
+                .each(function() {
+                    this.parentNode.parentNode.appendChild(this.parentNode);
+                });
+        }
+
+        function timeStepSliderChange() {
+			let iStep = this.value;
+			if ( layout.timeSync ) {
+				let plotRowIndex = container.attr("plot-row-index");
+				let plotIndex = container.attr("plot-index");
+				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
+				plots.forEach( (plot, indx) =>  {
+					if (indx != plotIndex) {
+						plot.layout.watchedTime.iStep = iStep;
+					}
+				});
+			}
+			highlightTimeStep(iStep);
+		}
+
         function zoomed() {
             var t = d3.event.transform;
             xscale.domain(t.rescaleX(xscale0).domain());
@@ -271,27 +349,45 @@ const d3LineSeries = {
         }
 
         function tipOn( d ) {
-            lines.style( "opacity" , 0.2);
+            let lines = plotArea.selectAll(".line");
+            lines.style( "stroke" , "#d3d3d3");
             d3.select(this)
-                .style( "opacity" , 1.0)
-                .style( "stroke-width", "4px" );
+                .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; })
+                .style( "stroke-width", "4px" )
+                .each(function() {
+                    this.parentNode.parentNode.appendChild(this.parentNode);
+                });
             let focus = plotArea.select(".focus");
             focus
                 .attr( "cx" , d3.mouse(this)[0] )
                 .attr( "cy" , d3.mouse(this)[1] );
             tip.show( d , focus.node() );
-            if ( layout.highlightTasks == true ) {
+            if ( layout.highlightTasks ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
                 update( dbsliceData.elementId, dbsliceData.session );
+            }
+            if ( layout.timeSync ) {
+                container.select(".time-slider").node().value = d.taskId;
+                let plotRowIndex = container.attr("plot-row-index");
+				let plotIndex = container.attr("plot-index");
+				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
+				plots.forEach( (plot, indx) =>  {
+					if (indx != plotIndex) {
+						plot.layout.watchedTime.iStep = d.taskId;
+					}
+				});
             }
         }
 
         function tipOff() {
-            lines.style( "opacity" , 1.0);
-            d3.select(this)
-                .style( "stroke-width", "2.5px" );
+            if ( !layout.timeSync ) {
+                let lines = plotArea.selectAll(".line");
+                lines
+                    .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; })
+                    .style( "stroke-width", "2.5px" );
+            }
             tip.hide();
-            if ( layout.highlightTasks == true ) {
+            if ( layout.highlightTasks ) {
                 dbsliceData.highlightTasks = [];
                 update( dbsliceData.elementId, dbsliceData.session );
             }
