@@ -9,7 +9,7 @@ function lineSeriesFromCsv( rawData , tasks, config ) {
 
         let dataTextLines = dataText.split("\n");
 
-        if ( config.skipFirstLine == true ) {
+        if ( config.skipFirstLine ) {
             dataTextLines = dataTextLines.slice(1);
         }
 
@@ -35,8 +35,14 @@ function lineSeriesFromCsv( rawData , tasks, config ) {
             dataTextLines = dataTextLines.slice(nSlice);
         }
 
-        dataTextLines[0] = dataTextLines[0].split(",").map(d => d.trim() ).join();
-        let dataTextClean = dataTextLines.join("\n");
+        let dataTextClean;
+
+        if ( config.spaceSeparated ) {
+            dataTextClean = dataTextLines.map(l => l.split(" ").filter(d => d.length>0).join()).join("\n");
+        } else {
+            dataTextLines[0] = dataTextLines[0].split(",").map(d => d.trim() ).join();
+            dataTextClean = dataTextLines.join("\n")
+        }
 
         let data = d3.csvParse(dataTextClean);
 
