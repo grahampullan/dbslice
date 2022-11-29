@@ -272,7 +272,7 @@ const threeTriMesh = {
 				let plotIndex = container.attr("plot-index");
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 				plots.forEach( (plot, indx) =>  {
-					if (indx != plotIndex) {
+					if (indx != plotIndex && plot.layout.watchedCamera !== undefined) {
 						plot.layout.watchedCamera.position = camera.position;
 						plot.layout.watchedCamera.rotation = camera.rotation;
 					}
