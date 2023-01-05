@@ -46,9 +46,23 @@ async function start( elementId, session ) {
             session.metaData.data.forEach( (d, index ) => {
                 let taskId = session.taskIdRoot + f(index);
                 session.metaData.data[index] = {...d, taskId:taskId};
-                if (session.setLabelsToTaskIds) {
-                    session.metaData.data[index] = {...d, taskId:taskId, label:taskId};
-                }
+            });
+        }
+
+        if ( session.setLabelsToTaskIds ) {
+            session.metaData.data.forEach( (d, index) => {
+                session.metaData.data[index] = {...d, label:d.taskId};
+            });
+        }
+
+        if ( session.generateLabelsFromMetaData != undefined ) {
+            session.metaData.data.forEach( (d, index) => {
+                let label="";
+                session.generateLabelsFromMetaData.forEach( k => {
+                    label += d[k] + "; "
+                });
+                label = label.slice(0,-2);
+                session.metaData.data[index] = {...d, label:label};
             });
         }
         
