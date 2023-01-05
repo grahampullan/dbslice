@@ -4,6 +4,7 @@ import { cfD3Histogram } from './cfD3Histogram.js';
 import { cfD3Scatter } from './cfD3Scatter.js';
 import { cfD3ResSurfScatter } from './cfD3ResSurfScatter.js';
 import { cfD3ResSurfContour } from './cfD3ResSurfContour.js';
+import { cfD3GroupedVertBarChart } from './cfD3GroupedVertBarChart.js';
 import { cfLeafletMapWithMarkers } from './cfLeafletMapWithMarkers.js';
 import { d3ContourStruct2d } from './d3ContourStruct2d.js';
 import { d3CutLine } from './d3CutLine.js';
@@ -24,6 +25,7 @@ function getPlotFunc(plotType) {
         'cfD3Scatter'             : cfD3Scatter ,
         'cfD3ResSurfScatter'      : cfD3ResSurfScatter ,
         'cfD3ResSurfContour'      : cfD3ResSurfContour ,
+        'cfD3GroupedVertBarChart' : cfD3GroupedVertBarChart ,
         'cfLeafletMapWithMarkers' : cfLeafletMapWithMarkers ,
         'd3ContourStruct2d'       : d3ContourStruct2d ,
         'd3CutLine'               : d3CutLine ,
