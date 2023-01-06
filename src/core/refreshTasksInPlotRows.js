@@ -9,8 +9,6 @@ function refreshTasksInPlotRows() {
 
 	var plotRows = dbsliceData.session.plotRows;
 
-	var plotRowPromises = [];
-
 	plotRows.forEach( function( plotRow ) {
 
 		if (plotRow.ctrl !== undefined ) {
@@ -32,15 +30,11 @@ function refreshTasksInPlotRows() {
 
 				}
 
-				var plotRowPromise = makePlotsFromPlotRowCtrl( ctrl ).then( function ( plots ){
-					plotRow.plots = plots;
-					plotRow.plots.forEach( (plot) => {
-						++plotRow._maxPlotId;
-						plot._id = plotRow._maxPlotId;
-					} );
-				});
-
-				plotRowPromises.push( plotRowPromise );
+				plotRow.plots = makePlotsFromPlotRowCtrl( ctrl );
+				plotRow.plots.forEach( (plot) => {
+					++plotRow._maxPlotId;
+					plot._id = plotRow._maxPlotId;
+				} );
 
 			}
 
@@ -48,15 +42,9 @@ function refreshTasksInPlotRows() {
 
 	});
 
-	Promise.all( plotRowPromises ).then( function() {
-
-		update( dbsliceData.elementId, dbsliceData.session );
-		dbsliceData.fetchDataIsRequested = false;
-
-	});
-
-
-
+	update();
+	dbsliceData.fetchDataIsRequested = false;
+	
 }
 
 export { refreshTasksInPlotRows };
