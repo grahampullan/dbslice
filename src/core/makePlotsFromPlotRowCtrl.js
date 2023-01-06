@@ -1,8 +1,21 @@
+import { dbsliceData } from '../core/dbsliceData.js';
+import * as d3 from 'd3v7';
+
 function makePlotsFromPlotRowCtrl( ctrl ) {
+
+    const fetchDataDefaults = {};
+    if ( ctrl.csv !== undefined ) fetchDataDefaults.csv = ctrl.csv;
+    if ( ctrl.text !== undefined ) fetchDataDefaults.text = ctrl.text;
+    if ( ctrl.buffer !== undefined ) fetchDataDefaults.buffer = ctrl.buffer;
+    if ( ctrl.dataFilterFunc !== undefined ) fetchDataDefaults.dataFilterFunc = ctrl.dataFilterFunc;
+    if ( ctrl.formatDataFunc !== undefined ) fetchDataDefaults.formatDataFunc = ctrl.formatDataFunc;
+    if ( ctrl.dataFilterType !== undefined ) fetchDataDefaults.dataFilterType = ctrl.dataFilterType;
+    if ( ctrl.dataFilterConfig !== undefined ) fetchDataDefaults.dataFilterConfig = ctrl.dataFilterConfig;
+    if ( ctrl.tasksByFilter !== undefined ) fetchDataDefaults.tasksByFilter = ctrl.tasksByFilter;
 
     const plots = [];
 
-	if ( ctrl.sliceIds === undefined ) {
+	if ( ctrl.sliceIds === undefined && ctrl.groupBy === undefined ) {
 
         // generate one plot per task
 
@@ -27,34 +40,26 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
             plot.plotFunc = ctrl.plotFunc;
             plot.plotType = ctrl.plotType;
             plot.layout = Object.assign( {}, ctrl.layout );
-            plot.layout.title = ctrl.taskLabels[ index ];
+            plot.layout.title = ctrl.taskLabels[ index ]; 
             plot.layout.taskId = ctrl.taskIds[ index ];
             plot.layout.newData = true;
 
             if ( url !== undefined ) {
 
-                let fetchData = {};
-                fetchData.url = url;
-                if ( ctrl.csv !== undefined ) fetchData.csv = ctrl.csv;
-                if ( ctrl.text !== undefined ) fetchData.text = ctrl.text;
-                if ( ctrl.buffer !== undefined ) fetchData.buffer = ctrl.buffer;
-                if ( ctrl.dataFilterFunc !== undefined ) fetchData.dataFilterFunc = ctrl.dataFilterFunc;
-                if ( ctrl.formatDataFunc !== undefined ) fetchData.formatDataFunc = ctrl.formatDataFunc;
-                if ( ctrl.dataFilterType !== undefined ) fetchData.dataFilterType = ctrl.dataFilterType;
-                if ( ctrl.dataFilterConfig !== undefined ) fetchData.dataFilterConfig = ctrl.dataFilterConfig;
-                plot.fetchData = fetchData;
+                plot.fetchData = Object.assign( {}, fetchDataDefaults);
+                plot.fetchData.url = url;
+
             }
 
             plots.push(plot);
 
         }
 
-    } else {
+    } 
+    
+    if ( ctrl.sliceIds !== undefined) {
 
         // generate one plot per slice 
-
-        let nTasks = ctrl.taskIds.length;
-		if ( ctrl.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.maxTasks );
 
     	ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
 
@@ -69,17 +74,9 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
             if ( urlTemplate !== undefined ) {
 
-                let fetchData = {};
-                fetchData.urlTemplate = urlTemplate;
-                if ( ctrl.csv !== undefined ) fetchData.csv = ctrl.csv;
-                if ( ctrl.text !== undefined ) fetchData.text = ctrl.text;
-                if ( ctrl.buffer !== undefined ) fetchData.buffer = ctrl.buffer;
-                if ( ctrl.dataFilterFunc !== undefined ) fetchData.dataFilterFunc = ctrl.dataFilterFunc;
-                if ( ctrl.formatDataFunc !== undefined ) fetchData.formatDataFunc = ctrl.formatDataFunc;
-                if ( ctrl.dataFilterType !== undefined ) fetchData.dataFilterType = ctrl.dataFilterType;
-                if ( ctrl.dataFilterConfig !== undefined ) fetchData.dataFilterConfig = ctrl.dataFilterConfig;
-                if ( ctrl.tasksByFilter !== undefined ) fetchData.tasksByFilter = ctrl.tasksByFilter;
-                plot.fetchData = fetchData;
+                plot.fetchData = Object.assign( {}, fetchDataDefaults);
+                plot.fetchData.urlTemplate = urlTemplate;
+
             }
 
             if (ctrl.layout.xRange !== undefined) {
@@ -115,6 +112,47 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
             plots.push(plot);
 
     	});
+    }
+
+    if ( ctrl.groupBy !== undefined ) {
+
+        // generate one plot per group
+
+        let cfData = dbsliceData.session.cfData
+        let dimId = cfData.metaDataProperties.indexOf( ctrl.groupBy );
+        let metaDataInFilter = cfData.metaDims[dimId].top( Infinity );
+        let metaDataInFilterGrouped = d3.groups( metaDataInFilter, d => d[ctrl.groupBy]).sort( (a,b) => d3.ascending(a[0],b[0]) );
+        let groups = metaDataInFilterGrouped.map( d => d[0] );
+
+        groups.forEach( group => {
+
+            let plot = {};
+
+            plot.plotFunc = ctrl.plotFunc;
+            plot.plotType = ctrl.plotType;
+            plot.layout = Object.assign( {}, ctrl.layout );
+            plot.layout.title = group;
+            plot.layout.filterBy = {}; 
+            plot.layout.filterBy[ctrl.groupBy] = group;
+            plot.layout.newData = true;
+
+            if ( ctrl.urlTemplate !== undefined ) {
+
+                plot.fetchData = Object.assign( {}, fetchDataDefaults);
+                plot.fetchData.urlTemplate = ctrl.urlTemplate;                
+
+            }
+
+            if ( ctrl.data !== undefined ) {
+
+                plot.data = Object.assign( {}, ctrl.data);
+
+            }
+
+            plots.push(plot);
+
+        })
+
     }
 
 	return plots;
