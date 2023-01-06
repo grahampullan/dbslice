@@ -1,296 +1,123 @@
-import { getDataFilterFunc } from '../filters/getDataFilterFunc.js';
-import * as d3 from 'd3';
-
 function makePlotsFromPlotRowCtrl( ctrl ) {
 
-	var plotPromises = [];
-
-	var slicePromises = [];
+    const plots = [];
 
 	if ( ctrl.sliceIds === undefined ) {
 
-		var nTasks = ctrl.taskIds.length;
+        // generate one plot per task
 
+		let nTasks = ctrl.taskIds.length;
 		if ( ctrl.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.maxTasks );
 
-		for ( var index = 0; index < nTasks; ++index ) {
+		for ( let index = 0; index < nTasks; ++index ) {
 
-			if ( ctrl.urlTemplate == null ) {
+            let url;
 
-				var url = ctrl.taskIds[ index ];
+			if ( ctrl.urlTemplate == null && ctrl.useTaskIdAsUrl) {
+
+				url = ctrl.taskIds[ index ];
 
 			} else {
 
-				var url = ctrl.urlTemplate.replace( "${taskId}", ctrl.taskIds[ index ] );
+				url = ctrl.urlTemplate.replace( "${taskId}", ctrl.taskIds[ index ] );
 
 			}
 
-			var title = ctrl.taskLabels[ index ];
+            let plot = {};
+            plot.plotFunc = ctrl.plotFunc;
+            plot.plotType = ctrl.plotType;
+            plot.layout = Object.assign( {}, ctrl.layout );
+            plot.layout.title = ctrl.taskLabels[ index ];
+            plot.layout.taskId = ctrl.taskIds[ index ];
+            plot.layout.newData = true;
 
-       		var plotPromise = makePromiseTaskPlot( ctrl, url, title, ctrl.taskIds[ index ] ); 
+            if ( url !== undefined ) {
 
-        	plotPromises.push( plotPromise );
+                let fetchData = {};
+                fetchData.url = url;
+                if ( ctrl.csv !== undefined ) fetchData.csv = ctrl.csv;
+                if ( ctrl.text !== undefined ) fetchData.text = ctrl.text;
+                if ( ctrl.buffer !== undefined ) fetchData.buffer = ctrl.buffer;
+                if ( ctrl.dataFilterFunc !== undefined ) fetchData.dataFilterFunc = ctrl.dataFilterFunc;
+                if ( ctrl.formatDataFunc !== undefined ) fetchData.formatDataFunc = ctrl.formatDataFunc;
+                if ( ctrl.dataFilterType !== undefined ) fetchData.dataFilterType = ctrl.dataFilterType;
+                if ( ctrl.dataFilterConfig !== undefined ) fetchData.dataFilterConfig = ctrl.dataFilterConfig;
+                plot.fetchData = fetchData;
+            }
+
+            plots.push(plot);
 
         }
 
     } else {
 
+        // generate one plot per slice 
+
+        let nTasks = ctrl.taskIds.length;
+		if ( ctrl.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.maxTasks );
+
     	ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
 
-    		var plotPromise = makePromiseSlicePlot ( ctrl, sliceId, sliceIndex );
+            let urlTemplate = ctrl.urlTemplate.replace( "${sliceId}", sliceId );
 
-    		plotPromises.push( plotPromise );
+            let plot = {};
+            plot.plotFunc = ctrl.plotFunc;
+            plot.plotType = ctrl.plotType;
+            plot.layout = Object.assign( {}, ctrl.layout );
+            plot.layout.title = sliceId;
+            plot.layout.newData = true;
+
+            if ( urlTemplate !== undefined ) {
+
+                let fetchData = {};
+                fetchData.urlTemplate = urlTemplate;
+                if ( ctrl.csv !== undefined ) fetchData.csv = ctrl.csv;
+                if ( ctrl.text !== undefined ) fetchData.text = ctrl.text;
+                if ( ctrl.buffer !== undefined ) fetchData.buffer = ctrl.buffer;
+                if ( ctrl.dataFilterFunc !== undefined ) fetchData.dataFilterFunc = ctrl.dataFilterFunc;
+                if ( ctrl.formatDataFunc !== undefined ) fetchData.formatDataFunc = ctrl.formatDataFunc;
+                if ( ctrl.dataFilterType !== undefined ) fetchData.dataFilterType = ctrl.dataFilterType;
+                if ( ctrl.dataFilterConfig !== undefined ) fetchData.dataFilterConfig = ctrl.dataFilterConfig;
+                if ( ctrl.tasksByFilter !== undefined ) fetchData.tasksByFilter = ctrl.tasksByFilter;
+                plot.fetchData = fetchData;
+            }
+
+            if (ctrl.layout.xRange !== undefined) {
+                if (ctrl.layout.xRange[1].length !== undefined) {
+                    plot.layout.xRange = ctrl.layout.xRange[sliceIndex];
+                }
+            }
+    
+            if (ctrl.layout.yRange !== undefined) {
+                if (ctrl.layout.yRange[1].length !== undefined) {    
+                    plot.layout.yRange = ctrl.layout.yRange[sliceIndex];    
+                }    
+            }
+    
+            if (ctrl.layout.xAxisLabel !== undefined) {    
+                if ( Array.isArray(ctrl.layout.xAxisLabel) ) {    
+                    plot.layout.xAxisLabel = ctrl.layout.xAxisLabel[sliceIndex];    
+                }    
+            }
+    
+            if (ctrl.layout.yAxisLabel !== undefined) {    
+                if ( Array.isArray(ctrl.layout.yAxisLabel) ) {    
+                    plot.layout.yAxisLabel = ctrl.layout.yAxisLabel[sliceIndex];    
+                }    
+            }
+    
+            if (ctrl.layout.title !== undefined) {    
+                if ( Array.isArray(ctrl.layout.title) ) {    
+                    plot.layout.title = ctrl.layout.title[sliceIndex];    
+                }    
+            }
+
+            plots.push(plot);
 
     	});
     }
 
-	return Promise.all(plotPromises);
-
-}
-
-
-function makePromiseTaskPlot( ctrl, url, title, taskId ) { 
-
-	return fetch(url)
-
-	.then(function( response ) {
-
-        if ( ctrl.csv === undefined && ctrl.text === undefined && ctrl.buffer === undefined ) {
-
-            return response.json();
-
-        }
-
-        if ( ctrl.csv == true || ctrl.text == true ) {
-
-            return response.text() ;
-
-        }
-
-        if ( ctrl.buffer == true ) {
-
-            return response.arrayBuffer() ;
-
-        }
-
-    })
-
-    .then(function( responseJson ) {
-
-        if ( ctrl.csv == true ) {
-
-            responseJson = d3.csvParse( responseJson );
-
-        }
-
-    	var plot = {};
-        
-        let dataFilterFunc;
-
-        if (ctrl.dataFilterFunc !== undefined) {
-
-            dataFilterFunc = ctrl.dataFilterFunc;
-
-        }
-
-        if (ctrl.formatDataFunc !== undefined) {
-
-            dataFilterFunc = ctrl.formatDataFunc;
-            
-        }
-
-        if (ctrl.dataFilterType !== undefined) {
-
-            dataFilterFunc = getDataFilterFunc(ctrl.dataFilterType);
-
-        }
-
-    	if (dataFilterFunc !== undefined ) {
-
-    		plot.data = dataFilterFunc( responseJson, taskId, ctrl.dataFilterConfig ); 
-
-    	} else {
-
-    		plot.data = responseJson;
-
-        }
-
-        plot.layout = Object.assign( {}, ctrl.layout );
-
-        plot.plotFunc = ctrl.plotFunc;
-        plot.plotType = ctrl.plotType;
-
-        plot.layout.title = title;
-
-        plot.layout.taskId = taskId;
-
-        plot.layout.newData = true;
-
-        return plot;
-
-    } );
-
-}
-
-function makePromiseSlicePlot( ctrl, sliceId, sliceIndex ) {
-
-	var slicePromisesPerPlot = [];
-    var tasksOnPlot = [];
-
-	var nTasks = ctrl.taskIds.length;
-
-	if ( ctrl.maxTasks !== undefined ) Math.min( nTasks, ctrl.maxTasks );
-
-	for ( var index = 0; index < nTasks; ++index ) {
-
-        tasksOnPlot.push( ctrl.taskIds[index] );
-
-		var url = ctrl.urlTemplate
-			.replace( "${taskId}", ctrl.taskIds[ index ] )
-			.replace( "${sliceId}", sliceId );
-
-            //console.log(url);
-
-			var slicePromise = fetch(url).then( function( response ) {
-
-				if ( ctrl.csv === undefined && ctrl.text === undefined && ctrl.buffer === undefined ) {
-
-                    return response.json();
-
-                }
-
-                if ( ctrl.csv == true || ctrl.text == true ) {
-
-                    return response.text() ;
-
-                }
-
-			});
-
-		slicePromisesPerPlot.push( slicePromise );
-
-	}
-
-    // slicePromises.push( slicePromisesPerPlot );
-
-    return Promise.all( slicePromisesPerPlot ).then( function ( responseJson ) {
-
-        if ( ctrl.csv == true ) {
-
-            var responseCsv = [];
-
-            responseJson.forEach( function(d) {
-
-                responseCsv.push( d3.csvParse(d) );
-
-            });
-
-            responseJson = responseCsv;
-
-        }
-
-    	var plot = {};
-
-        let dataFilterFunc;
-
-        if (ctrl.dataFilterFunc !== undefined) {
-
-            dataFilterFunc = ctrl.dataFilterFunc;
-
-        }
-
-        if (ctrl.formatDataFunc !== undefined) {
-
-            dataFilterFunc = ctrl.formatDataFunc;
-            
-        }
-
-        if (ctrl.dataFilterType !== undefined) {
-
-            dataFilterFunc = getDataFilterFunc(ctrl.dataFilterType);
-
-        }
-
-    	if (dataFilterFunc !== undefined ) {
-
-            let dataFilterConfig = ctrl.dataFilterConfig;
-
-            if ( Array.isArray (dataFilterConfig) ) {
-
-                dataFilterConfig = dataFilterConfig[sliceIndex];
-
-            }
-
-    		plot.data = dataFilterFunc( responseJson, tasksOnPlot, dataFilterConfig );
-
-    	} else {
-
-    		plot.data = responseJson;
-
-    	}
-
-    	plot.layout = Object.assign({}, ctrl.layout);
-
-        plot.layout.title = sliceId;
-
-        if (ctrl.layout.xRange !== undefined) {
-
-            if (ctrl.layout.xRange[1].length !== undefined) {
-
-                plot.layout.xRange = ctrl.layout.xRange[sliceIndex];
-
-            }
-
-        }
-
-        if (ctrl.layout.yRange !== undefined) {
-
-            if (ctrl.layout.yRange[1].length !== undefined) {
-
-                plot.layout.yRange = ctrl.layout.yRange[sliceIndex];
-
-            }
-
-        }
-
-        if (ctrl.layout.xAxisLabel !== undefined) {
-
-            if ( Array.isArray(ctrl.layout.xAxisLabel) ) {
-
-                plot.layout.xAxisLabel = ctrl.layout.xAxisLabel[sliceIndex];
-
-            }
-
-        }
-
-        if (ctrl.layout.yAxisLabel !== undefined) {
-
-            if ( Array.isArray(ctrl.layout.yAxisLabel) ) {
-
-                plot.layout.yAxisLabel = ctrl.layout.yAxisLabel[sliceIndex];
-
-            }
-
-        }
-
-        if (ctrl.layout.title !== undefined) {
-
-            if ( Array.isArray(ctrl.layout.title) ) {
-
-                plot.layout.title = ctrl.layout.title[sliceIndex];
-
-            }
-
-        }
-
-    	plot.plotFunc = ctrl.plotFunc;
-        plot.plotType = ctrl.plotType;
-
-    	plot.layout.newData = true;
-
-    	return plot;
-
-    });
+	return plots;
 
 }
 
