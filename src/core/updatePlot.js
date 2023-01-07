@@ -12,11 +12,12 @@ function updatePlot( plotData, index ) {
 		plotFunc = getPlotFunc(plotData.plotType); 
 	}
 
-    if (  (plotData.fetchData !== undefined && dbsliceData.fetchDataIsRequested )  ||
+    if (  (plotData.fetchData !== undefined && plotData.fetchData._fetchNow )  ||
 		(plotData.fetchData !== undefined && plotData.fetchData.autoFetchOnFilterChange && dbsliceData.allowAutoFetch) ){
 		fetchPlotData(plotData.fetchData).then( (data) => {
 			plotData.data = data;
             plotData.layout.newData = true;
+			plotData.fetchData._fetchNow = false;
 			plotFunc.update(plot.node(),plotData.data,plotData.layout);
 		})
 	} else {

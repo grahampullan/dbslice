@@ -314,7 +314,7 @@ const cfD3Histogram = {
 
             function brushend() {
                 dbsliceData.allowAutoFetch = true;
-                if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
+                if ( !brushInit) refreshTasksInPlotRows( true );
                 dbsliceData.allowAutoFetch = false;
             }
         }
