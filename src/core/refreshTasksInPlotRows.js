@@ -3,9 +3,7 @@ import { update } from './update.js';
 import { makePlotsFromPlotRowCtrl } from './makePlotsFromPlotRowCtrl.js';
 
 
-function refreshTasksInPlotRows() {
-
-	dbsliceData.fetchDataIsRequested = true;
+function refreshTasksInPlotRows( allowAutoFetch = false ) {
 
 	var plotRows = dbsliceData.session.plotRows;
 
@@ -15,27 +13,33 @@ function refreshTasksInPlotRows() {
 
 			var ctrl = plotRow.ctrl;
 
-			if (ctrl.plotFunc !== undefined || ctrl.plotType !== undefined ) {
+			if ( !allowAutoFetch || ( allowAutoFetch && ctrl.autoFetchOnFilterChange )) {
 
-				if ( ctrl.tasksByFilter ) {
+				if (ctrl.plotFunc !== undefined || ctrl.plotType !== undefined ) {
 
-					ctrl.taskIds = dbsliceData.filteredTaskIds;
-					ctrl.taskLabels = dbsliceData.filteredTaskLabels;
+					if ( ctrl.tasksByFilter ) {
+
+						ctrl.taskIds = dbsliceData.filteredTaskIds;
+						ctrl.taskLabels = dbsliceData.filteredTaskLabels;
 					
+					}
+
+					if ( ctrl.tasksByList ) {
+
+						ctrl.taskIds = dbsliceData.manualListTaskIds;
+
+					}
+
+					plotRow.plots = makePlotsFromPlotRowCtrl( ctrl );
+					plotRow.plots.forEach( (plot) => {
+						++plotRow._maxPlotId;
+						plot._id = plotRow._maxPlotId;
+						if ( plot.fetchData !== undefined ) {
+							plot.fetchData._fetchNow = true;
+						}
+					} );
+
 				}
-
-				if ( ctrl.tasksByList ) {
-
-					ctrl.taskIds = dbsliceData.manualListTaskIds;
-
-				}
-
-				plotRow.plots = makePlotsFromPlotRowCtrl( ctrl );
-				plotRow.plots.forEach( (plot) => {
-					++plotRow._maxPlotId;
-					plot._id = plotRow._maxPlotId;
-				} );
-
 			}
 
 		}
@@ -43,7 +47,6 @@ function refreshTasksInPlotRows() {
 	});
 
 	update();
-	dbsliceData.fetchDataIsRequested = false;
 	
 }
 

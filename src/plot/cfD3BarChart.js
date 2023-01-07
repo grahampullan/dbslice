@@ -1,5 +1,6 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
-import { update } from '../core/update.js';
+import { refreshTasksInPlotRows } from '../core/refreshTasksInPlotRows.js';
+//import { update } from '../core/update.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import * as d3 from 'd3';
 
@@ -148,7 +149,7 @@ const cfD3BarChart = {
 
                 cfUpdateFilters(cfData);
                 dbsliceData.allowAutoFetch = true;
-                update( dbsliceData.elementId , dbsliceData.session );
+                refreshTasksInPlotRows( true );
                 dbsliceData.allowAutoFetch = false;
 
             })

@@ -93,8 +93,10 @@ const cfD3GroupedVertBarChart = {
             var yMin = d3.min( barDataFlat, d => d[ yProperty ] );
             var yMax = d3.max( barDataFlat, d => d[ yProperty ] );
             var yDiff = yMax - yMin;
-            yMin -= 0.1 * yDiff;
-            yMax += 0.1 * yDiff;
+            if ( yMin > 0. && yMax > 0.) yMin = 0.
+            if ( yMin < 0. && yMax < 0.) yMax = 0.
+            //yMin -= 0.1 * yDiff;
+            //yMax += 0.1 * yDiff;
             var yRange = [yMin, yMax];
         } else {
             var yRange = layout.yRange;
