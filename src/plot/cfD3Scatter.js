@@ -17,7 +17,7 @@ const cfD3Scatter = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-        var dimId = dbsliceData.session.cfData.dataProperties.indexOf( data.xProperty );
+        var dimId = dbsliceData.session.cfData.continuousProperties.indexOf( data.xProperty );
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -70,7 +70,7 @@ const cfD3Scatter = {
         var cProperty = data.cProperty;
 
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.dataDims[ dimId ];
+        var dim = cfData.continuousDims[ dimId ];
         var pointData = dim.top( Infinity );
 
         //console.log(pointData);
@@ -114,7 +114,7 @@ const cfD3Scatter = {
             .domain( yRange );
 
         var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
-        colour.domain( cfData.metaDataUniqueValues[ cProperty ] );
+        colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
 
         var opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
 

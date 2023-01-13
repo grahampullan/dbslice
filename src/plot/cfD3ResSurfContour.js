@@ -21,7 +21,7 @@ const cfD3ResSurfContour = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-        var dimId = dbsliceData.session.cfData.dataProperties.indexOf( data.xProperty );
+        var dimId = dbsliceData.session.cfData.continuousProperties.indexOf( data.xProperty );
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -66,7 +66,7 @@ const cfD3ResSurfContour = {
         const cProperty = data.cProperty;
 
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.dataDims[ dimId ];
+        var dim = cfData.continuousDims[ dimId ];
         var pointData = dim.top( Infinity );
 
         const Amat = [];
@@ -120,7 +120,7 @@ const cfD3ResSurfContour = {
             var vMax = vRange[1];
         }
 
-        if ( cfData.dataProperties.includes(cProperty) ) {
+        if ( cfData.continuousProperties.includes(cProperty) ) {
             if ( layout.cRange === undefined) {
                 var cMin = d3.min( pointData, d => d[cProperty]  );
                 var cMax = d3.max( pointData, d => d[cProperty]  );
@@ -173,12 +173,12 @@ const cfD3ResSurfContour = {
             .domain( yRange );
         
         let colourPoints;
-        if ( cfData.metaDataProperties.includes(cProperty) ) {
+        if ( cfData.categoricalProperties.includes(cProperty) ) {
             colourPoints = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
-            colourPoints.domain( cfData.metaDataUniqueValues[ cProperty ] );
+            colourPoints.domain( cfData.categoricalUniqueValues[ cProperty ] );
         }
 
-        if ( cfData.dataProperties.includes(cProperty) ) {
+        if ( cfData.continuousProperties.includes(cProperty) ) {
             colourPoints = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
             colourPoints.domain( [cMin, cMax ] );
         }

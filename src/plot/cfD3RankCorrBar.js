@@ -19,7 +19,7 @@ const cfD3RankCorrBar = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-        var dimId = dbsliceData.session.cfData.dataProperties.indexOf( data.outputProperty );
+        var dimId = dbsliceData.session.cfData.continuousProperties.indexOf( data.outputProperty );
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -54,7 +54,7 @@ const cfD3RankCorrBar = {
         var dimId = plotArea.attr("dimId");
 
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.dataDims[ dimId ];
+        var dim = cfData.continuousDims[ dimId ];
         var pointData = dim.top( Infinity );
 
         var bars = plotArea.selectAll("rect");

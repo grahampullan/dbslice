@@ -5,35 +5,35 @@ function cfInit( metaData ) {
 
 	var cfData = {};
 
-	cfData.metaDataProperties = metaData.header.metaDataProperties;
+	cfData.categoricalProperties = metaData.header.categoricalProperties;
 
-	cfData.dataProperties = metaData.header.dataProperties;
+	cfData.continuousProperties = metaData.header.continuousProperties;
 
     cfData.cf = crossfilter( metaData.data );
 
-    cfData.metaDims = [];
+    cfData.categoricalDims = [];
 
-    cfData.metaDataUniqueValues = {};
+    cfData.categoricalUniqueValues = {};
 
-    cfData.metaDataProperties.forEach( ( property, i ) => {
+    cfData.categoricalProperties.forEach( ( property, i ) => {
 
-    	cfData.metaDims.push( cfData.cf.dimension( d => d[ property ] ) );
+    	cfData.categoricalDims.push( cfData.cf.dimension( d => d[ property ] ) );
 
-        cfData.metaDataUniqueValues[property] = Array.from( new Set(metaData.data.map( d => d[property]) ) );
-
-    } );
-
-    cfData.metaDims.forEach( dim => dim.filterAll() );
-
-    cfData.dataDims = [];
-
-    cfData.dataProperties.forEach( ( property, i ) => {
-
-    	cfData.dataDims.push ( cfData.cf.dimension( d => d[ property ] ) );
+        cfData.categoricalUniqueValues[property] = Array.from( new Set(metaData.data.map( d => d[property]) ) );
 
     } );
 
-    cfData.dataDims.forEach( dim => dim.filterAll() );
+    cfData.categoricalDims.forEach( dim => dim.filterAll() );
+
+    cfData.continuousDims = [];
+
+    cfData.continuousProperties.forEach( ( property, i ) => {
+
+    	cfData.continuousDims.push ( cfData.cf.dimension( d => d[ property ] ) );
+
+    } );
+
+    cfData.continuousDims.forEach( dim => dim.filterAll() );
 
     cfData.filterSelected = [];
 

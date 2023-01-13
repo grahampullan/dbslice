@@ -51,6 +51,7 @@ let modalTemplate = `
 var dataProperties = ["Average f", "Std dev f"];
 var metaDataProperties = ["Simulation type", "Model type"];
 
+/*
 var modalConfig = {
 	
 	// Maybe this should be as below, name + options for the statis part.
@@ -79,7 +80,7 @@ var modalConfig = {
 	]
 	
 } // modalConfig
-
+*/
 
 
 
