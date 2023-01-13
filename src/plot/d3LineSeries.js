@@ -50,7 +50,7 @@ const d3LineSeries = {
 
             } else {
 
-                colour.domain( dbsliceData.session.cfData.metaDataUniqueValues[ layout.cSet ] )
+                colour.domain( dbsliceData.session.cfData.categoricalUniqueValues[ layout.cSet ] )
 
             }
 

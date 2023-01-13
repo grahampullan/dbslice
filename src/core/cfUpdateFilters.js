@@ -9,23 +9,23 @@ function cfUpdateFilters( crossfilter ) {
       // if the filters array is empty: ie. all are selected, then reset the dimension
       if ( filters.length === 0 ) {
         //reset filter
-        crossfilter.metaDims[ i ].filterAll();
+        crossfilter.categoricalDims[ i ].filterAll();
       } else {
-        crossfilter.metaDims[ i ].filter( ( d ) => filters.indexOf( d ) > -1 );
+        crossfilter.categoricalDims[ i ].filter( ( d ) => filters.indexOf( d ) > -1 );
       }
     } );
 
     // update crossfilter with the items selected at the histograms
     crossfilter.histogramSelectedRanges.forEach( ( selectedRange, i ) => {
       // first reset all filters
-      crossfilter.dataDims[ i ].filterAll();
+      crossfilter.continuousDims[ i ].filterAll();
       if ( selectedRange.length !== 0 ) {
-        crossfilter.dataDims[ i ].filter( d => d >= selectedRange[ 0 ] && d <= selectedRange[ 1 ] ? true : false );
+        crossfilter.continuousDims[ i ].filter( d => d >= selectedRange[ 0 ] && d <= selectedRange[ 1 ] ? true : false );
       }
     } );
 
 
-    var currentMetaData = crossfilter.metaDims[0].top(Infinity);
+    var currentMetaData = crossfilter.categoricalDims[0].top(Infinity);
 
 
     dbsliceData.filteredTaskIds = currentMetaData.map(function(d){return d.taskId});

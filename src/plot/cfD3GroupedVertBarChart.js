@@ -15,7 +15,7 @@ const cfD3GroupedVertBarChart = {
             svgHeight = layout.height;
 
         console.log()
-        var dimId = dbsliceData.session.cfData.metaDataProperties.indexOf( data.xProperty );
+        var dimId = dbsliceData.session.cfData.categoricalProperties.indexOf( data.xProperty );
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -67,7 +67,7 @@ const cfD3GroupedVertBarChart = {
         var zProperty = data.zProperty;
 
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.metaDims[ dimId ];
+        var dim = cfData.categoricalDims[ dimId ];
 
         let barDataAll = dim.top( Infinity );
 

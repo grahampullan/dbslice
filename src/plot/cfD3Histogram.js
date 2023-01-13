@@ -19,7 +19,7 @@ const cfD3Histogram = {
         var height = svgHeight - margin.top - margin.bottom;
 
         const cfData = dbsliceData.session.cfData;
-        var dimId = cfData.dataProperties.indexOf( data.property );
+        var dimId = cfData.continuousProperties.indexOf( data.property );
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -30,7 +30,7 @@ const cfD3Histogram = {
             .attr( "class", "plotArea" )
             .attr( "dimId", dimId);
 
-        var dim = cfData.dataDims[ dimId ];       
+        var dim = cfData.continuousDims[ dimId ];       
         var items = dim.top( Infinity );
 
         let itemExtent = d3.extent( items, d => d[data.property]);
@@ -140,7 +140,7 @@ const cfD3Histogram = {
         var plotArea = svg.select(".plotArea");
         var dimId = plotArea.attr("dimId");
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.dataDims[ dimId ];
+        var dim = cfData.continuousDims[ dimId ];
         //var cf = data.cfData.cf;
         var property = data.property;
 

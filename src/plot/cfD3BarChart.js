@@ -19,7 +19,7 @@ const cfD3BarChart = {
         var width = svgWidth - margin.left - margin.right;
         var height = svgHeight - margin.top - margin.bottom;
 
-        var dimId = dbsliceData.session.cfData.metaDataProperties.indexOf( data.property );
+        var dimId = dbsliceData.session.cfData.categoricalProperties.indexOf( data.property );
 
         var svg = container.append("svg")
             .attr("width", svgWidth)
@@ -54,7 +54,7 @@ const cfD3BarChart = {
         var dimId = plotArea.attr("dimId");
 
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.metaDims[ dimId ];
+        var dim = cfData.categoricalDims[ dimId ];
 
         var bars = plotArea.selectAll("rect");
 
@@ -121,7 +121,7 @@ const cfD3BarChart = {
                 
         }
     
-        colour.domain( cfData.metaDataUniqueValues[ property ] );
+        colour.domain( cfData.categoricalUniqueValues[ property ] );
 
         bars = plotArea.selectAll( "rect" )
             .data( items, v => v.key );

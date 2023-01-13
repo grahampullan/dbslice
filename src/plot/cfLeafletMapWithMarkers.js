@@ -28,12 +28,12 @@ const cfLeafletMapWithMarkers = {
             .style("height", height+'px')
             .attr("class", "plotArea");
 
-        var dimId = dbsliceData.session.cfData.dataProperties.indexOf( data.property );
+        var dimId = dbsliceData.session.cfData.categoricalProperties.indexOf( data.property );
 
         //var cf = data.cfData.cf;
         var property = data.property;
 
-        var dim = dbsliceData.session.cfData.metaDims[ dimId ];
+        var dim = dbsliceData.session.cfData.categoricalDims[ dimId ];
         var items = dim.top( Infinity );
 
         var map = L.map('mapnow');

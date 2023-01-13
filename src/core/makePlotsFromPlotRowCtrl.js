@@ -119,8 +119,8 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
         // generate one plot per group
 
         let cfData = dbsliceData.session.cfData
-        let dimId = cfData.metaDataProperties.indexOf( ctrl.groupBy );
-        let metaDataInFilter = cfData.metaDims[dimId].top( Infinity );
+        let dimId = cfData.categoricalProperties.indexOf( ctrl.groupBy );
+        let metaDataInFilter = cfData.categoricalDims[dimId].top( Infinity );
         let metaDataInFilterGrouped = d3.groups( metaDataInFilter, d => d[ctrl.groupBy]).sort( (a,b) => d3.ascending(a[0],b[0]) );
         let groups = metaDataInFilterGrouped.map( d => d[0] );
 
