@@ -3,16 +3,6 @@ import * as d3 from 'd3v7';
 
 function makePlotsFromPlotRowCtrl( ctrl ) {
 
-    const fetchDataDefaults = {};
-    if ( ctrl.csv !== undefined ) fetchDataDefaults.csv = ctrl.csv;
-    if ( ctrl.text !== undefined ) fetchDataDefaults.text = ctrl.text;
-    if ( ctrl.buffer !== undefined ) fetchDataDefaults.buffer = ctrl.buffer;
-    if ( ctrl.dataFilterFunc !== undefined ) fetchDataDefaults.dataFilterFunc = ctrl.dataFilterFunc;
-    if ( ctrl.formatDataFunc !== undefined ) fetchDataDefaults.formatDataFunc = ctrl.formatDataFunc;
-    if ( ctrl.dataFilterType !== undefined ) fetchDataDefaults.dataFilterType = ctrl.dataFilterType;
-    if ( ctrl.dataFilterConfig !== undefined ) fetchDataDefaults.dataFilterConfig = ctrl.dataFilterConfig;
-    if ( ctrl.tasksByFilter !== undefined ) fetchDataDefaults.tasksByFilter = ctrl.tasksByFilter;
-
     const plots = [];
 
 	if ( ctrl.sliceIds === undefined && ctrl.groupBy === undefined ) {
@@ -20,19 +10,19 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
         // generate one plot per task
 
 		let nTasks = ctrl.taskIds.length;
-		if ( ctrl.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.maxTasks );
+		if ( ctrl.fetchData.maxTasks !== undefined ) nTasks = Math.min( nTasks, ctrl.fetchData.maxTasks );
 
 		for ( let index = 0; index < nTasks; ++index ) {
 
             let url;
 
-			if ( ctrl.urlTemplate == null && ctrl.useTaskIdAsUrl) {
+			if ( ctrl.fetchData.urlTemplate == null && ctrl.fetchData.useTaskIdAsUrl) {
 
 				url = ctrl.taskIds[ index ];
 
 			} else {
 
-				url = ctrl.urlTemplate.replace( "${taskId}", ctrl.taskIds[ index ] );
+				url = ctrl.fetchData.urlTemplate.replace( "${taskId}", ctrl.taskIds[ index ] );
 
 			}
 
@@ -46,8 +36,9 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
             if ( url !== undefined ) {
 
-                plot.fetchData = Object.assign( {}, fetchDataDefaults);
+                plot.fetchData = Object.assign( {}, ctrl.fetchData );
                 plot.fetchData.url = url;
+                plot.fetchData.urlTemplate = undefined;
 
             }
 
@@ -63,7 +54,11 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
     	ctrl.sliceIds.forEach( function( sliceId, sliceIndex ) {
 
-            let urlTemplate = ctrl.urlTemplate.replace( "${sliceId}", sliceId );
+            let urlTemplate;
+
+            if (ctrl.fetchData !== undefined ) {
+                urlTemplate = ctrl.fetchData.urlTemplate.replace( "${sliceId}", sliceId );
+            }
 
             let plot = {};
             plot.plotFunc = ctrl.plotFunc;
@@ -74,7 +69,7 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
 
             if ( urlTemplate !== undefined ) {
 
-                plot.fetchData = Object.assign( {}, fetchDataDefaults);
+                plot.fetchData = Object.assign( {}, ctrl.fetchData );
                 plot.fetchData.urlTemplate = urlTemplate;
 
             }
@@ -136,10 +131,9 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
             plot.layout.filterBy[ctrl.groupBy] = group;
             plot.layout.newData = true;
 
-            if ( ctrl.urlTemplate !== undefined ) {
+            if ( ctrl.fetchData !== undefined ) {
 
-                plot.fetchData = Object.assign( {}, fetchDataDefaults);
-                plot.fetchData.urlTemplate = ctrl.urlTemplate;                
+                plot.fetchData = Object.assign( {}, ctrl.fetchData );           
 
             }
 
