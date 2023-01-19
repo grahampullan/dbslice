@@ -2,7 +2,6 @@ import { dbsliceData } from './dbsliceData.js';
 import { update } from './update.js';
 import { makePlotsFromPlotRowCtrl } from './makePlotsFromPlotRowCtrl.js';
 
-
 function refreshTasksInPlotRows( allowAutoFetch = false ) {
 
 	var plotRows = dbsliceData.session.plotRows;
@@ -13,21 +12,25 @@ function refreshTasksInPlotRows( allowAutoFetch = false ) {
 
 			var ctrl = plotRow.ctrl;
 
-			if ( !allowAutoFetch || ( allowAutoFetch && ctrl.autoFetchOnFilterChange )) {
+			if ( !allowAutoFetch || ( allowAutoFetch && ctrl.autoFetchOnFilterChange ) ) {
 
 				if (ctrl.plotFunc !== undefined || ctrl.plotType !== undefined ) {
 
-					if ( ctrl.tasksByFilter ) {
+					if ( ctrl.fetchData !== undefined ) {
 
-						ctrl.taskIds = dbsliceData.filteredTaskIds;
-						ctrl.taskLabels = dbsliceData.filteredTaskLabels;
+						if ( ctrl.fetchData.tasksByFilter ) {
+
+							ctrl.taskIds = dbsliceData.filteredTaskIds;
+							ctrl.taskLabels = dbsliceData.filteredTaskLabels;
 					
-					}
+						}
 
-					if ( ctrl.tasksByList ) {
+						if ( ctrl.fetchData.tasksByList ) {
 
-						ctrl.taskIds = dbsliceData.manualListTaskIds;
+							ctrl.taskIds = dbsliceData.manualListTaskIds;
 
+						}
+						
 					}
 
 					plotRow.plots = makePlotsFromPlotRowCtrl( ctrl );
