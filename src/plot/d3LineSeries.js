@@ -237,7 +237,7 @@ const d3LineSeries = {
                         .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )    
                         .style( "fill", "none" )
                         .style( "stroke-width", "2.5px" )
-                        .attr( "clip-path", "url(#clip)")
+                        .attr( "clip-path", "url(#"+clipId+")")
                         .on( "mouseover", tipOn )
                         .on( "mouseout", tipOff );
         } );
