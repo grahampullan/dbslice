@@ -118,8 +118,8 @@ const threeSurf3d = {
 			let plotRowIndex = container.attr("plot-row-index");
 			let plotIndex = container.attr("plot-index");
 
-			console.log(plotRowIndex);
-			console.log(dbsliceData.session.plotRows[plotRowIndex].plots.length);
+			//console.log(plotRowIndex);
+			//console.log(dbsliceData.session.plotRows[plotRowIndex].plots.length);
 
 			let plotRow = dbsliceData.session.plotRows[plotRowIndex];
 
@@ -152,7 +152,7 @@ const threeSurf3d = {
 					//console.log(plot);
 					if (indx != plotIndex) {
 						//console.log(camera.rotation);
-						console.log(indx);
+						//console.log(indx);
 						plot.layout.watchedCamera.position = camera.position;
 						plot.layout.watchedCamera.rotation = camera.rotation;
 					}

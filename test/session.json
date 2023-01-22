@@ -1,12 +1,14 @@
 {
-  "metaData": "./data/metaData.csv",
-  "metaDataCsv": true,
-  "generateTaskIds": true,
-  "taskIdRoot": "case_",
-  "taskIdFormat": "d",
-  "setLabelsToTaskIds": true,
+  "metaDataConfig": {
+    "metaDataUrl": "./data/metaData.csv",
+    "metaDataCsv": true,
+    "generateTaskIds": true,
+    "taskIdRoot": "case_",
+    "taskIdFormat": "d",
+    "setLabelsToTaskIds": true
+  },
   "title": "3D box of data demo",
-  "config": {
+  "uiConfig": {
     "plotTasksButton": true,
     "saveTasksButton": false
   },
@@ -155,9 +157,11 @@
           ],
           "highlightTasks": true
         },
-        "urlTemplate": "./data/${taskId}/f_area2d_xstart.json",
-        "tasksByFilter": true,
-        "maxTasks": 20
+        "fetchData": {
+          "urlTemplate": "./data/${taskId}/f_area2d_xstart.json",
+          "tasksByFilter": true,
+          "maxTasks": 20
+        }
       }
     },
     {
@@ -175,10 +179,12 @@
           "highlightTasks": true,
           "cameraSync": true
         },
-        "urlTemplate": "./data/${taskId}/f_area3d.json",
-        "tasksByFilter": true,
-        "maxTasks": 5,
-        "dataFilterType": "threeMeshFromStruct"
+        "fetchData": {
+          "urlTemplate": "./data/${taskId}/f_area3d.json",
+          "tasksByFilter": true,
+          "maxTasks": 5,
+          "dataFilterType": "threeMeshFromStruct"
+        }
       }
     }
   ]
