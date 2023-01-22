@@ -1,6 +1,6 @@
 {
   "name": "dbslice",
-  "version": "1.8.0",
+  "version": "2.0.0",
   "description": "hierarchical data vis",
   "main": "build/dbslice.js",
   "directories": {
