@@ -1,13 +1,13 @@
 {
+  "title": "3D box of data demo",
   "metaDataConfig": {
-    "metaDataUrl": "./data/metaData.csv",
+    "metaDataUrl": "data/metaData.csv",
     "metaDataCsv": true,
     "generateTaskIds": true,
     "taskIdRoot": "case_",
     "taskIdFormat": "d",
     "setLabelsToTaskIds": true
   },
-  "title": "3D box of data demo",
   "uiConfig": {
     "plotTasksButton": true,
     "saveTasksButton": false
@@ -15,7 +15,6 @@
   "plotRows": [
     {
       "title": "3D box database",
-      "addPlotButton": false,
       "plots": [
         {
           "plotType": "cfD3BarChart",
@@ -26,8 +25,7 @@
             "title": "Simulation",
             "colWidth": 3,
             "height": 300,
-            "highlightTasks": true,
-            "removePlotButton": false
+            "highlightTasks": true
           }
         },
         {
@@ -40,7 +38,6 @@
             "colWidth": 3,
             "height": 300,
             "highlightTasks": true,
-            "removePlotButton": false,
             "colourByProperty": true
           }
         },
@@ -55,8 +52,7 @@
             "title": "Std dev f",
             "colWidth": 3,
             "height": 300,
-            "highlightTasks": true,
-            "removePlotButton": false
+            "highlightTasks": true
           }
         },
         {
@@ -68,15 +64,13 @@
             "title": "Average",
             "colWidth": 3,
             "height": 300,
-            "highlightTasks": true,
-            "removePlotButton": false
+            "highlightTasks": true
           }
         }
       ]
     },
     {
       "title": "Line plots",
-      "addPlotButton": false,
       "plots": [
         {
           "plotType": "d3LineSeries",
@@ -85,11 +79,10 @@
             "colWidth": 4,
             "height": 250,
             "highlightTasks": true,
-            "cSet": "Model type",
-            "removePlotButton": false
+            "cSet": "Model type"
           },
           "fetchData": {
-            "urlTemplate": "./data/${taskId}/f_line_xstart.json",
+            "urlTemplate": "data/${taskId}/f_line_xstart.json",
             "tasksByFilter": true,
             "autoFetchOnFilterChange": true,
             "maxTasks": 50,
@@ -106,11 +99,10 @@
             "colWidth": 4,
             "height": 250,
             "highlightTasks": true,
-            "cSet": "Model type",
-            "removePlotButton": false
+            "cSet": "Model type"
           },
           "fetchData": {
-            "urlTemplate": "./data/${taskId}/f_line_xmid.json",
+            "urlTemplate": "data/${taskId}/f_line_xmid.json",
             "tasksByFilter": true,
             "autoFetchOnFilterChange": true,
             "maxTasks": 50,
@@ -127,8 +119,7 @@
             "colWidth": 4,
             "height": 250,
             "highlightTasks": true,
-            "cSet": "Model type",
-            "removePlotButton": false
+            "cSet": "Model type"
           },
           "fetchData": {
             "urlTemplate": "./data/${taskId}/f_line_xend.json",
@@ -158,7 +149,7 @@
           "highlightTasks": true
         },
         "fetchData": {
-          "urlTemplate": "./data/${taskId}/f_area2d_xstart.json",
+          "urlTemplate": "data/${taskId}/f_area2d_xstart.json",
           "tasksByFilter": true,
           "maxTasks": 20
         }
@@ -180,7 +171,7 @@
           "cameraSync": true
         },
         "fetchData": {
-          "urlTemplate": "./data/${taskId}/f_area3d.json",
+          "urlTemplate": "data/${taskId}/f_area3d.json",
           "tasksByFilter": true,
           "maxTasks": 5,
           "dataFilterType": "threeMeshFromStruct"

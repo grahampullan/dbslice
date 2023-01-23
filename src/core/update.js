@@ -50,7 +50,8 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	// ADD PLOT BUTTON
 	// Add plot button option can be explicitly stated by the user as true/false, if not specified thedecision falls back on whether the plot row is metadata or on-demand.
 	newPlotRowsHeader
-	  .filter(d=> d.addPlotButton == undefined ? !d.ctrl : d.addPlotButton )
+	  //.filter(d=> d.addPlotButton == undefined ? !d.ctrl : d.addPlotButton )
+	  .filter(d=> d.addPlotButton) 
 	  .append("button")
 	  .attr("class", "btn addPlot")
 	  .attr("data-bs-toggle","modal")
