@@ -26,7 +26,7 @@ This guide shows describes how to use **dbslice** to visuliase the [testbox](htt
       |-- metaData.csv
       |-- case_0
       |     |-- f_line_xmid.json
-      |		|-- f_area_2d_xstart.json
+      |     |-- f_area_2d_xstart.json
       |-- case_1
       |-- case_2
 ```
