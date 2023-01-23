@@ -31,9 +31,9 @@ This guide shows describes how to use **dbslice** to visuliase the [testbox](htt
       |-- case_2
 ```
 
-`index.html` is the web page that will display the data. The `session.json` file tells **dbslice** how to to display the data. The data itself is in the `data` folder; this contains a `metaData.csv` file for the high level meta-data, and separate folders (`case_0`, `case_1`, etc) for each row of `metaData.csv` that store the detailed data for each `task`.
+`index.html` is the web page that will display the data. The `session.json` file tells **dbslice** how to to display the data. The data itself is in the `data` folder; this contains a `metaData.csv` file for the high level meta-data, and separate folders (`case_0`, `case_1`, etc), for each row of `metaData.csv`, that store the detailed data for each `task`.
 
-**dbslice** runs in the web browser and needs to be hosted on a web server. We can use Python to run a web server locally, i.e. navigate to the folder containing `index.html` and type (Python 2)
+**dbslice** runs in a web browser and needs to be hosted by a web server. We can use Python to run a web server locally, i.e. navigate to the folder containing `index.html` and type (Python 2)
 
 ```
 python -m simpleHTTPserver 8000
