@@ -19,16 +19,16 @@ There are several live [demonstrations](https://www.dbslice.org/demos) at the db
 ## Step-by-step 
 This guide shows describes how to use **dbslice** to visuliase the [testbox](https://www.dbslice.org/demos/testbox) demonstration data. The data files needed are [here](https://github.com/grahampullan/dbslice/tree/master/test) and are structured as follows:
 
-```bash
+```
 |-- index.html
 |-- session.json
 |__ data
       |-- metaData.csv
-	  |-- case_0
+      |-- case_0
       |     |-- f_line_xmid.json
-	  |		|-- f_area_2d_xstart.json
+      |		|-- f_area_2d_xstart.json
       |-- case_1
-	  |-- case_2
+      |-- case_2
 ```
 
 `index.html` is the web page that will display the data. The `session.json` file tells **dbslice** how to to display the data. The data itself is in the `data` folder; this contains a `metaData.csv` file for the high level meta-data, and separate folders (`case_0`, `case_1`, etc) for each row of `metaData.csv` that store the detailed data for each `task`.
