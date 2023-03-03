@@ -11,12 +11,10 @@ import addPlotModal from './addPlotModal.js';
 
 // I could only get this type of loading work for local files.
 // External files are handled below.
-import '../style/dbslice.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import '../style/dbslice.css';
 // import 'https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css';
 
-// Import the box icons.
-import 'boxicons';
 
 
 async function start( elementId, session ) {

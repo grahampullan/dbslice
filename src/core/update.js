@@ -1,6 +1,8 @@
 import { makeNewPlot } from './makeNewPlot.js';
 import { updatePlot } from './updatePlot.js';
 import { dbsliceData } from '../core/dbsliceData.js';
+import { icon } from '@fortawesome/fontawesome-svg-core'
+import { faDownLeftAndUpRightToCenter, faUpRightAndDownLeftFromCenter, faPlus } from '@fortawesome/free-solid-svg-icons'
 import * as d3 from 'd3';
 
 function update( elementId = dbsliceData.elementId, session = dbsliceData.session ) {
@@ -31,6 +33,8 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
     var newPlotRowsHeader = newPlotRows	
     	.append( "div" )
 		  .attr( "class", "card-header plotRowTitle" )
+		  .style( "vetical-align", "middle")
+		  .style("display","inline-block")
     	  .call( function(selection) {
     		  selection.html( function(d) {
                 let html = "<h3 style='display:inline'>" + d.title + "</h3>";
@@ -46,6 +50,7 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
     	.append( "div" ).attr( "class", "row no-gutters g-1 plotRowBody" )
         .attr ("plot-row-index", function(d, i) { return i; });
 		
+	
 		
 	// ADD PLOT BUTTON
 	// Add plot button option can be explicitly stated by the user as true/false, if not specified thedecision falls back on whether the plot row is metadata or on-demand.
@@ -53,14 +58,11 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	  //.filter(d=> d.addPlotButton == undefined ? !d.ctrl : d.addPlotButton )
 	  .filter(d=> d.addPlotButton) 
 	  .append("button")
-	  .attr("class", "btn addPlot")
+	  .attr("class", "btn addPlot icon")
 	  .attr("data-bs-toggle","modal")
 	  .attr("data-bs-target","#addPlotModal")
 	  .style("float", "right")
-	  .style("cursor", "pointer")
-	  .style("border", "2px solid gray")
-	  .style("padding", "3px 6px 3px 6px")
-	  .html('<box-icon name="plus" size="sm"></box-icon>')
+	  .html(icon(faPlus).html)
 	  .on("click", function(d){
 		  d3.event.stopPropagation();
 		  dbsliceData.modal.currentPlotRow = d;
@@ -70,12 +72,10 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	  
 	// ADD COLLAPSE BUTTON
 	newPlotRowsHeader.append("button")
-	    .attr("class", "btn collapseRow")
+	    .attr("class", "btn collapseRow icon")
 		.style("float", "right")
 		.style("cursor", "pointer")
-		.style("border", "2px solid gray")
-	    .style("padding", "3px 6px 3px 6px")
-		.html('<box-icon name="collapse-alt" size="sm"></box-icon>')
+		.html(icon(faDownLeftAndUpRightToCenter).html)
 		.on("click", function(){
 
 			// Add in the functionality to collapse/expand the corresponding plotRowBody.
@@ -84,7 +84,7 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 			elementToCollapse.style.display = isHidden ? "" : "none";
 			
 			// Change the button icon
-			this.querySelector("box-icon").setAttribute("name", isHidden ? "collapse-alt" : "expand-alt");
+			this.innerHTML = isHidden ? icon(faDownLeftAndUpRightToCenter).html : icon(faUpRightAndDownLeftFromCenter).html;
 			
 			
 			update()

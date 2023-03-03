@@ -29,8 +29,9 @@
   },
   "homepage": "https://github.com/grahampullan/dbslice#readme",
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^6.3.0",
+    "@fortawesome/free-solid-svg-icons": "^6.3.0",
     "bootstrap": "^5.2.2",
-    "boxicons": "^2.1.4",
     "crossfilter2": "^1.5.4",
     "d3": "^4.13.0",
     "d3-contour": "^3.0.1",
