@@ -5,16 +5,10 @@ import { dbsliceData } from './dbsliceData.js';
 import { makeSessionHeader } from './makeSessionHeader.js';
 import * as d3 from 'd3v7';
 
-// Import the modal.
 import addPlotModal from './addPlotModal.js';
 
-
-// I could only get this type of loading work for local files.
-// External files are handled below.
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../style/dbslice.css';
-// import 'https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css';
-
 
 
 async function start( elementId, session ) {
