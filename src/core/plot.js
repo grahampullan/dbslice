@@ -99,7 +99,7 @@ const makePlotObject = function(plot) {
 		plotFunc = getPlotFunc(plot.plotType); 
 	}
 
-    const toAdd = { makePlotWrapper, removePlot, fetchDataIfNeeded, make:plotFunc.make, update:plotFunc.update };
+    const toAdd = Object.assign({ makePlotWrapper, removePlot }, plotFunc );
     const newPlotObject = Object.assign(plot, toAdd);
     return newPlotObject;
 
@@ -151,6 +151,18 @@ const updateAllPlots = function() {
 
 }
 
+const highlightTasksAllPlots = function() {
+
+    dbsliceData.session.plotRows.forEach( function(plotRow) {
+        plotRow.plots.forEach( function (plot) {
+            plot.highlightTasks();
+        })
+    }); 
+
+}
+
+
+
 const plotRemoveForD3Each = function( d, i ) {
 
     d.removePlot();
@@ -158,4 +170,4 @@ const plotRemoveForD3Each = function( d, i ) {
 }
 
 
-export { makePlotObject, plotMakeForD3Each, updateAllPlots, plotUpdateForD3Each, plotRemoveForD3Each };
+export { makePlotObject, plotMakeForD3Each, updateAllPlots, highlightTasksAllPlots, plotUpdateForD3Each, plotRemoveForD3Each };

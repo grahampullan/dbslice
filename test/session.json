@@ -42,7 +42,22 @@
             "colourByProperty": true,
             "removePlotButton": true
           }
+        },
+        {
+          "plotType": "cfD3Scatter",
+          "data": {
+            "xProperty": "Average f",
+            "yProperty": "Std dev f",
+            "cProperty": "Model type"
+          },
+          "layout": {
+            "title": "Std dev f",
+            "colWidth": 3,
+            "height": 300,
+            "highlightTasks": true
+          }
         }
+
       ]
     }
   ]

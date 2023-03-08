@@ -206,9 +206,12 @@ const cfD3BarChart = {
 
     highlightTasks : function () {
 
+        if (!this.layout.highlightTasks) return;
+
         const cfData = dbsliceData.session.cfData;
         const dim = cfData.categoricalDims[ this.dimId ];
         const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
+        const property = this.data.property;
         const bars = plotArea.selectAll("rect");
 
         if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
@@ -218,7 +221,7 @@ const cfD3BarChart = {
                 .style( "stroke-width", "0px" )
                 .style( "stroke", "red" ); 
             dbsliceData.highlightTasks.forEach( function (taskId) {
-                let keyNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][this.data.property];
+                let keyNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][property];
                 bars.filter( (d,i) => d.key == keyNow)
                     .style( "stroke-width", "4px" )
             });
