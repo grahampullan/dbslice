@@ -3,6 +3,7 @@ import { getMetaData } from './getMetaData.js';
 import { cfInit } from './cfInit.js';
 import { dbsliceData } from './dbsliceData.js';
 import { makeSessionHeader } from './makeSessionHeader.js';
+import { plotRow } from './plotRow.js';
 import * as d3 from 'd3v7';
 
 import addPlotModal from './addPlotModal.js';
@@ -32,13 +33,16 @@ async function start( elementId, session ) {
     if ( sessionHeader.empty() ) makeSessionHeader( element, session.title, session.subtitle, session.uiConfig );
 
     session._maxPlotRowId = 0;
-    session.plotRows.forEach( (plotRow) => {
+    session.plotRows.forEach( (pr) => {
         ++session._maxPlotRowId;
-        plotRow._id = session._maxPlotRowId;
-        plotRow._maxPlotId = 0;
-        plotRow.plots.forEach( (plot) => {
-            ++plotRow._maxPlotId;
-            plot._id = plotRow._maxPlotId;
+        pr._id = session._maxPlotRowId;
+        pr._maxPlotId = 0;
+        pr.parentId = elementId;
+        pr = Object.assign(pr, plotRow);
+        pr.plots.forEach( (plot) => {
+            ++pr._maxPlotId;
+            plot._id = pr._maxPlotId;
+            plot._prid = pr._id;
         } );
     } );
 
