@@ -1,58 +1,58 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
-import { update } from '../core/update.js';
+import { refreshTasksInPlotRows } from '../core/refreshTasksInPlotRows.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import * as d3 from 'd3';
 
 const cfD3Histogram = {
 
-    make : function( element, data, layout ) {
+    make : function() {
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        const width = svgWidth - margin.left - margin.right;
+        const height = svgHeight - margin.top - margin.bottom;
 
         const cfData = dbsliceData.session.cfData;
-        var dimId = cfData.continuousProperties.indexOf( data.property );
+        const property = this.data.property;
+        this.dimId = cfData.continuousProperties.indexOf( property );
+        const dimId = this.dimId;
 
-        var svg = container.append("svg")
+        const svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
 
-        var plotArea = svg.append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-            .attr( "class", "plotArea" )
-            .attr( "dimId", dimId);
+        const plotArea = svg.append("g")
+            .attr("transform", `translate(${margin.left}, ${margin.top})`)
+            .attr( "class", "plot-area" )
+            .attr( "id", `plot-area-${this._prid}-${this._id}`);
 
-        var dim = cfData.continuousDims[ dimId ];       
-        var items = dim.top( Infinity );
+        const dim = cfData.continuousDims[ dimId ];       
+        const items = dim.top( Infinity );
 
-        let itemExtent = d3.extent( items, d => d[data.property]);
+        let itemExtent = d3.extent( items, d => d[property]);
         let itemRange = itemExtent[1] - itemExtent[0];
 
-        var xDomMax = itemExtent[1] + 0.05*itemRange; 
-        plotArea.attr( "xDomMax", xDomMax);
+        let xDomMax = itemExtent[1] + 0.05*itemRange; 
+        let xDomMin = itemExtent[0] - 0.05*itemRange;
+        this.xDomMax = xDomMax;
+        this.xDomMin = xDomMin;
 
-        var xDomMin = itemExtent[0] - 0.05*itemRange;
-        plotArea.attr( "xDomMin", xDomMin);
-
-        var x = d3.scaleLinear()
+        const x = d3.scaleLinear()
             .domain( [ xDomMin, xDomMax ] )
             .rangeRound( [ 0, width ] );
 
         plotArea.append( "g" )
-            .attr( "class", "xAxis")
-            .attr( "transform", "translate(0," + height + ")" )
+            .attr( "class", "x-axis")
+            .attr( "transform", `translate(0,${height})`)
             .call( d3.axisBottom( x ) );
 
-
-        var brush = d3.brushX()
+        const brush = d3.brushX()
             .extent( [
                 [ 0, 0 ],
                 [ width, height ]
@@ -60,42 +60,39 @@ const cfD3Histogram = {
             .on( "start brush", brushmoved )
             .on( "end", brushend )
 
-        var gBrush = svg.append( "g" )
-            .attr( "transform", "translate(" + margin.left + "," + margin.top + ")" )
+        const gBrush = svg.append( "g" )
+            .attr( "transform", `translate(${margin.left}, ${margin.top})` )
             .attr( "class", "brush" )
             .call( brush );
 
-
-        // style brush resize handle
-        // https://github.com/crossfilter/crossfilter/blob/gh-pages/index.html#L466
         function brushResizePath( d ) {
-            var e = +( d.type == "e" ),
+            let e = +( d.type == "e" ),
                 x = e ? 1 : -1,
                 y = height / 2;
             return "M" + ( .5 * x ) + "," + y + "A6,6 0 0 " + e + " " + ( 6.5 * x ) + "," + ( y + 6 ) + "V" + ( 2 * y - 6 ) + "A6,6 0 0 " + e + " " + ( .5 * x ) + "," + ( 2 * y ) + "Z" + "M" + ( 2.5 * x ) + "," + ( y + 8 ) + "V" + ( 2 * y - 8 ) + "M" + ( 4.5 * x ) + "," + ( y + 8 ) + "V" + ( 2 * y - 8 );
         }
 
-        var handle = gBrush.selectAll( ".handleCustom" )
+        const handle = gBrush.selectAll( ".handle-custom" )
             .data( [ { type: "w" } , { type: "e" } ] )
             .enter().append( "path" )
-                .attr( "class", "handleCustom" )
+                .attr( "class", "handle-custom" )
                 .attr( "stroke", "#000" )
                 .attr( "cursor", "ewResize" )
                 .attr( "d", brushResizePath );
 
 
-        var brushInit = true;
+        let brushInit = true;
         gBrush.call( brush.move, x.domain().map( x ) );
         brushInit = false;
 
 
         function brushmoved() {
-            var s = d3.event.selection;
+            let s = d3.event.selection;
             if ( s == null ) {
                 handle.attr( "display", "none" );
                 cfData.histogramSelectedRanges[ dimId ] = [];
                 cfUpdateFilters(cfData);
-                if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
+                if ( brushInit == false ) refreshTasksInPlotRows();
             } else {
                 var sx = s.map( x.invert );
                 handle.attr( "display", null ).attr( "transform", function( d, i ) {
@@ -103,80 +100,55 @@ const cfD3Histogram = {
                 } );
                 cfData.histogramSelectedRanges[ dimId ] = sx;
                 cfUpdateFilters(cfData);
-                if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
+                if ( brushInit == false ) refreshTasksInPlotRows();
             }
         }
 
         function brushend() {
             dbsliceData.allowAutoFetch = true;
-            if ( brushInit == false ) update( dbsliceData.elementId , dbsliceData.session );
+            if ( brushInit == false ) refreshTasksInPlotRows();
             dbsliceData.allowAutoFetch = false;
         }
 
 
-        cfD3Histogram.update( element, data, layout );
+        this.update();
 
     }, 
 
-    update : function ( element, data, layout ) {
-     
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+    update : function () {
 
-        var container = d3.select(element);
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var svg = container.select("svg");
+        const container = d3.select(`#${this.elementId}`);
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        const width = svgWidth - margin.left - margin.right;
+        const height = svgHeight - margin.top - margin.bottom;
 
-        var svg = container.select("svg");
+        const cfData = dbsliceData.session.cfData;
+        const property = this.data.property;
+        const dimId = this.dimId;
+        const dim = cfData.continuousDims[ dimId ]; 
+
+        const svg = container.select("svg");
 
         svg.attr("width", svgWidth).attr("height", svgHeight);
 
-        var plotArea = svg.select(".plotArea");
-        var dimId = plotArea.attr("dimId");
-        const cfData = dbsliceData.session.cfData;
-        var dim = cfData.continuousDims[ dimId ];
-        //var cf = data.cfData.cf;
-        var property = data.property;
+        const plotArea = svg.select(".plot-area");
 
-        var bars = plotArea.selectAll("rect");
+        let formatCount = d3.format( ",.0f" );
 
-        if ( layout.highlightTasks == true ) {
+        const items = dim.top( Infinity );
 
-            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+        let xDomMax = this.xDomMax;
+        let xDomMin = this.xDomMin;
 
-                bars.style( "stroke-width", "0px" );
-                      
-            } else {
+        if ( this.layout.reBin == true ) {
 
-                bars
-                    .style( "stroke-width", "0px" )
-                    .style( "stroke", "red" ); 
-                dbsliceData.highlightTasks.forEach( function (taskId) {
-                    let valueNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][data.property];
-                    bars.filter( (d,i) => (d.x0 <= valueNow && d.x1 > valueNow) )
-                        .style( "stroke-width", "4px" )
-                });
-
-            }
-
-        } 
-
-        var formatCount = d3.format( ",.0f" );
-
-        var items = dim.top( Infinity );
-
-        var xDomMax = plotArea.attr("xDomMax");
-        var xDomMin = plotArea.attr("xDomMin");
-
-        if ( layout.reBin == true ) {
-
-            let itemExtent = d3.extent( items, d => d[data.property]);
+            let itemExtent = d3.extent( items, d => d[property]);
             let itemRange = itemExtent[1] - itemExtent[0];
     
             xDomMax = itemExtent[1] + 0.05*itemRange; 
@@ -184,29 +156,29 @@ const cfD3Histogram = {
         
         }
 
-        var x = d3.scaleLinear()
+        const x = d3.scaleLinear()
             .domain( [ xDomMin, xDomMax] )
             .rangeRound( [ 0, width ] );
 
-        var histogram = d3.histogram()
+        const histogram = d3.histogram()
             .value( d => d[ property ] )
             .domain( x.domain() )
             .thresholds( x.ticks( 20 ) );
 
-        var bins = histogram( items );
+        const bins = histogram( items );
 
-        var y = d3.scaleLinear()
+        const y = d3.scaleLinear()
             .domain( [ 0, d3.max( bins, d => d.length ) ] )
             .range( [ height, 0 ] );
 
-        bars = plotArea.selectAll( "rect" )
+        const bars = plotArea.selectAll( "rect" )
             .data( bins );
 
-        var colour = ( layout.colour === undefined ) ? "cornflowerblue" : layout.colour;
+        const colour = ( this.layout.colour === undefined ) ? "cornflowerblue" : this.layout.colour;
 
         bars.enter()
             .append( "rect" )
-                .attr( "transform", d => "translate(" + x( d.x0 ) + "," + y( d.length ) + ")" )
+                .attr( "transform", d => `translate(${x( d.x0 )},${y( d.length )})` )
                 .attr( "x", 1 )
                 .attr( "width", d => x(d.x1)-x(d.x0)-1 )
                 .attr( "height", d => height - y( d.length ) )
@@ -214,28 +186,28 @@ const cfD3Histogram = {
                 .attr( "opacity", "1" );
 
         bars.transition()
-            .attr( "transform", d => "translate(" + x( d.x0 ) + "," + y( d.length ) + ")" )
+            .attr( "transform", d => `translate(${x( d.x0 )},${y( d.length )})` )
             .attr( "x", 1 )
             .attr( "width", d => x(d.x1)-x(d.x0)-1 )
             .attr( "height", d => height - y( d.length ) );
 
         bars.exit().remove();
 
-        var yAxis = plotArea.select(".yAxis");
+        let yAxis = plotArea.select(".y-axis");
         if ( yAxis.empty() ) {
             plotArea.append("g")
-                .attr( "class", "yAxis")
+                .attr( "class", "y-axis")
                 .call( d3.axisLeft( y ) );
         } else {
             yAxis.transition().call( d3.axisLeft( y ) );
         }
 
         //if ( layout.reBin == true ) {
-            var xAxis = plotArea.select(".xAxis");
+            let xAxis = plotArea.select(".x-axis");
             if ( xAxis.empty() ) {
                 plotArea.append("g")
-                    .attr( "class", "xAxis")
-                    .attr( "transform", "translate(0," + height + ")" )
+                    .attr( "class", "x-axis")
+                    .attr( "transform", `translate(0,${height})` )
                     .call( d3.axisBottom( x ) );
             } else {
                 xAxis.transition().call( d3.axisBottom( x ) );
@@ -243,10 +215,10 @@ const cfD3Histogram = {
         //}
 
 
-        var yAxisLabel = plotArea.select(".yAxis").select(".yAxisLabel");
+        let yAxisLabel = plotArea.select(".y-axis").select(".y-axis-label");
         if ( yAxisLabel.empty() ) {
-             plotArea.select(".yAxis").append("text")
-                .attr("class", "yAxisLabel")
+             plotArea.select(".y-axis").append("text")
+                .attr("class", "y-axis-label")
                 .attr("fill", "#000")
                 .attr("transform", "rotate(-90)")
                 .attr("x", 0)
@@ -255,10 +227,10 @@ const cfD3Histogram = {
                 .text("Number of Cases");
             }
 
-        var xAxisLabel = plotArea.select(".yAxis").select(".xAxisLabel");
+        let xAxisLabel = plotArea.select(".x-axis").select(".x-axis-label");
         if ( xAxisLabel.empty() ) {
-            plotArea.select(".yAxis").append("text")
-                .attr("class", "xAxisLabel")
+            plotArea.select(".x-axis").append("text")
+                .attr("class", "x-axis-label")
                 .attr("fill", "#000")
                 .attr("x", width)
                 .attr("y", height+margin.bottom-2)
@@ -282,7 +254,7 @@ const cfD3Histogram = {
             
             gBrush.call(brush);
     
-            const handle = gBrush.selectAll( ".handleCustom" );
+            const handle = gBrush.selectAll( ".handle-custom" );
             const s = cfData.histogramSelectedRanges[ dimId ].map( r => x(r) );
 
             var brushInit = true;
@@ -293,14 +265,13 @@ const cfD3Histogram = {
                 return "translate(" + [ s[ i ], -height / 4 ] + ")";
                 } );
         
-        
             function brushmoved() {
-                var s = d3.event.selection;
+                let s = d3.event.selection;
                 if ( s == null ) {
                     handle.attr( "display", "none" );
                     cfData.histogramSelectedRanges[ dimId ] = [];
                     cfUpdateFilters(cfData);
-                    if ( brushInit == false ) update();
+                    if ( brushInit == false ) refreshTasksInPlotRows();
                 } else {
                     var sx = s.map( x.invert );
                     handle.attr( "display", null ).attr( "transform", function( d, i ) {
@@ -308,19 +279,47 @@ const cfD3Histogram = {
                     } );
                     cfData.histogramSelectedRanges[ dimId ] = sx;
                     cfUpdateFilters(cfData);
-                    if ( brushInit == false ) update();
+                    if ( brushInit == false ) refreshTasksInPlotRows();
                 }
             }
-
+        
             function brushend() {
                 dbsliceData.allowAutoFetch = true;
-                if ( !brushInit) refreshTasksInPlotRows( true );
+                if ( brushInit == false ) refreshTasksInPlotRows();
                 dbsliceData.allowAutoFetch = false;
             }
         }
 
+    },
 
-    }
+    highlightTasks : function() {
+
+        if (!this.layout.highlightTasks) return;
+
+        const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
+        const bars = plotArea.selectAll("rect");
+        const property = this.data.property;
+        const cfData = dbsliceData.session.cfData;
+        const dim = cfData.continuousDims[ this.dimId ]; 
+
+        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+
+            bars.style( "stroke-width", "0px" );
+                      
+        } else {
+
+            bars
+                .style( "stroke-width", "0px" )
+                .style( "stroke", "red" ); 
+            dbsliceData.highlightTasks.forEach( function (taskId) {
+                let valueNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][property];
+                bars.filter( (d,i) => (d.x0 <= valueNow && d.x1 > valueNow) )
+                    .style( "stroke-width", "4px" )
+            });
+
+        }
+
+    } 
 
 };
 

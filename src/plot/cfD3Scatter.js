@@ -295,7 +295,6 @@ const cfD3Scatter = {
         if (!this.layout.highlightTasks) return;
 
         const cfData = dbsliceData.session.cfData;
-        const dim = cfData.categoricalDims[ this.dimId ];
         const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
         const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
         const cProperty = this.data.cProperty;

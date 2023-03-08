@@ -56,6 +56,18 @@
             "height": 300,
             "highlightTasks": true
           }
+        },
+        {
+          "plotType": "cfD3Histogram",
+          "data": {
+            "property": "Average f"
+          },
+          "layout": {
+            "title": "Average",
+            "colWidth": 3,
+            "height": 300,
+            "highlightTasks": true
+          }
         }
 
       ]
