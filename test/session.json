@@ -71,6 +71,71 @@
         }
 
       ]
+    },
+    {
+      "title": "Line plots",
+      "plots": [
+        {
+          "plotType": "d3LineSeries",
+          "layout": {
+            "title": "Start",
+            "colWidth": 4,
+            "height": 250,
+            "highlightTasks": true,
+            "cSet": "Model type"
+          },
+          "fetchData": {
+            "urlTemplate": "data/${taskId}/f_line_xstart.json",
+            "tasksByFilter": true,
+            "autoFetchOnFilterChange": true,
+            "maxTasks": 50,
+            "dataFilterType": "lineSeriesFromLines",
+            "dataFilterConfig": {
+              "cProperty": "Model type"
+            }
+          }
+        },
+        {
+          "plotType": "d3LineSeries",
+          "layout": {
+            "title": "Mid",
+            "colWidth": 4,
+            "height": 250,
+            "highlightTasks": true,
+            "cSet": "Model type"
+          },
+          "fetchData": {
+            "urlTemplate": "data/${taskId}/f_line_xmid.json",
+            "tasksByFilter": true,
+            "autoFetchOnFilterChange": true,
+            "maxTasks": 50,
+            "dataFilterType": "lineSeriesFromLines",
+            "dataFilterConfig": {
+              "cProperty": "Model type"
+            }
+          }
+        },
+        {
+          "plotType": "d3LineSeries",
+          "layout": {
+            "title": "End",
+            "colWidth": 4,
+            "height": 250,
+            "highlightTasks": true,
+            "cSet": "Model type"
+          },
+          "fetchData": {
+            "urlTemplate": "./data/${taskId}/f_line_xend.json",
+            "tasksByFilter": true,
+            "autoFetchOnFilterChange": true,
+            "maxTasks": 50,
+            "dataFilterType": "lineSeriesFromLines",
+            "dataFilterConfig": {
+              "cProperty": "Model type"
+            }
+          }
+        }
+      ]
     }
   ]
 }

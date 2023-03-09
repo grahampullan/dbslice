@@ -4,6 +4,7 @@ import * as d3 from 'd3';
 import { icon } from '@fortawesome/fontawesome-svg-core'
 import { faTrashCan } from '@fortawesome/free-solid-svg-icons'
 import { update } from './update.js';
+import { fetchPlotData } from './fetchPlotData.js';
 
 const makePlotWrapperDefault = function() {
 
@@ -99,7 +100,7 @@ const makePlotObject = function(plot) {
 		plotFunc = getPlotFunc(plot.plotType); 
 	}
 
-    const toAdd = Object.assign({ makePlotWrapper, removePlot }, plotFunc );
+    const toAdd = Object.assign({ makePlotWrapper, removePlot, makeCompleted : false }, plotFunc );
     const newPlotObject = Object.assign(plot, toAdd);
     return newPlotObject;
 
@@ -115,9 +116,11 @@ const plotMakeForD3Each = function( d, i ) {
 		fetchPlotData(d.fetchData).then( (data) => {
 			d.data = data;
 			d.make();
+            d.makeCompleted = true;
 		})
 	} else {
         d.make();
+        d.makeCompleted = true;
     }
 
 }
@@ -145,7 +148,18 @@ const updateAllPlots = function() {
 
     dbsliceData.session.plotRows.forEach( function(plotRow) {
         plotRow.plots.forEach( function (plot) {
-            plot.update();
+            if ( !plot.makeCompleted ) return;
+            if ( (plot.fetchData !== undefined && plot.fetchData._fetchNow )  ||
+                (plot.fetchData !== undefined && plot.fetchData.autoFetchOnFilterChange && dbsliceData.allowAutoFetch) ){
+                fetchPlotData(plot.fetchData).then( (data) => {
+                    plot.data = data;
+                    plot.layout.newData = true;
+                    plot.fetchData._fetchNow = false;
+                    plot.update();
+                });
+            } else {
+                plot.update();
+            }
         })
     }); 
 
