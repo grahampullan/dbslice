@@ -7,7 +7,7 @@ const d3LineSeries = {
 
     make : function () {
 
-        const marginDefault = {top: 20, right: 20, bottom: 30, left: 20};
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
@@ -61,6 +61,8 @@ const d3LineSeries = {
 
         const svgWidth = container.node().offsetWidth,
             svgHeight = this.layout.height;
+
+        svg.attr("width", svgWidth).attr("height", svgHeight);
 
         const width = svgWidth - margin.left - margin.right;
         const height = svgHeight - margin.top - margin.bottom;
