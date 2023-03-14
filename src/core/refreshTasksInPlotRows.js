@@ -35,8 +35,8 @@ function refreshTasksInPlotRows( allowAutoFetch = false ) {
 
 					plotRow.plots = makePlotsFromPlotRowCtrl( ctrl );
 					plotRow.plots.forEach( (plot) => {
-						++plotRow._maxPlotId;
-						plot._id = plotRow._maxPlotId;
+						plot = makePlotObject(plot);
+						plotRow.assignPlotId(plot);
 						if ( plot.fetchData !== undefined ) {
 							plot.fetchData._fetchNow = true;
 						}

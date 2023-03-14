@@ -7,42 +7,17 @@ import { interpolateSpectral } from 'd3-scale-chromatic';
 
 const d3ContourStruct2d = {
 
-    make : function ( element, data, layout ) {
+    make : function () {
 
-        d3ContourStruct2d.update ( element, data, layout )
+        this.update();
 
     },
 
-    update : function ( element, data, layout ) {
+    update : function () {
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        if ( layout.highlightTasks == true ) {
-
-            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-
-                container.style("outline-width","0px")
- 
-            } else {
-
-                container.style("outline-width","0px")
-
-                dbsliceData.highlightTasks.forEach( function (taskId) {
-
-                    if ( taskId == layout.taskId ) {
-                    
-                        container
-                            .style("outline-style","solid")
-                            .style("outline-color","red")
-                            .style("outline-width","4px")
-                            .style("outline-offset","-4px")
-                            .raise();
-
-                    }
-
-                });
-            }
-        }
+        
 
 
         if (layout.newData == false && dbsliceData.windowResize == false ) {
@@ -252,7 +227,37 @@ const d3ContourStruct2d = {
         }
 
         layout.newData = false;
+    },
+
+    highlightTasks : function() {
+
+        if (!this.layout.highlightTasks) return;
+
+        const container = d3.select(`#${this.elementId}`);
+
+        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+            container.style("outline-width","0px")
+        } else {
+            container.style("outline-width","0px")
+
+            dbsliceData.highlightTasks.forEach( function (taskId) {
+
+                    if ( taskId == layout.taskId ) {
+                    
+                        container
+                            .style("outline-style","solid")
+                            .style("outline-color","red")
+                            .style("outline-width","4px")
+                            .style("outline-offset","-4px")
+                            .raise();
+
+                    }
+
+                });
+            }
     }
+
+
 }
 
 export { d3ContourStruct2d };

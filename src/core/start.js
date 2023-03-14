@@ -3,7 +3,8 @@ import { getMetaData } from './getMetaData.js';
 import { cfInit } from './cfInit.js';
 import { dbsliceData } from './dbsliceData.js';
 import { makeSessionHeader } from './makeSessionHeader.js';
-import { plotRow } from './plotRow.js';
+import { makePlotRowObject } from './plotRow.js';
+import { makePlotObject } from './plot.js';
 import * as d3 from 'd3v7';
 
 import addPlotModal from './addPlotModal.js';
@@ -14,7 +15,8 @@ import '../style/dbslice.css';
 
 async function start( elementId, session ) {
 	
-	
+    dbsliceData.elementId = elementId;
+    
 	// Start evaluating session.
     if ( typeof(session) == 'string' ) {
         let sessionUrl = session;
@@ -32,24 +34,16 @@ async function start( elementId, session ) {
 	let sessionHeader = element.select(".sessionHeader");
     if ( sessionHeader.empty() ) makeSessionHeader( element, session.title, session.subtitle, session.uiConfig );
 
-    session._maxPlotRowId = 0;
-    session.plotRows.forEach( (pr) => {
-        ++session._maxPlotRowId;
-        pr._id = session._maxPlotRowId;
-        pr._maxPlotId = 0;
-        pr.parentId = elementId;
-        pr = Object.assign(pr, plotRow);
-        pr.plots.forEach( (plot) => {
-            ++pr._maxPlotId;
-            plot._id = pr._maxPlotId;
-            plot._prid = pr._id;
-        } );
-    } );
-
     dbsliceData.session = session;
-	dbsliceData.elementId = elementId;
-	
-	
+    session._maxPlotRowId = 0;
+    session.plotRows.forEach( (pr => {
+        pr = makePlotRowObject(pr);
+        pr.plots.forEach( (plot) => {
+            plot = makePlotObject(plot);
+            pr.assignPlotId(plot);
+        });
+    }));
+
 	
 	// Add in the config for the type of plots that should be supported. Could be moved to external file.
 	var modalConfig = {

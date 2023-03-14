@@ -122,7 +122,7 @@ const d3LineSeries = {
         if ( this.layout.yRange === undefined ) {
             yRange = [ymin, ymax];
         } else {
-            yRange = layout.yRange;
+            yRange = this.layout.yRange;
         }
 
         let xscale, xscale0;
@@ -280,7 +280,7 @@ const d3LineSeries = {
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 				plots.forEach( (plot, indx) =>  {
 					if (indx != plotIndex) {
-						plot.layout.watchedTime.iStep = iStep;
+						plot.watchedTime.iStep = iStep;
 					}
 				});
 			}
@@ -321,7 +321,7 @@ const d3LineSeries = {
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 				plots.forEach( (plot, indx) =>  {
 					if (indx != plotIndex) {
-						plot.layout.watchedTime.iStep = d.taskId;
+						plot.watchedTime.iStep = d.taskId;
 					}
 				});
             }

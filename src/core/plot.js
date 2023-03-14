@@ -100,7 +100,11 @@ const makePlotObject = function(plot) {
 		plotFunc = getPlotFunc(plot.plotType); 
 	}
 
-    const toAdd = Object.assign({ makePlotWrapper, removePlot, makeCompleted : false }, plotFunc );
+    const toAdd = Object.assign({
+         makePlotWrapper, 
+         removePlot, 
+         makeCompleted : false }, 
+         plotFunc );
     const newPlotObject = Object.assign(plot, toAdd);
     return newPlotObject;
 
@@ -108,8 +112,6 @@ const makePlotObject = function(plot) {
 
 const plotMakeForD3Each = function( d, i ) {
 
-    d = makePlotObject(d);
-    d.parentId = `plot-row-body-${d._prid}`;
     d.makePlotWrapper();
 
     if ( d.fetchData !== undefined ) {
