@@ -275,8 +275,8 @@ const d3LineSeries = {
         function timeStepSliderChange() {
 			let iStep = this.value;
 			if ( timeSync ) {
-                let plotRowIndex = plotRows.findIndex( e => e._id == this._prid );
-				let plotIndex = plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
+                let plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
+				let plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 				plots.forEach( (plot, indx) =>  {
 					if (indx != plotIndex) {
@@ -316,8 +316,8 @@ const d3LineSeries = {
             }
             if ( timeSync ) {
                 container.select(".time-slider").node().value = d.taskId;
-                let plotRowIndex = plotRows.findIndex( e => e._id == this._prid );
-				let plotIndex = plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
+                let plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
+				let plotIndex = dbsliceData.sessions.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 				plots.forEach( (plot, indx) =>  {
 					if (indx != plotIndex) {
