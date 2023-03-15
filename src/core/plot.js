@@ -129,8 +129,8 @@ const plotMakeForD3Each = function( d, i ) {
 
 const plotUpdateForD3Each = function( d, i ) {
 
-    plotRowBody = d3.select(`#plot-row-body-${this._id}`);
-    if ( plotRowBody.style("display") == "none") return;
+    let plotRowBody = d3.select(`#plot-row-body-${d._prid}`);
+    if ( !d.makeCompleted ) return;
 
     if ( (d.fetchData !== undefined && d.fetchData._fetchNow )  ||
          (d.fetchData !== undefined && d.fetchData.autoFetchOnFilterChange && dbsliceData.allowAutoFetch) ){
@@ -138,9 +138,11 @@ const plotUpdateForD3Each = function( d, i ) {
             d.data = data;
             d.layout.newData = true;
             d.fetchData._fetchNow = false;
+            if ( plotRowBody.style("display") == "none" ) return;
             d.update();
         })
     } else {
+        if ( plotRowBody.style("display") == "none" ) return;
         d.update();
     }
 
@@ -149,6 +151,8 @@ const plotUpdateForD3Each = function( d, i ) {
 const updateAllPlots = function() {
 
     dbsliceData.session.plotRows.forEach( function(plotRow) {
+        let plotRowBody = d3.select(`#plot-row-body-${plotRow._id}`);
+        if ( plotRowBody.style("display") == "none") return;
         plotRow.plots.forEach( function (plot) {
             if ( !plot.makeCompleted ) return;
             if ( (plot.fetchData !== undefined && plot.fetchData._fetchNow )  ||

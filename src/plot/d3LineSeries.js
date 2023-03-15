@@ -32,7 +32,7 @@ const d3LineSeries = {
 
     },
 
-    update : function ( element, data, layout ) {
+    update : function () {
 
         if (this.layout.newData == false && dbsliceData.windowResize == false) {
             return

@@ -56,7 +56,7 @@ const makePlotRowDefault = function() {
             elementToCollapse.style.display = isHidden ? "" : "none";
             // Change the button icon
             this.innerHTML = isHidden ? icon(faDownLeftAndUpRightToCenter).html : icon(faUpRightAndDownLeftFromCenter).html;
-            update()
+            update();
         });
 }
 

@@ -269,7 +269,7 @@ const cfD3Scatter = {
                 .attr( "r", 5 );
             //tip.hide();
             container.select(".tool-tip").style("opacity", 0.0)
-            if ( highlightTasks) {
+            if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [];
                 highlightTasksAllPlots();
             }

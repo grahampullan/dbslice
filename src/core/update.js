@@ -2,7 +2,7 @@ import { makeNewPlot } from './makeNewPlot.js';
 import { updatePlot } from './updatePlot.js';
 import { dbsliceData } from './dbsliceData.js';
 import { plotRowMakeForD3Each } from './plotRow.js';
-import { plotMakeForD3Each, plotRemoveForD3Each, updateAllPlots } from './plot.js';
+import { plotMakeForD3Each, plotRemoveForD3Each, plotUpdateForD3Each } from './plot.js';
 import * as d3 from 'd3v7';
 
 function update( elementId = dbsliceData.elementId, session = dbsliceData.session ) {
@@ -37,7 +37,7 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 
 	plots.exit().each(plotRemoveForD3Each);
 
-	updateAllPlots();
+	plots.each(plotUpdateForD3Each);
 		
 			
 		
