@@ -157,7 +157,7 @@ const threeSurf3d = {
                     .style("outline-style","solid")
                     .style("outline-color","red")
                     .style("outline-width","4px")
-                    .style("outline-offset","-4px")
+                    .style("outline-offset","0px")
                     .raise();
                 dbsliceData.highlightTasks = [taskId];
 				highlightTasksAllPlots();
@@ -193,7 +193,7 @@ const threeSurf3d = {
                         .style("outline-style","solid")
                         .style("outline-color","red")
                         .style("outline-width","4px")
-                        .style("outline-offset","4px")
+                        .style("outline-offset","0px")
                         .raise();
 				}
             });
