@@ -136,6 +136,27 @@
           }
         }
       ]
+    },
+    {
+      "title": "f at x=0",
+      "plots": [],
+      "ctrl": {
+        "plotType": "d3ContourStruct2d",
+        "layout": {
+          "colWidth": 3,
+          "height": 300,
+          "vScale": [
+            -0.1,
+            1.2
+          ],
+          "highlightTasks": true
+        },
+        "fetchData": {
+          "urlTemplate": "data/${taskId}/f_area2d_xstart.json",
+          "tasksByFilter": true,
+          "maxTasks": 20
+        }
+      }
     }
   ]
 }

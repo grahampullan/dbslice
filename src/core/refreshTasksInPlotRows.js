@@ -1,6 +1,7 @@
 import { dbsliceData } from './dbsliceData.js';
 import { update } from './update.js';
 import { makePlotsFromPlotRowCtrl } from './makePlotsFromPlotRowCtrl.js';
+import { makePlotObject } from './plot.js';
 
 function refreshTasksInPlotRows( allowAutoFetch = false ) {
 
