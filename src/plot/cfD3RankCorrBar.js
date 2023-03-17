@@ -125,7 +125,8 @@ const cfD3RankCorrBar = {
                 .attr( "transform", `translate(${x(0.0)},0)` )
                 .call( d3.axisLeft( y ).tickValues( [] ) );
         } else {
-            yAxis.transition().call( d3.axisLeft( y ).tickValues( []) );
+            yAxis.attr( "transform", `translate(${x(0.0)},0)` )
+                .call( d3.axisLeft( y ).tickValues( []) );
         }
 
         const keyLabels = plotArea.selectAll( ".keyLabel" )
