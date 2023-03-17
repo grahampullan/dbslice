@@ -5,13 +5,13 @@ import { makePlotObject } from './plot.js';
 
 function refreshTasksInPlotRows( allowAutoFetch = false ) {
 
-	var plotRows = dbsliceData.session.plotRows;
+	const plotRows = dbsliceData.session.plotRows;
 
 	plotRows.forEach( function( plotRow ) {
 
 		if (plotRow.ctrl !== undefined ) {
 
-			var ctrl = plotRow.ctrl;
+			let ctrl = plotRow.ctrl;
 
 			if ( !allowAutoFetch || ( allowAutoFetch && ctrl.autoFetchOnFilterChange ) ) {
 

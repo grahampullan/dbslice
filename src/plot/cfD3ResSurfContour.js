@@ -1,5 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { update } from '../core/update.js';
+import { highlightTasksAllPlots } from '../core/plot.js';
 import * as d3 from 'd3';
 import d3tip from 'd3-tip';
 import { contours } from 'd3-contour';
@@ -8,70 +8,64 @@ import * as nd from 'nd4js';
 
 const cfD3ResSurfContour = {
 
-    make : function( element, data, layout ) {
+    make : function() {
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        this.dimId = dbsliceData.session.cfData.continuousProperties.indexOf( this.data.xProperty );
 
-        var dimId = dbsliceData.session.cfData.continuousProperties.indexOf( data.xProperty );
-
-        var svg = container.append("svg")
+        const svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
             .append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                .attr( "class", "plotArea" )
-                .attr( "dimId", dimId);
+                .attr( "transform", `translate(${margin.left} , ${margin.top})`)
+                .attr( "class", "plot-area" )
+                .attr( "id", `plot-area-${this._prid}-${this._id}`);
 
-        cfD3ResSurfContour.update( element, data, layout );
+        this.update();
 
     }, 
 
-    update : function ( element, data, layout ) {
+    update : function () {
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        let plotRowIndex = container.attr("plot-row-index");
-        let plotIndex = container.attr("plot-index");
-        let clipId = "clip-"+plotRowIndex+"-"+plotIndex;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        var svg = container.select("svg");
+        const width = svgWidth - margin.left - margin.right;
+        const height = svgHeight - margin.top - margin.bottom;
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
-
+        const svg = container.select("svg");
         svg.attr("width", svgWidth).attr("height", svgHeight);
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
-
-        var plotArea = svg.select(".plotArea");
-        var dimId = plotArea.attr("dimId");
-
-        const xProperty = data.xProperty;
-        const yProperty = data.yProperty;
-        const outputProperty = data.outputProperty;
-        const inputProperties = [xProperty, yProperty];
-        const cProperty = data.cProperty;
-
+        const clipId = `clip-${this._prid}-${this._id}`;
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.continuousDims[ dimId ];
-        var pointData = dim.top( Infinity );
+        const dimId = this.dimId;
+        const dim = cfData.continuousDims[ dimId ];
+
+        const xProperty = this.data.xProperty;
+        const yProperty = this.data.yProperty;
+        const outputProperty = this.data.outputProperty;
+        const inputProperties = [xProperty, yProperty];
+        const cProperty = this.data.cProperty;
+        const dataModel = this.data.model;
+        const highlightTasks = this.layout.highlightTasks;
+
+        const pointData = dim.top( Infinity );
 
         const Amat = [];
         pointData.forEach( d => {
-            Amat.push( row(inputProperties.map( t => d[t]), data.model ));
+            Amat.push( row(inputProperties.map( t => d[t]), dataModel ));
         });
 
         const ymat = pointData.map( d => ([d[outputProperty]]));
@@ -84,54 +78,57 @@ const cfD3ResSurfContour = {
         const pinv = nd.la.matmul(v, sigmaInv, u.T); // psuedo-inverse
         const beta = nd.la.matmul(pinv,ymat);
 
-
-        if ( layout.xRange === undefined) {
-            var xMin = d3.min( pointData, d => d[xProperty]  );
-            var xMax = d3.max( pointData, d => d[xProperty]  );
-            var xDiff = xMax - xMin;
+        let xRange, xMin, xMax;
+        if ( this.layout.xRange === undefined) {
+            xMin = d3.min( pointData, d => d[xProperty]  );
+            xMax = d3.max( pointData, d => d[xProperty]  );
+            let xDiff = xMax - xMin;
             xMin -= 0.1 * xDiff;
             xMax += 0.1 * xDiff;
-            var xRange = [xMin, xMax];
+            xRange = [xMin, xMax];
         } else {
-            var xRange = layout.xRange;
+            xRange = this.layout.xRange;
         }
 
-        if ( layout.yRange === undefined) {
-            var yMin = d3.min( pointData, d => d[yProperty]  );
-            var yMax = d3.max( pointData, d => d[yProperty]  );
-            var yDiff = yMax - yMin;
+        let yRange, yMin, yMax;
+        if ( this.layout.yRange === undefined) {
+            yMin = d3.min( pointData, d => d[yProperty]  );
+            yMax = d3.max( pointData, d => d[yProperty]  );
+            let yDiff = yMax - yMin;
             yMin -= 0.1 * yDiff;
             yMax += 0.1 * yDiff;
-            var yRange = [yMin, yMax];
+            yRange = [yMin, yMax];
         } else {
-            var yRange = layout.yRange;
+            yRange = this.layout.yRange;
         }
 
-        if ( layout.vRange === undefined) {
-            var vMin = d3.min( pointData, d => d[outputProperty]  );
-            var vMax = d3.max( pointData, d => d[outputProperty]  );
-            var vDiff = vMax - vMin;
+        let vRange, vMin, vMax;
+        if ( this.layout.vRange === undefined) {
+            vMin = d3.min( pointData, d => d[outputProperty]  );
+            vMax = d3.max( pointData, d => d[outputProperty]  );
+            let vDiff = vMax - vMin;
             vMin -= 0.1 * vDiff;
             vMax += 0.1 * vDiff;
-            var vRange = [vMin, vMax];
+            vRange = [vMin, vMax];
         } else {
-            var vRange = layout.vRange;
-            var vMin = vRange[0];
-            var vMax = vRange[1];
+            vRange = this.layout.vRange;
+            vMin = vRange[0];
+            vMax = vRange[1];
         }
 
+        let cRange, cMin, cMax;
         if ( cfData.continuousProperties.includes(cProperty) ) {
-            if ( layout.cRange === undefined) {
-                var cMin = d3.min( pointData, d => d[cProperty]  );
-                var cMax = d3.max( pointData, d => d[cProperty]  );
-                var cDiff = cMax - cMin;
+            if ( this.layout.cRange === undefined) {
+                cMin = d3.min( pointData, d => d[cProperty]  );
+                cMax = d3.max( pointData, d => d[cProperty]  );
+                let cDiff = cMax - cMin;
                 cMin -= 0.1 * cDiff;
                 cMax += 0.1 * cDiff;
-                var cRange = [cMin, cMax];
+                cRange = [cMin, cMax];
             } else {
-                var cRange = layout.cRange;
-                var cMin = cRange[0];
-                var cMax = cRange[1];
+                cRange = this.layout.cRange;
+                cMin = cRange[0];
+                cMax = cRange[1];
             }
         }
 
@@ -147,7 +144,7 @@ const cfD3ResSurfContour = {
             let xNow = xMin + i/m * (xMax - xMin);
             for ( let j=0; j<n; j++ ) {
                 let yNow = yMin + j/n * (yMax - yMin);
-                let x = row( [xNow, yNow] , data.model );
+                let x = row( [xNow, yNow] , dataModel );
                 let vNow = nd.la.matmul( nd.array([x]), beta)(0,0);
                 vCont.push( vNow )
                 xCont.push( xNow );
@@ -156,39 +153,40 @@ const cfD3ResSurfContour = {
             }
         }
 
-        var xscale = d3.scaleLinear()
+        const xscale = d3.scaleLinear()
             .range( [0, width] )
             .domain( xRange );
 
-        var xscale0 = d3.scaleLinear()
+        const xscale0 = d3.scaleLinear()
             .range( [0, width] )
             .domain( xRange );
 
-        var yscale = d3.scaleLinear()
+        const yscale = d3.scaleLinear()
             .range( [height, 0] )
             .domain( yRange );
 
-        var yscale0 = d3.scaleLinear()
+        const yscale0 = d3.scaleLinear()
             .range( [height, 0] )
             .domain( yRange );
         
         let colourPoints;
         if ( cfData.categoricalProperties.includes(cProperty) ) {
-            colourPoints = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+            colourPoints = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
             colourPoints.domain( cfData.categoricalUniqueValues[ cProperty ] );
         }
 
         if ( cfData.continuousProperties.includes(cProperty) ) {
-            colourPoints = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+            colourPoints = ( this.layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( this.layout.colourMap );
             colourPoints.domain( [cMin, cMax ] );
         }
+        this.colourPoints = colourPoints;
 
-        var opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
+        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
 
-        var plotArea = svg.select(".plotArea");
+        const plotArea = svg.select(".plot-area");
 
-        var thresholds = d3.range( vMin , vMax , ( vMax - vMin ) / 21 );
-        var colourCont = d3.scaleSequential( interpolateSpectral );
+        const thresholds = d3.range( vMin , vMax , ( vMax - vMin ) / 21 );
+        const colourCont = d3.scaleSequential( interpolateSpectral );
         colourCont.domain([vMin, vMax]);
 
         // configure a projection to map the contour coordinates returned by
@@ -243,17 +241,17 @@ const cfD3ResSurfContour = {
             .append("path")
             .attr("class","cont-path")
             .attr("d", d3.geoPath(projection))
-            .attr("fill", function(d) { return colourCont(d.value); }); 
+            .attr("fill", d => colourCont(d.value)); 
         
         contpaths
             .attr("d", d3.geoPath(projection))
-            .attr("fill", function(d) { return colourCont(d.value); }); 
+            .attr("fill", d => colourCont(d.value)); 
 
         contpaths.exit().remove();
 
         //console.log(conts(vCont));
 
-        var clip = svg.append("clipPath")
+        const clip = svg.append("clipPath")
             .attr("id", clipId)
             .append("rect")
                 .attr("width", width)
@@ -265,7 +263,7 @@ const cfD3ResSurfContour = {
         //svg.transition().call(zoom.transform, d3.zoomIdentity);
         //svg.call(zoom);
 
-        var tip = d3tip()
+        const tip = d3tip()
             .attr('class', 'd3-tip')
             .offset([-20, 0])
             .html(function( d ) {
@@ -284,7 +282,7 @@ const cfD3ResSurfContour = {
                 .attr("r",1);
         }
 
-        var points = plotArea.selectAll( ".point" )
+        const points = plotArea.selectAll( ".point" )
             .data( pointData );
 
         points.enter()
@@ -295,7 +293,7 @@ const cfD3ResSurfContour = {
             .attr( "cy", d => yscale( d[yProperty] ) )
             .style( "fill", d => colourPoints( d[cProperty] ) )
             .style( "opacity", opacity )
-            .attr( "clip-path", "url(#"+clipId+")")
+            .attr( "clip-path", `url(#${clipId})`)
             .attr( "task-id", d => d.taskId )
             .on( "mouseover", tipOn )
             .on( "mouseout", tipOff );
@@ -309,14 +307,14 @@ const cfD3ResSurfContour = {
 
         points.exit().remove();
 
-        var xAxis = d3.axisBottom( xscale );
-        var yAxis = d3.axisLeft( yscale );
+        const xAxis = d3.axisBottom( xscale );
+        const yAxis = d3.axisLeft( yscale );
 
-        var gX = plotArea.select(".axis--x");
+        let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
             gX = plotArea.append("g")
-                .attr( "transform", "translate(0," + height + ")" )
-                .attr( "class", "axis--x")
+                .attr( "transform", `translate(0, ${height})` )
+                .attr( "class", "axis-x")
                 .call( xAxis );
             gX.append("text")
                 .attr("class", "x-axis-text")
@@ -330,10 +328,10 @@ const cfD3ResSurfContour = {
             gX.select(".x-axis-text").attr("x", width);
         }
 
-        var gY = plotArea.select(".axis--y");
+        let gY = plotArea.select(".axis-y");
         if ( gY.empty() ) {
             gY = plotArea.append("g")
-                .attr( "class", "axis--y")
+                .attr( "class", "axis-y")
                 .call( yAxis );
             gY.append("text")
                 .attr("fill", "#000")
@@ -346,27 +344,6 @@ const cfD3ResSurfContour = {
             gY.transition().call( yAxis );
         }
 
-        
-
-        if ( layout.highlightTasks == true ) {
-            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-                points
-                    .style( "opacity" , opacity )
-                    .style( "stroke-width", "0px")
-                    .style( "fill", d => colourPoints( d[cProperty] ) );
-            } else {
-                //points.style( "opacity" , 0.2);
-                points.style( "fill" , "#d3d3d3");
-                dbsliceData.highlightTasks.forEach( function (taskId) {
-                    points.filter( (d,i) => d.taskId == taskId)
-                        .style( "fill", d => colourPoints( d[cProperty] ) )
-                        .style( "opacity" , opacity)
-                        .style( "stroke", "red")
-                        .style( "stroke-width", "2px")
-                        .raise();
-                });
-            }
-        }
 
         function row(x, model) {
             const row = [1.];
@@ -407,9 +384,9 @@ const cfD3ResSurfContour = {
                  .attr( "cy" , d3.select(this).attr("cy") );
             tip.show( d , focus.node() );
             //tip.show( d );s
-            if ( layout.highlightTasks == true ) {
+            if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
-                update( dbsliceData.elementId, dbsliceData.session );
+                highlightTasksAllPlots();
             }
         }
 
@@ -418,11 +395,43 @@ const cfD3ResSurfContour = {
             d3.select(this)
                 .attr( "r", 5 );
             tip.hide();
-            if ( layout.highlightTasks == true ) {
+            if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [];
-                update( dbsliceData.elementId, dbsliceData.session );
+                highlightTasksAllPlots();
             }
         }
+    },
+
+    highlightTasks : function() {
+
+        if (!this.layout.highlightTasks) return;
+
+        const cfData = dbsliceData.session.cfData;
+        const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
+        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
+        const cProperty = this.data.cProperty;
+        const colourPoints = this.colourPoints;
+        const points = plotArea.selectAll( ".point" );
+
+        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+            points
+                .style( "opacity" , opacity )
+                .style( "stroke-width", "0px")
+                .style( "fill", d => colourPoints( d[cProperty] ) );
+        } else {
+            //points.style( "opacity" , 0.2);
+            points.style( "fill" , "#d3d3d3");
+            dbsliceData.highlightTasks.forEach( function (taskId) {
+                points.filter( (d,i) => d.taskId == taskId)
+                    .style( "fill", d => colourPoints( d[cProperty] ) )
+                    .style( "opacity" , opacity)
+                    .style( "stroke", "red")
+                    .style( "stroke-width", "2px")
+                    .raise();
+            });
+        }
+
+
     }
 };
 

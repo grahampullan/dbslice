@@ -92,7 +92,7 @@ const cfD3Histogram = {
                 handle.attr( "display", "none" );
                 cfData.histogramSelectedRanges[ dimId ] = [];
                 cfUpdateFilters(cfData);
-                if ( brushInit == false ) refreshTasksInPlotRows();
+                if ( brushInit == false ) refreshTasksInPlotRows(true);
             } else {
                 var sx = s.map( x.invert );
                 handle.attr( "display", null ).attr( "transform", function( d, i ) {
@@ -100,13 +100,13 @@ const cfD3Histogram = {
                 } );
                 cfData.histogramSelectedRanges[ dimId ] = sx;
                 cfUpdateFilters(cfData);
-                if ( brushInit == false ) refreshTasksInPlotRows();
+                if ( brushInit == false ) refreshTasksInPlotRows(true);
             }
         }
 
         function brushend() {
             dbsliceData.allowAutoFetch = true;
-            if ( brushInit == false ) refreshTasksInPlotRows();
+            if ( brushInit == false ) refreshTasksInPlotRows(true);
             dbsliceData.allowAutoFetch = false;
         }
 
@@ -271,7 +271,7 @@ const cfD3Histogram = {
                     handle.attr( "display", "none" );
                     cfData.histogramSelectedRanges[ dimId ] = [];
                     cfUpdateFilters(cfData);
-                    if ( brushInit == false ) refreshTasksInPlotRows();
+                    if ( brushInit == false ) refreshTasksInPlotRows(true);
                 } else {
                     var sx = s.map( x.invert );
                     handle.attr( "display", null ).attr( "transform", function( d, i ) {
@@ -279,13 +279,13 @@ const cfD3Histogram = {
                     } );
                     cfData.histogramSelectedRanges[ dimId ] = sx;
                     cfUpdateFilters(cfData);
-                    if ( brushInit == false ) refreshTasksInPlotRows();
+                    if ( brushInit == false ) refreshTasksInPlotRows(true);
                 }
             }
         
             function brushend() {
                 dbsliceData.allowAutoFetch = true;
-                if ( brushInit == false ) refreshTasksInPlotRows();
+                if ( brushInit == false ) refreshTasksInPlotRows(true);
                 dbsliceData.allowAutoFetch = false;
             }
         }
