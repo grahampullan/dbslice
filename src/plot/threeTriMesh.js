@@ -1,5 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { update } from '../core/update.js';
+import { highlightTasksAllPlots } from '../core/plot.js';
 import * as d3 from 'd3';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three';
@@ -7,52 +7,313 @@ import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
 
 const threeTriMesh = {
 
-	make : function ( element, buffer, layout ) {
+	make : function () {
 
-		threeTriMesh.update ( element, buffer, layout );
+		this.getOffsets();
+		this.update();
 
 	},
 
-	update : function (element, buffer, layout ) {
+	update : function () {
 
-		var container = d3.select(element);
+		const container = d3.select(`#${this.elementId}`);
+		const taskId = this.taskId;
+		const cameraSync = this.layout.cameraSync;
+		const timeSync = this.layout.timeSync;
+		const highlightTasks = this.layout.highlightTasks;
+		const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
+		const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
+		const nSteps = this.nSteps;
+		const nSurfsNow = this.nSurfsNow;
+		const buffer = this.data;
 
-		if ( layout.highlightTasks == true ) {
 
-            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+		if (this.layout.newData == false && dbsliceData.windowResize == false) {
+            return
+        }
 
-                container.style("outline-width","0px")
- 
-            } else {
+		let vScale;
+        if (this.layout.vScale === undefined) {
+        	vScale = [0,1];
+        } else {
+        	vScale = this.layout.vScale;
+        }
 
-                container.style("outline-width","0px")
+		const color = ( this.layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( this.layout.colourMap );
+        color.domain( vScale );
 
-                dbsliceData.highlightTasks.forEach( function (taskId) {
+		const textureWidth = 256;
+		const textureHeight = 4;
+		const texData = new Uint8Array(4*textureWidth*textureHeight);
+  		let k=0;
+  		for (let j=0; j<textureHeight; j++) {
+    		for (let i=0; i<textureWidth; i++) {
+      			let col = d3.rgb(color(i/textureWidth));
+      			texData[k] = col.r;
+      			texData[k+1] = col.g;
+      			texData[k+2] = col.b;
+      			texData[k+3] = 255;
+      			k += 4;
+    		}
+  		}
+  		const tex = new THREE.DataTexture( texData, textureWidth, textureHeight,  THREE.RGBAFormat, THREE.UnsignedByteType, THREE.UVMapping);
+  		tex.needsUpdate = true;
 
-                    if ( taskId == layout.taskId ) {
-                    
-                        container
-                            .style("outline-style","solid")
-                            .style("outline-color","red")
-                            .style("outline-width","4px")
-                            .style("outline-offset","4px")
-                            .raise();
+		container.select(".plot-area").remove();
 
-                    }
+		var div = container.append("div")
+			.attr("class", "plot-area")
+			.on( "mouseover", tipOn )
+			.on( "mouseout", tipOff );
 
-                });
+		if ( nSteps > 1 ){
+			div.append("input")
+				.attr("class", "form-range time-slider")
+				.attr("type","range")
+				//.attr("id","time")
+				//.attr("name","time")
+				.attr("min",0)
+				.attr("value",0)
+				.attr("max",nSteps-1)
+				.attr("step",1)
+				.on( "input", timeStepSliderChange );
+		}
+
+		const width = container.node().offsetWidth;
+		const height = this.layout.height;
+
+		// Initialise threejs scene
+		const scene = new THREE.Scene();
+		scene.background = new THREE.Color( 0xefefef );
+			
+		// Create renderer
+		const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true}); 
+		renderer.setPixelRatio( window.devicePixelRatio );
+		renderer.setSize( width , height )
+
+		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		const material = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+
+		const offsets = this.offsets;
+		// use size of first surface to set camera and lights
+		let iStep = 0;
+		let iSurface = 0;
+		let thisSurface = offsets[iStep][iSurface];
+		let xRange = thisSurface.xRange;
+		let yRange = thisSurface.yRange;
+		let zRange = thisSurface.zRange;
+		let xMid = 0.5*( xRange[0] + xRange[1] );
+		let yMid = 0.5*( yRange[0] + yRange[1] );
+		let zMid = 0.5*( zRange[0] + zRange[1] );
+		let rMax = thisSurface.rMax;
+
+		const light1 = new THREE.PointLight( 0xffffff, 0.8 );
+		light1.position.set( xMid, yMid, zMid + 10*rMax );
+		const light2 = new THREE.PointLight( 0xffffff, 0.8 );
+		light2.position.set( xMid, yMid, zMid - 10*rMax );
+		const light3 = new THREE.PointLight( 0xffffff, 0.8 );
+		light3.position.set( xMid + 10*rMax, yMid, zMid  );
+		const light4 = new THREE.PointLight( 0xffffff, 0.8 );
+		light4.position.set( xMid - 10*rMax, yMid, zMid );
+		const light5 = new THREE.PointLight( 0xffffff, 0.8 );
+		light5.position.set( xMid, yMid + 10*rMax, zMid  );
+		const light6 = new THREE.PointLight( 0xffffff, 0.8 );
+		light6.position.set( xMid, yMid - 10*rMax, zMid );
+
+		scene.add( light1 );
+		scene.add( light2 );
+		scene.add( light3 );
+		scene.add( light4 );
+		scene.add( light5 );
+		scene.add( light6 );
+
+		// add all surfaces (at iStep = 0) to scene
+		this.meshUuids = [];
+		const meshUuids = this.meshUuids;
+		for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+			let thisSurface = offsets[iStep][iSurf];
+			const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
+			const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
+			const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
+			const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
+
+			const geometry = new THREE.BufferGeometry();
+			geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
+			geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
+			geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+			geometry.computeVertexNormals();
+
+			const mesh = new THREE.Mesh( geometry, material );
+			meshUuids.push( mesh.uuid );
+			scene.add( mesh );
+		}
+	
+		// Set target DIV for rendering
+		//var container = document.getElementById( elementId );
+		div.node().appendChild( renderer.domElement );
+
+		// Define the camera
+		const camera = new THREE.PerspectiveCamera( 45, width/height, 0.0001, 1000. );
+		camera.position.x = xMid + 2*rMax;
+		camera.position.y = yMid;
+		camera.position.z = zMid;
+
+		if ( cameraSync ) {
+			let handler = {
+				set: function(target, key, value) {
+					camera[key].copy(value);
+					renderer.render(scene,camera);
+					return true;
+				}
+			};
+			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, handler);
+			this.watchedCamera = watchedCamera;
+		}
+
+		if ( timeSync ) {
+			let handler = {
+				set: function(target, key, valueset) {
+					target[key] = valueset;
+					if (key = 'iStep') {
+						div.select(".time-slider").node().value = valueset;
+						updateSurfaces(valueset);
+					}
+					return true;
+				}
+			};
+			let watchedTime = new Proxy({iStep}, handler);
+			this.watchedTime = watchedTime;
+		}
+
+
+		// Add controls 		
+		camera.up.set(0,0,1);
+		const controls = new OrbitControls( camera, renderer.domElement );
+		controls.target.set( xMid, yMid, zMid );
+		controls.enabled = true;
+		controls.update();
+		if (xRange[1]-xRange[0]==0.) {
+			controls.enableRotate = false;
+		}
+
+		controls.addEventListener( 'change', function(){
+    		renderer.render(scene,camera); // re-render if controls move/zoom 
+			if ( cameraSync ) {
+				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
+				plots.forEach( (plot, indx) =>  {
+					if (indx != plotIndex && plot.watchedCamera !== undefined) {
+						plot.watchedCamera.position = camera.position;
+						plot.watchedCamera.rotation = camera.rotation;
+					}
+				});
+			}
+		} ); 
+		controls.enableZoom = true; 
+		
+		// Make initial call to render scene
+		renderer.render( scene, camera );
+
+
+		function timeStepSliderChange() {
+			iStep = this.value;
+			if ( timeSync ) {
+				const plots = dbsliceData.session.plotRows[plotRowIndex].plots;
+				plots.forEach( (plot, indx) =>  {
+					if (indx != plotIndex) {
+						plot.watchedTime.iStep = iStep;
+					}
+				});
+			}
+			updateSurfaces(iStep);
+		}
+
+		function updateSurfaces(iStep) {
+			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+				let thisSurface=offsets[iStep][iSurf];
+				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
+				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
+				const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
+				const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
+			
+				const geometry = new THREE.BufferGeometry();
+				geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
+				geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
+				geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+				geometry.computeVertexNormals();
+
+				const oldMesh = scene.getObjectByProperty('uuid',meshUuids[iSurf]);
+				oldMesh.geometry.dispose();
+				oldMesh.material.dispose();
+    			scene.remove(oldMesh);
+
+				const newMesh = new THREE.Mesh( geometry, material );
+				meshUuids[iSurf] = newMesh.uuid;
+				scene.add( newMesh );
+			}
+			renderer.render(scene,camera);
+		}
+
+		function tipOn() {
+            if ( highlightTasks ) {
+                container
+                    .style("outline-style","solid")
+                    .style("outline-color","red")
+                    .style("outline-width","4px")
+                    .style("outline-offset","0px")
+                    .raise();
+                dbsliceData.highlightTasks = [taskId];
+				highlightTasksAllPlots();
             }
         }
 
-		if (layout.newData == false && dbsliceData.windowResize == false) {
-            return
+        function tipOff() {
+            if ( highlightTasks ) {
+                container.style("outline-width","0px")
+                dbsliceData.highlightTasks = [];
+                highlightTasksAllPlots();
+            }
         }
+
+		this.layout.newData = false;
+
+	},
+
+	highlightTasks : function(){
+
+		if (!this.layout.highlightTasks) return;
+
+		const container = d3.select(`#${this.elementId}`);
+        const thisTaskId = this.taskId;
+
+		if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+			container.style("outline-width","0px")
+ 		} else {
+			container.style("outline-width","0px")
+			dbsliceData.highlightTasks.forEach( function (taskId) {
+				if ( taskId == thisTaskId ) {
+                    container
+                        .style("outline-style","solid")
+                        .style("outline-color","red")
+                        .style("outline-width","4px")
+                        .style("outline-offset","0px")
+                        .raise();
+				}
+            });
+        }
+	},
+
+	getOffsets : function() {
+
+
+		const buffer = this.data;
 
 		// parse arrayBuffer to make lookup offsets object
 		let ii = 0 // byte index
 		const nSteps = new Int32Array(buffer,ii,1)[0];
+		this.nSteps = nSteps;
 		ii += 4;
 		let nSurfsNow = new Int32Array(buffer,ii,1)[0];
+		this.nSurfsNow = nSurfsNow;
 		ii += 4;
 		const offsets = [];
 		for (let iStep = 0; iStep < nSteps; iStep++) {
@@ -102,254 +363,7 @@ const threeTriMesh = {
 			}
 			offsets.push(surfaces);
 		}
-
-        if (layout.vScale === undefined) {
-        	var vScale = [0,1];
-        } else {
-        	var vScale = layout.vScale;
-        }
-
-		var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
-        color.domain( vScale );
-
-		const textureWidth = 256;
-		const textureHeight = 4;
-		const texData = new Uint8Array(4*textureWidth*textureHeight);
-  		let k=0;
-  		for (let j=0; j<textureHeight; j++) {
-    		for (let i=0; i<textureWidth; i++) {
-      			let col = d3.rgb(color(i/textureWidth));
-      			texData[k] = col.r;
-      			texData[k+1] = col.g;
-      			texData[k+2] = col.b;
-      			texData[k+3] = 255;
-      			k += 4;
-    		}
-  		}
-  		const tex = new THREE.DataTexture( texData, textureWidth, textureHeight,  THREE.RGBAFormat, THREE.UnsignedByteType, THREE.UVMapping);
-  		tex.needsUpdate = true;
-
-		container.select(".plotArea").remove();
-
-		var div = container.append("div")
-			.attr("class", "plotArea")
-			.on( "mouseover", tipOn )
-			.on( "mouseout", tipOff );
-
-		if ( nSteps > 1 ){
-			div.append("input")
-				.attr("class", "form-range time-slider")
-				.attr("type","range")
-				//.attr("id","time")
-				//.attr("name","time")
-				.attr("min",0)
-				.attr("value",0)
-				.attr("max",nSteps-1)
-				.attr("step",1)
-				.on( "input", timeStepSliderChange );
-		}
-
-		var width = container.node().offsetWidth,
-			height = layout.height;
-
-		// Initialise threejs scene
-		const scene = new THREE.Scene();
-		scene.background = new THREE.Color( 0xefefef );
-			
-		// Create renderer
-		var renderer = new THREE.WebGLRenderer({alpha:true, antialias:true}); 
-		renderer.setPixelRatio( window.devicePixelRatio );
-		renderer.setSize( width , height )
-
-		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-		const material = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-
-		// use size of first surface to set camera and lights
-		let iStep = 0;
-		let iSurface = 0;
-		let thisSurface=offsets[iStep][iSurface];
-		let xRange = thisSurface.xRange;
-		let yRange = thisSurface.yRange;
-		let zRange = thisSurface.zRange;
-		let xMid = 0.5*( xRange[0] + xRange[1] );
-		let yMid = 0.5*( yRange[0] + yRange[1] );
-		let zMid = 0.5*( zRange[0] + zRange[1] );
-		let rMax = thisSurface.rMax;
-
-		const light1 = new THREE.PointLight( 0xffffff, 0.8 );
-		light1.position.set( xMid, yMid, zMid + 10*rMax );
-		const light2 = new THREE.PointLight( 0xffffff, 0.8 );
-		light2.position.set( xMid, yMid, zMid - 10*rMax );
-		const light3 = new THREE.PointLight( 0xffffff, 0.8 );
-		light3.position.set( xMid + 10*rMax, yMid, zMid  );
-		const light4 = new THREE.PointLight( 0xffffff, 0.8 );
-		light4.position.set( xMid - 10*rMax, yMid, zMid );
-		const light5 = new THREE.PointLight( 0xffffff, 0.8 );
-		light5.position.set( xMid, yMid + 10*rMax, zMid  );
-		const light6 = new THREE.PointLight( 0xffffff, 0.8 );
-		light6.position.set( xMid, yMid - 10*rMax, zMid );
-
-		scene.add( light1 );
-		scene.add( light2 );
-		scene.add( light3 );
-		scene.add( light4 );
-		scene.add( light5 );
-		scene.add( light6 );
-
-		// add all surfaces (at iStep = 0) to scene
-		layout._meshUuids = [];
-		for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
-			let thisSurface=offsets[iStep][iSurf];
-			const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
-			const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
-			const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
-			const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
-			let xRange = thisSurface.xRange;
-
-			const geometry = new THREE.BufferGeometry();
-			geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
-			geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-			geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-			geometry.computeVertexNormals();
-
-			const mesh = new THREE.Mesh( geometry, material );
-			layout._meshUuids.push( mesh.uuid );
-			scene.add( mesh );
-		}
-	
-		// Set target DIV for rendering
-		//var container = document.getElementById( elementId );
-		div.node().appendChild( renderer.domElement );
-
-		// Define the camera
-		var camera = new THREE.PerspectiveCamera( 45, width/height, 0.0001, 1000. );
-		camera.position.x = xMid + 2*rMax;
-		camera.position.y = yMid;
-		camera.position.z = zMid;
-
-		if ( layout.cameraSync ) {
-			let handler = {
-				set: function(target, key, value) {
-					camera[key].copy(value);
-					renderer.render(scene,camera);
-					return true;
-				}
-			};
-			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, handler);
-			layout.watchedCamera = watchedCamera;
-		}
-
-		if ( layout.timeSync ) {
-			let handler = {
-				set: function(target, key, valueset) {
-					target[key] = valueset;
-					if (key = 'iStep') {
-						div.select(".time-slider").node().value = valueset;
-						updateSurfaces(valueset);
-					}
-					return true;
-				}
-			};
-			let watchedTime = new Proxy({iStep}, handler);
-			layout.watchedTime = watchedTime;
-		}
-
-
-		// Add controls 
-		
-		camera.up.set(0,0,1);
-		const controls = new OrbitControls( camera, renderer.domElement );
-		controls.target.set( xMid, yMid, zMid );
-		controls.enabled = true;
-		controls.update();
-		if (xRange[1]-xRange[0]==0.) {
-			controls.enableRotate = false;
-		}
-		controls.addEventListener( 'change', function(){
-    		renderer.render(scene,camera); // re-render if controls move/zoom 
-			if ( layout.cameraSync ) {
-				let plotRowIndex = container.attr("plot-row-index");
-				let plotIndex = container.attr("plot-index");
-				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
-				plots.forEach( (plot, indx) =>  {
-					if (indx != plotIndex && plot.layout.watchedCamera !== undefined) {
-						plot.layout.watchedCamera.position = camera.position;
-						plot.layout.watchedCamera.rotation = camera.rotation;
-					}
-				});
-			}
-		} ); 
-		controls.enableZoom = true; 
-		
-		// Make initial call to render scene
-		renderer.render( scene, camera );
-
-
-		function timeStepSliderChange() {
-			iStep = this.value;
-			if ( layout.timeSync ) {
-				let plotRowIndex = container.attr("plot-row-index");
-				let plotIndex = container.attr("plot-index");
-				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
-				plots.forEach( (plot, indx) =>  {
-					if (indx != plotIndex) {
-						plot.layout.watchedTime.iStep = iStep;
-					}
-				});
-			}
-			updateSurfaces(iStep);
-		}
-
-		function updateSurfaces(iStep) {
-			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
-				let thisSurface=offsets[iStep][iSurf];
-				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
-				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
-				const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
-				const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
-				let xRange = thisSurface.xRange;
-			
-				const geometry = new THREE.BufferGeometry();
-				geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
-				geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-				geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-				geometry.computeVertexNormals();
-
-				const oldMesh = scene.getObjectByProperty('uuid',layout._meshUuids[iSurf]);
-				oldMesh.geometry.dispose();
-				oldMesh.material.dispose();
-    			scene.remove(oldMesh);
-
-				const newMesh = new THREE.Mesh( geometry, material );
-				layout._meshUuids[iSurf] = newMesh.uuid;
-				scene.add( newMesh );
-			}
-			renderer.render(scene,camera);
-		}
-
-		function tipOn() {
-            if ( layout.highlightTasks == true ) {
-                container
-                    .style("outline-style","solid")
-                    .style("outline-color","red")
-                    .style("outline-width","4px")
-                    .style("outline-offset","-4px")
-                    .raise();
-                dbsliceData.highlightTasks = [layout.taskId];
-                update( dbsliceData.elementId, dbsliceData.session );
-            }
-        }
-
-        function tipOff() {
-            if ( layout.highlightTasks == true ) {
-                container.style("outline-width","0px")
-                dbsliceData.highlightTasks = [];
-                update( dbsliceData.elementId, dbsliceData.session );
-            }
-        }
-
-		layout.newData = false;
-
+		this.offsets = offsets;
 	}
 
 }
