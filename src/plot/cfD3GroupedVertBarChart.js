@@ -4,76 +4,74 @@ import * as d3 from 'd3v7';
 
 const cfD3GroupedVertBarChart = {
 
-    make : function( element, data, layout ) {
+    make : function() {
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        console.log()
-        var dimId = dbsliceData.session.cfData.categoricalProperties.indexOf( data.xProperty );
+        this.dimId = dbsliceData.session.cfData.categoricalProperties.indexOf( this.data.xProperty );
 
-        var svg = container.append("svg")
+        const svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
             .append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                .attr( "class", "plotArea" )
-                .attr( "dimId", dimId);
+                .attr( "transform", `translate(${margin.left} , ${margin.top})`)
+                .attr( "class", "plot-area" )
+                .attr( "id", `plot-area-${this._prid}-${this._id}`);
 
         container.append("div")
             .attr("class", "tool-tip")
             .style("opacity", 0);
 
-        cfD3GroupedVertBarChart.update( element, data, layout );
+        this.update();
 
     }, 
 
     update : function ( element, data, layout ) {
 
-        if (layout._noUpdate) {
-            layout._noUpdate = false;
-            return;
-        }
+        //if (layout._noUpdate) {
+        //    layout._noUpdate = false;
+        //    return;
+        //}
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        var svgWidth = container.node().offsetWidth,
-        svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        const width = svgWidth - margin.left - margin.right;
+        const height = svgHeight - margin.top - margin.bottom;
 
-        var svg = container.select("svg");
+        const svg = container.select("svg");
 
         svg.attr("width", svgWidth).attr("height", svgHeight);
 
-        let plotRowIndex = container.attr("plot-row-index");
-        let plotIndex = container.attr("plot-index");
-        let clipId = "clip-"+plotRowIndex+"-"+plotIndex;
+        const dimId = this.dimId;
+        const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
+        const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
+        const clipId = `clip-${this._prid}-${this._id}`;
+        const plotArea = svg.select(".plot-area");
 
-        var plotArea = svg.select(".plotArea");
-        var dimId = plotArea.attr("dimId");
-
-        var xProperty = data.xProperty;
-        var yProperty = data.yProperty;
-        var zProperty = data.zProperty;
+        const xProperty = this.data.xProperty;
+        const yProperty = this.data.yProperty;
+        const zProperty = this.data.zProperty;
 
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.categoricalDims[ dimId ];
+        const dim = cfData.categoricalDims[ dimId ];
 
-        let barDataAll = dim.top( Infinity );
+        const barDataAll = dim.top( Infinity );
 
         let barData;
-        if ( layout.filterBy !== undefined ) {
-            barData = barDataAll.filter(d => d[Object.keys(layout.filterBy)[0]] == Object.values(layout.filterBy)[0] );
+        if ( this.layout.filterBy !== undefined ) {
+            barData = barDataAll.filter(d => d[Object.keys(this.layout.filterBy)[0]] == Object.values(this.layout.filterBy)[0] );
         } else {
             barData = barDataAll;
         }
@@ -89,17 +87,18 @@ const cfD3GroupedVertBarChart = {
         let zDomain = d3.union( ...barData.map( d => d.map( v => v[zProperty])));
         zDomain = Array.from(zDomain).sort( (a,b) => d3.ascending(a,b) );
 
-        if ( layout.yRange === undefined) {
-            var yMin = d3.min( barDataFlat, d => d[ yProperty ] );
-            var yMax = d3.max( barDataFlat, d => d[ yProperty ] );
-            var yDiff = yMax - yMin;
+        let yMin, yMax, yRange;
+        if ( this.layout.yRange === undefined) {
+            yMin = d3.min( barDataFlat, d => d[ yProperty ] );
+            yMax = d3.max( barDataFlat, d => d[ yProperty ] );
+            let yDiff = yMax - yMin;
             if ( yMin > 0. && yMax > 0.) yMin = 0.
             if ( yMin < 0. && yMax < 0.) yMax = 0.
             //yMin -= 0.1 * yDiff;
             //yMax += 0.1 * yDiff;
-            var yRange = [yMin, yMax];
+            yRange = [yMin, yMax];
         } else {
-            var yRange = layout.yRange;
+            yRange = this.layout.yRange;
         }
 
         const xScale = d3.scaleBand()
@@ -119,11 +118,9 @@ const cfD3GroupedVertBarChart = {
         const colour = d3.scaleOrdinal( d3.schemeTableau10 )
             .domain( zDomain );
 
-        var opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
+        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
 
-        var plotArea = svg.select(".plotArea");
-
-        let clipRect = svg.select(".clip-rect");
+        const clipRect = svg.select(".clip-rect");
 
         if ( clipRect.empty() ) {
             svg.append("defs").append("clipPath")
@@ -196,11 +193,11 @@ const cfD3GroupedVertBarChart = {
         const xAxis = d3.axisBottom( xScale );
         const yAxis = d3.axisLeft( yScale );
 
-        var gX = plotArea.select(".axis--x");
+        let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
             gX = plotArea.append("g")
-                .attr( "transform", "translate(0," + height + ")" )
-                .attr( "class", "axis--x")
+                .attr( "transform", `translate(0,${height})` )
+                .attr( "class", "axis-x")
                 .call( xAxis );
             gX.append("text")
                 .attr("class","x-axis-text")
@@ -214,10 +211,10 @@ const cfD3GroupedVertBarChart = {
             gX.select(".x-axis-text").attr("x",width);
         }
 
-        var gY = plotArea.select(".axis--y");
+        let gY = plotArea.select(".axis--y");
         if ( gY.empty() ) {
             gY = plotArea.append("g")
-                .attr( "class", "axis--y")
+                .attr( "class", "axis-y")
                 .call( yAxis );
             gY.append("text")
                 .attr("fill", "#000")
@@ -234,10 +231,10 @@ const cfD3GroupedVertBarChart = {
             plotArea.selectAll( ".bar" ).style( "opacity" , 0.2);
             let target = d3.select(event.target);
             target.style( "opacity" , 1.0);
-            let label = zProperty + "=" + d[zProperty] + "; " + d[xProperty] + "=" + d[yProperty];
+            let label = `${zProperty}=${d[zProperty]}; ${d[xProperty]}=${d[yProperty]}`;
             container.select(".tool-tip")
                 .style("opacity", 1.0)
-                .html("<span>"+label+"</span>")
+                .html(`<span>${label}</span>`)
                 .style("left", target.attr("x")+ "px")
                 .style("top", target.attr("y") + "px");
         }
@@ -246,6 +243,12 @@ const cfD3GroupedVertBarChart = {
             plotArea.selectAll( ".bar" ).style( "opacity" , opacity );
             container.select(".tool-tip").style("opacity", 0.0)
         }
+
+    },
+
+    highlightTasks : function() {
+
+        return;
 
     }
 };
