@@ -1,5 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { update } from '../core/update.js';
+import { highlightTasksAllPlots } from '../core/plot.js';
 import * as d3 from 'd3';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three124';
@@ -7,57 +7,32 @@ import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
 
 const threeSurf3d = {
 
-	make : function ( element, geometry, layout ) {
+	make : function () {
 
-		threeSurf3d.update ( element, geometry, layout );
+		this.update();
 
 	},
 
-	update : function (element, geometry, layout ) {
+	update : function () {
 
-		var container = d3.select(element);
+		const container = d3.select(`#${this.elementId}`);
+		const cameraSync = this.layout.cameraSync;
+		const highlightTasks = this.layout.highlightTasks;
+		const taskId = this.taskId;
+		const geometry = this.data;
 
-		if ( layout.highlightTasks == true ) {
-
-            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-
-                container.style("outline-width","0px")
- 
-            } else {
-
-                container.style("outline-width","0px")
-
-                dbsliceData.highlightTasks.forEach( function (taskId) {
-
-                	//console.log(layout.taskId);
-
-                    if ( taskId == layout.taskId ) {
-                    
-                        container
-                            .style("outline-style","solid")
-                            .style("outline-color","red")
-                            .style("outline-width","4px")
-                            .style("outline-offset","4px")
-                            .raise();
-
-                    }
-
-                });
-            }
-        }
-
-		if (layout.newData == false && dbsliceData.windowResize == false) {
+		if (this.layout.newData == false && dbsliceData.windowResize == false) {
             return
         }
 
-        if (layout.vScale === undefined) {
-        	var vScale = geometry.vScale;
+		let vScale;
+        if (this.layout.vScale === undefined) {
+        	vScale = geometry.vScale;
         } else {
-        	var vScale = layout.vScale;
+        	vScale = this.layout.vScale;
         }
 
-
-        var color = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+        const color = ( this.layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( this.layout.colourMap );
         color.domain( vScale );
 
         geometry.faces.forEach(function(face, index) {
@@ -66,23 +41,23 @@ const threeSurf3d = {
         	face.vertexColors[2] = new THREE.Color( color( geometry.faceValues[index][2] ) );
         })
 
-		container.select(".plotArea").remove();
+		container.select(".plot-area").remove();
 
-        var div = container.append("div")
-        	.attr("class", "plotArea")
+        const div = container.append("div")
+        	.attr("class", "plot-area")
         	.on( "mouseover", tipOn )
             .on( "mouseout", tipOff );
 
 
-		var width = container.node().offsetWidth,
-			height = layout.height;
+		const width = container.node().offsetWidth,
+			height = this.layout.height;
 
 		// Compute normals for shading
 		geometry.computeFaceNormals();
 		geometry.computeVertexNormals();
     
 		// Use MeshPhongMaterial for a reflective surface
-		var material = new THREE.MeshPhongMaterial( {
+		const material = new THREE.MeshPhongMaterial( {
     		side: THREE.DoubleSide,
     		color: 0xffffff,
     		vertexColors: THREE.VertexColors,
@@ -92,7 +67,7 @@ const threeSurf3d = {
     	});
     
 		// Initialise threejs scene
-		var scene = new THREE.Scene();
+		const scene = new THREE.Scene();
 
 		// Add background colour
 		scene.background = new THREE.Color( 0xefefef );
@@ -101,7 +76,7 @@ const threeSurf3d = {
 		scene.add( new THREE.Mesh( geometry, material ) );
     
 		// Create renderer
-		var renderer = new THREE.WebGLRenderer({alpha:true, antialias:true}); 
+		const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true}); 
 		renderer.setPixelRatio( window.devicePixelRatio );
 		renderer.setSize( width , height );
 
@@ -110,20 +85,12 @@ const threeSurf3d = {
 		div.node().appendChild( renderer.domElement );
 
 		// Define the camera
-		var camera = new THREE.PerspectiveCamera( 60, 1, 0.1, 10 );
+		const camera = new THREE.PerspectiveCamera( 60, 1, 0.1, 10 );
 		camera.position.z = 2; 
 
-		if ( layout.cameraSync ) {
+		if ( cameraSync ) {
 
-			let plotRowIndex = container.attr("plot-row-index");
-			let plotIndex = container.attr("plot-index");
-
-			//console.log(plotRowIndex);
-			//console.log(dbsliceData.session.plotRows[plotRowIndex].plots.length);
-
-			let plotRow = dbsliceData.session.plotRows[plotRowIndex];
-
-			plotRow.plots[plotIndex].layout.camera = {position: camera.position, rotation: camera.rotation};
+			this.layout.camera = {position: camera.position, rotation: camera.rotation};
 
 			let validator = {
 				set: function(target, key, value) {
@@ -133,19 +100,19 @@ const threeSurf3d = {
 					return true;
 				}
 			};
-			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, validator);
-			plotRow.plots[plotIndex].layout.watchedCamera = watchedCamera;
+			const watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, validator);
+			this.layout.watchedCamera = watchedCamera;
 
 		}
 
 
 		// Add controls 
-		var controls = new OrbitControls( camera, renderer.domElement );
+		const controls = new OrbitControls( camera, renderer.domElement );
+		const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
+		const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 		controls.addEventListener( 'change', function(){
     		renderer.render(scene,camera); // re-render if controls move/zoom 
-			if ( layout.cameraSync ) {
-				let plotRowIndex = container.attr("plot-row-index");
-				let plotIndex = container.attr("plot-index");
+			if ( cameraSync ) {
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 				//console.log(camera.rotation);
 				plots.forEach( (plot, indx) =>  {
@@ -161,10 +128,10 @@ const threeSurf3d = {
 		} ); 
 		controls.enableZoom = true; 
 
-		var ambientLight = new THREE.AmbientLight( 0xaaaaaa );
+		const ambientLight = new THREE.AmbientLight( 0xaaaaaa );
 		scene.add( ambientLight );
 
-		var lights = [];
+		const lights = [];
 		lights[ 0 ] = new THREE.PointLight( 0xffffff, 1, 3 );
 		lights[ 1 ] = new THREE.PointLight( 0xffffff, 1, 3 );
 		lights[ 2 ] = new THREE.PointLight( 0xffffff, 1, 3 );
@@ -179,35 +146,58 @@ const threeSurf3d = {
 		lights[ 4 ].position.set( 0, 0, -2 );
 		lights[ 5 ].position.set( 0, -2, 0 );
 
-		lights.forEach(function(light){scene.add(light)});
-
+		lights.forEach(light => scene.add(light));
   
 		// Make initial call to render scene
 		renderer.render( scene, camera );
 
 		function tipOn() {
-            if ( layout.highlightTasks == true ) {
+            if ( highlightTasks ) {
                 container
                     .style("outline-style","solid")
                     .style("outline-color","red")
                     .style("outline-width","4px")
-                    .style("outline-offset","-4px")
+                    .style("outline-offset","0px")
                     .raise();
-                dbsliceData.highlightTasks = [layout.taskId];
-                update( dbsliceData.elementId, dbsliceData.session );
+                dbsliceData.highlightTasks = [taskId];
+				highlightTasksAllPlots();
             }
         }
 
         function tipOff() {
-            if ( layout.highlightTasks == true ) {
+            if ( highlightTasks ) {
                 container.style("outline-width","0px")
                 dbsliceData.highlightTasks = [];
-                update( dbsliceData.elementId, dbsliceData.session );
+                highlightTasksAllPlots();
             }
         }
 
-		layout.newData = false;
+		this.layout.newData = false;
 
+	},
+
+	highlightTasks : function(){
+
+		if (!this.layout.highlightTasks) return;
+
+		const container = d3.select(`#${this.elementId}`);
+        const thisTaskId = this.taskId;
+
+		if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+			container.style("outline-width","0px")
+ 		} else {
+			container.style("outline-width","0px")
+			dbsliceData.highlightTasks.forEach( function (taskId) {
+				if ( taskId == thisTaskId ) {
+                    container
+                        .style("outline-style","solid")
+                        .style("outline-color","red")
+                        .style("outline-width","4px")
+                        .style("outline-offset","0px")
+                        .raise();
+				}
+            });
+        }
 	}
 
 }

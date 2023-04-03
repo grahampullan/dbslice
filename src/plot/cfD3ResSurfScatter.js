@@ -1,76 +1,70 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { update } from '../core/update.js';
+import { highlightTasksAllPlots } from '../core/plot.js'
 import * as d3 from 'd3';
 import d3tip from 'd3-tip';
 import * as nd from 'nd4js';
 
 const cfD3ResSurfScatter = {
 
-    make : function( element, data, layout ) {
+    make : function() {
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        this.dimId = dbsliceData.session.cfData.continuousProperties.indexOf( this.data.xProperty );
 
-        var dimId = dbsliceData.session.cfData.continuousProperties.indexOf( data.xProperty );
-
-        var svg = container.append("svg")
+        const svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
             .append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                .attr( "class", "plotArea" )
-                .attr( "dimId", dimId);
+                .attr("transform", `translate(${margin.left}, ${margin.top})`)
+                .attr( "class", "plot-area" )
+                .attr( "id", `plot-area-${this._prid}-${this._id}`);
 
-        cfD3ResSurfScatter.update( element, data, layout );
+        this.update();
 
     }, 
 
-    update : function ( element, data, layout ) {
+    update : function () {
 
-        //console.log(data);
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const container = d3.select(`#${this.elementId}`);
 
-        var container = d3.select(element);
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        let plotRowIndex = container.attr("plot-row-index");
-        let plotIndex = container.attr("plot-index");
-        let clipId = "clip-"+plotRowIndex+"-"+plotIndex;
+        const width = svgWidth - margin.left - margin.right;
+        const height = svgHeight - margin.top - margin.bottom;
 
-        var svg = container.select("svg");
-
-        var svgWidth = container.node().offsetWidth,
-        svgHeight = layout.height;
-
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        const svg = container.select("svg");
 
         svg.attr("width", svgWidth).attr("height", svgHeight);
 
-        var plotArea = svg.select(".plotArea");
-        var dimId = plotArea.attr("dimId");
+        const clipId = `clip-${this._prid}-${this._id}`;
 
-        //var cf = data.cfData.cf;
-        const xProperty = data.xProperty;
-        const inputProperties = data.inputProperties;
-        var cProperty = data.cProperty;
+        const plotArea = svg.select(".plot-area");
+        const dimId = this.dimId;
+
+        const xProperty = this.data.xProperty;
+        const inputProperties = this.data.inputProperties;
+        const cProperty = this.data.cProperty;
+        const highlightTasks = this.layout.highlightTasks;
 
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.continuousDims[ dimId ];
-        var pointData = dim.top( Infinity );
+        const dim = cfData.continuousDims[ dimId ];
+        const pointData = dim.top( Infinity );
 
+        const dataModel = this.data.model;
         const Amat = [];
         pointData.forEach( d => {
-            Amat.push( row(inputProperties.map( t => d[t]), data.model ));
+            Amat.push( row(inputProperties.map( t => d[t]), dataModel ));
         });
 
         const ymat = pointData.map( d => ([d[xProperty]]));
@@ -86,7 +80,7 @@ const cfD3ResSurfScatter = {
 
         const resSurfResult = [];
         pointData.forEach(d => {
-            let x = row( inputProperties.map( t => d[t] ) , data.model );
+            let x = row( inputProperties.map( t => d[t] ) , dataModel );
             resSurfResult.push( nd.la.matmul( nd.array([x]), beta)(0,0) );
         });
         
@@ -97,66 +91,46 @@ const cfD3ResSurfScatter = {
         let sumSq = d3.sum( scatterPlotData.map(d => ((d.x-m)**2) ));
         let r2 = 1 - sumErrorSq/sumSq;
 
-        //console.log(pointData);
-
-        if ( layout.xRange === undefined) {
-            var xMin = d3.min( scatterPlotData, d => d.x  );
-            var xMax = d3.max( scatterPlotData, d => d.x  );
-            var xDiff = xMax - xMin;
+        let xRange;
+        if ( this.layout.xRange === undefined) {
+            let xMin = d3.min( scatterPlotData, d => d.x  );
+            let xMax = d3.max( scatterPlotData, d => d.x  );
+            let xDiff = xMax - xMin;
             xMin -= 0.1 * xDiff;
             xMax += 0.1 * xDiff;
-            var xRange = [xMin, xMax];
+            xRange = [xMin, xMax];
         } else {
-            var xRange = layout.xRange;
+            xRange = this.layout.xRange;
         }
 
-        //if ( layout.yRange === undefined) {
-        //    var yMin = d3.min( scatterPlotData, d => d.y  );
-        //    var yMax = d3.max( scatterPlotData, d => d.x  );
-        //    var yDiff = yMax - yMin;
-        //    yMin -= 0.1 * yDiff;
-        //    yMax += 0.1 * yDiff;
-        //    var yRange = [yMin, yMax];
-        //} else {
-        //    var yRange = layout.yRange;
-        //}
-
-        var xscale = d3.scaleLinear()
+        const xscale = d3.scaleLinear()
             .range( [0, width] )
             .domain( xRange );
 
-        var xscale0 = d3.scaleLinear()
+        const xscale0 = d3.scaleLinear()
             .range( [0, width] )
             .domain( xRange );
 
-        var yscale = d3.scaleLinear()
+        const yscale = d3.scaleLinear()
             .range( [height, 0] )
             .domain( xRange );
 
-        var yscale0 = d3.scaleLinear()
+        const yscale0 = d3.scaleLinear()
             .range( [height, 0] )
             .domain( xRange );
 
-        var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
+        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
 
-        var opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
+        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
 
-        var plotArea = svg.select(".plotArea");
-
-        var clip = svg.append("clipPath")
+        const clip = svg.append("clipPath")
             .attr("id", clipId)
             .append("rect")
                 .attr("width", width)
                 .attr("height", height);
 
-        // var zoom = d3.zoom()
-        //    .scaleExtent([0.01, Infinity])
-        //    .on("zoom", zoomed);
-        //svg.transition().call(zoom.transform, d3.zoomIdentity);
-        //svg.call(zoom);
-
-        var tip = d3tip()
+        const tip = d3tip()
             .attr('class', 'd3-tip')
             .offset([-20, 0])
             .html(function( d ) {
@@ -165,8 +139,6 @@ const cfD3ResSurfScatter = {
 
         svg.call(tip);
 
-        //plotArea.append("g")
-        //    .style("display","none")
         let focus = plotArea.select(".focus");
         if ( focus.empty() ) {
             plotArea.append("circle")
@@ -175,7 +147,7 @@ const cfD3ResSurfScatter = {
                 .attr("r",1);
         }
 
-        var points = plotArea.selectAll( ".point" )
+        const points = plotArea.selectAll( ".point" )
             .data( scatterPlotData );
 
         points.enter()
@@ -186,7 +158,7 @@ const cfD3ResSurfScatter = {
             .attr( "cy", d => yscale( d.y ) )
             .style( "fill", d => colour( d.c ) )
             .style( "opacity", opacity )
-            .attr( "clip-path", "url(#"+clipId+")")
+            .attr( "clip-path", `url(#${clipId})`)
             .attr( "task-id", d => d.taskId )
             .on( "mouseover", tipOn )
             .on( "mouseout", tipOff );
@@ -200,14 +172,14 @@ const cfD3ResSurfScatter = {
 
         points.exit().remove();
 
-        var xAxis = d3.axisBottom( xscale );
-        var yAxis = d3.axisLeft( yscale );
+        const xAxis = d3.axisBottom( xscale );
+        const yAxis = d3.axisLeft( yscale );
 
-        var gX = plotArea.select(".axis--x");
+        let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
             gX = plotArea.append("g")
-                .attr( "transform", "translate(0," + height + ")" )
-                .attr( "class", "axis--x")
+                .attr( "transform", `translate(0, ${height})` )
+                .attr( "class", "axis-x")
                 .call( xAxis );
             gX.append("text")
                 .attr("class","x-axis-text")
@@ -221,10 +193,10 @@ const cfD3ResSurfScatter = {
             gX.select(".x-axis-text").attr("x", width);
         }
 
-        var gY = plotArea.select(".axis--y");
+        let gY = plotArea.select(".axis-y");
         if ( gY.empty() ) {
             gY = plotArea.append("g")
-                .attr( "class", "axis--y")
+                .attr( "class", "axis-y")
                 .call( yAxis );
             gY.append("text")
                 .attr("fill", "#000")
@@ -266,27 +238,6 @@ const cfD3ResSurfScatter = {
         } else {
             r2text.text("R2 = " + r2.toFixed(2) );
         }
-        
-
-        if ( layout.highlightTasks == true ) {
-            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-                points
-                    .style( "opacity" , opacity )
-                    .style( "stroke-width", "0px")
-                    .style( "fill", d => colour( d.c ) );
-            } else {
-                //points.style( "opacity" , 0.2);
-                points.style( "fill" , "#d3d3d3");
-                dbsliceData.highlightTasks.forEach( function (taskId) {
-                    points.filter( (d,i) => d.taskId == taskId)
-                        .style( "fill", d => colour( d.c ) )
-                        .style( "opacity" , opacity)
-                        .style( "stroke", "red")
-                        .style( "stroke-width", "2px")
-                        .raise();
-                });
-            }
-        }
 
         function row(x, model) {
             const row = [1.];
@@ -304,16 +255,7 @@ const cfD3ResSurfScatter = {
             return row;
         }
 
-        function zoomed() {
-            var t = d3.event.transform;
-            xscale.domain(t.rescaleX(xscale0).domain());
-            yscale.domain(t.rescaleY(yscale0).domain());
-            gX.call(xAxis);
-            gY.call(yAxis);
-            plotArea.selectAll(".point")
-                .attr( "cx", d => xscale( d.x ))
-                .attr( "cy", d => yscale( d.y ));
-        }
+
 
         function tipOn( d ) {
             //console.log("mouse on")
@@ -327,9 +269,9 @@ const cfD3ResSurfScatter = {
                  .attr( "cy" , d3.select(this).attr("cy") );
             tip.show( d , focus.node() );
             //tip.show( d );s
-            if ( layout.highlightTasks == true ) {
+            if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
-                update( dbsliceData.elementId, dbsliceData.session );
+                highlightTasksAllPlots();
             }
         }
 
@@ -338,11 +280,45 @@ const cfD3ResSurfScatter = {
             d3.select(this)
                 .attr( "r", 5 );
             tip.hide();
-            if ( layout.highlightTasks == true ) {
+            if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [];
-                update( dbsliceData.elementId, dbsliceData.session );
+                highlightTasksAllPlots();
             }
         }
+    },
+
+    highlightTasks : function() {
+
+        if (!this.layout.highlightTasks) return;
+
+        const cfData = dbsliceData.session.cfData;
+        const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
+        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
+        const cProperty = this.data.cProperty;
+        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
+        const points = plotArea.selectAll( ".point" );
+
+        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+            points
+                .style( "opacity" , opacity )
+                .style( "stroke-width", "0px")
+                .style( "fill", d => colour( d.c ) );
+        } else {
+            //points.style( "opacity" , 0.2);
+            points.style( "fill" , "#d3d3d3");
+            dbsliceData.highlightTasks.forEach( function (taskId) {
+                points.filter( (d,i) => d.taskId == taskId)
+                    .style( "fill", d => colour( d.c ) )
+                    .style( "opacity" , opacity)
+                    .style( "stroke", "red")
+                    .style( "stroke-width", "2px")
+                    .raise();
+            });
+        }
+        
+
+
     }
 };
 

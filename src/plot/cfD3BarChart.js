@@ -1,101 +1,67 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
 import { refreshTasksInPlotRows } from '../core/refreshTasksInPlotRows.js';
-//import { update } from '../core/update.js';
 import { dbsliceData } from '../core/dbsliceData.js';
 import * as d3 from 'd3';
 
 const cfD3BarChart = {
 
-    make : function( element, data, layout ) {
+    make : function() {
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 20};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 20};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        this.dimId = dbsliceData.session.cfData.categoricalProperties.indexOf( this.data.property );
 
-        var dimId = dbsliceData.session.cfData.categoricalProperties.indexOf( data.property );
-
-        var svg = container.append("svg")
+        const svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
             .append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                .attr( "class", "plotArea" )
-                .attr( "dimId", dimId);
+                .attr( "transform", `translate(${margin.left} , ${margin.top})`)
+                .attr( "class", "plot-area" )
+                .attr( "id", `plot-area-${this._prid}-${this._id}`);
 
-        cfD3BarChart.update( element, data, layout );
+        this.update();
 
     }, 
 
-    update : function ( element, data, layout ) {
+    update : function () {
      
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 20};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 20};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        const width = svgWidth - margin.left - margin.right;
+        const height = svgHeight - margin.top - margin.bottom;
 
-        var svg = container.select("svg");
+        const svg = container.select("svg");
 
         svg.attr("width", svgWidth).attr("height", svgHeight);
 
-        var plotArea = svg.select(".plotArea");
-        var dimId = plotArea.attr("dimId");
+        const plotArea = svg.select(".plot-area");
 
         const cfData = dbsliceData.session.cfData;
-        var dim = cfData.categoricalDims[ dimId ];
+        const dimId = this.dimId;
+        const dim = cfData.categoricalDims[ dimId ];
+        const group = dim.group();
+        const items = group.all();
 
-        var bars = plotArea.selectAll("rect");
-
-        if ( layout.highlightTasks == true ) {
-
-            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-
-                bars.style( "stroke-width", "0px" );
-                      
-            } else {
-
-                bars
-                    .style( "stroke-width", "0px" )
-                    .style( "stroke", "red" ); 
-                dbsliceData.highlightTasks.forEach( function (taskId) {
-                	let keyNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][data.property];
-                	bars.filter( (d,i) => d.key == keyNow)
-                        .style( "stroke-width", "4px" )
-                });
-
-            }
-
-        } 
-
-        //var cf = data.cfData.cf;
-        var property = data.property;
-
-        //var dim = data.cfData.metaDims[ dimId ];
-        var group = dim.group();
-        
-        //var items = group.top( Infinity );
-        var items = group.all();
-
-        var removeZeroBar = ( layout.removeZeroBar === undefined ) ? false : layout.removeZeroBar;
+        const removeZeroBar = ( this.layout.removeZeroBar === undefined ) ? false : this.layout.removeZeroBar;
         if ( removeZeroBar ) items = items.filter( item => item.value > 0);
 
-        var x = d3.scaleLinear()
+        const x = d3.scaleLinear()
             .range( [0, width] )
             .domain( [ 0, d3.max( items, v => v.value ) ] );
 
-        var y = d3.scaleBand()
+        const y = d3.scaleBand()
             .range( [0, height] )
             .domain(items.map(function(d){ return d.key; }))
             .padding( [0.2] )
@@ -103,27 +69,28 @@ const cfD3BarChart = {
 
         let colour;
 
-        if ( !layout.colourByProperty ) {
+        if ( !this.layout.colourByProperty ) {
     
-            if ( !layout.colour ) {
+            if ( !this.layout.colour ) {
                 colour = d3.scaleOrdinal( [ "cornflowerblue" ] );
             } else {
-                colour = d3.scaleOrdinal( [ layout.colour ] );
+                colour = d3.scaleOrdinal( [ this.layout.colour ] );
             }
     
         } else {
     
-            if ( !layout.colourMap ) {
+            if ( !this.layout.colourMap ) {
                 colour = d3.scaleOrdinal( d3.schemeCategory10 );
             } else {
-                 colour = d3.scaleOrdinal( layout.colourMap );
+                 colour = d3.scaleOrdinal( this.layout.colourMap );
             }
                 
         }
     
+        const property = this.data.property;
         colour.domain( cfData.categoricalUniqueValues[ property ] );
 
-        bars = plotArea.selectAll( "rect" )
+        const bars = plotArea.selectAll( "rect" )
             .data( items, v => v.key );
 
         bars.enter()
@@ -156,6 +123,7 @@ const cfD3BarChart = {
             .attr( "height", y.bandwidth() )
             .attr( "y", v => y(v.key) )
             .style( "fill", v => colour(v.key) )
+            .style( "cursor", "pointer")
             .transition()
                 .attr( "width", v => x( v.value ) )
                 // initialise opacity for later transition
@@ -186,11 +154,11 @@ const cfD3BarChart = {
             .attr( "width", 0)
             .remove();
 
-        var xAxis = plotArea.select(".xAxis");
+        var xAxis = plotArea.select(".x-axis");
         if ( xAxis.empty() ) {
             plotArea.append("g")
-                .attr( "transform", "translate(0," + height + ")" )
-                .attr( "class", "xAxis")
+                .attr( "transform", `translate(0, ${height})` )
+                .attr( "class", "x-axis")
                 .call( d3.axisBottom( x ) )
                 .append("text")
                     .attr("class","x-axis-text")
@@ -200,25 +168,25 @@ const cfD3BarChart = {
                     .attr("text-anchor", "end")
                     .text("Number of Cases");
         } else {
-            xAxis.attr( "transform", "translate(0," + height + ")" ).transition().call( d3.axisBottom( x ) );
+            xAxis.attr( "transform", `translate(0, ${height})` ).transition().call( d3.axisBottom( x ) );
             xAxis.select(".x-axis-text").attr("x",width);
         }
 
-        var yAxis = plotArea.select(".yAxis");
+        var yAxis = plotArea.select(".y-axis");
         if ( yAxis.empty() ) {
             plotArea.append("g")
-                .attr( "class", "yAxis")
+                .attr( "class", "y-axis")
                 .call( d3.axisLeft( y ).tickValues( [] ) );
         } else {
             yAxis.transition().call( d3.axisLeft( y ).tickValues( []) );
         }
 
-        var keyLabels = plotArea.selectAll( ".keyLabel" )
+        var keyLabels = plotArea.selectAll( ".key-label" )
             .data( items, v => v.key );
 
         keyLabels.enter()
             .append( "text" )
-            .attr( "class", "keyLabel" )
+            .attr( "class", "key-label" )
             .attr( "x", 0 )
             .attr( "y", v => y(v.key) + 0.5*y.bandwidth() )
             .attr( "dx", 5 )
@@ -234,7 +202,34 @@ const cfD3BarChart = {
         keyLabels.exit()
             .remove();
 
+    },
+
+    highlightTasks : function () {
+
+        if (!this.layout.highlightTasks) return;
+
+        const cfData = dbsliceData.session.cfData;
+        const dim = cfData.categoricalDims[ this.dimId ];
+        const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
+        const property = this.data.property;
+        const bars = plotArea.selectAll("rect");
+
+        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+            bars.style( "stroke-width", "0px" );
+        } else {
+            bars
+                .style( "stroke-width", "0px" )
+                .style( "stroke", "red" ); 
+            dbsliceData.highlightTasks.forEach( function (taskId) {
+                let keyNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][property];
+                bars.filter( (d,i) => d.key == keyNow)
+                    .style( "stroke-width", "4px" )
+            });
+        }
+
     }
+
+
 };
 
 export { cfD3BarChart };

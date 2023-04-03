@@ -25,7 +25,8 @@
             "title": "Simulation",
             "colWidth": 3,
             "height": 300,
-            "highlightTasks": true
+            "highlightTasks": true,
+            "removePlotButton": true
           }
         },
         {
@@ -38,7 +39,8 @@
             "colWidth": 3,
             "height": 300,
             "highlightTasks": true,
-            "colourByProperty": true
+            "colourByProperty": true,
+            "removePlotButton": true
           }
         },
         {
@@ -67,6 +69,7 @@
             "highlightTasks": true
           }
         }
+
       ]
     },
     {

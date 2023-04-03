@@ -65,3 +65,17 @@ box-icon {
   vertical-align: middle;
   display: inline-block;
 }
+
+.icon-small {
+  cursor: pointer;
+  vertical-align: middle;
+  display: inline-block;
+  margin: 0px;
+}
+
+.icon-small svg {
+  width: 12px;
+  height: 12px;
+  vertical-align: middle;
+  display: inline-block;
+}

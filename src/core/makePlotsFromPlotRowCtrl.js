@@ -31,7 +31,7 @@ function makePlotsFromPlotRowCtrl( ctrl ) {
             plot.plotType = ctrl.plotType;
             plot.layout = Object.assign( {}, ctrl.layout );
             plot.layout.title = ctrl.taskLabels[ index ]; 
-            plot.layout.taskId = ctrl.taskIds[ index ];
+            plot.taskId = ctrl.taskIds[ index ];
             plot.layout.newData = true;
 
             if ( url !== undefined ) {

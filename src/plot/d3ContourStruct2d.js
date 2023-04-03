@@ -1,5 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { update } from '../core/update.js';
+import { highlightTasksAllPlots } from '../core/plot.js';
 import * as d3 from 'd3';
 import { contours } from 'd3-contour';
 import { interpolateSpectral } from 'd3-scale-chromatic';
@@ -7,130 +7,105 @@ import { interpolateSpectral } from 'd3-scale-chromatic';
 
 const d3ContourStruct2d = {
 
-    make : function ( element, data, layout ) {
+    make : function () {
 
-        d3ContourStruct2d.update ( element, data, layout )
+        this.update();
 
     },
 
-    update : function ( element, data, layout ) {
+    update : function () {
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`);
 
-        if ( layout.highlightTasks == true ) {
-
-            if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-
-                container.style("outline-width","0px")
- 
-            } else {
-
-                container.style("outline-width","0px")
-
-                dbsliceData.highlightTasks.forEach( function (taskId) {
-
-                    if ( taskId == layout.taskId ) {
-                    
-                        container
-                            .style("outline-style","solid")
-                            .style("outline-color","red")
-                            .style("outline-width","4px")
-                            .style("outline-offset","-4px")
-                            .raise();
-
-                    }
-
-                });
-            }
-        }
-
-
-        if (layout.newData == false && dbsliceData.windowResize == false ) {
+        if (this.layout.newData == false && dbsliceData.windowResize == false ) {
             return
         }
 
-        var x, y, v, n, m;
+        let x, y, v, n, m;
 
-        var marginDefault = {top: 20, right: 65, bottom: 20, left: 10};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 65, bottom: 20, left: 10};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
+        const highlightTasks = this.layout.highlightTasks;
+        const taskId = this.taskId;
 
-        var svgWidth = container.node().offsetWidth,
-		    svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+		    svgHeight = this.layout.height;
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        const width = svgWidth - margin.left - margin.right;
+        const height = svgHeight - margin.top - margin.bottom;
 
         container.select("svg").remove();
 
-        var svg = container.append("svg")
+        const svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
             .on( "mouseover", tipOn )
             .on( "mouseout", tipOff );
 
-        var plotArea = svg.append("g")
+        const plotArea = svg.append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
             .append("g")
-                .attr("class", "plotArea");
+                .attr("class", "plot-area");
 
-        var scaleMargin = { "left" : svgWidth - 60, "top" : margin.top};
+        const scaleMargin = { "left" : svgWidth - 60, "top" : margin.top};
 
-        var scaleArea = svg.append("g")
-            .attr("class", "scaleArea")
+        const scaleArea = svg.append("g")
+            .attr("class", "scale-area")
             .attr("transform", "translate(" + scaleMargin.left + "," + scaleMargin.top + ")")
 
-        var xMinAll = d3.min( data.surfaces[0].x );
-        var yMinAll = d3.min( data.surfaces[0].y );
-        var vMinAll = d3.min( data.surfaces[0].v );
+        let xMinAll = d3.min( this.data.surfaces[0].x );
+        let yMinAll = d3.min( this.data.surfaces[0].y );
+        let vMinAll = d3.min( this.data.surfaces[0].v );
 
-        var xMaxAll = d3.max( data.surfaces[0].x );
-        var yMaxAll = d3.max( data.surfaces[0].y );
-        var vMaxAll = d3.max( data.surfaces[0].v );
+        let xMaxAll = d3.max( this.data.surfaces[0].x );
+        let yMaxAll = d3.max( this.data.surfaces[0].y );
+        let vMaxAll = d3.max( this.data.surfaces[0].v );
 
-        var nDataSets = data.surfaces.length;
+        const nDataSets = this.data.surfaces.length;
 
-        for (var nds = 1; nds < nDataSets; ++nds ) {
-            xMinAll = ( d3.min( data.surfaces[nds].x ) < xMinAll ) ? d3.min( data.surfaces[nds].x ) : xMinAll;
-            yMinAll = ( d3.min( data.surfaces[nds].y ) < yMinAll ) ? d3.min( data.surfaces[nds].y ) : yMinAll;
-            vMinAll = ( d3.min( data.surfaces[nds].v ) < vMinAll ) ? d3.min( data.surfaces[nds].v ) : vMinAll;
-            xMaxAll = ( d3.max( data.surfaces[nds].x ) > xMaxAll ) ? d3.max( data.surfaces[nds].x ) : xMaxAll;
-            yMaxAll = ( d3.max( data.surfaces[nds].y ) > yMaxAll ) ? d3.max( data.surfaces[nds].y ) : yMaxAll;
-            vMaxAll = ( d3.max( data.surfaces[nds].v ) > vMaxAll ) ? d3.max( data.surfaces[nds].v ) : vMaxAll;
+        for (let nds = 1; nds < nDataSets; ++nds ) {
+            xMinAll = ( d3.min( this.data.surfaces[nds].x ) < xMinAll ) ? d3.min( this.data.surfaces[nds].x ) : xMinAll;
+            yMinAll = ( d3.min( this.data.surfaces[nds].y ) < yMinAll ) ? d3.min( this.data.surfaces[nds].y ) : yMinAll;
+            vMinAll = ( d3.min( this.data.surfaces[nds].v ) < vMinAll ) ? d3.min( this.data.surfaces[nds].v ) : vMinAll;
+            xMaxAll = ( d3.max( this.data.surfaces[nds].x ) > xMaxAll ) ? d3.max( this.data.surfaces[nds].x ) : xMaxAll;
+            yMaxAll = ( d3.max( this.data.surfaces[nds].y ) > yMaxAll ) ? d3.max( this.data.surfaces[nds].y ) : yMaxAll;
+            vMaxAll = ( d3.max( this.data.surfaces[nds].v ) > vMaxAll ) ? d3.max( this.data.surfaces[nds].v ) : vMaxAll;
         }
 
-        var xRange = xMaxAll - xMinAll;
-        var yRange = yMaxAll - yMinAll;
+        let xRange = xMaxAll - xMinAll;
+        let yRange = yMaxAll - yMinAll;
 
         // set x and y scale to maintain 1:1 aspect ratio  
-        var domainAspectRatio = yRange / xRange;
-        var rangeAspectRatio = height / width;
+        let domainAspectRatio = yRange / xRange;
+        let rangeAspectRatio = height / width;
   
+        let xscale,yscale;
         if (rangeAspectRatio > domainAspectRatio) {
-            var xscale = d3.scaleLinear()
+            xscale = d3.scaleLinear()
                 .domain( [ xMinAll , xMaxAll ] )
                 .range( [ 0 , width ] );
-            var yscale = d3.scaleLinear()
+            yscale = d3.scaleLinear()
                 .domain( [ yMinAll , yMaxAll ] )
                 .range( [ domainAspectRatio * width , 0 ] );
         } else {
-            var xscale = d3.scaleLinear()
+            xscale = d3.scaleLinear()
                 .domain( [ xMinAll , xMaxAll ] )
                 .range( [ 0 , height / domainAspectRatio ] );
-            var yscale = d3.scaleLinear()
+            yscale = d3.scaleLinear()
                 .domain( [ yMinAll , yMaxAll ] ) 
                 .range( [ height , 0 ] );
         }
 
-        if (layout.vScale !== undefined) {
-            vMinAll = layout.vScale[0];
-            vMaxAll = layout.vScale[1];
+        if (this.layout.vScale !== undefined) {
+            vMinAll = this.layout.vScale[0];
+            vMaxAll = this.layout.vScale[1];
         }
 
         // array of threshold values 
-        var thresholds = d3.range( vMinAll , vMaxAll , ( vMaxAll - vMinAll ) / 21 );
+        const thresholds = d3.range( vMinAll , vMaxAll , ( vMaxAll - vMinAll ) / 21 );
 
         // colour scale 
-        var colour = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( this.layout.colourMap );
         colour.domain(d3.extent(thresholds));
 
         var zoom = d3.zoom()
@@ -140,19 +115,19 @@ const d3ContourStruct2d = {
         svg.transition().call(zoom.transform, d3.zoomIdentity);
         svg.call(zoom);
 
-        for (var nds = 0; nds < nDataSets; ++nds) {
-            x = data.surfaces[nds].x;
-            y = data.surfaces[nds].y;
-            v = data.surfaces[nds].v;
-            m = data.surfaces[nds].size[0];
-            n = data.surfaces[nds].size[1];
+        for (let nds = 0; nds < nDataSets; ++nds) {
+            x = this.data.surfaces[nds].x;
+            y = this.data.surfaces[nds].y;
+            v = this.data.surfaces[nds].v;
+            m = this.data.surfaces[nds].size[0];
+            n = this.data.surfaces[nds].size[1];
 
     	    // configure a projection to map the contour coordinates returned by
 		    // d3.contours (px,py) to the input data (xgrid,ygrid)
-            var projection = d3.geoTransform( {
+            const projection = d3.geoTransform( {
                 point: function( px, py ) {
-                    var xfrac, yfrac, xnow, ynow;
-                    var xidx, yidx, idx0, idx1, idx2, idx3;
+                    let xfrac, yfrac, xnow, ynow;
+                    let xidx, yidx, idx0, idx1, idx2, idx3;
                     // remove the 0.5 offset that comes from d3-contour
                     px = px - 0.5;
                     py = py - 0.5;
@@ -185,7 +160,7 @@ const d3ContourStruct2d = {
             });
 
             // initialise contours
-            var conts = contours()
+            const conts = contours()
                 .size([n, m])
                 .smooth(true)
                 .thresholds(thresholds);
@@ -195,64 +170,94 @@ const d3ContourStruct2d = {
                 .data(conts(v))
                 .enter().append("path")
                     .attr("d", d3.geoPath(projection))
-                    .attr("fill", function(d) { return colour(d.value); });        
+                    .attr("fill", d => colour(d.value));        
 
         }
 
         // colour scale 
-        var scaleHeight = svgHeight/2
-        var colourScale = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
+        let scaleHeight = svgHeight/2
+        const colourScale = ( this.layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( this.layout.colourMap );
         colourScale.domain( [0, scaleHeight]);
 
-        var scaleBars = scaleArea.selectAll(".scaleBar")
+        const scaleBars = scaleArea.selectAll(".scale-bar")
             .data(d3.range(scaleHeight), function(d) { return d; })
             .enter().append("rect")
-                .attr("class", "scaleBar")
+                .attr("class", "scale-bar")
                 .attr("x", 0 )
                 .attr("y", function(d, i) { return scaleHeight - i; })
                 .attr("height", 1)
                 .attr("width", 20)
                 .style("fill", function(d, i ) { return colourScale(d); })
 
-        var cscale = d3.scaleLinear()
+        const cscale = d3.scaleLinear()
             .domain( d3.extent(thresholds) )
             .range( [scaleHeight, 0]);
 
-        var cAxis = d3.axisRight( cscale ).ticks(5);
+        const cAxis = d3.axisRight( cscale ).ticks(5);
 
         scaleArea.append("g")
             .attr("transform", "translate(20,0)")
             .call(cAxis);
 
-
         function zoomed() {
-            var t = d3.event.transform;
+            let t = d3.event.transform;
             plotArea.attr( "transform", t );
         }
 
         function tipOn() {
-            if ( layout.highlightTasks == true ) {
+            if ( highlightTasks ) {
                 container
                     .style("outline-style","solid")
                     .style("outline-color","red")
                     .style("outline-width","4px")
                     .style("outline-offset","-4px")
                     .raise();
-                dbsliceData.highlightTasks = [layout.taskId];
-                update( dbsliceData.elementId, dbsliceData.session );
+                dbsliceData.highlightTasks = [taskId];
+                highlightTasksAllPlots();
             }
         }
 
         function tipOff() {
-            if ( layout.highlightTasks == true ) {
+            if ( highlightTasks ) {
                 container.style("outline-width","0px")
                 dbsliceData.highlightTasks = [];
-                update( dbsliceData.elementId, dbsliceData.session );
+                highlightTasksAllPlots();
             }
         }
 
-        layout.newData = false;
+        this.layout.newData = false;
+    },
+
+    highlightTasks : function() {
+
+        if (!this.layout.highlightTasks) return;
+
+        const container = d3.select(`#${this.elementId}`);
+        const thisTaskId = this.taskId;
+
+        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+            container.style("outline-width","0px")
+        } else {
+            container.style("outline-width","0px")
+
+            dbsliceData.highlightTasks.forEach( function (taskId) {
+
+                    if ( taskId == thisTaskId ) {
+                    
+                        container
+                            .style("outline-style","solid")
+                            .style("outline-color","red")
+                            .style("outline-width","4px")
+                            .style("outline-offset","-4px")
+                            .raise();
+
+                    }
+
+            });
+        }
     }
+
+
 }
 
 export { d3ContourStruct2d };

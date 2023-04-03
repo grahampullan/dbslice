@@ -1,16 +1,17 @@
 import { dbsliceData } from './dbsliceData.js';
 import { update } from './update.js';
 import { makePlotsFromPlotRowCtrl } from './makePlotsFromPlotRowCtrl.js';
+import { makePlotObject } from './plot.js';
 
 function refreshTasksInPlotRows( allowAutoFetch = false ) {
 
-	var plotRows = dbsliceData.session.plotRows;
+	const plotRows = dbsliceData.session.plotRows;
 
 	plotRows.forEach( function( plotRow ) {
 
 		if (plotRow.ctrl !== undefined ) {
 
-			var ctrl = plotRow.ctrl;
+			let ctrl = plotRow.ctrl;
 
 			if ( !allowAutoFetch || ( allowAutoFetch && ctrl.autoFetchOnFilterChange ) ) {
 
@@ -35,8 +36,8 @@ function refreshTasksInPlotRows( allowAutoFetch = false ) {
 
 					plotRow.plots = makePlotsFromPlotRowCtrl( ctrl );
 					plotRow.plots.forEach( (plot) => {
-						++plotRow._maxPlotId;
-						plot._id = plotRow._maxPlotId;
+						plot = makePlotObject(plot);
+						plotRow.assignPlotId(plot);
 						if ( plot.fetchData !== undefined ) {
 							plot.fetchData._fetchNow = true;
 						}

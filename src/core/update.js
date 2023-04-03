@@ -1,14 +1,13 @@
 import { makeNewPlot } from './makeNewPlot.js';
 import { updatePlot } from './updatePlot.js';
-import { dbsliceData } from '../core/dbsliceData.js';
-import { icon } from '@fortawesome/fontawesome-svg-core'
-import { faDownLeftAndUpRightToCenter, faUpRightAndDownLeftFromCenter, faPlus } from '@fortawesome/free-solid-svg-icons'
-import * as d3 from 'd3';
+import { dbsliceData } from './dbsliceData.js';
+import { plotRowMakeForD3Each } from './plotRow.js';
+import { plotMakeForD3Each, plotRemoveForD3Each, plotUpdateForD3Each } from './plot.js';
+import * as d3 from 'd3v7';
 
 function update( elementId = dbsliceData.elementId, session = dbsliceData.session ) {
 
 	var element = d3.select( "#" + elementId );
-
 
 	// Update the exploration session title.
     if (dbsliceData.filteredTaskIds !== undefined){
@@ -19,89 +18,30 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
     }
 
 
-	// First add/remove entire plot-rows.
-    var plotRows = element.selectAll( ".plotRow" )
-    	.data( session.plotRows, k => k._id ); 
+	// First plot-rows
+    const plotRows = element.selectAll( ".plot-row" )
+    	.data( session.plotRows, k => k._id );
 
-    var newPlotRows = plotRows.enter()
-    	.append( "div" )
-		    .attr( "class", "card bg-light plotRow" )
-    	    .attr( "style" , "margin-bottom:20px")
-            .attr( "plot-row-index", function(d, i) { return i; } );
+	plotRows.enter().each(plotRowMakeForD3Each);
 
+	plotRows.exit().remove();
 
-    var newPlotRowsHeader = newPlotRows	
-    	.append( "div" )
-		  .attr( "class", "card-header plotRowTitle" )
-		  .style( "vetical-align", "middle")
-		  .style("display","inline-block")
-    	  .call( function(selection) {
-    		  selection.html( function(d) {
-                let html = "<h3 style='display:inline'>" + d.title + "</h3>";
-                if ( d.headerButton !== undefined ){
-                    html += "<button class='btn btn-success float-right' id='" + d.headerButton.id + "'>" + d.headerButton.label +"</button>"
-                }
-				
-                return html;
-              });
-          });
+	// Now plots
+	const plotRowBodys = element.selectAll( ".plot-row-body" )
+		.data( session.plotRows, k => k._id );
 
-    var newPlotRowsBody = newPlotRows
-    	.append( "div" ).attr( "class", "row no-gutters g-1 plotRowBody" )
-        .attr ("plot-row-index", function(d, i) { return i; });
+	const plots = plotRowBodys.selectAll(".plot")
+		.data( d => d.plots, k => k._id);
+
+	plots.enter().each(plotMakeForD3Each);
+
+	plots.exit().each(plotRemoveForD3Each);
+
+	plots.each(plotUpdateForD3Each);
 		
-	
+			
 		
-	// ADD PLOT BUTTON
-	// Add plot button option can be explicitly stated by the user as true/false, if not specified thedecision falls back on whether the plot row is metadata or on-demand.
-	newPlotRowsHeader
-	  //.filter(d=> d.addPlotButton == undefined ? !d.ctrl : d.addPlotButton )
-	  .filter(d=> d.addPlotButton) 
-	  .append("button")
-	  .attr("class", "btn addPlot icon")
-	  .attr("data-bs-toggle","modal")
-	  .attr("data-bs-target","#addPlotModal")
-	  .style("float", "right")
-	  .html(icon(faPlus).html)
-	  .on("click", function(d){
-		  d3.event.stopPropagation();
-		  dbsliceData.modal.currentPlotRow = d;
-		  dbsliceData.modal.show();
-	  })
-	  
-	  
-	// ADD COLLAPSE BUTTON
-	newPlotRowsHeader.append("button")
-	    .attr("class", "btn collapseRow icon")
-		.style("float", "right")
-		.style("cursor", "pointer")
-		.html(icon(faDownLeftAndUpRightToCenter).html)
-		.on("click", function(){
-
-			// Add in the functionality to collapse/expand the corresponding plotRowBody.
-			let elementToCollapse = this.parentElement.parentElement.querySelector("div.plotRowBody");
-			let isHidden = elementToCollapse.style.display === "none";
-			elementToCollapse.style.display = isHidden ? "" : "none";
-			
-			// Change the button icon
-			this.innerHTML = isHidden ? icon(faDownLeftAndUpRightToCenter).html : icon(faUpRightAndDownLeftFromCenter).html;
-			
-			
-			update()
-			
-		});
-	 
-
-	// After the plot rows have been handled update the actual plots.
-    var newPlots = newPlotRowsBody.selectAll( ".plot")
-    	.data( d => d.plots, k => k._id ) 
-    	.enter().each( makeNewPlot );
-
-    plotRows.selectAll( ".plotRowBody" ).selectAll( ".plot" )
-		.data( d => d.plots, k => k._id  )
-		.enter().each( makeNewPlot );
-
-	
+	/*
     var plotRowPlots = plotRows.selectAll( ".plot" )
     	.data( d => d.plots, k => k._id  )
 		.filter(function(){
@@ -120,7 +60,7 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
    			var plotTitleText = plotWrapper.select(".plotTitleText")
     	 	.html( plotData.layout.title );
    		});
-	
+	*/
 	
 	
 	
@@ -129,8 +69,8 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	
 	
 
-    plotRows.exit().remove();
-    plotRowPlotWrappers.exit().remove();
+    //plotRows.exit().remove();
+    //plotRowPlotWrappers.exit().remove();
 
 
 
