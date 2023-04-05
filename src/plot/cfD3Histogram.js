@@ -148,7 +148,7 @@ const cfD3Histogram = {
             let dropdown = plotTitle.select(".property-dropdown");
             if ( dropdown.empty() ) {
                 let html = `<select name="prop-select-${this._prid}-${this._id}" id="prop-select-${this._prid}-${this._id}">`;
-                html += `${cfData.continuousProperties.map( prop => `<option value="${prop}">${prop}</option>`).join('')}`;
+                html += `${cfData.continuousProperties.map( prop => `<option value="${prop}" ${prop==property ? `selected`:``}>${prop}</option>`).join('')}`;
                 html += `</select>`;
                 plotTitle.html("")
                     .append("div")
