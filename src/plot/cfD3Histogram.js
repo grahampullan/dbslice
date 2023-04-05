@@ -130,6 +130,7 @@ const cfD3Histogram = {
 
         const cfData = dbsliceData.session.cfData;
         const property = this.data.property;
+        this.dimId = cfData.continuousProperties.indexOf( property );
         const dimId = this.dimId;
         const dim = cfData.continuousDims[ dimId ]; 
 
@@ -140,6 +141,29 @@ const cfD3Histogram = {
         const plotArea = svg.select(".plot-area");
 
         let formatCount = d3.format( ",.0f" );
+
+        if ( this.layout.addSelectablePropertyToTitle ) {
+
+            const plotTitle = d3.select(`#plot-title-text-${this._prid}-${this._id}`);
+            let dropdown = plotTitle.select(".property-dropdown");
+            if ( dropdown.empty() ) {
+                let html = `<select name="prop-select-${this._prid}-${this._id}" id="prop-select-${this._prid}-${this._id}">`;
+                html += `${cfData.continuousProperties.map( prop => `<option value="${prop}">${prop}</option>`).join('')}`;
+                html += `</select>`;
+                plotTitle.html("")
+                    .append("div")
+                        .attr("class","property-dropdown")
+                        .html(html);
+            } 
+
+        } else {
+
+            const plotTitle = d3.select(`#plot-title-text-${this._prid}-${this._id}`);
+            let dropdown = plotTitle.select(".property-dropdown");
+            dropdown.remove();
+            plotTitle.html(this.layout.title);
+
+        }
 
         const items = dim.top( Infinity );
 
@@ -153,6 +177,8 @@ const cfD3Histogram = {
     
             xDomMax = itemExtent[1] + 0.05*itemRange; 
             xDomMin = itemExtent[0] - 0.05*itemRange;
+            this.xDomMin = xDomMin;
+            this.xDomMax = xDomMax;
         
         }
 
