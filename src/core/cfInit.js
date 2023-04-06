@@ -1,5 +1,6 @@
 import { dbsliceData } from './dbsliceData.js';
 import crossfilter from 'crossfilter2';
+import * as d3 from 'd3v7';
 
 function cfInit( metaData ) {
 
@@ -26,10 +27,12 @@ function cfInit( metaData ) {
     cfData.categoricalDims.forEach( dim => dim.filterAll() );
 
     cfData.continuousDims = [];
+    cfData.continuousDimsExtents = [];
 
     cfData.continuousProperties.forEach( ( property, i ) => {
 
     	cfData.continuousDims.push ( cfData.cf.dimension( d => d[ property ] ) );
+        cfData.continuousDimsExtents.push ( d3.extent( metaData.data.map(d => d[property])));
 
     } );
 
