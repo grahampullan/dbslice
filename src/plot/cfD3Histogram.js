@@ -131,7 +131,7 @@ const cfD3Histogram = {
                 .attr( "transform", `translate(0,${height})`)
                 .call( d3.axisBottom( x ) );
         } else {
-            gX.transition().call( d3.axisBottom( x ) );
+            gX.call( d3.axisBottom( x ) );
         }
 
         const brush = d3.brushX()
@@ -209,7 +209,7 @@ const cfD3Histogram = {
                 .attr( "class", "y-axis")
                 .call( d3.axisLeft( y ) );
         } else {
-            yAxis.transition().call( d3.axisLeft( y ) );
+            yAxis.call( d3.axisLeft( y ) );
         }
 
         let yAxisLabel = plotArea.select(".y-axis").select(".y-axis-label");
