@@ -73,7 +73,6 @@ const removePlot = function() {
         if ( plotIndex >=0 ) {
             plotRows[plotRowIndex].plots.splice( plotIndex, 1 );
         }
-        update();
     }
 
 }

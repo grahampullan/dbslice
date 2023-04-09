@@ -38,41 +38,6 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	plots.exit().each(plotRemoveForD3Each);
 
 	plots.each(plotUpdateForD3Each);
-		
-			
-		
-	/*
-    var plotRowPlots = plotRows.selectAll( ".plot" )
-    	.data( d => d.plots, k => k._id  )
-		.filter(function(){
-			// Existing plots may have been collapsed, which will impact rendering. Filter them out so they are not being updated when collapsed.
-			let parentPlotRow = this.parentElement.parentElement.parentElement;
-			return parentPlotRow.style.display != "none"
-		})
-    	.each( updatePlot );
-
-
-	// Update the plot titles
-   	var plotRowPlotWrappers = plotRows.selectAll( ".plotWrapper")
-   		.data( d => d.plots, k => k._id  )
-   		.each( function( plotData, index ) {
-   			var plotWrapper = d3.select (this);
-   			var plotTitleText = plotWrapper.select(".plotTitleText")
-    	 	.html( plotData.layout.title );
-   		});
-	*/
-	
-	
-	
-	
-	
-	
-	
-
-    //plotRows.exit().remove();
-    //plotRowPlotWrappers.exit().remove();
-
-
 
 }
 
