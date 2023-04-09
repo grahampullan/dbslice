@@ -15,8 +15,10 @@ const cfD3BarChart = {
         const svgWidth = container.node().offsetWidth,
             svgHeight = this.layout.height;
 
-        this.dimId = dbsliceData.session.cfData.categoricalProperties.indexOf( this.data.property );
-
+        const cfData = dbsliceData.session.cfData;
+        const property = this.data.property;
+        this.dimId = cfData.categoricalProperties.indexOf( property );
+        
         const svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
@@ -49,10 +51,40 @@ const cfD3BarChart = {
         const plotArea = svg.select(".plot-area");
 
         const cfData = dbsliceData.session.cfData;
+        const property = this.data.property;
+        this.dimId = cfData.categoricalProperties.indexOf( property );
         const dimId = this.dimId;
         const dim = cfData.categoricalDims[ dimId ];
         const group = dim.group();
         const items = group.all();
+
+
+        if ( this.layout.addSelectablePropertyToTitle ) {
+
+            const boundPropertySelectChange = propertySelectChange.bind(this);
+            const plotTitle = d3.select(`#plot-title-text-${this._prid}-${this._id}`);
+            let dropdown = plotTitle.select(".property-dropdown");
+            let selectId = `prop-select-${this._prid}-${this._id}`;
+            if ( dropdown.empty() ) {
+                let html = 
+                    `<select name="${selectId}" id="${selectId}">
+                        ${cfData.categoricalProperties.filter(prop => (prop !='taskId' && prop !='label')).map( prop => `<option value="${prop}" ${prop==property ? `selected`:``}>${prop}</option>`).join('')}
+                    </select>`;
+                plotTitle.html("")
+                    .append("div")
+                        .attr("class","property-dropdown")
+                        .html(html);
+                document.getElementById(selectId).addEventListener("change", boundPropertySelectChange);
+            } 
+
+        } else {
+
+            const plotTitle = d3.select(`#plot-title-text-${this._prid}-${this._id}`);
+            let dropdown = plotTitle.select(".property-dropdown");
+            dropdown.remove();
+            plotTitle.html(this.layout.title);
+
+        }
 
         const removeZeroBar = ( this.layout.removeZeroBar === undefined ) ? false : this.layout.removeZeroBar;
         if ( removeZeroBar ) items = items.filter( item => item.value > 0);
@@ -82,12 +114,11 @@ const cfD3BarChart = {
             if ( !this.layout.colourMap ) {
                 colour = d3.scaleOrdinal( d3.schemeCategory10 );
             } else {
-                 colour = d3.scaleOrdinal( this.layout.colourMap );
+                colour = d3.scaleOrdinal( this.layout.colourMap );
             }
                 
         }
     
-        const property = this.data.property;
         colour.domain( cfData.categoricalUniqueValues[ property ] );
 
         const bars = plotArea.selectAll( "rect" )
@@ -126,28 +157,25 @@ const cfD3BarChart = {
             .style( "cursor", "pointer")
             .transition()
                 .attr( "width", v => x( v.value ) )
-                // initialise opacity for later transition
-                .attr( "opacity", 1 );
+                .attr( "opacity", ( v ) => {
+                    if ( cfData.filterSelected[ dimId ] === undefined || cfData.filterSelected[ dimId ].length === 0 ) {
+                        return 1;
+                    } else {
+                        return cfData.filterSelected[ dimId ].indexOf( v.key ) === -1 ? 0.2 : 1;
+                    }
+                });
 
         // updating the bar chart bars
         bars.transition()
             .attr( "width", v => x( v.value ) )
             .attr( "y", v => y(v.key) )
             .attr( "height", y.bandwidth() )
-            // change colour depending on whether the bar has been selected
             .attr( "opacity", ( v ) => {
-
-                // if no filters then all are selected
                 if ( cfData.filterSelected[ dimId ] === undefined || cfData.filterSelected[ dimId ].length === 0 ) {
-
                     return 1;
-
                 } else {
-
                     return cfData.filterSelected[ dimId ].indexOf( v.key ) === -1 ? 0.2 : 1;
-
                 }
-
             } );
 
         bars.exit().transition()
@@ -201,6 +229,11 @@ const cfD3BarChart = {
 
         keyLabels.exit()
             .remove();
+
+        function propertySelectChange(e) {
+            this.data.property = e.target.value;
+            this.update();
+        }
 
     },
 
