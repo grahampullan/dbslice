@@ -185,6 +185,10 @@ const cfD3BarChart = {
 
         var xAxis = plotArea.select(".x-axis");
         if ( xAxis.empty() ) {
+            let axisLabel = "Number of Tasks";
+            if (dbsliceData.session.uiConfig.replaceTasksNameWith !== undefined) {
+                axisLabel = `Number of ${dbsliceData.session.uiConfig.replaceTasksNameWith}`;
+            }
             plotArea.append("g")
                 .attr( "transform", `translate(0, ${height})` )
                 .attr( "class", "x-axis")
@@ -195,7 +199,7 @@ const cfD3BarChart = {
                     .attr("x", width)
                     .attr("y", margin.bottom-2)
                     .attr("text-anchor", "end")
-                    .text("Number of Cases");
+                    .text(axisLabel);
         } else {
             xAxis.attr( "transform", `translate(0, ${height})` ).transition().call( d3.axisBottom( x ) );
             xAxis.select(".x-axis-text").attr("x",width);
