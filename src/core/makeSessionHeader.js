@@ -12,13 +12,23 @@ function makeSessionHeader( element, title, subtitle, config ) {
 
 	if ( config.plotTasksButton ) {
 
-		titleHtml += "<button class='btn btn-success mr-1 float-right float-end' id='refreshTasks'>Plot Selected Tasks</button>";
+		let buttonLabel = "Plot Selected Tasks";
+        if (config.replaceTasksNameWith !== undefined) {
+            buttonLabel = `Plot Selected ${config.replaceTasksNameWith}`;
+        }
+
+		titleHtml += `<button class='btn btn-success mr-1 float-right float-end' id='refreshTasks'>${buttonLabel}</button>`;
 
 	}
 
 	if ( config.saveTasksButton ) {
 
-		titleHtml += "<button class='btn btn-success mr-1 float-right float-end' id='downloadTasks'>Save Selected Tasks</button>";
+		let buttonLabel = "Save Selected Tasks";
+        if (config.replaceTasksNameWith !== undefined) {
+            buttonLabel = `Save Selected ${config.replaceTasksNameWith}`;
+        }
+
+		titleHtml += `<button class='btn btn-success mr-1 float-right float-end' id='downloadTasks'>${buttonLabel}</button>`;
 
 	}
 

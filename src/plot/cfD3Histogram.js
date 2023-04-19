@@ -208,6 +208,10 @@ const cfD3Histogram = {
 
         let yAxisLabel = plotArea.select(".y-axis").select(".y-axis-label");
         if ( yAxisLabel.empty() ) {
+            let axisLabel = "Number of Tasks";
+            if (dbsliceData.session.uiConfig.replaceTasksNameWith !== undefined) {
+                axisLabel = `Number of ${dbsliceData.session.uiConfig.replaceTasksNameWith}`;
+            }
              plotArea.select(".y-axis").append("text")
                 .attr("class", "y-axis-label")
                 .attr("fill", "#000")
@@ -215,7 +219,7 @@ const cfD3Histogram = {
                 .attr("x", 0)
                 .attr("y", -25)
                 .attr("text-anchor", "end")
-                .text("Number of Cases");
+                .text(axisLabel);
             }
 
         let xAxisLabel = plotArea.select(".x-axis").select(".x-axis-label");

@@ -10,7 +10,8 @@
   },
   "uiConfig": {
     "plotTasksButton": true,
-    "saveTasksButton": false
+    "saveTasksButton": false,
+    "replaceTasksNameWith" : "Cases"
   },
   "plotRows": [
     {
