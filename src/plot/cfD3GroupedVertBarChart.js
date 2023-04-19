@@ -32,7 +32,7 @@ const cfD3GroupedVertBarChart = {
 
     }, 
 
-    update : function ( element, data, layout ) {
+    update : function () {
 
         //if (layout._noUpdate) {
         //    layout._noUpdate = false;

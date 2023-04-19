@@ -9,7 +9,7 @@ import { fetchPlotData } from './fetchPlotData.js';
 const makePlotWrapperDefault = function() {
 
     const plotWrapperDiv = d3.select(`#${this.parentId}`).append("div")
-        .datum({_id:this._id})
+        .datum({_id:this._id, _prid:this._prid})
         .attr( "class", `col-md-${this.layout.colWidth} plot-wrapper` )
         .attr( "id", `plot-wrapper-${this._prid}-${this._id}`)
 
@@ -184,7 +184,8 @@ const highlightTasksAllPlots = function() {
 
 const plotRemoveForD3Each = function( d, i ) {
 
-    d.removePlot();
+    const boundRemovePlot = removePlot.bind({_id:d._id, _prid:d._prid});
+    boundRemovePlot();
 
 }
 
