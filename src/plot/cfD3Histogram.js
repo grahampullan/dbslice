@@ -72,10 +72,14 @@ const cfD3Histogram = {
             const plotTitle = d3.select(`#plot-title-text-${this._prid}-${this._id}`);
             let dropdown = plotTitle.select(".property-dropdown");
             let selectId = `prop-select-${this._prid}-${this._id}`;
+            let selectableOptions = cfData.continuousProperties;
+            if ( this.layout.selectableProperties !== undefined ) {
+                selectableOptions = this.layout.selectableProperties;
+            }
             if ( dropdown.empty() ) {
                 let html = 
                     `<select name="${selectId}" id="${selectId}">
-                        ${cfData.continuousProperties.map( prop => `<option value="${prop}" ${prop==property ? `selected`:``}>${prop}</option>`).join('')}
+                        ${selectableOptions.map( prop => `<option value="${prop}" ${prop==property ? `selected`:``}>${prop}</option>`).join('')}
                     </select>`;
                 plotTitle.html("")
                     .append("div")

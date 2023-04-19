@@ -66,10 +66,14 @@ const cfD3BarChart = {
             const plotTitle = d3.select(`#plot-title-text-${this._prid}-${this._id}`);
             let dropdown = plotTitle.select(".property-dropdown");
             let selectId = `prop-select-${this._prid}-${this._id}`;
+            let selectableOptions = cfData.categoricalProperties;
+            if ( this.layout.selectableProperties !== undefined ) {
+                selectableOptions = this.layout.selectableProperties;
+            }
             if ( dropdown.empty() ) {
                 let html = 
                     `<select name="${selectId}" id="${selectId}">
-                        ${cfData.categoricalProperties.filter(prop => (prop !='taskId' && prop !='label')).map( prop => `<option value="${prop}" ${prop==property ? `selected`:``}>${prop}</option>`).join('')}
+                        ${selectableOptions.filter(prop => (prop !='taskId' && prop !='label')).map( prop => `<option value="${prop}" ${prop==property ? `selected`:``}>${prop}</option>`).join('')}
                     </select>`;
                 plotTitle.html("")
                     .append("div")
