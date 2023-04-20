@@ -220,7 +220,7 @@ The final `plotRow` in the `session.json` file also uses a `ctrl` object to gene
 ---
 ## Session specification
 
-A `json` file is used to specify all the parameters needed for a **dbslice** session. This file is usally called `session.json`. An example `session.json` file is contained in the `test` directory of the **dbslice** GitHub repository.
+A `json` file is used to specify all the parameters needed for a **dbslice** session. This file is usally called `session.json`. An example [session.json](https://github.com/grahampullan/dbslice/blob/master/test/session.json) file is contained in the `test` directory of the **dbslice** GitHub repository.
 
 ### Plots
 
@@ -228,7 +228,7 @@ All plots require a `layout` object and either a `data` or a `fetchData` object.
 
 ### Meta-data plots
 
-For Meta-data plots, the data to be displayed is obtained from the meta-data itself (not from additional sources, so `fetchData` is not used). This means that the `data` object in each plot definition is typically a property name from the meta-data (i.e. a column from the meta-data table).
+For Meta-data plots, the data to be displayed is obtained from the meta-data itself (not from additional sources, so `fetchData` is never used). This means that the `data` object in each plot definition is typically a property name from the meta-data (i.e. a column from the meta-data table).
 
 #### Bar chart
 
