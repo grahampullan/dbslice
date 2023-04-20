@@ -21,6 +21,7 @@ There are several live [demonstrations](https://www.dbslice.org/demos) at the db
       * [Bar chart](#bar-chart)
       * [Scatter plot](#scatter-plot)
       * [Histogram](#histogram)
+      * [Grouped vertical bar chart](#grouped-vertical-bar-chart)
       * [Circle pack plot](#circle-pack-plot)
 
 ---
@@ -304,7 +305,7 @@ Optional `layout` parameters:
 |---|---|
 | highlightTasks | set `true` to show the scatter point of the current task |
 | xRange | set to `[xMin, xMax]` to set the limits of the x-axis. If not set, x-axis will auto scale during filtering |
-| xRange | set to `[yMin, yMax]` to set the limits of the y-axis. If not set, y-axis will auto scale during filtering |
+| yRange | set to `[yMin, yMax]` to set the limits of the y-axis. If not set, y-axis will auto scale during filtering |
 | colourMap | use to set the colour map. If not set, `d3.schemeCategory10` is used |
 | opacity | set the opacity of the points (number between 0 and 1). If not set, a default value of 1 is used |
 | groupBy | set to list of property names, e.g. `[Prop1, Prop2]`, where each property is a member of `categoricalProperties`. Points will be grouped according to their membership of `Prop1`, `Prop2` etc. Points beloning to each group will be joined by a line. |
@@ -344,6 +345,42 @@ Optional `layout` parameters:
 | selectableOptions | list of properties to be used in dropdown selector (must be members of `continuousProperties`). If `selectableOptions` is not set, all of `continuouslProperties` are used |
 | colour | set to specify the colour of the histogram bars. If not set, `cornflowerblue` is used. |
 
+
+#### Grouped vertical bar chart
+
+Example of a minimal `plot` object for a grouped vertical bar chart:
+
+```javascript
+{
+  "plotType": "cfD3GroupedVertBarChart",
+  "data": {
+    "xProperty": "Prop1",
+    "yProperty": "Prop2",
+    "zProperty": "Prop3"
+  },
+  "layout": {
+    "title": "Prop1-Prop2-Prop3 bar chart",
+    "colWidth": 3,
+    "height": 300
+  }
+}
+```
+| Parameter | Description |
+|---|---|
+| plotType | Set to `cfD3GroupedVertBarChart for a grouped vertical bar chart |
+| xProperty | Name of meta-data property for the primary x-axis property. Must be a member of `categoricalProperties` |
+| yProperty | Name of meta-data property for the y-axis property. Must be a member of `continuousProperties` |
+| zProperty | Name of meta-data property for the secondary x-axis property. Must be a member of `categoricalProperties` |
+| title | Title of the chart |
+| colWidth | Width of the chart, integer between 1 and 12 |
+| height | Height of the chart in pixels |
+
+Optional `layout` parameters:
+
+| Parameter | Description |
+|---|---|
+| yRange | set to `[yMin, yMax]` to set the limits of the y-axis. If not set, y-axis will auto scale during filtering |
+| filterBy | Set to an object `{Prop:value}` to apply an additional filter to the tasks that are currently selected in the main filters. Only those tasks which have property `Prop` equal to `value` will be included in the chart. |
 
 #### Circle pack plot
 
