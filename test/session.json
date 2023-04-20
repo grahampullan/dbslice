@@ -26,8 +26,7 @@
             "title": "Simulation",
             "colWidth": 3,
             "height": 300,
-            "highlightTasks": true,
-            "removePlotButton": true
+            "highlightTasks": true
           }
         },
         {
@@ -40,9 +39,7 @@
             "colWidth": 3,
             "height": 300,
             "highlightTasks": true,
-            "colourByProperty": true,
-            "removePlotButton": true,
-            "addSelectablePropertyToTitle" : true
+            "colourByProperty": true
           }
         },
         {
@@ -68,8 +65,7 @@
             "title": "Average",
             "colWidth": 3,
             "height": 300,
-            "highlightTasks": true,
-            "addSelectablePropertyToTitle" : true
+            "highlightTasks": true
           }
         }
 
