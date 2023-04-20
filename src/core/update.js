@@ -9,12 +9,17 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 
 	var element = d3.select( "#" + elementId );
 
+	let tasksName = "Tasks";
+	if ( dbsliceData.session.uiConfig.replaceTasksNameWith !== undefined ) {
+		tasksName = dbsliceData.session.uiConfig.replaceTasksNameWith;
+	}
+
 	// Update the exploration session title.
     if (dbsliceData.filteredTaskIds !== undefined){
         element.select(".filteredTaskCount")
-            .html("<p> Number of Tasks in Filter = " + dbsliceData.filteredTaskIds.length + "</p>" );
+            .html(`<p> Number of ${tasksName} in Filter = ${dbsliceData.filteredTaskIds.length} </p>` );
     } else {
-        element.select(".filteredTaskCount").html("<p> Number of Tasks in Filter = All </p>");
+        element.select(".filteredTaskCount").html(`<p> Number of ${tasksName} in Filter = All </p>`);
     }
 
 

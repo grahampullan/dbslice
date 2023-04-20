@@ -14,11 +14,18 @@ There are several live [demonstrations](https://www.dbslice.org/demos) at the db
 
 ## Documentation
 
-* [Step-by-step](#step-by-step)
+* [Step-by-step tutorial](#step-by-step)
+* [Session specification](#session-specification)
+  * [Plots](#plots)
+    * [Meta-data plots](#meta-data-plots)
+      * [Bar chart](#bar-chart)
+      * [Scatter plot](#scatter-plot)
+      * [Histogram](#histogram)
+      * [Circle pack plot](#circle-pack-plot)
 
 ---
 
-## Step-by-step 
+## Step-by-step tutorial
 This guide shows describes how to use **dbslice** to visuliase the [testbox](https://www.dbslice.org/demos/testbox) demonstration data. The data files needed are [here](https://github.com/grahampullan/dbslice/tree/master/test) and are structured as follows:
 
 ```
@@ -211,8 +218,167 @@ The final `plotRow` in the `session.json` file also uses a `ctrl` object to gene
 
 
 ---
+## Session specification
+
+A `json` file is used to specify all the parameters needed for a **dbslice** session. This file is usally called `session.json`. An example `session.json` file is contained in the `test` directory of the **dbslice** GitHub repository.
+
+### Plots
+
+All plots require a `layout` object and either a `data` or a `fetchData` object. `layout` contains information on how the plot should be displayed (size, optional settings, etc). `data` contains the data to be plotted, or `fetchData` tells **dbslice** where to obtain this data.
+
+### Meta-data plots
+
+For Meta-data plots, the data to be displayed is obtained from the meta-data itself (not from additional sources, so `fetchData` is not used). This means that the `data` object in each plot definition is typically a property name from the meta-data (i.e. a column from the meta-data table).
+
+#### Bar chart
+
+Example of a minimal `plot` object for a bar chart:
+
+```javascript
+{
+  "plotType": "cfD3BarChart",
+  "data": {
+    "property": "Prop1"
+  },
+  "layout": {
+    "title": "Prop1 bar chart",
+    "colWidth": 3,
+    "height": 300
+  }
+}
+```
+
+| Parameter | Description |
+|---|---|
+| plotType | Set to `cfD3BarChart` for a bar chart |
+| property | Name of meta-data property to be used. Must be a member of `categoricalProperties` |
+| title | Title of the chart |
+| colWidth | Width of the chart, integer between 1 and 12 |
+| height | Height of the chart in pixels |
 
 
+Optional `layout` parameters:
+
+| Parameter | Description |
+|---|---|
+| highlightTasks | set `true` to show which bar contains the current selected task |
+| addSelectablePropertyToTitle | set `true` to add a dropdown selector for `data.property` |
+| selectableOptions | list of properties to be used in dropdown selector (must be members of `categoricalProperties`). If `selectableOptions` is not set, all of `categoricalProperties` are used |
+| removeZeroBar | set `true` to completely remove bars with zero members (likely due settings of other filters) from the chart |
+| colourByProperty | set `true` to colour bars by the value of `property` |
+| colourMap | use to set the colour map. If not set, `d3.schemeCategory10` is used |
+
+#### Scatter plot
+
+Example of a minimal `plot` object for a scatter:
+
+```javascript
+{
+  "plotType": "cfD3Scatter",
+  "data": {
+    "xProperty": "Prop1",
+    "yProperty": "Prop2",
+    "cProperty": "Prop3"
+  },
+  "layout": {
+    "title": "Prop2-Prop1 scatter plot",
+    "colWidth": 3,
+    "height": 300
+  }
+}
+```
+
+| Parameter | Description |
+|---|---|
+| plotType | Set to `cfD3Scatter` for a scatter plot |
+| xProperty | Name of meta-data property for the x-axis. Must be a member of `continuousProperties` |
+| yProperty | Name of meta-data property for the y-axis. Must be a member of `continuousProperties` |
+| cProperty | Name of meta-data property used to colour the scatter points. Must be a member of `categoricalProperties` |
+| title | Title of the chart |
+| colWidth | Width of the chart, integer between 1 and 12 |
+| height | Height of the chart in pixels |
+
+Optional `layout` parameters:
+
+| Parameter | Description |
+|---|---|
+| highlightTasks | set `true` to show the scatter point of the current task |
+| xRange | set to `[xMin, xMax]` to set the limits of the x-axis. If not set, x-axis will auto scale during filtering |
+| xRange | set to `[yMin, yMax]` to set the limits of the y-axis. If not set, y-axis will auto scale during filtering |
+| colourMap | use to set the colour map. If not set, `d3.schemeCategory10` is used |
+| opacity | set the opacity of the points (number between 0 and 1). If not set, a default value of 1 is used |
+| groupBy | set to list of property names, e.g. `[Prop1, Prop2]`, where each property is a member of `categoricalProperties`. Points will be grouped according to their membership of `Prop1`, `Prop2` etc. Points beloning to each group will be joined by a line. |
+| orderBy | if `groupBy` is set, `orderBy` can be used to define the order in which the points of a group are joined by the line. `orderBy` must be a membor of `continuousProperties`. If `orderBy` is not set, the default is `xProperty` |
+
+#### Histogram
+
+Example of a minimal `plot` object for a histogram:
+
+```javascript
+{
+  "plotType": "cfD3Histogram",
+  "data": {
+    "property": "Prop1"
+  },
+  "layout": {
+    "title": "Prop1 histogram",
+    "colWidth": 3,
+    "height": 300
+  }
+}
+```
+| Parameter | Description |
+|---|---|
+| plotType | Set to `cfD3Histogram` for a histogram |
+| property | Name of meta-data property to be used. Must be a member of `continuousProperties` |
+| title | Title of the chart |
+| colWidth | Width of the chart, integer between 1 and 12 |
+| height | Height of the chart in pixels |
+
+Optional `layout` parameters:
+
+| Parameter | Description |
+|---|---|
+| highlightTasks | set `true` to show which histogram bar contains the current selected task |
+| addSelectablePropertyToTitle | set `true` to add a dropdown selector for `data.property` |
+| selectableOptions | list of properties to be used in dropdown selector (must be members of `continuousProperties`). If `selectableOptions` is not set, all of `continuouslProperties` are used |
+| colour | set to specify the colour of the histogram bars. If not set, `cornflowerblue` is used. |
+
+
+#### Circle pack plot
+
+Example of a minimal `plot` object for a circle pack diagram:
+
+```javascript
+{
+  "plotType": "cfD3CirclePack",
+  "data": {
+    "property": "Prop1"
+  },
+  "layout": {
+    "title": "Prop1, Prop2 hierarchy",
+    "colWidth": 3,
+    "height": 300,
+    "groupBy":["Prop1","Prop2"]
+  }
+}
+```
+
+| Parameter | Description |
+|---|---|
+| plotType | Set to `cfD3CirclePack` for a circle pack diagran |
+| property | Set to the primary property by which the tasks are grouped (the outer-most circles). Must be a member of `categoricalProperties` |
+| title | Title of the chart |
+| colWidth | Width of the chart, integer between 1 and 12 |
+| height | Height of the chart in pixels |
+| groupBy | List of properties `[Prop1, Prop2, Prop3]` defining the hierarchy of the groups (outer-most to inner-most circles) |
+
+Optional `layout` parameters:
+
+| Parameter | Description |
+|---|---|
+| colourByProperty | set `true` to colour bars by the value of `property` |
+| colourMap | use to set the colour map. If not set, `d3.schemeCategory10` is used |
 
 
 

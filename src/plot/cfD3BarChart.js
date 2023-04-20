@@ -58,8 +58,6 @@ const cfD3BarChart = {
         const group = dim.group();
         const items = group.all();
 
-        console.log("bar chart update ", property, items.length, items[1].value);
-
         if ( this.layout.addSelectablePropertyToTitle ) {
 
             const boundPropertySelectChange = propertySelectChange.bind(this);
