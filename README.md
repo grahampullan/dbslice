@@ -23,6 +23,7 @@ There are several live [demonstrations](https://www.dbslice.org/demos) at the db
       * [Histogram](#histogram)
       * [Grouped vertical bar chart](#grouped-vertical-bar-chart)
       * [Circle pack plot](#circle-pack-plot)
+      * [Response surface scatter plot](#response-surface-scatter-plot)
 
 ---
 
@@ -384,7 +385,7 @@ Optional `layout` parameters:
 
 #### Circle pack plot
 
-Example of a minimal `plot` object for a circle pack diagram:
+Example of a minimal `plot` object for a circle pack hierarchy diagram:
 
 ```javascript
 {
@@ -403,7 +404,7 @@ Example of a minimal `plot` object for a circle pack diagram:
 
 | Parameter | Description |
 |---|---|
-| plotType | Set to `cfD3CirclePack` for a circle pack diagran |
+| plotType | Set to `cfD3CirclePack` for a circle pack diagram |
 | property | Set to the primary property by which the tasks are grouped (the outer-most circles). Must be a member of `categoricalProperties` |
 | title | Title of the chart |
 | colWidth | Width of the chart, integer between 1 and 12 |
@@ -416,6 +417,52 @@ Optional `layout` parameters:
 |---|---|
 | colourByProperty | set `true` to colour bars by the value of `property` |
 | colourMap | use to set the colour map. If not set, `d3.schemeCategory10` is used |
+
+
+#### Response surface scatter plot
+
+Example of a minimal `plot` object for a scatter plot that shows the quality of a response surface fit:
+```javascript
+{
+  "plotType": "cfD3ResSurfScatter",
+  "data": {
+    "xProperty": "Prop1",
+    "inputProperties": ["Prop2", "Prop3", "Prop4"],
+    "cProperty": "Prop5",
+    "model": "quadDiag"
+  },
+  "layout": {
+    "title": "Response surface fit for Prop1",
+    "colWidth": 3,
+    "height": 300
+  }
+}
+```
+
+| Parameter | Description |
+|---|---|
+| plotType | Set to `cfD3ResSurfScatter` for a response surface scatter plot |
+| xProperty | Name of the property to be fitted (the output property, or *dependent variable*). Must be a member of `continuousProperties` |
+| inputProperties | A list of the properties used as inputs (*independent variables*) to the fit. Must be members of `continuousProperties` |
+| cProperty | Name of meta-data property used to colour the scatter points. Must be a member of `categoricalProperties` |
+| model | Set to `linear` to use linear combination of inputs in the fit. Set to `quadDiag` to use linear and quadratic terms (i.e. diagonal terms only, not cross terms). The fit is re-calculated every time the filter is changed. |
+| title | Title of the chart |
+| colWidth | Width of the chart, integer between 1 and 12 |
+| height | Height of the chart in pixels |
+
+
+Optional `layout` parameters:
+
+| Parameter | Description |
+|---|---|
+| highlightTasks | set `true` to show the scatter point of the current task |
+| xRange | set to `[xMin, xMax]` to set the limits of the x-axis. If not set, x-axis will auto scale during filtering |
+| colourMap | use to set the colour map. If not set, `d3.schemeCategory10` is used |
+| opacity | set the opacity of the points (number between 0 and 1). If not set, a default value of 1 is used |
+
+
+
+
 
 
 
