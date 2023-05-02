@@ -467,7 +467,25 @@ For detailed data plots, the data to be displayed is requested via a web server 
 
 #### Line plots
 
-Example of a minimal `plot` object for a lint plot (usually used with one line for each `task` in the current filter):
+**Data format** The `d3LineSeries` plot will draw one or more lines of data. The format of this collection of lines is an **array of line series obejcts** where each line series object contains:
+```javascript
+{
+  label : "this curve label",
+  taskId : taskIdNow,
+  data : [{"x":0.1, "y":0.2}, {"x":0.2, "y":0.15}, {"x":0.3, "y":0.1}]
+}
+```
+| Parameter | Description |
+|---|---|
+| label | The mouseover label for this line |
+| taskId | The taskId associated with this line |
+| data | An array of `{"x":xpt, "y":ypt}` objects, one per data point |
+
+The `lineSeriesFromLines` and `lineSeriesFromCsv` filters can be used to assemble the requried data format from a series of individual `json` or `csv` files for each `task`.
+
+
+
+Example of a minimal `plot` object for a line plot (usually used with one line for each `task` in the current filter):
 ```javascript
 {
   "plotType": "d3LineSeries",
