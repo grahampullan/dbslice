@@ -24,6 +24,7 @@ There are several live [demonstrations](https://www.dbslice.org/demos) at the db
       * [Grouped vertical bar chart](#grouped-vertical-bar-chart)
       * [Circle pack plot](#circle-pack-plot)
       * [Response surface scatter plot](#response-surface-scatter-plot)
+    * [Detailed data plots](#detailed-data-plots)
 
 ---
 
@@ -460,13 +461,82 @@ Optional `layout` parameters:
 | colourMap | use to set the colour map. If not set, `d3.schemeCategory10` is used |
 | opacity | set the opacity of the points (number between 0 and 1). If not set, a default value of 1 is used |
 
+### Detailed data plots
 
+For detailed data plots, the data to be displayed is requested via a web server (could be from a remote server or from the local machine) using the `fetchData` object. Filter functions can be used to translate the data into the form required by **dbslice**.
 
+#### Line plots
 
+Example of a minimal `plot` object for a lint plot (usually used with one line for each `task` in the current filter):
+```javascript
+{
+  "plotType": "d3LineSeries",
+  "fetchData": {
+    "urlTemplate": "data/${taskId}/line_data.json",
+    "tasksByFilter": true,
+    "dataFilterType": "lineSeriesFromLines",
+    "dataFilterConfig": {
+      "cProperty": "Prop1"
+    }
+  },
+  "layout": {
+    "title": "Line plots",
+    "colWidth": 3,
+    "height": 300,
+    "cSet": "Prop1"
+  }
+}
+```         
 
+| Parameter | Description |
+|---|---|
+| plotType | Set to `d3LineSeries` for a plot with one or more lines |
+| urlTemplate | Template for the location of the data for each line. The `${taskId}` is replaced with the `taskId` of each `task` in the current filter. |
+| tasksByFilter | Set to `true` so that the `task`s in the current filter are used. |
+| dataFilterType | The filter `lineSeriesFromLines` has been chosen here. This filter simply assembles the files for each `task` into one collection, ready for plotting. Each file is already in the correct format, an array of coordinates, e.g. `[{"x":0.1, "y":0.2}, {"x":0.2, "y":0.15}, {"x":0.3, "y":0.1}]`. Another common filter for line plots is `lineSeriesFromCsv` - see below.|
+| dataFilterConfig | An object with additional config information for the filter. In this case, we specify `"cProperty": "Prop1"` so that `Prop1` (a meta-data property that is a member of `categoricalProperties`) is used to colour the lines. |
+| title | Title of the chart |
+| colWidth | Width of the chart, integer between 1 and 12 |
+| height | Height of the chart in pixels |
+| cSet | The meta-data property used as the colour scale for the lines. Must be a member of `categoricalProperties`.
 
+Optional `layout` parameters:
 
+| Parameter | Description |
+|---|---|
+| highlightTasks | set `true` to show the scatter point of the current task |
+| xAxisLabel | use to specify the x-axis label |
+| yAxisLabel | use to specify the y-axis label |
 
+Example of `fetchData` object when using the `lineSeriesFromCsv` filter to read standard `.csv` files:
+
+```javascript
+"fetchData": {
+  "urlTemplate": "data/${taskId}/line_data.csv",
+  "text": true,
+  "tasksByFilter": true,
+	"autoFetchOnFilterChange": true,
+  "maxTasks": 100,
+  "dataFilterType": "lineSeriesFromCsv",
+  "dataFilterConfig": {
+    "skipCommentLines": true,
+    "xProperty": "x_data",
+    "yProperty": "y_data",
+    "cProperty": "Prop1"
+  }
+}
+```
+
+| Parameter | Description |
+|---|---|
+| text | set `true` for `csv` file |
+| autoFetchOnFilterChange | set `true` if the data for this plot should be re-fetched as soon as the filter is changed (i.e. without waiting for the user to click the `Plot selected tasks` button) |
+| maxTasks | to limit the number of files fetched, set this to an integer |
+| dataFilterType | `lineSeriesFromCsv` will read multiple `csv` files and convert to the required **dbslice** format for line plots |
+| skipCommentLines | set `true` to ignore lines at the start of the `csv` file that start with a `#`.
+| xProperty | the `csv` column name that will be used for the x co-ordinate.
+| yProperty | the `csv` column name that will be used for the y co-ordinate.
+| cProperty | the meta-data property to be used for line colouring (must be a member of `categoricalProperties`).
 
 
 
