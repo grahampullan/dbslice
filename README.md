@@ -25,6 +25,8 @@ There are several live [demonstrations](https://www.dbslice.org/demos) at the db
       * [Circle pack plot](#circle-pack-plot)
       * [Response surface scatter plot](#response-surface-scatter-plot)
     * [Detailed data plots](#detailed-data-plots)
+      * [Line plot](#line-plot)
+      * [Surface plot from unstructured data](#surface-plot-from-unstructured-data)
 
 ---
 
@@ -305,7 +307,7 @@ Optional `layout` parameters:
 
 | Parameter | Description |
 |---|---|
-| highlightTasks | set `true` to show the scatter point of the current task |
+| highlightTasks | set `true` to show the scatter point of the current selected task |
 | xRange | set to `[xMin, xMax]` to set the limits of the x-axis. If not set, x-axis will auto scale during filtering |
 | yRange | set to `[yMin, yMax]` to set the limits of the y-axis. If not set, y-axis will auto scale during filtering |
 | colourMap | use to set the colour map. If not set, `d3.schemeCategory10` is used |
@@ -465,7 +467,7 @@ Optional `layout` parameters:
 
 For detailed data plots, the data to be displayed is requested via a web server (could be from a remote server or from the local machine) using the `fetchData` object. Filter functions can be used to translate the data into the form required by **dbslice**.
 
-#### Line plots
+#### Line plot
 
 **Data format** The `d3LineSeries` plot will draw one or more lines of data. The format of this collection of lines is an **array of line series obejcts** where each line series object contains:
 ```javascript
@@ -482,8 +484,6 @@ For detailed data plots, the data to be displayed is requested via a web server 
 | data | An array of `{"x":xpt, "y":ypt}` objects, one per data point |
 
 The `lineSeriesFromLines` and `lineSeriesFromCsv` filters can be used to assemble the requried data format from a series of individual `json` or `csv` files for each `task`.
-
-
 
 Example of a minimal `plot` object for a line plot (usually used with one line for each `task` in the current filter):
 ```javascript
@@ -522,7 +522,7 @@ Optional `layout` parameters:
 
 | Parameter | Description |
 |---|---|
-| highlightTasks | set `true` to show the scatter point of the current task |
+| highlightTasks | set `true` to show the line of the current selected task |
 | xAxisLabel | use to specify the x-axis label |
 | yAxisLabel | use to specify the y-axis label |
 
@@ -556,5 +556,74 @@ Example of `fetchData` object when using the `lineSeriesFromCsv` filter to read 
 | yProperty | the `csv` column name that will be used for the y co-ordinate.
 | cProperty | the meta-data property to be used for line colouring (must be a member of `categoricalProperties`).
 
+#### Surface plot from unstructured data
 
+**Data format** The `threeTriMesh` plot will visualise a collection of surfaces in 2D or 3D. The format is a binary buffer (`.tm3` file) that has the structure as if written by the following Python code:
+```python
+import numpy as np
+f = open("surfaces.tm3","wb")
+
+f.write(np.int32(len(steps)).tobytes())  # number of snapshots in time (32 bit integer)
+f.write(np.int32(len(surfaces)).tobytes())  # number of surfaces (32 bit integer)
+
+for step in steps:  # loop over snapshots
+  for surface in sufaces  # loop over surfaces
+    f.write(np.array(surface_name,dtype='S96').tobytes())  # name of surface, in a padded 96 character string
+    f.write(nverts.tobytes())  # number of vertices in this surface (32 bit integer)
+    f.write(ntris.tobytes())  # number of triangles in this surface  (32 bit integer)
+    f.write(np.int32(1).tobytes())  # number of properties at each vertices (other than coordinates) - set = 1 in current version
+    f.write(rmax.tobytes())  # radius of sphere enclosing all vertices in this surface (can be approximate) (32 bit float)
+    f.write(xrange.tobytes())  # 1-D array with x limits of vertices in this surface [x_min, x_max] (32 bit floats)
+    f.write(yrange.tobytes())  # 1-D array with y limits of vertices in this surface [y_min, y_max] (32 bit floats)
+    f.write(zrange.tobytes())  # 1-D array with z limits of vertices in this surface [z_min, z_max] (32 bit floats)
+    f.write(vertices.tobytes())  # 1-D array of vertices, nverts*3 elements: [x1,y1,z1,x2,y2,z2,...] (32 bit floats)
+    f.write(indices.tobytes())  # 1-D array of triangle indices, ntris*3 elements. For each triangle in turn, gives the index of each of the 3 vertices (32 bit integers)
+    f.write(np.array(prop_name,dtype='S96').tobytes())  # name of property, in a padded 96 character string
+    f.write(prange.tobytes())  # 1-D array with limits of property in this surface [p_min, p_max] (32 bit floats)
+    f.write(values.tobytes())  # 1-D array of property values, nverts elements (32 bit floats)
+
+f.close()
+```
+
+A helper code to convert `vtk` files to the above `tm3` format is availabe [here](https://github.com/grahampullan/dbslice/blob/master/python_utils/vtk_to_tm3.py).
+
+It is common to have a separate surface plot for each `task`. To enable this we configure a `plotRow` (a container for our plots) and use the `ctrl` object to populate the `plots` array:
+
+```javascript
+{ 
+  "title" : "3-D Surface plots",
+  "plots" : [] ,
+  "ctrl" : { 
+    "plotType" : "threeTriMesh" ,  
+    "fetchData" : {
+      "urlTemplate" : "data/${taskId}/surface.tm3" ,
+      "buffer" : true ,
+      "tasksByFilter" : true ,
+      "maxTasks" : 8
+    }
+    "layout" : { 
+      "colWidth" : 3 , 
+      "height" : 350 
+    }  
+  }
+}
+```
+| Parameter | Description |
+|---|---|
+| title | Title of this `plotRow` container |
+| plots | We initialise the plots array to be empty |
+| plotType | Set to `threeTriMesh` to plot `.tm3` format surfaces |
+| urlTemplate | Templare for location where each surface is stored. `${taskId}` will be replaced by `taskId` of each `task` in the current filter |
+| buffer | Set to `true` because `.tm3` files are binary buffers |
+| tasksByFilter | Set to `true` to tell **dbsluce** to obtain `task`s from the current filter |
+| maxTasks | Limit on nunber of surface plots |
+| colWidth | Width of the chart, integer between 1 and 12 |
+| height | Height of the chart in pixels |
+
+Optional `layout` parameters:
+
+| Parameter | Description |
+|---|---|
+| highlightTasks | set `true` to highlight the plot of the current selected `task` |
+| cameraSync | set `true` to synchronise the view of all the surface plots in the current `plotRow` container |
 
