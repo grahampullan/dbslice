@@ -336,7 +336,8 @@ const d3LineSeries = {
 
             meanLines.each( function() {
                 d3.select( this ).transition()
-                    .attr( "d", d => line( d.data ) )
+                    .attr( "d", d => line( d.data ) );
+                d3.select( this ).raise();
             } );
 
             meanLines.exit().remove();
