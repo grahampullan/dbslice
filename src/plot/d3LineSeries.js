@@ -1,6 +1,6 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { highlightTasksAllPlots } from '../core/plot.js';
-import * as d3 from 'd3';
+import * as d3 from 'd3v7';
 import d3tip from 'd3-tip';
 
 const d3LineSeries = {
@@ -28,6 +28,10 @@ const d3LineSeries = {
             return
         }
 
+        container.append("div")
+            .attr("class", "tool-tip")
+            .style("opacity", 0);
+
         this.update();
 
     },
@@ -43,6 +47,8 @@ const d3LineSeries = {
         const plotArea = svg.select(".plot-area");
         const highlightTasks = this.layout.highlightTasks;
         const timeSync = this.layout.timeSync;
+        const xAxisMean = this.layout.xAxisMean;
+        const yAxisMean = this.layout.yAxisMean;
         const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
         const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 
@@ -113,6 +119,14 @@ const d3LineSeries = {
             var ymaxNow =  d3.max( this.data.series[n].data, d => d.y );
             ( ymaxNow > ymax ) ? ymax = ymaxNow : ymax = ymax;
         }
+
+        let xDiff = xmax - xmin;
+        xmin -= 0.05 * xDiff;
+        xmax += 0.05 * xDiff;
+
+        let yDiff = ymax - ymin;
+        ymin -= 0.05 * yDiff;
+        ymax += 0.05 * yDiff;
 
         let xRange, yRange;
         if ( this.layout.xRange === undefined ) {
@@ -189,35 +203,147 @@ const d3LineSeries = {
                 .attr("r",1);
         }
 
-        const allSeries = plotArea.selectAll( ".plot-series" ).data( this.data.series, k => k.taskId );
 
-        allSeries.enter()
-            .each( function() {
-                let series = d3.select( this );
-                let seriesLine = series.append( "g" )
-                    .attr( "class", "plot-series")
-                    .attr( "series-name", d => d.label )
-                    .attr( "clip-path", `url(#${clipId})` )
-                    .append( "path" )
-                        .attr( "class", "line" )
-                        .attr( "d", d => line( d.data ) )
-                        .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )    
-                        .style( "fill", "none" )
-                        .style( "stroke-width", "2.5px" )
+        if (!xAxisMean && !yAxisMean) {
+
+            const allSeries = plotArea.selectAll( ".plot-series" ).data( this.data.series, k => k.taskId );
+
+            allSeries.enter()
+                .each( function() {
+                    let series = d3.select( this );
+                    let seriesLine = series.append( "g" )
+                        .attr( "class", "plot-series")
+                        .attr( "series-name", d => d.label )
                         .attr( "clip-path", `url(#${clipId})` )
-                        .on( "mouseover", tipOn )
-                        .on( "mouseout", tipOff );
-        } );
+                        .append( "path" )
+                            .attr( "class", "line" )
+                            .attr( "d", d => line( d.data ) )
+                            .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )    
+                            .style( "fill", "none" )
+                            .style( "stroke-width", "2.5px" )
+                            .attr( "clip-path", `url(#${clipId})` )
+                            .on( "mouseover", tipOn )
+                            .on( "mouseout", tipOff );
+            } );
 
-        allSeries.each( function() {
-            let series = d3.select( this );
-            let seriesLine = series.select( "path.line" );
-            seriesLine.transition()
-                .attr( "d", d => line( d.data ) )
-                .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )  ;
-        } );
+            allSeries.each( function() {
+                let series = d3.select( this );
+                let seriesLine = series.select( "path.line" );
+                seriesLine.transition()
+                    .attr( "d", d => line( d.data ) )
+                    .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )  ;
+            } );
 
-        allSeries.exit().remove();
+            allSeries.exit().remove();
+
+        }
+    
+        let area;
+        let areaData = [];
+        if ( xAxisMean ) {
+            area = d3.area()
+                .y( d => yscale(d.y) )
+                .x0( d => xscale(d.x0 ))
+                .x1( d => xscale(d.x1 ));
+            let seriesGroupedByCKey = Array.from(d3.group(this.data.series, d => d.cKey));
+            seriesGroupedByCKey.forEach( s => {
+                let areaNow = {};
+                areaNow.c = s[0];
+                areaNow.data = [];
+                let nPts = s[1][0].data.length;
+                for (let i=0; i < nPts; i++) {
+                    let areaPt={};
+                    let xValues = s[1].map(d => d.data[i].x);
+                    if (xValues.length == 1) {
+                        xValues.push(xValues[0]);
+                    }
+                    let xMean = d3.mean(xValues);
+                    let stdDev = d3.deviation(xValues);
+                    areaPt.y = s[1][0].data[i].y;
+                    areaPt.x = xMean;
+                    areaPt.x0 = xMean - stdDev;
+                    areaPt.x1 = xMean + stdDev;
+                    areaNow.data.push(areaPt);
+                }
+                areaData.push(areaNow);
+            });
+        }
+        
+        if ( yAxisMean ) {
+            area = d3.area()
+                .x( d => xscale(d.x) )
+                .y0( d => yscale(d.y0 ))
+                .y1( d => yscale(d.y1 ));
+            let seriesGroupedByCKey = Array.from(d3.group(this.data.series, d => d.cKey));
+            seriesGroupedByCKey.forEach( s => {
+                let areaNow = {};
+                areaNow.c = s[0];
+                areaNow.data = [];
+                let nPts = s[1][0].data.length;
+                for (let i=0; i < nPts; i++) {
+                    let areaPt={};
+                    let yValues = s[1].map(d => d.data[i].y);
+                    if (yValues.length == 1) {
+                        yValues.push(yValues[0]);
+                    }
+                    let yMean = d3.mean(yValues);
+                    let stdDev = d3.deviation(yValues);
+                    areaPt.x = s[1][0].data[i].x;
+                    areaPt.y = yMean;
+                    areaPt.y0 = yMean - stdDev;
+                    areaPt.y1 = yMean + stdDev;
+                    areaNow.data.push(areaPt);
+                }
+                areaData.push(areaNow);
+            });
+        }
+
+        if ( xAxisMean || yAxisMean ) {
+
+            const areas = plotArea.selectAll( ".area" ).data( areaData, k => k.c );
+
+            areas.enter()
+                .each( function() {
+                    d3.select( this ).append("path")
+                        .attr("class","area")
+                        .attr("fill", d => colour(d.c))
+                        .style("opacity", 0.5)
+                        .attr( "clip-path", `url(#${clipId})`)
+                        .attr("d", d => area(d.data));
+            } );
+
+            areas.each( function() {
+                d3.select( this ).transition()
+                    .attr( "d", d => area( d.data ) )
+            } );
+
+            areas.exit().remove(); 
+
+            const meanLines = plotArea.selectAll( ".mean-line" ).data( areaData, k => k.c );
+
+            meanLines.enter()
+                .each( function() {
+                    d3.select( this ).append("path")
+                        .attr("class","mean-line")
+                        .style("stroke", d => colour(d.c))
+                        .style("stroke-width", "2.5px")
+                        .style("fill","none")
+                        .attr( "clip-path", `url(#${clipId})` )
+                        .attr("d", d => line(d.data))
+                        .on( "mouseover", tipOnMeanLine )
+                        .on( "mouseout", tipOffMeanLine );
+            } );
+
+            meanLines.each( function() {
+                d3.select( this ).transition()
+                    .attr( "d", d => line( d.data ) )
+            } );
+
+            meanLines.exit().remove();
+
+
+        }
+    
 
         const xAxis = d3.axisBottom( xscale ).ticks(5);
         const yAxis = d3.axisLeft( yscale );
@@ -287,29 +413,32 @@ const d3LineSeries = {
 			highlightTimeStep(iStep);
 		}
 
-        function zoomed() {
-            const t = d3.event.transform;
+        function zoomed(event) {
+            const t = event.transform;
             xscale.domain(t.rescaleX(xscale0).domain());
             yscale.domain(t.rescaleY(yscale0).domain());
             gX.call(xAxis);
             gY.call(yAxis);
             plotArea.selectAll(".line").attr( "d", d => line( d.data ) );
+            plotArea.selectAll(".area").attr( "d", d => area( d.data ) );
+            plotArea.selectAll(".mean-line").attr( "d", d => line( d.data ) );
         }
 
-        function tipOn( d ) {
+        function tipOn( event, d ) {
             let lines = plotArea.selectAll(".line");
             lines.style( "stroke" , "#d3d3d3");
-            d3.select(this)
+            let target = d3.select(event.target);
+            target
                 .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; })
                 .style( "stroke-width", "4px" )
                 .each(function() {
                     this.parentNode.parentNode.appendChild(this.parentNode);
                 });
-            let focus = plotArea.select(".focus");
-            focus
-                .attr( "cx" , d3.mouse(this)[0] )
-                .attr( "cy" , d3.mouse(this)[1] );
-            tip.show( d , focus.node() );
+            container.select(".tool-tip")
+                .style("opacity", 1.0)
+                .html("<span>"+d.label+"</span>")
+                .style("left", d3.pointer(event)[0]+ "px")
+                .style("top", d3.pointer(event)[1] + "px");
             if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
                 highlightTasksAllPlots();
@@ -325,18 +454,61 @@ const d3LineSeries = {
             }
         }
 
-        function tipOff() {
+        function tipOff(event,d) {
             if ( !timeSync ) {
                 let lines = plotArea.selectAll(".line");
                 lines
                     .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; })
                     .style( "stroke-width", "2.5px" );
             }
-            tip.hide();
+            container.select(".tool-tip").style("opacity", 0.0)
             if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [];
                 highlightTasksAllPlots();
             }
+        }
+
+        function tipOnMeanLine( event, d ) {
+            let lines = plotArea.selectAll(".mean-line");
+            lines.style( "stroke" , "#d3d3d3");
+            let areas = plotArea.selectAll(".area")
+            areas.style( "fill" , "#d3d3d3");
+            let targetSet = d.c;
+            let targetLine = d3.select(event.target);
+            let targetArea = areas.filter( k => k.c == targetSet );
+            targetArea
+                .style( "fill", d => colour(d.c) )
+                .style( "opacity", 0.7)
+                .raise();
+                //.each(function() {
+                //    this.parentNode.parentNode.appendChild(this.parentNode);
+                //});
+            targetLine
+                .style( "stroke", d => colour(d.c) )
+                .style( "stroke-width", "4px" )
+                .raise();
+                //.each(function() {
+                //    this.parentNode.parentNode.appendChild(this.parentNode);
+                //});
+            container.select(".tool-tip")
+                .style("opacity", 1.0)
+                .html("<span>"+d.c+"</span>")
+                .style("left", d3.pointer(event)[0]+ "px")
+                .style("top", d3.pointer(event)[1] + "px");
+        }
+
+        function tipOffMeanLine(event,d) {
+            let areas = plotArea.selectAll(".area");
+            areas 
+                .style( "fill", d => colour(d.c) )
+                .style( "opacity", 0.5);
+            let lines = plotArea.selectAll(".mean-line");
+            lines
+                .style( "stroke", d => colour(d.c) )
+                .style( "stroke-width", "2.5px" )
+                .raise();
+
+            container.select(".tool-tip").style("opacity", 0.0)
         }
 
         this.layout.newData = false;
