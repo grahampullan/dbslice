@@ -31,3 +31,4 @@ export { triMesh2dRenderXBar } from './plot/triMesh2dRenderXBar.js';
 export { d3CutLine } from './plot/d3CutLine.js';
 export { getPlotFunc } from './plot/getPlotFunc.js';
 export { getDataFilterFunc } from './filters/getDataFilterFunc.js';
+export { dbsliceData } from './core/dbsliceData.js';
