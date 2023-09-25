@@ -108,7 +108,7 @@ const cfD3Scatter = {
             .range( [height, 0] )
             .domain( yRange );
 
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
 
         const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
@@ -298,7 +298,7 @@ const cfD3Scatter = {
         const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
         const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
         const cProperty = this.data.cProperty;
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
         const points = plotArea.selectAll( ".point" );
 

@@ -52,7 +52,7 @@ const d3LineSeries = {
         const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
         const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
 
         if ( this.layout.cSet !== undefined) {
             if ( Array.isArray( this.layout.cSet ) ) {
@@ -523,7 +523,7 @@ const d3LineSeries = {
         const svg = container.select("svg");
         const plotArea = svg.select(".plot-area");
         const lines = plotArea.selectAll(".line");
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
 
         if ( this.layout.cSet !== undefined) {
             if ( Array.isArray( this.layout.cSet ) ) {
