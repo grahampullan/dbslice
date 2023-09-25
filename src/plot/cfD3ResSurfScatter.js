@@ -1,7 +1,6 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { highlightTasksAllPlots } from '../core/plot.js'
-import * as d3 from 'd3';
-import d3tip from 'd3-tip';
+import * as d3 from 'd3v7';
 import * as nd from 'nd4js';
 
 const cfD3ResSurfScatter = {
@@ -25,6 +24,10 @@ const cfD3ResSurfScatter = {
                 .attr("transform", `translate(${margin.left}, ${margin.top})`)
                 .attr( "class", "plot-area" )
                 .attr( "id", `plot-area-${this._prid}-${this._id}`);
+            
+        container.append("div")
+            .attr("class", "tool-tip")
+            .style("opacity", 0);
 
         this.update();
 
@@ -119,7 +122,7 @@ const cfD3ResSurfScatter = {
             .range( [height, 0] )
             .domain( xRange );
 
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
 
         const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
@@ -129,15 +132,6 @@ const cfD3ResSurfScatter = {
             .append("rect")
                 .attr("width", width)
                 .attr("height", height);
-
-        const tip = d3tip()
-            .attr('class', 'd3-tip')
-            .offset([-20, 0])
-            .html(function( d ) {
-                return "<span>"+d.label+"</span>";
-        });
-
-        svg.call(tip);
 
         let focus = plotArea.select(".focus");
         if ( focus.empty() ) {
@@ -257,29 +251,28 @@ const cfD3ResSurfScatter = {
 
 
 
-        function tipOn( d ) {
-            //console.log("mouse on")
+        function tipOn( event, d ) {
             points.style( "opacity" , 0.2);
-            //points.style( "fill" , "#d3d3d3");
-            d3.select(this)
+            let target = d3.select(event.target);
+            target
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
-            let focus = plotArea.select(".focus");
-            focus.attr( "cx" , d3.select(this).attr("cx") )
-                 .attr( "cy" , d3.select(this).attr("cy") );
-            tip.show( d , focus.node() );
-            //tip.show( d );s
+            container.select(".tool-tip")
+                .style("opacity", 1.0)
+                .html("<span>"+d.label+"</span>")
+                .style("left", target.attr("cx")+ "px")
+                .style("top", target.attr("cy") + "px");
             if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
                 highlightTasksAllPlots();
             }
         }
 
-        function tipOff() {
+        function tipOff(event,d) {
             points.style( "opacity" , opacity );
-            d3.select(this)
+            d3.select(event.target)
                 .attr( "r", 5 );
-            tip.hide();
+            container.select(".tool-tip").style("opacity", 0.0)
             if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [];
                 highlightTasksAllPlots();
@@ -295,7 +288,7 @@ const cfD3ResSurfScatter = {
         const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
         const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
         const cProperty = this.data.cProperty;
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
         const points = plotArea.selectAll( ".point" );
 

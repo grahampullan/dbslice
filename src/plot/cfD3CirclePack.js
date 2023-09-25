@@ -88,7 +88,7 @@ const cfD3CirclePack = {
         } else {
     
             if ( !this.layout.colourMap ) {
-                colour = d3.scaleOrdinal( d3.schemeCategory10 ).unknown("LightGray");
+                colour = d3.scaleOrdinal( d3.schemeTableau10 ).unknown("LightGray");
             } else {
                 colour = d3.scaleOrdinal( this.layout.colourMap ).unknown("LightGray");
             }
