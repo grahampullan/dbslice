@@ -1,7 +1,7 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
 import { refreshTasksInPlotRows } from '../core/refreshTasksInPlotRows.js';
 import { dbsliceData } from '../core/dbsliceData.js';
-import * as d3 from 'd3';
+import * as d3 from 'd3v7';
 
 const cfD3BarChart = {
 
@@ -115,7 +115,7 @@ const cfD3BarChart = {
         } else {
     
             if ( !this.layout.colourMap ) {
-                colour = d3.scaleOrdinal( d3.schemeCategory10 );
+                colour = d3.scaleOrdinal( d3.schemeTableau10 );
             } else {
                 colour = d3.scaleOrdinal( this.layout.colourMap );
             }
@@ -129,7 +129,7 @@ const cfD3BarChart = {
 
         bars.enter()
             .append( "rect" )
-            .on( "click", ( selectedItem ) => {
+            .on( "click", ( event, selectedItem ) => {
 
                 if ( cfData.filterSelected[ dimId ] === undefined ) {
                      cfData.filterSelected[ dimId ] = [];

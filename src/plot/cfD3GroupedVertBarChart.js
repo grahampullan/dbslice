@@ -1,5 +1,5 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import { update } from '../core/update.js';
+//import { update } from '../core/update.js';
 import * as d3 from 'd3v7';
 
 const cfD3GroupedVertBarChart = {
@@ -116,7 +116,7 @@ const cfD3GroupedVertBarChart = {
             .domain( yRange );
 
         const colour = d3.scaleOrdinal( d3.schemeTableau10 )
-            .domain( zDomain );
+            .domain( cfData.categoricalUniqueValues[ zProperty ] );
 
         const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
 
@@ -211,7 +211,7 @@ const cfD3GroupedVertBarChart = {
             gX.select(".x-axis-text").attr("x",width);
         }
 
-        let gY = plotArea.select(".axis--y");
+        let gY = plotArea.select(".axis-y");
         if ( gY.empty() ) {
             gY = plotArea.append("g")
                 .attr( "class", "axis-y")
