@@ -28,16 +28,17 @@ const cfD3GroupedVertBarChart = {
             .attr("class", "tool-tip")
             .style("opacity", 0);
 
+        svg.append("text")
+            .attr("class", "hidden-text")
+            .attr("y", 0)
+            .attr("dy", 0)
+            .style("opacity",0);
+
         this.update();
 
     }, 
 
     update : function () {
-
-        //if (layout._noUpdate) {
-        //    layout._noUpdate = false;
-        //    return;
-        //}
 
         const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
@@ -94,8 +95,6 @@ const cfD3GroupedVertBarChart = {
             let yDiff = yMax - yMin;
             if ( yMin > 0. && yMax > 0.) yMin = 0.
             if ( yMin < 0. && yMax < 0.) yMax = 0.
-            //yMin -= 0.1 * yDiff;
-            //yMax += 0.1 * yDiff;
             yRange = [yMin, yMax];
         } else {
             yRange = this.layout.yRange;
@@ -111,8 +110,20 @@ const cfD3GroupedVertBarChart = {
             .domain( zDomain )
             .padding( 0.05 );
 
+        let wrapWidth = xScale.bandwidth();
+
+        let yOffset = margin.bottom;
+        const hiddenText = d3.select(".hidden-text");
+        xDomain.forEach( label => {
+            hiddenText.text(label);
+            wrapText(hiddenText, wrapWidth);
+            yOffset = Math.max(hiddenText.node().getBoundingClientRect().height, yOffset);
+            hiddenText.selectAll("*").remove();
+        });
+        yOffset -= margin.bottom;
+
         const yScale = d3.scaleLinear()
-            .range( [height, 0] )
+            .range( [height-yOffset, 0] )
             .domain( yRange );
 
         const colour = d3.scaleOrdinal( d3.schemeTableau10 )
@@ -196,20 +207,28 @@ const cfD3GroupedVertBarChart = {
         let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
             gX = plotArea.append("g")
-                .attr( "transform", `translate(0,${height})` )
+                .attr( "transform", `translate(0,${height-yOffset})` )
                 .attr( "class", "axis-x")
                 .call( xAxis );
             gX.append("text")
                 .attr("class","x-axis-text")
                 .attr("fill", "#000")
                 .attr("x", width)
-                .attr("y", margin.bottom-2)
+                .attr("y", margin.bottom+yOffset-4)
                 .attr("text-anchor", "end")
                 .text(xProperty);
         } else {
-            gX.transition().call( xAxis );
-            gX.select(".x-axis-text").attr("x",width);
+            gX.attr( "transform", `translate(0,${height-yOffset})` );
+            gX.call( xAxis );
+            gX.select(".x-axis-text")
+                .attr("x",width)
+                .attr("y", margin.bottom+yOffset-4);
         }
+
+        setTimeout(() => {
+            gX.selectAll(".tick text")
+                .call(wrap, xScale.bandwidth())
+        },0);
 
         let gY = plotArea.select(".axis-y");
         if ( gY.empty() ) {
@@ -224,7 +243,7 @@ const cfD3GroupedVertBarChart = {
                 .attr("text-anchor", "end")
                 .text(yProperty);
         } else {
-            gY.transition().call( yAxis );
+            gY.call( yAxis );
         }
         
         function tipOn( event, d ) {
@@ -242,6 +261,36 @@ const cfD3GroupedVertBarChart = {
         function tipOff(event, d) {
             plotArea.selectAll( ".bar" ).style( "opacity" , opacity );
             container.select(".tool-tip").style("opacity", 0.0)
+        }
+
+        function wrap(text, wrapWidth) {
+            text.each(function() {
+                let text = d3.select(this);
+                wrapText(text, wrapWidth);
+            });
+            return ;
+        }
+
+        function wrapText(textSelection, wrapWidth) {
+            let words = textSelection.text().split(/\s+/).reverse(),
+                word,
+                line = [],
+                lineNumber = 0,
+                lineHeight = 1.1, // ems
+                y = textSelection.attr("y"),
+                dy = parseFloat(textSelection.attr("dy")),
+                tspan = textSelection.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", `${dy}em`);
+            while (word = words.pop()) {
+                line.push(word);
+                tspan.text(line.join(" "));
+                if (tspan.node().getComputedTextLength() > wrapWidth && line.length > 1) {
+                    line.pop();
+                    tspan.text(line.join(" "));
+                    line = [word];
+                    tspan = textSelection.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+                }
+            }
+            return;
         }
 
     },
