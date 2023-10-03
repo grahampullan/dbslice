@@ -6,7 +6,7 @@ const cfD3GroupedVertBarChart = {
 
     make : function() {
 
-        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
@@ -40,7 +40,7 @@ const cfD3GroupedVertBarChart = {
 
     update : function () {
 
-        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
@@ -117,7 +117,7 @@ const cfD3GroupedVertBarChart = {
         xDomain.forEach( label => {
             hiddenText.text(label);
             wrapText(hiddenText, wrapWidth);
-            yOffset = Math.max(hiddenText.node().getBoundingClientRect().height, yOffset);
+            yOffset = Math.max(hiddenText.node().getBoundingClientRect().height - 15, yOffset);
             hiddenText.selectAll("*").remove();
         });
         yOffset -= margin.bottom;
@@ -202,7 +202,12 @@ const cfD3GroupedVertBarChart = {
         bars.exit().remove();
 
         const xAxis = d3.axisBottom( xScale );
+        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
+        if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
+
         const yAxis = d3.axisLeft( yScale );
+        if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
+        if ( this.layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(this.layout.yTickFormat)); }
 
         let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {

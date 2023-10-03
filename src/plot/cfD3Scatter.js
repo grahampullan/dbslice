@@ -6,7 +6,7 @@ const cfD3Scatter = {
 
     make : function() {
 
-        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
@@ -39,7 +39,7 @@ const cfD3Scatter = {
         //    return;
         //}
 
-        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
@@ -196,7 +196,12 @@ const cfD3Scatter = {
         }
 
         const xAxis = d3.axisBottom( xscale );
+        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
+        if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
+
         const yAxis = d3.axisLeft( yscale );
+        if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
+        if ( this.layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(this.layout.yTickFormat)); }
 
         let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
