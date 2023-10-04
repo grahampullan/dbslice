@@ -117,7 +117,7 @@ const cfD3GroupedVertBarChart = {
         xDomain.forEach( label => {
             hiddenText.text(label);
             wrapText(hiddenText, wrapWidth);
-            yOffset = Math.max(hiddenText.node().getBoundingClientRect().height - 15, yOffset);
+            yOffset = Math.max(hiddenText.node().getBBox().height, yOffset);
             hiddenText.selectAll("*").remove();
         });
         yOffset -= margin.bottom;
