@@ -122,14 +122,18 @@ const cfD3Histogram = {
             .domain( [ xDomMin, xDomMax ] )
             .rangeRound( [ 0, width ] );
 
+        const xAxis = d3.axisBottom( x );
+        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
+        if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
+
         let gX = plotArea.select(".x-axis");
         if ( gX.empty() ) {
             gX = plotArea.append( "g" )
                 .attr( "class", "x-axis")
                 .attr( "transform", `translate(0,${height})`)
-                .call( d3.axisBottom( x ) );
+                .call( xAxis );
         } else {
-            gX.call( d3.axisBottom( x ) );
+            gX.call( xAxis );
         }
 
         const brush = d3.brushX()
