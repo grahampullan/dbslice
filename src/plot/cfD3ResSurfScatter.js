@@ -35,13 +35,15 @@ const cfD3ResSurfScatter = {
 
     update : function () {
 
+        const layout = this.layout;
+
         const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
-        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
+        const margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
 
         const svgWidth = container.node().offsetWidth,
-            svgHeight = this.layout.height;
+            svgHeight = layout.height;
 
         const width = svgWidth - margin.left - margin.right;
         const height = svgHeight - margin.top - margin.bottom;
@@ -58,7 +60,7 @@ const cfD3ResSurfScatter = {
         const xProperty = this.data.xProperty;
         const inputProperties = this.data.inputProperties;
         const cProperty = this.data.cProperty;
-        const highlightTasks = this.layout.highlightTasks;
+        const highlightTasks = layout.highlightTasks;
 
         const cfData = dbsliceData.session.cfData;
         const dim = cfData.continuousDims[ dimId ];
@@ -95,7 +97,7 @@ const cfD3ResSurfScatter = {
         let r2 = 1 - sumErrorSq/sumSq;
 
         let xRange;
-        if ( this.layout.xRange === undefined) {
+        if ( layout.xRange === undefined) {
             let xMin = d3.min( scatterPlotData, d => d.x  );
             let xMax = d3.max( scatterPlotData, d => d.x  );
             let xDiff = xMax - xMin;
@@ -103,7 +105,7 @@ const cfD3ResSurfScatter = {
             xMax += 0.1 * xDiff;
             xRange = [xMin, xMax];
         } else {
-            xRange = this.layout.xRange;
+            xRange = layout.xRange;
         }
 
         const xscale = d3.scaleLinear()
@@ -122,10 +124,10 @@ const cfD3ResSurfScatter = {
             .range( [height, 0] )
             .domain( xRange );
 
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        const colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
 
-        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
+        const opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
 
         const clip = svg.append("clipPath")
             .attr("id", clipId)
@@ -167,12 +169,12 @@ const cfD3ResSurfScatter = {
         points.exit().remove();
 
         const xAxis = d3.axisBottom( xscale );
-        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
-        if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
+        if ( layout.xTickNumber !== undefined ) { xAxis.ticks(layout.xTickNumber); }
+        if ( layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(layout.xTickFormat)); }
 
         const yAxis = d3.axisLeft( yscale );
-        if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
-        if ( this.layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(this.layout.yTickFormat)); }
+        if ( layout.yTickNumber !== undefined ) { yAxis.ticks(layout.yTickNumber); }
+        if ( layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(layout.yTickFormat)); }
 
         let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
@@ -262,9 +264,31 @@ const cfD3ResSurfScatter = {
             target
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
+
+            let toolTipText, xVal, yVal;
+            if ( layout.toolTipXFormat === undefined ) {
+                xVal = d.x;
+            } else {
+                xVal = d3.format(layout.toolTipXFormat)( d.x )
+            }
+            if ( layout.toolTipYFormat === undefined ) {
+                yVal = d.y;
+            } else {
+                yVal = d3.format(layout.toolTipYFormat)( d.y )
+            }
+            let valsText = `${xProperty}=${xVal}, res surf=${yVal}`;
+    
+            if ( layout.toolTipProperties === undefined ) {
+                toolTipText = `${d.label}: ${valsText}`; 
+            } else {
+                let props = layout.toolTipProperties.map(prop => d[prop]);
+                toolTipText = props.join("; ");
+                toolTipText += `: ${valsText}`;
+            }
+
             container.select(".tool-tip")
                 .style("opacity", 1.0)
-                .html("<span>"+d.label+"</span>")
+                .html(`<span>${toolTipText}</span>`)
                 .style("left", target.attr("cx")+ "px")
                 .style("top", target.attr("cy") + "px");
             if ( highlightTasks ) {

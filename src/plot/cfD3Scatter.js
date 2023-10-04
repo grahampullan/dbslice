@@ -34,18 +34,15 @@ const cfD3Scatter = {
 
     update : function () {
 
-        //if (this.layout._noUpdate) {
-        //    this.layout._noUpdate = false;
-        //    return;
-        //}
+        const layout = this.layout;
 
         const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
-        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
+        const margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
 
         const svgWidth = container.node().offsetWidth,
-            svgHeight = this.layout.height;
+            svgHeight = layout.height;
 
         const width = svgWidth - margin.left - margin.right;
         const height = svgHeight - margin.top - margin.bottom;
@@ -63,14 +60,14 @@ const cfD3Scatter = {
         const yProperty = this.data.yProperty;
         const cProperty = this.data.cProperty;
 
-        const highlightTasks =this.layout.highlightTasks;
+        const highlightTasks =layout.highlightTasks;
 
         const cfData = dbsliceData.session.cfData;
         const dim = cfData.continuousDims[ dimId ];
         const pointData = dim.top( Infinity );
 
         let xRange, yRange;
-        if ( this.layout.xRange === undefined) {
+        if ( layout.xRange === undefined) {
             let xMin = d3.min( pointData, d => d[ xProperty ] );
             let xMax = d3.max( pointData, d => d[ xProperty ] );
             let xDiff = xMax - xMin;
@@ -78,10 +75,10 @@ const cfD3Scatter = {
             xMax += 0.1 * xDiff;
             xRange = [xMin, xMax];
         } else {
-            xRange = this.layout.xRange;
+            xRange = layout.xRange;
         }
 
-        if ( this.layout.yRange === undefined) {
+        if ( layout.yRange === undefined) {
             let yMin = d3.min( pointData, d => d[ yProperty ] );
             let yMax = d3.max( pointData, d => d[ yProperty ] );
             let yDiff = yMax - yMin;
@@ -89,7 +86,7 @@ const cfD3Scatter = {
             yMax += 0.1 * yDiff;
             yRange = [yMin, yMax];
         } else {
-            yRange = this.layout.yRange;
+            yRange = layout.yRange;
         }
 
         const xscale = d3.scaleLinear()
@@ -108,10 +105,10 @@ const cfD3Scatter = {
             .range( [height, 0] )
             .domain( yRange );
 
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        const colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
 
-        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
+        const opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
 
         const clipRect = svg.select(".clip-rect");
 
@@ -171,13 +168,13 @@ const cfD3Scatter = {
             .x( d => xscale( d[xProperty] ))
             .y( d => yscale( d[yProperty] ));
 
-        if ( this.layout.groupBy !== undefined ) {
-            const keys = this.layout.groupBy.map( v => (d => d[v]) );
+        if ( layout.groupBy !== undefined ) {
+            const keys = layout.groupBy.map( v => (d => d[v]) );
             const group = d3.group(pointData, ...keys);
             const joiningLines = getLines(group);
             let sortedJoiningLines;
-            if ( this.layout.orderBy !== undefined ) {
-                sortedJoiningLines = joiningLines.map( d => d3.sort(d, d=>d[this.layout.orderBy]));
+            if ( layout.orderBy !== undefined ) {
+                sortedJoiningLines = joiningLines.map( d => d3.sort(d, d=>d[layout.orderBy]));
             } else {
                 sortedJoiningLines = joiningLines.map( d => d3.sort(d, d=>d[xProperty]));
             }
@@ -196,12 +193,12 @@ const cfD3Scatter = {
         }
 
         const xAxis = d3.axisBottom( xscale );
-        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
-        if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
+        if ( layout.xTickNumber !== undefined ) { xAxis.ticks(layout.xTickNumber); }
+        if ( layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(layout.xTickFormat)); }
 
         const yAxis = d3.axisLeft( yscale );
-        if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
-        if ( this.layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(this.layout.yTickFormat)); }
+        if ( layout.yTickNumber !== undefined ) { yAxis.ticks(layout.yTickNumber); }
+        if ( layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(layout.yTickFormat)); }
 
         let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
@@ -256,9 +253,31 @@ const cfD3Scatter = {
             target
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
+                
+            let toolTipText, xVal, yVal;
+            if ( layout.toolTipXFormat === undefined ) {
+                xVal = d[ xProperty ];
+            } else {
+                xVal = d3.format(layout.toolTipXFormat)( d[ xProperty ] )
+            }
+            if ( layout.toolTipYFormat === undefined ) {
+                yVal = d[ yProperty ];
+            } else {
+                yVal = d3.format(layout.toolTipYFormat)( d[ yProperty ] )
+            }
+            let valsText = `${xProperty}=${xVal}, ${yProperty}=${yVal}`;
+
+            if ( layout.toolTipProperties === undefined ) {
+                toolTipText = `${d.label}: ${valsText}`; 
+            } else {
+                let props = layout.toolTipProperties.map(prop => d[prop]);
+                toolTipText = props.join("; ");
+                toolTipText += `: ${valsText}`;
+            }
+           
             container.select(".tool-tip")
                 .style("opacity", 1.0)
-                .html("<span>"+d.label+"</span>")
+                .html(`<span>${toolTipText}</span>`)
                 .style("left", target.attr("cx")+ "px")
                 .style("top", target.attr("cy") + "px");
        

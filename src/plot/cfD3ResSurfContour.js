@@ -1,6 +1,6 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { highlightTasksAllPlots } from '../core/plot.js';
-import * as d3 from 'd3';
+import * as d3 from 'd3v7';
 import d3tip from 'd3-tip';
 import { contours } from 'd3-contour';
 import { interpolateSpectral } from 'd3-scale-chromatic';
@@ -28,19 +28,25 @@ const cfD3ResSurfContour = {
                 .attr( "class", "plot-area" )
                 .attr( "id", `plot-area-${this._prid}-${this._id}`);
 
+        container.append("div")
+            .attr("class", "tool-tip")
+            .style("opacity", 0);
+
         this.update();
 
     }, 
 
     update : function () {
 
+        const layout = this.layout;
+
         const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
+        const margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
 
         const svgWidth = container.node().offsetWidth,
-            svgHeight = this.layout.height;
+            svgHeight = layout.height;
 
         const width = svgWidth - margin.left - margin.right;
         const height = svgHeight - margin.top - margin.bottom;
@@ -59,7 +65,7 @@ const cfD3ResSurfContour = {
         const inputProperties = [xProperty, yProperty];
         const cProperty = this.data.cProperty;
         const dataModel = this.data.model;
-        const highlightTasks = this.layout.highlightTasks;
+        const highlightTasks = layout.highlightTasks;
 
         const pointData = dim.top( Infinity );
 
@@ -79,7 +85,7 @@ const cfD3ResSurfContour = {
         const beta = nd.la.matmul(pinv,ymat);
 
         let xRange, xMin, xMax;
-        if ( this.layout.xRange === undefined) {
+        if ( layout.xRange === undefined) {
             xMin = d3.min( pointData, d => d[xProperty]  );
             xMax = d3.max( pointData, d => d[xProperty]  );
             let xDiff = xMax - xMin;
@@ -87,11 +93,11 @@ const cfD3ResSurfContour = {
             xMax += 0.1 * xDiff;
             xRange = [xMin, xMax];
         } else {
-            xRange = this.layout.xRange;
+            xRange = layout.xRange;
         }
 
         let yRange, yMin, yMax;
-        if ( this.layout.yRange === undefined) {
+        if ( layout.yRange === undefined) {
             yMin = d3.min( pointData, d => d[yProperty]  );
             yMax = d3.max( pointData, d => d[yProperty]  );
             let yDiff = yMax - yMin;
@@ -99,11 +105,11 @@ const cfD3ResSurfContour = {
             yMax += 0.1 * yDiff;
             yRange = [yMin, yMax];
         } else {
-            yRange = this.layout.yRange;
+            yRange = layout.yRange;
         }
 
         let vRange, vMin, vMax;
-        if ( this.layout.vRange === undefined) {
+        if ( layout.vRange === undefined) {
             vMin = d3.min( pointData, d => d[outputProperty]  );
             vMax = d3.max( pointData, d => d[outputProperty]  );
             let vDiff = vMax - vMin;
@@ -111,14 +117,14 @@ const cfD3ResSurfContour = {
             vMax += 0.1 * vDiff;
             vRange = [vMin, vMax];
         } else {
-            vRange = this.layout.vRange;
+            vRange = layout.vRange;
             vMin = vRange[0];
             vMax = vRange[1];
         }
 
         let cRange, cMin, cMax;
         if ( cfData.continuousProperties.includes(cProperty) ) {
-            if ( this.layout.cRange === undefined) {
+            if ( layout.cRange === undefined) {
                 cMin = d3.min( pointData, d => d[cProperty]  );
                 cMax = d3.max( pointData, d => d[cProperty]  );
                 let cDiff = cMax - cMin;
@@ -126,7 +132,7 @@ const cfD3ResSurfContour = {
                 cMax += 0.1 * cDiff;
                 cRange = [cMin, cMax];
             } else {
-                cRange = this.layout.cRange;
+                cRange = layout.cRange;
                 cMin = cRange[0];
                 cMax = cRange[1];
             }
@@ -171,17 +177,17 @@ const cfD3ResSurfContour = {
         
         let colourPoints;
         if ( cfData.categoricalProperties.includes(cProperty) ) {
-            colourPoints = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( this.layout.colourMap );
+            colourPoints = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
             colourPoints.domain( cfData.categoricalUniqueValues[ cProperty ] );
         }
 
         if ( cfData.continuousProperties.includes(cProperty) ) {
-            colourPoints = ( this.layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( this.layout.colourMap );
+            colourPoints = ( layout.colourMap === undefined ) ? d3.scaleSequential( interpolateSpectral ) : d3.scaleSequential( layout.colourMap );
             colourPoints.domain( [cMin, cMax ] );
         }
         this.colourPoints = colourPoints;
 
-        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
+        const opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
 
         const plotArea = svg.select(".plot-area");
 
@@ -257,12 +263,6 @@ const cfD3ResSurfContour = {
                 .attr("width", width)
                 .attr("height", height);
 
-        // var zoom = d3.zoom()
-        //    .scaleExtent([0.01, Infinity])
-        //    .on("zoom", zoomed);
-        //svg.transition().call(zoom.transform, d3.zoomIdentity);
-        //svg.call(zoom);
-
         const tip = d3tip()
             .attr('class', 'd3-tip')
             .offset([-20, 0])
@@ -308,12 +308,12 @@ const cfD3ResSurfContour = {
         points.exit().remove();
 
         const xAxis = d3.axisBottom( xscale );
-        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
-        if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
+        if ( layout.xTickNumber !== undefined ) { xAxis.ticks(layout.xTickNumber); }
+        if ( layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(layout.xTickFormat)); }
 
         const yAxis = d3.axisLeft( yscale );
-        if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
-        if ( this.layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(this.layout.yTickFormat)); }
+        if ( layout.yTickNumber !== undefined ) { yAxis.ticks(layout.yTickNumber); }
+        if ( layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(layout.yTickFormat)); }
 
         let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
@@ -366,45 +366,62 @@ const cfD3ResSurfContour = {
             return row;
         }
 
-        function zoomed() {
-            var t = d3.event.transform;
-            xscale.domain(t.rescaleX(xscale0).domain());
-            yscale.domain(t.rescaleY(yscale0).domain());
-            gX.call(xAxis);
-            gY.call(yAxis);
-            plotArea.selectAll(".point")
-                .attr( "cx", d => xscale( d[xProperty] ))
-                .attr( "cy", d => yscale( d[yProperty] ));
-        }
-
-        function tipOn( d ) {
-            //console.log("mouse on")
-            points.style( "opacity" , 0.2);
-            //points.style( "fill" , "#d3d3d3");
-            d3.select(this)
+        function tipOn( event, d ) {
+            plotArea.selectAll( ".point" ).style( "opacity" , 0.2);
+            let target = d3.select(event.target);
+            target
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
-            let focus = plotArea.select(".focus");
-            focus.attr( "cx" , d3.select(this).attr("cx") )
-                 .attr( "cy" , d3.select(this).attr("cy") );
-            tip.show( d , focus.node() );
-            //tip.show( d );s
+                
+            let toolTipText, xVal, yVal, cVal;
+            if ( layout.toolTipXFormat === undefined ) {
+                xVal = d[ xProperty ];
+            } else {
+                xVal = d3.format(layout.toolTipXFormat)( d[ xProperty ] )
+            }
+            if ( layout.toolTipYFormat === undefined ) {
+                yVal = d[ yProperty ];
+            } else {
+                yVal = d3.format(layout.toolTipYFormat)( d[ yProperty ] )
+            }
+            if ( layout.toolTipCFormat === undefined ) {
+                cVal = d[ cProperty ];
+            } else {
+                cVal = d3.format(layout.toolTipCFormat)( d[ cProperty ] )
+            }
+            let valsText = `${xProperty}=${xVal}, ${yProperty}=${yVal}, ${cProperty}=${cVal}`;
+
+            if ( layout.toolTipProperties === undefined ) {
+                toolTipText = `${d.label}: ${valsText}`; 
+            } else {
+                let props = layout.toolTipProperties.map(prop => d[prop]);
+                toolTipText = props.join("; ");
+                toolTipText += `: ${valsText}`;
+            }
+           
+            container.select(".tool-tip")
+                .style("opacity", 1.0)
+                .html(`<span>${toolTipText}</span>`)
+                .style("left", target.attr("cx")+ "px")
+                .style("top", target.attr("cy") + "px");
+       
             if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
                 highlightTasksAllPlots();
             }
         }
 
-        function tipOff() {
-            points.style( "opacity" , opacity );
-            d3.select(this)
+        function tipOff(event, d) {
+            plotArea.selectAll( ".point" ).style( "opacity" , opacity );
+            d3.select(event.target)
                 .attr( "r", 5 );
-            tip.hide();
+            container.select(".tool-tip").style("opacity", 0.0)
             if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [];
                 highlightTasksAllPlots();
             }
         }
+
     },
 
     highlightTasks : function() {

@@ -40,13 +40,15 @@ const cfD3GroupedVertBarChart = {
 
     update : function () {
 
+        const layout = this.layout;
+
         const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
-        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
+        const margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
 
         const svgWidth = container.node().offsetWidth,
-            svgHeight = this.layout.height;
+            svgHeight = layout.height;
 
         const width = svgWidth - margin.left - margin.right;
         const height = svgHeight - margin.top - margin.bottom;
@@ -71,8 +73,8 @@ const cfD3GroupedVertBarChart = {
         const barDataAll = dim.top( Infinity );
 
         let barData;
-        if ( this.layout.filterBy !== undefined ) {
-            barData = barDataAll.filter(d => d[Object.keys(this.layout.filterBy)[0]] == Object.values(this.layout.filterBy)[0] );
+        if ( layout.filterBy !== undefined ) {
+            barData = barDataAll.filter(d => d[Object.keys(layout.filterBy)[0]] == Object.values(layout.filterBy)[0] );
         } else {
             barData = barDataAll;
         }
@@ -89,7 +91,7 @@ const cfD3GroupedVertBarChart = {
         zDomain = Array.from(zDomain).sort( (a,b) => d3.ascending(a,b) );
 
         let yMin, yMax, yRange;
-        if ( this.layout.yRange === undefined) {
+        if ( layout.yRange === undefined) {
             yMin = d3.min( barDataFlat, d => d[ yProperty ] );
             yMax = d3.max( barDataFlat, d => d[ yProperty ] );
             let yDiff = yMax - yMin;
@@ -97,7 +99,7 @@ const cfD3GroupedVertBarChart = {
             if ( yMin < 0. && yMax < 0.) yMax = 0.
             yRange = [yMin, yMax];
         } else {
-            yRange = this.layout.yRange;
+            yRange = layout.yRange;
         }
 
         const xScale = d3.scaleBand()
@@ -129,7 +131,7 @@ const cfD3GroupedVertBarChart = {
         const colour = d3.scaleOrdinal( d3.schemeTableau10 )
             .domain( cfData.categoricalUniqueValues[ zProperty ] );
 
-        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
+        const opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
 
         const clipRect = svg.select(".clip-rect");
 
@@ -202,12 +204,12 @@ const cfD3GroupedVertBarChart = {
         bars.exit().remove();
 
         const xAxis = d3.axisBottom( xScale );
-        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
-        if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
+        if ( layout.xTickNumber !== undefined ) { xAxis.ticks(layout.xTickNumber); }
+        if ( layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(layout.xTickFormat)); }
 
         const yAxis = d3.axisLeft( yScale );
-        if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
-        if ( this.layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(this.layout.yTickFormat)); }
+        if ( layout.yTickNumber !== undefined ) { yAxis.ticks(layout.yTickNumber); }
+        if ( layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(layout.yTickFormat)); }
 
         let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
@@ -255,10 +257,28 @@ const cfD3GroupedVertBarChart = {
             plotArea.selectAll( ".bar" ).style( "opacity" , 0.2);
             let target = d3.select(event.target);
             target.style( "opacity" , 1.0);
-            let label = `${zProperty}=${d[zProperty]}; ${d[xProperty]}=${d[yProperty]}`;
+
+            let toolTipText, yVal;
+            if ( layout.toolTipYFormat === undefined ) {
+                yVal = d[ yProperty ];
+            } else {
+                yVal = d3.format(layout.toolTipYFormat)( d[ yProperty ] )
+            }
+            let valsText = `${yProperty}=${yVal}`;
+
+            let toolTipProperties;
+            if ( layout.toolTipProperties === undefined ) {
+                toolTipProperties = [zProperty]
+            } else {
+                toolTipProperties = layout.toolTipProperties;
+            }
+            let props = toolTipProperties.map(prop => d[prop]);
+            toolTipText = props.join("; ");
+            toolTipText += `: ${valsText}`;
+
             container.select(".tool-tip")
                 .style("opacity", 1.0)
-                .html(`<span>${label}</span>`)
+                .html(`<span>${toolTipText}</span>`)
                 .style("left", target.attr("x")+ "px")
                 .style("top", target.attr("y") + "px");
         }
