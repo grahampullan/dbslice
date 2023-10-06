@@ -38,37 +38,39 @@ const d3LineSeries = {
 
     update : function () {
 
-        if (this.layout.newData == false && dbsliceData.windowResize == false) {
+        const layout = this.layout;
+
+        if (layout.newData == false && dbsliceData.windowResize == false) {
             return
         }
 
         const container = d3.select(`#${this.elementId}`);
         const svg = container.select("svg");
         const plotArea = svg.select(".plot-area");
-        const highlightTasks = this.layout.highlightTasks;
-        const timeSync = this.layout.timeSync;
-        const xAxisMean = this.layout.xAxisMean;
-        const yAxisMean = this.layout.yAxisMean;
+        const highlightTasks = layout.highlightTasks;
+        const timeSync = layout.timeSync;
+        const xAxisMean = layout.xAxisMean;
+        const yAxisMean = layout.yAxisMean;
         const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
         const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
+        const colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( layout.colourMap );
 
-        if ( this.layout.cSet !== undefined) {
-            if ( Array.isArray( this.layout.cSet ) ) {
-                colour.domain( this.layout.cSet )
+        if ( layout.cSet !== undefined) {
+            if ( Array.isArray( layout.cSet ) ) {
+                colour.domain( layout.cSet )
             } else {
-                colour.domain( dbsliceData.session.cfData.categoricalUniqueValues[ this.layout.cSet ] )
+                colour.domain( dbsliceData.session.cfData.categoricalUniqueValues[ layout.cSet ] )
             }
         }
 
         const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
-        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
+        const margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
         const clipId = `clip-${this._prid}-${this._id}`;
 
         const svgWidth = container.node().offsetWidth,
-            svgHeight = this.layout.height;
+            svgHeight = layout.height;
 
         svg.attr("width", svgWidth).attr("height", svgHeight);
 
@@ -129,20 +131,20 @@ const d3LineSeries = {
         ymax += 0.05 * yDiff;
 
         let xRange, yRange;
-        if ( this.layout.xRange === undefined ) {
+        if ( layout.xRange === undefined ) {
             xRange = [xmin, xmax];
         } else {
-            xRange = this.layout.xRange;
+            xRange = layout.xRange;
         }
 
-        if ( this.layout.yRange === undefined ) {
+        if ( layout.yRange === undefined ) {
             yRange = [ymin, ymax];
         } else {
-            yRange = this.layout.yRange;
+            yRange = layout.yRange;
         }
 
         let xscale, xscale0;
-        if ( this.layout.xscale == "time" ) {
+        if ( layout.xscale == "time" ) {
             xscale = d3.scaleTime(); 
             xscale0 = d3.scaleTime();        
         } else {
@@ -346,12 +348,12 @@ const d3LineSeries = {
         }
     
         const xAxis = d3.axisBottom( xscale );
-        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
-        if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
+        if ( layout.xTickNumber !== undefined ) { xAxis.ticks(layout.xTickNumber); }
+        if ( layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(layout.xTickFormat)); }
 
         const yAxis = d3.axisLeft( yscale );
-        if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
-        if ( this.layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(this.layout.yTickFormat)); }
+        if ( layout.yTickNumber !== undefined ) { yAxis.ticks(layout.yTickNumber); }
+        if ( layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(layout.yTickFormat)); }
 
         let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
@@ -365,7 +367,7 @@ const d3LineSeries = {
                 .attr("x", width)
                 .attr("y", margin.bottom-2)
                 .attr("text-anchor", "end")
-                .text(this.layout.xAxisLabel);
+                .text(layout.xAxisLabel);
         } else {
             gX.transition().call( xAxis );
             gX.select(".x-axis-text").attr("x", width)
@@ -382,7 +384,7 @@ const d3LineSeries = {
                     .attr("x", 0)
                     .attr("y", -margin.left + 15)
                     .attr("text-anchor", "end")
-                    .text(this.layout.yAxisLabel);
+                    .text(layout.yAxisLabel);
         } else {
             gY.transition().call( yAxis );
         }
@@ -448,6 +450,9 @@ const d3LineSeries = {
                 dbsliceData.highlightTasks = [ d.taskId ];
                 highlightTasksAllPlots();
             }
+
+
+
             if ( timeSync ) {
                 container.select(".time-slider").node().value = d.taskId;
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;

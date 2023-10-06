@@ -253,7 +253,7 @@ const cfD3Scatter = {
             target
                 .style( "opacity" , 1.0)
                 .attr( "r", 7 );
-                
+
             let toolTipText, xVal, yVal;
             if ( layout.toolTipXFormat === undefined ) {
                 xVal = d[ xProperty ];
@@ -291,7 +291,6 @@ const cfD3Scatter = {
             plotArea.selectAll( ".point" ).style( "opacity" , opacity );
             d3.select(event.target)
                 .attr( "r", 5 );
-            //tip.hide();
             container.select(".tool-tip").style("opacity", 0.0)
             if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [];
