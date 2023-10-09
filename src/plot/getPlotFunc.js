@@ -15,6 +15,7 @@ import { threeSurf3d } from './threeSurf3d.js';
 import { threeTriMesh } from './threeTriMesh.js';
 import { triMesh2dRender } from './triMesh2dRender.js';
 import { triMesh2dRenderXBar } from './triMesh2dRenderXBar.js';
+import { cfWglScatter } from './cfWglScatter.js';
 
 function getPlotFunc(plotType) {
 
@@ -24,6 +25,7 @@ function getPlotFunc(plotType) {
         'cfD3RankCorrBar'         : cfD3RankCorrBar ,
         'cfD3Histogram'           : cfD3Histogram ,
         'cfD3Scatter'             : cfD3Scatter ,
+        'cfWglScatter'            : cfWglScatter ,
         'cfD3ResSurfScatter'      : cfD3ResSurfScatter ,
         'cfD3ResSurfContour'      : cfD3ResSurfContour ,
         'cfD3GroupedVertBarChart' : cfD3GroupedVertBarChart ,
