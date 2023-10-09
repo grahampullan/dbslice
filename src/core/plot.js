@@ -52,7 +52,8 @@ const makePlotWrapperDefault = function() {
 
     const plotDiv = cardDiv.append( "div" )
     	.attr( "class", "plot")
-        .attr( "id", `plot-${this._prid}-${this._id}`);
+        .attr( "id", `plot-${this._prid}-${this._id}`)
+        .style( "position", "relative");
 
     this.elementId = `plot-${this._prid}-${this._id}`;
   
