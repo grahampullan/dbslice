@@ -68,23 +68,44 @@ const cfD3Scatter = {
 
         let xRange, yRange;
         if ( layout.xRange === undefined) {
-            let xMin = d3.min( pointData, d => d[ xProperty ] );
-            let xMax = d3.max( pointData, d => d[ xProperty ] );
-            let xDiff = xMax - xMin;
-            xMin -= 0.1 * xDiff;
-            xMax += 0.1 * xDiff;
-            xRange = [xMin, xMax];
+            if ( !layout.noAxesAutoScale ) {
+                let xMin = d3.min( pointData, d => d[ xProperty ] );
+                let xMax = d3.max( pointData, d => d[ xProperty ] );
+                let xDiff = xMax - xMin;
+                xMin -= 0.1 * xDiff;
+                xMax += 0.1 * xDiff;
+                xRange = [xMin, xMax];
+            } else {
+                let extent = cfData.continuousDimsExtents[dimId];
+                let xMin = extent[0];
+                let xMax = extent[1];
+                let xDiff = xMax - xMin;
+                xMin -= 0.1 * xDiff;
+                xMax += 0.1 * xDiff;
+                xRange = [xMin, xMax];
+            }
         } else {
             xRange = layout.xRange;
         }
 
         if ( layout.yRange === undefined) {
-            let yMin = d3.min( pointData, d => d[ yProperty ] );
-            let yMax = d3.max( pointData, d => d[ yProperty ] );
-            let yDiff = yMax - yMin;
-            yMin -= 0.1 * yDiff;
-            yMax += 0.1 * yDiff;
-            yRange = [yMin, yMax];
+            if ( !layout.noAxesAutoScale ) {
+                let yMin = d3.min( pointData, d => d[ yProperty ] );
+                let yMax = d3.max( pointData, d => d[ yProperty ] );
+                let yDiff = yMax - yMin;
+                yMin -= 0.1 * yDiff;
+                yMax += 0.1 * yDiff;
+                yRange = [yMin, yMax];
+            } else {
+                let yDimId = dbsliceData.session.cfData.continuousProperties.indexOf( yProperty );
+                let extent = cfData.continuousDimsExtents[yDimId];
+                let yMin = extent[0];
+                let yMax = extent[1];
+                let yDiff = yMax - yMin;
+                yMin -= 0.1 * yDiff;
+                yMax += 0.1 * yDiff;
+                yRange = [yMin, yMax];
+            }
         } else {
             yRange = layout.yRange;
         }
