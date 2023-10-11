@@ -7,7 +7,7 @@ const cfD3Histogram = {
 
     make : function() {
 
-        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
@@ -40,7 +40,7 @@ const cfD3Histogram = {
 
     update : function () {
 
-        const marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
@@ -205,13 +205,17 @@ const cfD3Histogram = {
 
         bars.exit().remove();
 
-        let yAxis = plotArea.select(".y-axis");
-        if ( yAxis.empty() ) {
+        const yAxis = d3.axisLeft( y );
+        if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
+        if ( this.layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(this.layout.yTickFormat)); }
+
+        let gY = plotArea.select(".y-axis");
+        if ( gY.empty() ) {
             plotArea.append("g")
                 .attr( "class", "y-axis")
-                .call( d3.axisLeft( y ) );
+                .call( yAxis );
         } else {
-            yAxis.call( d3.axisLeft( y ) );
+            gY.call( yAxis );
         }
 
         let yAxisLabel = plotArea.select(".y-axis").select(".y-axis-label");
@@ -225,7 +229,7 @@ const cfD3Histogram = {
                 .attr("fill", "#000")
                 .attr("transform", "rotate(-90)")
                 .attr("x", 0)
-                .attr("y", -25)
+                .attr("y", -margin.left + 15)
                 .attr("text-anchor", "end")
                 .text(axisLabel);
             }

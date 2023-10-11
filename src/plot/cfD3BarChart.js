@@ -185,8 +185,12 @@ const cfD3BarChart = {
             .attr( "width", 0)
             .remove();
 
-        var xAxis = plotArea.select(".x-axis");
-        if ( xAxis.empty() ) {
+        const xAxis = d3.axisBottom( x );
+        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
+        if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
+
+        let gX = plotArea.select(".x-axis");
+        if ( gX.empty() ) {
             let axisLabel = "Number of Tasks";
             if (dbsliceData.session.uiConfig.replaceTasksNameWith !== undefined) {
                 axisLabel = `Number of ${dbsliceData.session.uiConfig.replaceTasksNameWith}`;
@@ -194,7 +198,7 @@ const cfD3BarChart = {
             plotArea.append("g")
                 .attr( "transform", `translate(0, ${height})` )
                 .attr( "class", "x-axis")
-                .call( d3.axisBottom( x ) )
+                .call( xAxis )
                 .append("text")
                     .attr("class","x-axis-text")
                     .attr("fill", "#000")
@@ -203,8 +207,8 @@ const cfD3BarChart = {
                     .attr("text-anchor", "end")
                     .text(axisLabel);
         } else {
-            xAxis.attr( "transform", `translate(0, ${height})` ).transition().call( d3.axisBottom( x ) );
-            xAxis.select(".x-axis-text").attr("x",width);
+            gX.attr( "transform", `translate(0, ${height})` ).transition().call( xAxis );
+            gX.select(".x-axis-text").attr("x",width);
         }
 
         var yAxis = plotArea.select(".y-axis");
