@@ -158,14 +158,17 @@ const cfWglScatter = {
             .domain( xRange );
 
         const yscale = d3.scaleLinear()
-            //.range( [height, 0] )
-            .range( [0, height] )
+            .range( [height, 0] )
             .domain( yRange );
 
         const yscale0 = d3.scaleLinear()
-            //.range( [height, 0] )
+            .range( [height, 0] )
+            .domain( yRange );
+
+        const yscaleWgl = d3.scaleLinear()
             .range( [0, height] )
             .domain( yRange );
+
 
         const colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
@@ -191,7 +194,7 @@ const cfWglScatter = {
         const colours = new Float32Array(3*nPts);
         for (let i=0; i<nPts; i++) {
             vertices[2*i] = xscale(pointData[i][xProperty]);
-            vertices[2*i+1] = yscale(pointData[i][yProperty]);
+            vertices[2*i+1] = yscaleWgl(pointData[i][yProperty]);
             let col = d3.color(colour(pointData[i][cProperty]));
             colours[3*i] = col.r/255.;
             colours[3*i+1] = col.g/255.;
