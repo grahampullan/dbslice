@@ -26,10 +26,13 @@ const cfWglScatter = {
             .attr("height", containerHeight)
             .style("opacity", 0.);
 
-        
+        const scale = window.devicePixelRatio;
+
         const canvas = container.append("canvas")
-            .attr("width", width)
-            .attr("height", height)
+            .style("width", `${width}px`)
+            .style("height", `${height}px`)
+            .attr("width", Math.floor(width*scale))
+            .attr("height", Math.floor(height*scale))
             .style("position", "absolute")
             .style("top", `${margin.top}px`)
     		.style("left", `${margin.left}px`)
@@ -53,6 +56,7 @@ const cfWglScatter = {
             .style("opacity", 0);
 
         const gl = canvas.node().getContext("webgl", {antialias: true, depth: false}); 
+        //gl.scale(scale,scale);
         twgl.addExtensionsToContext(gl);
         this.gl = gl; 
 
@@ -86,8 +90,8 @@ const cfWglScatter = {
         const svgOverlay = container.select(".overlay");
         svgOverlay.attr("width", width).attr("height", height);
 
-        const canvas = container.select("canvas")
-        canvas.attr("width", width).attr("height", height);
+        //const canvas = container.select("canvas")
+        //canvas.attr("width", width).attr("height", height);
 
         const dimId = this.dimId;
 
@@ -184,11 +188,14 @@ const cfWglScatter = {
 
         const nPts = pointData.length;
         const vertices = new Float32Array(2*nPts);
-        const values = new Float32Array(nPts);
+        const colours = new Float32Array(3*nPts);
         for (let i=0; i<nPts; i++) {
             vertices[2*i] = xscale(pointData[i][xProperty]);
             vertices[2*i+1] = yscale(pointData[i][yProperty]);
-            values[i] = pointData[i][cProperty];
+            let col = d3.color(colour(pointData[i][cProperty]));
+            colours[3*i] = col.r/255.;
+            colours[3*i+1] = col.g/255.;
+            colours[3*i+2] = col.b/255.;
         }
 
         const programInfo = twgl.createProgramInfo(gl, [this.vertShader, this.fragShader]);
@@ -196,7 +203,7 @@ const cfWglScatter = {
 
         const a_arrays = {
             a_position: {numComponents:2, data:vertices},
-            a_val: {numComponents:1, data:values}
+            a_color: {numComponents:3, data:colours}
         };
 
         const bufferInfo = twgl.createBufferInfoFromArrays(gl, a_arrays);
@@ -285,17 +292,16 @@ const cfWglScatter = {
 
     vertShader : `
     attribute vec2 a_position;
-    attribute float a_val;
+    attribute vec3 a_color;
     
     uniform mat4 u_matrix;
     
-    varying float v_val;
+    varying vec3 v_color;
     
     void main() {
       gl_Position = u_matrix*vec4(a_position,0,1);
-      //gl_Position = vec4(a_position,0,1);
-      gl_PointSize = 12.;
-      v_val = a_val;
+      gl_PointSize = 20.;
+      v_color = a_color;
     }`,
     
     
@@ -303,19 +309,20 @@ const cfWglScatter = {
     #extension GL_OES_standard_derivatives : enable
     precision highp float;
     
-    varying float v_val;
-    vec4 color;
+    varying vec3 v_color;
+
     float delta;
+    vec4 color;
     
     void main() {
       float dist = distance( gl_PointCoord, vec2(0.5) );
       if ( dist > 0.5)
         discard;
       delta = fwidth(dist);
-      float alpha = 1.0 - smoothstep(0.5-delta,0.5+delta,dist);
+      float alpha = 1.0 - smoothstep(0.5-2.0*delta,0.5+2.0*delta,dist);
       // gl_FragColor = texture2D(u_cmap, vec2( (v_val-u_cmin)/(u_cmax-u_cmin) ,0.5));
       // gl_FragColor.a = alpha;
-      color = vec4(0.39,0.58,0.93,1.0); // cornflower blue
+      color = vec4(v_color,1.0); 
       gl_FragColor = alpha * color;
     }
     `
