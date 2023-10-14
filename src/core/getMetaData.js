@@ -10,7 +10,7 @@ async function getMetaData( config ) {
 	}
 
 	if ( config.metaDataCsv ) {
-		let metaDataData = await d3.csv( config.metaDataUrl, d3.autoType );
+		let metaDataData = await d3.csv( config.metaDataUrl, csvRowFunction );
 		metaData.data = metaDataData;
 	}
 
@@ -56,6 +56,15 @@ async function getMetaData( config ) {
         });
         metaData.header = {categoricalProperties, continuousProperties};
     }
+
+	function csvRowFunction(row) {
+
+		if (config.discardRowsWithUndefinedValues) {
+			if (Object.values(row).includes(undefined)) return;
+		}
+
+		return d3.autoType(row);
+	}
 
 	return metaData;
 
