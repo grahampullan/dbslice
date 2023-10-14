@@ -49,7 +49,8 @@ const cfWglScatter = {
                 .append("g")
                 .attr( "transform", `translate(${margin.left} , ${margin.top})`)
                 .attr( "class", "overlay" )
-                .attr( "id", `overlay-${this._prid}-${this._id}`);
+                .attr( "id", `overlay-${this._prid}-${this._id}`)
+                .on("mouseover", this.mouseOver);
 
         container.append("div")
             .attr("class", "tool-tip")
@@ -328,7 +329,13 @@ const cfWglScatter = {
       color = vec4(v_color,1.0); 
       gl_FragColor = alpha * color;
     }
-    `
+    ` ,
+
+    mouseOver : function(event) {
+
+        console.log("in mouse over");
+        console.log(d3.pointer(event));
+    }
 
 };
 
