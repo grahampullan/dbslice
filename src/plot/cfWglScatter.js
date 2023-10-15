@@ -111,6 +111,7 @@ const cfWglScatter = {
         const cfData = dbsliceData.session.cfData;
         const dim = cfData.continuousDims[ dimId ];
         const pointData = dim.top( Infinity );
+        this.pointData = pointData;
 
         let xRange, yRange;
         if ( layout.xRange === undefined) {
@@ -180,12 +181,6 @@ const cfWglScatter = {
         this.yscale = yscale;
         this.yscaleWgl = yscaleWgl;
 
-        pointData.forEach(point => {
-            point._xPix = xscale(point[xProperty]);
-            point._yPix = yscale(point[yProperty]);
-        });
-        this.pointData = pointData;
-
         const colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
         this.colour = colour;
@@ -202,15 +197,6 @@ const cfWglScatter = {
             colours[3*i+2] = col.b/255.;
         }
         this.drawPoints(gl, vertices, colours);
-
-
-
-
-
-
-
-
-       
 
 
 
@@ -274,8 +260,7 @@ const cfWglScatter = {
             gY.transition().call( yAxis );
         }
 
-      
-        
+
     },
 
     highlightTasks : function(){
@@ -329,6 +314,7 @@ const cfWglScatter = {
         const scale = window.devicePixelRatio;
 
         if (!this.quadtree) return;
+
         const [xPix,yPix] = d3.pointer(event);
         const point = this.quadtree.find(xPix,yPix,20/scale);
 
@@ -414,8 +400,12 @@ const cfWglScatter = {
     makeQuadTree: function(event) {
 
         if (this.pointData) {
+            
+            this.pointData.forEach(point => {
+                point._xPix = this.xscale(point[this.data.xProperty]);
+                point._yPix = this.yscale(point[this.data.yProperty]);
+            });
 
-            console.log("Making quadtree");
             const quadtree = d3.quadtree()
                 .x( d => d._xPix)
                 .y( d => d._yPix)
