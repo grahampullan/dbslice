@@ -263,7 +263,54 @@ const cfWglScatter = {
 
     },
 
-    highlightTasks : function(){
+    highlightTasks : function( taskIds="---" ) {
+
+        if (taskIds=="---") {
+            if (!this.layout.highlightTasks) return;
+            taskIds = dbsliceData.highlightTasks;
+        }
+
+        const nPts = this.pointData.length;
+        const xProperty = this.data.xProperty;
+        const yProperty = this.data.yProperty;
+        const cProperty = this.data.cProperty;
+
+        if (taskIds === undefined || taskIds.length == 0) {
+
+            const vertices = new Float32Array(2*nPts);
+            const colours = new Float32Array(3*nPts);
+            for (let i=0; i<nPts; i++) {
+                let thisPoint = this.pointData[i];
+                vertices[2*i] = this.xscale(thisPoint[xProperty]);
+                vertices[2*i+1] = this.yscaleWgl(thisPoint[yProperty]);
+                let col = d3.color(this.colour(thisPoint[cProperty]));
+                colours[3*i] = col.r/255.;
+                colours[3*i+1] = col.g/255.;
+                colours[3*i+2] = col.b/255.;
+            }
+            this.drawPoints(this.gl, vertices, colours);
+
+        } else {
+
+            const vertices = new Float32Array(2*nPts);
+            const colours = new Float32Array(3*nPts);
+            for (let i=0; i<nPts; i++) {
+                let thisPoint = this.pointData[i];
+                vertices[2*i] = this.xscale(thisPoint[xProperty]);
+                vertices[2*i+1] = this.yscaleWgl(thisPoint[yProperty]);
+                let col = {r:211., g:211., b:211.};
+                colours[3*i] = col.r/255.;
+                colours[3*i+1] = col.g/255.;
+                colours[3*i+2] = col.b/255.;
+            }
+            this.drawPoints(this.gl, vertices, colours);
+
+            let point = this.pointData.find( (d) => d.taskId == taskIds[0] );
+            const vertex = Float32Array.from([this.xscale(point[xProperty]),this.yscaleWgl(point[yProperty])]);
+            let col = d3.color(this.colour(point[cProperty]));
+            const colour = Float32Array.from([col.r/255., col.g/255., col.b/255.]);
+            this.drawPoints(this.gl, vertex, colour);
+        }
 
         return;
 
@@ -347,24 +394,7 @@ const cfWglScatter = {
                 .style("left", this.xscale(point[xProperty])+ "px")
                 .style("top", this.yscale(point[yProperty])-30 + "px");
 
-            const nPts = this.pointData.length;
-            const vertices = new Float32Array(2*nPts);
-            const colours = new Float32Array(3*nPts);
-            for (let i=0; i<nPts; i++) {
-                let thisPoint = this.pointData[i];
-                vertices[2*i] = this.xscale(thisPoint[xProperty]);
-                vertices[2*i+1] = this.yscaleWgl(thisPoint[yProperty]);
-                let col = {r:211., g:211., b:211.};
-                colours[3*i] = col.r/255.;
-                colours[3*i+1] = col.g/255.;
-                colours[3*i+2] = col.b/255.;
-            }
-            this.drawPoints(this.gl, vertices, colours);
-
-            const vertex = Float32Array.from([this.xscale(point[xProperty]),this.yscaleWgl(point[yProperty])]);
-            let col = d3.color(this.colour(point[cProperty]));
-            const colour = Float32Array.from([col.r/255., col.g/255., col.b/255.]);
-            this.drawPoints(this.gl, vertex, colour);
+            this.highlightTasks( [point.taskId] );
 
             if ( layout.highlightTasks ) {
                 dbsliceData.highlightTasks = [ point.taskId ];
@@ -375,19 +405,7 @@ const cfWglScatter = {
 
             container.select(".tool-tip").style("opacity", 0.0);
 
-            const nPts = this.pointData.length;
-            const vertices = new Float32Array(2*nPts);
-            const colours = new Float32Array(3*nPts);
-            for (let i=0; i<nPts; i++) {
-                let thisPoint = this.pointData[i];
-                vertices[2*i] = this.xscale(thisPoint[xProperty]);
-                vertices[2*i+1] = this.yscaleWgl(thisPoint[yProperty]);
-                let col = d3.color(this.colour(thisPoint[cProperty]));
-                colours[3*i] = col.r/255.;
-                colours[3*i+1] = col.g/255.;
-                colours[3*i+2] = col.b/255.;
-            }
-            this.drawPoints(this.gl, vertices, colours);
+            this.highlightTasks( [] );
 
             if ( layout.highlightTasks ) {
                 dbsliceData.highlightTasks = [];
@@ -400,7 +418,7 @@ const cfWglScatter = {
     makeQuadTree: function(event) {
 
         if (this.pointData) {
-            
+
             this.pointData.forEach(point => {
                 point._xPix = this.xscale(point[this.data.xProperty]);
                 point._yPix = this.yscale(point[this.data.yProperty]);
