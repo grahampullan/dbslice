@@ -27,21 +27,12 @@ const cfWglScatter = {
             .style("opacity", 0.);
 
         const scale = window.devicePixelRatio;
-
-        const canvas = container.append("canvas")
-            .style("width", `${width}px`)
-            .style("height", `${height}px`)
-            .attr("width", Math.floor(width*scale))
-            .attr("height", Math.floor(height*scale))
-            .style("position", "absolute")
-            .style("top", `${margin.top}px`)
-    		.style("left", `${margin.left}px`)
-            .attr( "id", `canvas-${this._prid}-${this._id}`); 
+           
 
         const overlay = container.append("svg")
             .attr("class", "overlay-outer")
     		.style("position","absolute")
-    		.style("z-index",2)
+    		//.style("z-index",2)
     		.style("top","0px")
     		.style("left","0px")
     		.attr("width", containerWidth)
@@ -49,9 +40,22 @@ const cfWglScatter = {
                 .append("g")
                 .attr( "transform", `translate(${margin.left} , ${margin.top})`)
                 .attr( "class", "overlay" )
-                .attr( "id", `overlay-${this._prid}-${this._id}`)
-                .on("mouseover", this.mouseOver);
+                .attr( "id", `overlay-${this._prid}-${this._id}`);
 
+        const boundMouseMove = this.mouseMove.bind(this);
+        const boundMakeQuadTree = this.makeQuadTree.bind(this);
+        const canvas = container.append("canvas")
+            .style("width", `${width}px`)
+            .style("height", `${height}px`)
+            .attr("width", Math.floor(width*scale))
+            .attr("height", Math.floor(height*scale))
+            .style("position", "absolute")
+            .style("top", `${margin.top}px`)
+            .style("left", `${margin.left}px`)
+            .on("mousemove", boundMouseMove)
+            .on("mouseenter", boundMakeQuadTree)
+            .attr( "id", `canvas-${this._prid}-${this._id}`);
+                
         container.append("div")
             .attr("class", "tool-tip")
             .style("opacity", 0);
@@ -81,6 +85,8 @@ const cfWglScatter = {
 
         const width = svgWidth - margin.left - margin.right;
         const height = svgHeight - margin.top - margin.bottom;
+        this.width = width;
+        this.height = height;
 
         const svg = container.select("svg-background");
 
@@ -105,6 +111,7 @@ const cfWglScatter = {
         const cfData = dbsliceData.session.cfData;
         const dim = cfData.continuousDims[ dimId ];
         const pointData = dim.top( Infinity );
+        this.pointData = pointData;
 
         let xRange, yRange;
         if ( layout.xRange === undefined) {
@@ -170,25 +177,13 @@ const cfWglScatter = {
             .range( [0, height] )
             .domain( yRange );
 
+        this.xscale = xscale;
+        this.yscale = yscale;
+        this.yscaleWgl = yscaleWgl;
 
         const colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( layout.colourMap );
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
-
-        const opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
-
-        const clipRect = svg.select(".clip-rect");
-
-        /*
-        if ( clipRect.empty() ) {
-            svg.append("defs").append("clipPath")
-                .attr("id", clipId)
-                .append("rect")
-                    .attr("class","clip-rect")
-                    .attr("width", width)
-                    .attr("height", height);
-        } else {
-            clipRect.attr("width", width)
-        } */
+        this.colour = colour;
 
         const nPts = pointData.length;
         const vertices = new Float32Array(2*nPts);
@@ -201,26 +196,7 @@ const cfWglScatter = {
             colours[3*i+1] = col.g/255.;
             colours[3*i+2] = col.b/255.;
         }
-
-        const programInfo = twgl.createProgramInfo(gl, [this.vertShader, this.fragShader]);
-        gl.useProgram(programInfo.program);
-
-        const a_arrays = {
-            a_position: {numComponents:2, data:vertices},
-            a_color: {numComponents:3, data:colours}
-        };
-
-        const bufferInfo = twgl.createBufferInfoFromArrays(gl, a_arrays);
-        twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
-
-        const projectionMatrix = glMatrix.mat4.create();
-        glMatrix.mat4.ortho(projectionMatrix, 0, width, 0, height, 0, 1.);
-        const uniforms = {u_matrix: projectionMatrix};
-        twgl.setUniforms(programInfo, uniforms);
-
-        gl.drawArrays(gl.POINTS,0,nPts);
-
-       
+        this.drawPoints(gl, vertices, colours);
 
 
 
@@ -284,11 +260,57 @@ const cfWglScatter = {
             gY.transition().call( yAxis );
         }
 
-      
-        
+
     },
 
-    highlightTasks : function(){
+    highlightTasks : function( taskIds="---" ) {
+
+        if (taskIds=="---") {
+            if (!this.layout.highlightTasks) return;
+            taskIds = dbsliceData.highlightTasks;
+        }
+
+        const nPts = this.pointData.length;
+        const xProperty = this.data.xProperty;
+        const yProperty = this.data.yProperty;
+        const cProperty = this.data.cProperty;
+
+        if (taskIds === undefined || taskIds.length == 0) {
+
+            const vertices = new Float32Array(2*nPts);
+            const colours = new Float32Array(3*nPts);
+            for (let i=0; i<nPts; i++) {
+                let thisPoint = this.pointData[i];
+                vertices[2*i] = this.xscale(thisPoint[xProperty]);
+                vertices[2*i+1] = this.yscaleWgl(thisPoint[yProperty]);
+                let col = d3.color(this.colour(thisPoint[cProperty]));
+                colours[3*i] = col.r/255.;
+                colours[3*i+1] = col.g/255.;
+                colours[3*i+2] = col.b/255.;
+            }
+            this.drawPoints(this.gl, vertices, colours);
+
+        } else {
+
+            const vertices = new Float32Array(2*nPts);
+            const colours = new Float32Array(3*nPts);
+            for (let i=0; i<nPts; i++) {
+                let thisPoint = this.pointData[i];
+                vertices[2*i] = this.xscale(thisPoint[xProperty]);
+                vertices[2*i+1] = this.yscaleWgl(thisPoint[yProperty]);
+                let col = {r:211., g:211., b:211.};
+                colours[3*i] = col.r/255.;
+                colours[3*i+1] = col.g/255.;
+                colours[3*i+2] = col.b/255.;
+            }
+            this.drawPoints(this.gl, vertices, colours);
+
+            let point = this.pointData.find( (d) => d.taskId == taskIds[0] );
+            const vertex = Float32Array.from([this.xscale(point[xProperty]),this.yscaleWgl(point[yProperty])]);
+            let col = d3.color(this.colour(point[cProperty]));
+            const colour = Float32Array.from([col.r/255., col.g/255., col.b/255.]);
+            this.drawPoints(this.gl, vertex, colour);
+        }
 
         return;
 
@@ -324,17 +346,116 @@ const cfWglScatter = {
         discard;
       delta = fwidth(dist);
       float alpha = 1.0 - smoothstep(0.5-2.0*delta,0.5+2.0*delta,dist);
-      // gl_FragColor = texture2D(u_cmap, vec2( (v_val-u_cmin)/(u_cmax-u_cmin) ,0.5));
-      // gl_FragColor.a = alpha;
       color = vec4(v_color,1.0); 
       gl_FragColor = alpha * color;
     }
     ` ,
 
-    mouseOver : function(event) {
+    mouseMove : function(event) {
 
-        console.log("in mouse over");
-        console.log(d3.pointer(event));
+        const container = d3.select(`#${this.elementId}`);
+        const layout = this.layout;
+        const xProperty = this.data.xProperty;
+        const yProperty = this.data.yProperty;
+        const cProperty = this.data.cProperty;
+        const scale = window.devicePixelRatio;
+
+        if (!this.quadtree) return;
+
+        const [xPix,yPix] = d3.pointer(event);
+        const point = this.quadtree.find(xPix,yPix,20/scale);
+
+        if (point) {
+
+            let toolTipText, xVal, yVal;    
+            if ( layout.toolTipXFormat === undefined ) {
+                xVal = point[ xProperty ];
+            } else {
+                xVal = d3.format(layout.toolTipXFormat)( point[ xProperty ] )
+            }
+            if ( layout.toolTipYFormat === undefined ) {
+                yVal = point[ yProperty ];
+            } else {
+                yVal = d3.format(layout.toolTipYFormat)( point[ yProperty ] )
+            }
+            let valsText = `${xProperty}=${xVal}, ${yProperty}=${yVal}`;
+
+            if ( layout.toolTipProperties === undefined ) {
+                toolTipText = `${point.label}: ${valsText}`; 
+            } else {
+                let props = layout.toolTipProperties.map(prop => point[prop]);
+                toolTipText = props.join("; ");
+                toolTipText += `: ${valsText}`;
+            }
+           
+            container.select(".tool-tip")
+                .style("opacity", 1.0)
+                .html(`<span>${toolTipText}</span>`)
+                .style("left", this.xscale(point[xProperty])+ "px")
+                .style("top", this.yscale(point[yProperty])-30 + "px");
+
+            this.highlightTasks( [point.taskId] );
+
+            if ( layout.highlightTasks ) {
+                dbsliceData.highlightTasks = [ point.taskId ];
+                highlightTasksAllPlots();
+            }
+
+        } else {
+
+            container.select(".tool-tip").style("opacity", 0.0);
+
+            this.highlightTasks( [] );
+
+            if ( layout.highlightTasks ) {
+                dbsliceData.highlightTasks = [];
+                highlightTasksAllPlots();
+            }
+
+        }
+    },
+
+    makeQuadTree: function(event) {
+
+        if (this.pointData) {
+
+            this.pointData.forEach(point => {
+                point._xPix = this.xscale(point[this.data.xProperty]);
+                point._yPix = this.yscale(point[this.data.yProperty]);
+            });
+
+            const quadtree = d3.quadtree()
+                .x( d => d._xPix)
+                .y( d => d._yPix)
+                .addAll(this.pointData);
+
+            this.quadtree = quadtree;
+
+        }
+    },
+
+    drawPoints : function(gl, vertices, colours) {
+
+        const nPts = vertices.length/2;
+
+        const programInfo = twgl.createProgramInfo(gl, [this.vertShader, this.fragShader]);
+        gl.useProgram(programInfo.program);
+
+        const a_arrays = {
+            a_position: {numComponents:2, data:vertices},
+            a_color: {numComponents:3, data:colours}
+        };
+
+        const bufferInfo = twgl.createBufferInfoFromArrays(gl, a_arrays);
+        twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
+
+        const projectionMatrix = glMatrix.mat4.create();
+        glMatrix.mat4.ortho(projectionMatrix, 0, this.width, 0, this.height, 0, 1.);
+        const uniforms = {u_matrix: projectionMatrix};
+        twgl.setUniforms(programInfo, uniforms);
+
+        gl.drawArrays(gl.POINTS,0,nPts);
+
     }
 
 };
