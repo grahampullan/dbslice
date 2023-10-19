@@ -300,7 +300,7 @@ const cfD3Scatter = {
                 .style("opacity", 1.0)
                 .html(`<span>${toolTipText}</span>`)
                 .style("left", target.attr("cx")+ "px")
-                .style("top", target.attr("cy") + "px");
+                .style("top", target.attr("cy")-30 + "px");
        
             if ( highlightTasks ) {
                 dbsliceData.highlightTasks = [ d.taskId ];
