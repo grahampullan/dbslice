@@ -11,6 +11,7 @@ export { cfD3RankCorrBar } from './plot/cfD3RankCorrBar.js'
 export { cfD3Histogram } from './plot/cfD3Histogram.js';
 export { cfD3Scatter } from './plot/cfD3Scatter.js';
 export { cfWglScatter } from './plot/cfWglScatter.js';
+export { cfWglCorrMat } from './plot/cfWglCorrMat.js';
 export { cfD3ResSurfScatter } from './plot/cfD3ResSurfScatter.js'
 export { cfLeafletMapWithMarkers } from './plot/cfLeafletMapWithMarkers.js';
 export { cfAddPlot } from './plot/cfAddPlot.js';
