@@ -6,7 +6,9 @@ async function getMetaData( config ) {
 
 	if ( !config.metaDataCsv ) {
 		let response = await fetch(config.metaDataUrl);
-		metaData = await response.json();
+		let loadedMetaData = await response.json();
+		metaData.data = loadedMetaData.data;
+		metaData.header = loadedMetaData.header;
 	}
 
 	if ( config.metaDataCsv ) {
