@@ -8,7 +8,13 @@ function makeSessionHeader( element, title, subtitle, config ) {
 		.append( "div" )
 			.attr( "class" , "col-md-12 sessionTitle" );
 
-	var titleHtml = "<br/><h1 style='display:inline'>" + title + "</h1>";
+	let titleHtml="";
+
+	if (title !== undefined) {
+
+		titleHtml += `<br/><h1 style='display:inline'>${title}</h1>`;
+
+	}
 
 	if ( config.plotTasksButton ) {
 
