@@ -175,8 +175,7 @@ const cfWglCorrMat = {
         const boxes = svgOverlay.selectAll(".plot-box")
             .data(scatterPlots.flat());
 
-        boxes.enter()
-            .append("rect")
+        boxes.join("rect")
             .attr("class","plot-box")
             .attr("x", d=>d.left)
             .attr("y", d=>d.top)
@@ -194,12 +193,12 @@ const cfWglCorrMat = {
             .tickSize(height);
         const xAxes = svgOverlay.selectAll(".axis-x")
             .data(bottomPlots);
-        xAxes.enter()
-            .append("g")
+        xAxes.join("g")
             .attr("class","axis-x")
             .each(function(d) { return d3.select(this).call(xAxis.scale(d.xScale)); })
                 .call(g => g.select(".domain").remove())
                 .call(g => g.selectAll(".tick line").attr("stroke", "#ddd"))
+                .call(g => g.select(".x-axis-text").remove())
                 .append("text")
                     .attr("class","x-axis-text")
                     .attr("fill", "#000")
@@ -213,13 +212,13 @@ const cfWglCorrMat = {
             .tickSize(width);
         const yAxes = svgOverlay.selectAll(".axis-y")
             .data(leftPlots);
-        yAxes.enter()
-            .append("g")
+        yAxes.join("g")
             .attr("class","axis-y")
             .attr( "transform", `translate(${width},0)` )
             .each(function(d) { return d3.select(this).call(yAxis.scale(d.yScale)); })
                 .call(g => g.select(".domain").remove())
                 .call(g => g.selectAll(".tick line").attr("stroke", "#ddd"))
+                .call(g => g.select(".y-axis-text").remove())
                 .append("text")
                     .attr("class","y-axis-text")
                     .attr("fill", "#000")
