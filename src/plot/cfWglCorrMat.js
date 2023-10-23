@@ -87,14 +87,22 @@ const cfWglCorrMat = {
         this.width = width;
         this.height = height;
 
-        const svg = container.select("svg-background");
-
+        const svg = container.select(".background-svg");
         svg.attr("width", svgWidth).attr("height", svgHeight);
 
-        const clipId = `clip-${this._prid}-${this._id}`;
+        container.select(".overlay-outer")
+            .attr("width", svgWidth).attr("height", svgHeight);
 
         const svgOverlay = container.select(".overlay");
         svgOverlay.attr("width", width).attr("height", height);
+
+        const scale = window.devicePixelRatio;
+        const canvas = container.select("canvas")
+        canvas.style("width", `${width}px`)
+            .style("height", `${height}px`)
+            .attr("width", Math.floor(width*scale))
+            .attr("height", Math.floor(height*scale));
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
         const cfData = dbsliceData.session.cfData;
         const dimId = this.dimId;
