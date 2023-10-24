@@ -231,7 +231,7 @@ const d3LineSeries = {
             allSeries.each( function() {
                 let series = d3.select( this );
                 let seriesLine = series.select( "path.line" );
-                seriesLine.transition()
+                seriesLine
                     .attr( "d", d => line( d.data ) )
                     .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )  ;
             } );
@@ -390,7 +390,7 @@ const d3LineSeries = {
         }
 
         if ( timeSync ) {
-            highlightTimeStep(0);
+            highlightTimeStep(this.watchedTime.iStep);
         }
 
         function highlightTimeStep(iStep) {
@@ -411,10 +411,8 @@ const d3LineSeries = {
 			let iStep = this.value;
 			if ( timeSync ) {
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
-				plots.forEach( (plot, indx) =>  {
-					if (indx != plotIndex) {
-						plot.watchedTime.iStep = iStep;
-					}
+				plots.forEach( (plot) =>  {
+					plot.watchedTime.iStep = iStep;
 				});
 			}
 			highlightTimeStep(iStep);
