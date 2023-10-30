@@ -412,7 +412,9 @@ const d3LineSeries = {
 			if ( timeSync ) {
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 				plots.forEach( (plot) =>  {
-					plot.watchedTime.iStep = iStep;
+                    if (plot.watchedTime !== undefined) {
+					    plot.watchedTime.iStep = iStep;
+                    }
 				});
 			}
 			highlightTimeStep(iStep);
@@ -455,7 +457,7 @@ const d3LineSeries = {
                 container.select(".time-slider").node().value = d.taskId;
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 				plots.forEach( (plot, indx) =>  {
-					if (indx != plotIndex) {
+					if (indx != plotIndex && plot.watchedTime !== undefined) {
 						plot.watchedTime.iStep = d.taskId;
 					}
 				});

@@ -9,12 +9,30 @@ const threeTriMesh = {
 
 	make : function () {
 
-		this.getOffsets();
+		const container = d3.select(`#${this.elementId}`);
+		const width = container.node().offsetWidth;
+		const height = this.layout.height;
+
+		const boundTipOn = this.tipOn.bind(this);
+		const boundTipOff = this.tipOff.bind(this);
+		const div = container.append("div")
+			.attr("class", "plot-area")
+			.on( "mouseover", boundTipOn)
+			.on( "mouseout", boundTipOff );
+
+		const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true}); 
+		renderer.setPixelRatio( window.devicePixelRatio );
+		renderer.setSize( width , height );
+		div.node().appendChild( renderer.domElement );
+		this.renderer = renderer;
+
 		this.update();
 
 	},
 
 	update : function () {
+
+		this.getOffsets();
 
 		const container = d3.select(`#${this.elementId}`);
 		const taskId = this.taskId;
@@ -26,12 +44,16 @@ const threeTriMesh = {
 		const nSteps = this.nSteps;
 		const nSurfsNow = this.nSurfsNow;
 		const buffer = this.data;
+		const renderer = this.renderer;
 
+		const boundUpdateSurfaces = updateSurfaces.bind(this);
+		const boundRenderScene = renderScene.bind(this);
 
 		if (this.layout.newData == false && dbsliceData.windowResize == false) {
             return
         }
 
+		
 		let vScale;
         if (this.layout.vScale === undefined) {
         	vScale = [0,1];
@@ -59,44 +81,47 @@ const threeTriMesh = {
   		const tex = new THREE.DataTexture( texData, textureWidth, textureHeight,  THREE.RGBAFormat, THREE.UnsignedByteType, THREE.UVMapping);
   		tex.needsUpdate = true;
 
-		container.select(".plot-area").remove();
-
-		var div = container.append("div")
-			.attr("class", "plot-area")
-			.on( "mouseover", tipOn )
-			.on( "mouseout", tipOff );
-
 		if ( nSteps > 1 ){
-			div.append("input")
-				.attr("class", "form-range time-slider")
-				.attr("type","range")
-				//.attr("id","time")
-				//.attr("name","time")
-				.attr("min",0)
-				.attr("value",0)
-				.attr("max",nSteps-1)
-				.attr("step",1)
-				.on( "input", timeStepSliderChange );
+			let timeSlider = container.select(".time-slider");
+            if ( timeSlider.empty() ) {
+				container.insert("input",":first-child")
+					.attr("class", "form-range time-slider")
+					.attr("type","range")
+					.attr("min",0)
+					.attr("value",0)
+					.attr("max",nSteps-1)
+					.attr("step",1)
+					.on( "input", timeStepSliderChange );
+
+				let handler = {
+					set: function(target, key, valueset) {
+						target[key] = valueset;
+						if (key = 'iStep') {
+							container.select(".time-slider").node().value = valueset;
+							boundUpdateSurfaces(valueset);
+						}
+						return true;
+					}
+				};
+				let watchedTime = new Proxy({iStep:0}, handler);
+				this.watchedTime = watchedTime;
+			}
 		}
 
 		const width = container.node().offsetWidth;
 		const height = this.layout.height;
+		renderer.setSize( width , height );
 
 		// Initialise threejs scene
 		const scene = new THREE.Scene();
 		scene.background = new THREE.Color( 0xefefef );
-			
-		// Create renderer
-		const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true}); 
-		renderer.setPixelRatio( window.devicePixelRatio );
-		renderer.setSize( width , height )
 
 		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 		const material = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 
 		const offsets = this.offsets;
 		// use size of first surface to set camera and lights
-		let iStep = 0;
+		let iStep = this.watchedTime.iStep;
 		let iSurface = 0;
 		let thisSurface = offsets[iStep][iSurface];
 		let xRange = thisSurface.xRange;
@@ -127,7 +152,7 @@ const threeTriMesh = {
 		scene.add( light5 );
 		scene.add( light6 );
 
-		// add all surfaces (at iStep = 0) to scene
+		// add all surfaces to scene
 		this.meshUuids = [];
 		const meshUuids = this.meshUuids;
 		for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
@@ -147,22 +172,26 @@ const threeTriMesh = {
 			meshUuids.push( mesh.uuid );
 			scene.add( mesh );
 		}
+		this.scene = scene;
 	
-		// Set target DIV for rendering
-		//var container = document.getElementById( elementId );
-		div.node().appendChild( renderer.domElement );
-
 		// Define the camera
 		const camera = new THREE.PerspectiveCamera( 45, width/height, 0.0001, 1000. );
 		camera.position.x = xMid + 2*rMax;
 		camera.position.y = yMid;
 		camera.position.z = zMid;
+		camera.up.set(0,0,1);
 
-		if ( cameraSync ) {
+		if (this.watchedCamera !== undefined) {
+			camera.position.copy(this.watchedCamera.position);
+			camera.rotation.copy(this.watchedCamera.rotation);
+		}
+
+		if ( cameraSync && !this.watchedCamera) {
 			let handler = {
 				set: function(target, key, value) {
 					camera[key].copy(value);
-					renderer.render(scene,camera);
+					//renderer.render(scene,camera);
+					boundRenderScene();
 					return true;
 				}
 			};
@@ -170,69 +199,58 @@ const threeTriMesh = {
 			this.watchedCamera = watchedCamera;
 		}
 
-		if ( timeSync ) {
-			let handler = {
-				set: function(target, key, valueset) {
-					target[key] = valueset;
-					if (key = 'iStep') {
-						div.select(".time-slider").node().value = valueset;
-						updateSurfaces(valueset);
-					}
-					return true;
-				}
-			};
-			let watchedTime = new Proxy({iStep}, handler);
-			this.watchedTime = watchedTime;
-		}
 
 
-		// Add controls 		
-		camera.up.set(0,0,1);
-		const controls = new OrbitControls( camera, renderer.domElement );
-		controls.target.set( xMid, yMid, zMid );
-		controls.enabled = true;
-		controls.update();
-		if (xRange[1]-xRange[0]==0.) {
-			controls.enableRotate = false;
-		}
-
-		controls.addEventListener( 'change', function(){
-    		renderer.render(scene,camera); // re-render if controls move/zoom 
-			if ( cameraSync ) {
-				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
-				plots.forEach( (plot, indx) =>  {
-					if (indx != plotIndex && plot.watchedCamera !== undefined) {
-						plot.watchedCamera.position = camera.position;
-						plot.watchedCamera.rotation = camera.rotation;
-					}
-				});
+		// Add controls 
+		if (!this.controls) {
+			const controls = new OrbitControls( camera, renderer.domElement );
+			controls.target.set( xMid, yMid, zMid );
+			controls.enabled = true;
+			controls.update();
+			if (xRange[1]-xRange[0]==0.) {
+				controls.enableRotate = false;
 			}
-		} ); 
-		controls.enableZoom = true; 
-		
-		// Make initial call to render scene
-		renderer.render( scene, camera );
 
+			controls.addEventListener( 'change', function(){
+    			//renderer.render(scene,camera); // re-render if controls move/zoom 
+				boundRenderScene();
+				if ( cameraSync ) {
+					let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
+					plots.forEach( (plot) =>  {
+						if (plot.watchedCamera !== undefined) {
+							plot.watchedCamera.position = camera.position;
+							plot.watchedCamera.rotation = camera.rotation;
+						}
+					});
+				}
+			} ); 
+			controls.enableZoom = true; 
+			this.controls = controls;
+		}
+	
+		boundRenderScene();
 
 		function timeStepSliderChange() {
 			iStep = this.value;
+			const plot = dbsliceData.session.plotRows[plotRowIndex].plots[plotIndex];
+			plot.watchedTime.iStep = iStep;
 			if ( timeSync ) {
 				const plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 				plots.forEach( (plot, indx) =>  {
-					if (indx != plotIndex) {
+					if ( indx !== plotIndex && plot.watchedTime !== undefined) {
 						plot.watchedTime.iStep = iStep;
 					}
 				});
 			}
-			updateSurfaces(iStep);
+			//boundUpdateSurfaces(iStep);
 		}
 
 		function updateSurfaces(iStep) {
 			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
-				let thisSurface=offsets[iStep][iSurf];
-				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
-				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
-				const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
+				let thisSurface = this.offsets[iStep][iSurf];
+				const vertices = new Float32Array(this.data, thisSurface.verticesOffset, thisSurface.nVerts * 3);
+				const indices = new Uint32Array(this.data, thisSurface.indicesOffset, thisSurface.nTris * 3);
+				const values = new Float32Array(this.data, thisSurface.values[0].offset, thisSurface.nVerts);
 				const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
 			
 				const geometry = new THREE.BufferGeometry();
@@ -249,30 +267,16 @@ const threeTriMesh = {
 				const newMesh = new THREE.Mesh( geometry, material );
 				meshUuids[iSurf] = newMesh.uuid;
 				scene.add( newMesh );
-			}
-			renderer.render(scene,camera);
+			} 
+			this.scene = scene;
+			boundRenderScene();
 		}
 
-		function tipOn() {
-            if ( highlightTasks ) {
-                container
-                    .style("outline-style","solid")
-                    .style("outline-color","red")
-                    .style("outline-width","4px")
-                    .style("outline-offset","0px")
-                    .raise();
-                dbsliceData.highlightTasks = [taskId];
-				highlightTasksAllPlots();
-            }
-        }
+		function renderScene() {
+			this.renderer.render(this.scene, camera);
+		}
 
-        function tipOff() {
-            if ( highlightTasks ) {
-                container.style("outline-width","0px")
-                dbsliceData.highlightTasks = [];
-                highlightTasksAllPlots();
-            }
-        }
+		
 
 		this.layout.newData = false;
 
@@ -364,6 +368,31 @@ const threeTriMesh = {
 			offsets.push(surfaces);
 		}
 		this.offsets = offsets;
+	},
+
+	tipOn : function() {
+		const container = d3.select(`#${this.elementId}`);
+		const highlightTasks = this.layout.highlightTasks;
+		if ( highlightTasks ) {
+			container
+				.style("outline-style","solid")
+				.style("outline-color","red")
+				.style("outline-width","4px")
+				.style("outline-offset","0px")
+				.raise();
+			dbsliceData.highlightTasks = [taskId];
+			highlightTasksAllPlots();
+		}
+	},
+
+	tipOff : function() {
+		const container = d3.select(`#${this.elementId}`);
+		const highlightTasks = this.layout.highlightTasks;
+		if ( highlightTasks ) {
+			container.style("outline-width","0px")
+			dbsliceData.highlightTasks = [];
+			highlightTasksAllPlots();
+		}
 	}
 
 }
