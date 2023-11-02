@@ -44,6 +44,8 @@ async function start( elementId, session ) {
         });
     }));
 
+    dbsliceData.derived={};
+
 	
 	// Add in the config for the type of plots that should be supported. Could be moved to external file.
 	var modalConfig = {
