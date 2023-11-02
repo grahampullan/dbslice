@@ -103,7 +103,8 @@ const makePlotObject = function(plot) {
     const toAdd = Object.assign({
          makePlotWrapper, 
          removePlot, 
-         makeCompleted : false }, 
+         makeCompleted : false,
+         makeStarted : false}, 
          plotFunc );
     const newPlotObject = Object.assign(plot, toAdd);
     return newPlotObject;
@@ -112,6 +113,9 @@ const makePlotObject = function(plot) {
 
 const plotMakeForD3Each = function( d, i ) {
 
+    if ( d.makeStarted ) return;
+
+    d.makeStarted = true;
     d.makePlotWrapper();
 
     if ( d.fetchData !== undefined ) {

@@ -1,9 +1,10 @@
 import { dbsliceData } from '../core/dbsliceData.js';
 import { highlightTasksAllPlots } from '../core/plot.js';
-import * as d3 from 'd3';
+import * as d3 from 'd3v7';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three';
 import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
+import { update } from '../core/update.js';
 
 const threeTriMesh = {
 
@@ -17,6 +18,11 @@ const threeTriMesh = {
 		const boundTipOff = this.tipOff.bind(this);
 		const div = container.append("div")
 			.attr("class", "plot-area")
+			.style("position","relative")
+			.attr("width", width)
+			.attr("height", height)
+			.style("width",`${width}px`)
+			.style("height",`${height}px`)
 			.on( "mouseover", boundTipOn)
 			.on( "mouseout", boundTipOff );
 
@@ -26,43 +32,88 @@ const threeTriMesh = {
 		div.node().appendChild( renderer.domElement );
 		this.renderer = renderer;
 
+		div.select("canvas")
+			.style("position","absolute")
+			.style("top","0px")
+			.style("left","0px");
+
+		const overlay = div.append("svg")
+			.attr("class","svg-overlay")
+			.style("position","absolute")
+			.style("pointer-events", "none")
+			.style("z-index",2)
+			.style("top","0px")
+			.style("left","0px")
+			.attr("width", width)
+			.attr("height", height);
+
+		this.cutData = {};
+		
 		this.update();
 
 	},
 
 	update : function () {
 
-		this.getOffsets();
-
 		const container = d3.select(`#${this.elementId}`);
-		const taskId = this.taskId;
-		const cameraSync = this.layout.cameraSync;
-		const timeSync = this.layout.timeSync;
-		const highlightTasks = this.layout.highlightTasks;
+		const overlay = container.select(".svg-overlay");
+		const layout = this.layout;
+		const cameraSync = layout.cameraSync;
+		const timeSync = layout.timeSync;
+		const highlightTasks = layout.highlightTasks;
 		const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
 		const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
-		const nSteps = this.nSteps;
-		const nSurfsNow = this.nSurfsNow;
 		const buffer = this.data;
 		const renderer = this.renderer;
+		const cutData = this.cutData;
 
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
 		const boundRenderScene = renderScene.bind(this);
+		const boundFindZpCut = findZpCut.bind(this);
+		const boundGetCutLine = getCutLine.bind(this);
 
-		if (this.layout.newData == false && dbsliceData.windowResize == false) {
+		if (layout.newData == false && dbsliceData.windowResize == false) {
             return
         }
 
+		layout.newData = false;
+
+		const width = container.node().offsetWidth;
+		const height = layout.height;
+		renderer.setSize( width , height );
+
+		this.width = width;
+        this.height = height;
+
+        const plotArea = container.select(".plot-area");
+        plotArea
+			.attr("width", width)
+			.attr("height", height)
+			.style("width",`${width}px`)
+			.style("height",`${height}px`);
+
+		overlay
+			.attr("width", width)
+			.attr("height", height)
+
+		this.getOffsets();
+		const offsets = this.offsets;
+		const nSteps = this.nSteps;
+		const nSurfsNow = this.nSurfsNow;
+
+		if (layout.xCut) {
+			makeQuadTree();
+		}
 		
 		let vScale;
-        if (this.layout.vScale === undefined) {
+        if (layout.vScale === undefined) {
         	vScale = [0,1];
         } else {
-        	vScale = this.layout.vScale;
+        	vScale = layout.vScale;
         }
 
-		const color = ( this.layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( this.layout.colourMap );
-        color.domain( vScale );
+		const color = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
+        color.domain( [0,1] );
 
 		const textureWidth = 256;
 		const textureHeight = 4;
@@ -82,10 +133,13 @@ const threeTriMesh = {
   		tex.needsUpdate = true;
 
 		if ( nSteps > 1 ){
-			let timeSlider = container.select(".time-slider");
+			let timeSlider = plotArea.select(".time-slider");
             if ( timeSlider.empty() ) {
-				container.insert("input",":first-child")
+				plotArea.append("input")
 					.attr("class", "form-range time-slider")
+					.style("position","absolute")
+					.style("top","0px")
+					.style("left","0px")
 					.attr("type","range")
 					.attr("min",0)
 					.attr("value",0)
@@ -97,7 +151,7 @@ const threeTriMesh = {
 					set: function(target, key, valueset) {
 						target[key] = valueset;
 						if (key = 'iStep') {
-							container.select(".time-slider").node().value = valueset;
+							plotArea.select(".time-slider").node().value = valueset;
 							boundUpdateSurfaces(valueset);
 						}
 						return true;
@@ -108,9 +162,31 @@ const threeTriMesh = {
 			}
 		}
 
-		const width = container.node().offsetWidth;
-		const height = this.layout.height;
-		renderer.setSize( width , height );
+
+		let iStep;
+		if (this.watchedTime.iStep !== undefined) {
+			iStep = this.watchedTime.iStep;
+		} else {
+			iStep = 0
+		}
+
+		if (layout.xCut) {
+			let xBar = overlay.select(".x-bar");
+            if ( xBar.empty() ) {
+				cutData.zpClip = 0.;
+				cutData.zpPix = width/2.;
+				overlay.append("path")
+					.attr("class","x-bar")
+					.attr("fill", "none")
+					.attr("stroke", "Gray")
+					.attr("stroke-width", 5)
+					.style("pointer-events","stroke")
+					.style("opacity",0.5)
+					.style("cursor","ew-resize")
+					.attr("d",d3.line()([[cutData.zpPix,0],[cutData.zpPix,height]]))
+					.call(d3.drag().on("drag", barDragged));
+			}
+		}
 
 		// Initialise threejs scene
 		const scene = new THREE.Scene();
@@ -119,9 +195,7 @@ const threeTriMesh = {
 		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 		const material = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 
-		const offsets = this.offsets;
 		// use size of first surface to set camera and lights
-		let iStep = this.watchedTime.iStep;
 		let iSurface = 0;
 		let thisSurface = offsets[iStep][iSurface];
 		let xRange = thisSurface.xRange;
@@ -160,7 +234,7 @@ const threeTriMesh = {
 			const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
 			const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
 			const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
-			const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
+			const uvs = new Float32Array(Array.from(values).map( d => [ (d-vScale[0])/(vScale[1]-vScale[0]),0.5]).flat());
 
 			const geometry = new THREE.BufferGeometry();
 			geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
@@ -190,7 +264,6 @@ const threeTriMesh = {
 			let handler = {
 				set: function(target, key, value) {
 					camera[key].copy(value);
-					//renderer.render(scene,camera);
 					boundRenderScene();
 					return true;
 				}
@@ -198,8 +271,6 @@ const threeTriMesh = {
 			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, handler);
 			this.watchedCamera = watchedCamera;
 		}
-
-
 
 		// Add controls 
 		if (!this.controls) {
@@ -212,8 +283,10 @@ const threeTriMesh = {
 			}
 
 			controls.addEventListener( 'change', function(){
-    			//renderer.render(scene,camera); // re-render if controls move/zoom 
 				boundRenderScene();
+				if ( layout.xCut) {
+					boundFindZpCut(cutData.zpClip, 0.);
+				}
 				if ( cameraSync ) {
 					let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
 					plots.forEach( (plot) =>  {
@@ -230,8 +303,15 @@ const threeTriMesh = {
 	
 		boundRenderScene();
 
+		if ( layout.xCut && !dbsliceData.windowResize ) {
+			boundFindZpCut(cutData.zpClip, 0.);
+		}
+
 		function timeStepSliderChange() {
 			iStep = this.value;
+			if ( layout.xCut) {
+				boundFindZpCut(cutData.zpClip, 0.);
+			}
 			const plot = dbsliceData.session.plotRows[plotRowIndex].plots[plotIndex];
 			plot.watchedTime.iStep = iStep;
 			if ( timeSync ) {
@@ -242,16 +322,19 @@ const threeTriMesh = {
 					}
 				});
 			}
-			//boundUpdateSurfaces(iStep);
 		}
 
 		function updateSurfaces(iStep) {
+			const offsets = this.offsets;
+			const buffer = this.data;
+			const meshUuids = this.meshUuids;
+			const scene = this.scene;
 			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
-				let thisSurface = this.offsets[iStep][iSurf];
-				const vertices = new Float32Array(this.data, thisSurface.verticesOffset, thisSurface.nVerts * 3);
-				const indices = new Uint32Array(this.data, thisSurface.indicesOffset, thisSurface.nTris * 3);
-				const values = new Float32Array(this.data, thisSurface.values[0].offset, thisSurface.nVerts);
-				const uvs = new Float32Array(Array.from(values).map( d => [d,0.5]).flat());
+				let thisSurface = offsets[iStep][iSurf];
+				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
+				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
+				const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
+				const uvs = new Float32Array(Array.from(values).map( d => [(d-vScale[0])/(vScale[1]-vScale[0]),0.5]).flat());
 			
 				const geometry = new THREE.BufferGeometry();
 				geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
@@ -276,9 +359,177 @@ const threeTriMesh = {
 			this.renderer.render(this.scene, camera);
 		}
 
+		function barDragged(event,d){
+			let xCutPix = event.x;
+			d3.select(this)
+				.attr("d",d3.line()([[xCutPix,0],[xCutPix,height]]));
+			let xClip = ( event.x / width ) * 2 - 1;
+			let yClip = - ( event.y / height ) * 2 + 1;
+			boundFindZpCut( xClip, yClip );
+			cutData.zpClip = xClip;
+			cutData.zpPix = xCutPix;    
+		}
+
+		function findZpCut(xPt, yPt) {
+			let objects = this.meshUuids.map(d => this.scene.getObjectByProperty('uuid',d));
+			let raycaster = new THREE.Raycaster();
+			let pointer = new THREE.Vector2();
+			pointer.x = xPt; // clip space
+			let yPts = [ yPt ,0.,-0.5,0.5];
+			const intersects = [];
+			yPts.forEach( yPtNow => {
+				pointer.y = yPtNow;
+				raycaster.setFromCamera( pointer, camera );
+				let newIntersects = raycaster.intersectObjects( objects );
+				if (newIntersects.length > 0) {
+					intersects.push(newIntersects[0]);
+				}
+			});
+			if (intersects.length > 0 ){
+				cutData.zpCutValue = d3.mean(intersects, d => d.point.y);
+				const cutLine = boundGetCutLine();
+				dbsliceData.derived[layout.cutDataId] = cutLine;
+				update();
+			}
+
+		}
+
+		function makeQuadTree() {
+			cutData.quadtrees = [];
+			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+				const tris = [];
+				let thisSurface = offsets[0][iSurf]; // iStep = 0
+				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
+				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
+				let nt = indices.length/3;
+				for (let iTri=0; iTri < nt; iTri++) {
+					let i0 = indices[iTri*3];
+					let i1 = indices[iTri*3+1];
+					let i2 = indices[iTri*3+2];
+					let zpTri = [vertices[i0*3+1], vertices[i1*3+1], vertices[i2*3+1]]; // y coord 
+					let zpMin = Math.min(...zpTri);
+					let zpMax = Math.max(...zpTri);
+					tris.push( {zpMin,zpMax,i:iTri} );
+				}
+				const quadtree = d3.quadtree()
+					.x(d => d.zpMin)
+					.y(d => d.zpMax)
+					.addAll(tris);
+				cutData.quadtrees.push(quadtree);
+			}
+			
+		}
+
+		function getCutLine() {
+			const buffer = this.data;
+			const offsets = this.offsets;
+			let lineSegmentsAll = [];
+			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+				let thisSurface = offsets[iStep][iSurf]; // iStep = 0
+				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
+				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
+				const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
+				const tm = {vertices, indices, values};
+				const zp = new Float32Array(thisSurface.nVerts);
+        		for (let i=0; i<thisSurface.nVerts; i++) {
+          			zp[i] = vertices[3*i + 1];  // y values
+        		} 
+				const line = getCut(tm, zp, cutData.zpCutValue, iSurf );
+				lineSegmentsAll = lineSegmentsAll.concat(line);
+			}
+			return lineSegmentsAll;
+		}
+
+		function getCut( tm, zp, zpCut, iSurf) {
+			let cutTris = findCutTrisLine(cutData.quadtrees[iSurf], zpCut);
+			let line = getLineFromCutTris(tm, zp, zpCut, cutTris);
+			return line;
+		}
+  
+  		function findCutTrisLine(tree, zpCut) {
+			const cutTris=[];
+			tree.visit(function(node,x1,x2,y1,y2) {
+				if (!node.length) {
+					do {
+				  		let d = node.data;
+				  		let triIndx = d.i;
+				  		let triCut = (d.zpMin <= zpCut) && (d.zpMax >= zpCut);
+				  		if ( triCut ) { cutTris.push(triIndx); }
+					} while (node = node.next);
+			  	}
+			  	return (x1 > zpCut || y2 < zpCut) ;
+			});
+			return cutTris;
+		}
+  
+  		function getLineFromCutTris(tm, zp, zpCut, cutTris) {
+	
+			let lineSegments = [];
+  
+			const cutEdgeCases = [
+			  	[ [0,1] , [0,2] ],
+			  	[ [0,1] , [0,2] ],
+			  	[ [0,1] , [1,2] ],
+			  	[ [0,2] , [1,2] ],
+			  	[ [0,2] , [1,2] ],
+			  	[ [0,1] , [1,2] ],
+			  	[ [0,1] , [0,2] ],
+			  	[ [0,1] , [0,2] ]  
+			];
+	
+			cutTris.forEach( itri => {
+			  	let verts = getVerts(itri, tm, zp);
+			  	let t0 = verts[0][0] <= zpCut;
+			  	let t1 = verts[1][0] <= zpCut;
+			  	let t2 = verts[2][0] <= zpCut;  
+			  	let caseIndx = t0<<0 | t1<<1 | t2<<2;
+			  	let cutEdges = cutEdgeCases[caseIndx];
+			  	let vertA = cutEdge(verts, cutEdges[0], zpCut);
+			  	let vertB = cutEdge(verts, cutEdges[1], zpCut);
+			  	let lineSegment = [];
+			  	vertA.shift();
+			  	vertB.shift();
+			  	lineSegment.push(vertA);
+			  	lineSegment.push(vertB);
+			  	lineSegments.push(lineSegment);
+			});
+  
+			return lineSegments;
+		}
+  
+		function getVerts(itri,tm,zp) {
+			let verts = [];
+			for (let i=0; i<3; i++) {
+			  	let ivert = tm.indices[itri*3 + i];
+			  	let vert = [];
+			  	vert.push(zp[ivert]);
+			  	//vert.push(tm.vertices[ivert*2]);
+			  	vert.push(tm.vertices[ivert*3+2]);
+			  	vert.push(tm.values[ivert]);
+			  	verts.push(vert);
+			}
+		  return verts;
+		}
+  
+		function cutEdge(verts, edge, zpcut) {
+			let i0 = edge[0];
+			let i1 = edge[1];
+			let zp0 = verts[i0][0];
+			let zp1 = verts[i1][0];
+			let frac = (zpcut-zp0)/(zp1-zp0);
+			let frac1 = 1.-frac;
+			let vert = [];
+			let nvals = verts[0].length;
+			for (let n=0; n<nvals; n++) {
+			  	let cutVal = frac1*verts[i0][n] + frac*verts[i1][n];
+			  	vert.push(cutVal);
+			}
+			return vert;
+		}
+
 		
 
-		this.layout.newData = false;
+		layout.newData = false;
 
 	},
 

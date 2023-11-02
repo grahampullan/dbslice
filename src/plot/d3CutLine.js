@@ -1,80 +1,81 @@
 import { dbsliceData } from '../core/dbsliceData.js';
-import * as d3 from 'd3';
-import d3tip from 'd3-tip';
+import * as d3 from 'd3v7';
+//import d3tip from 'd3-tip';
 
 const d3CutLine = {
 
-    make : function ( element, data, layout ) {
+    make : function () {
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
+        const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
-        var container = d3.select(element);
+        const container = d3.select(`#${this.elementId}`)
 
-        var svgWidth = container.node().offsetWidth,
-            svgHeight = layout.height;
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = this.layout.height;
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
-
-        var svg = container.append("svg")
+        const svg = container.append("svg")
             .attr("width", svgWidth)
             .attr("height", svgHeight)
             .append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-                .attr( "class", "plotArea" );
-
-        d3CutLine.update( element, data, layout );
+                .attr( "transform", `translate(${margin.left} , ${margin.top})`)
+                .attr( "class", "plot-area" )
+                .attr( "id", `plot-area-${this._prid}-${this._id}`);
+                
+        
+        container.append("div")
+            .attr("class", "tool-tip")
+            .style("opacity", 0);
+    
+        this.update();
 
     },
 
-    update : function ( element, data, layout ) {
+    update : function () {
 
-        var container = d3.select(element);
-        var svg = container.select("svg");
-        var plotArea = svg.select(".plotArea");
+        const layout = this.layout;
+        const container = d3.select(`#${this.elementId}`);
+        const svg = container.select("svg");
+        const plotArea = svg.select(".plot-area");
+        const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
+        const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 
-        //if (layout.newData == false) {
-        //    return
-        //}
+        const marginDefault = {top: 20, right: 20, bottom: 30, left: 53};
+        const margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
 
-        var marginDefault = {top: 20, right: 20, bottom: 30, left: 50};
-        var margin = ( layout.margin === undefined ) ? marginDefault  : layout.margin;
+        const clipId = `clip-${this._prid}-${this._id}`;
 
-        let plotRowIndex = container.attr("plot-row-index");
-        let plotIndex = container.attr("plot-index");
-        let clipId = "clip-"+plotRowIndex+"-"+plotIndex; 
+        const svgWidth = container.node().offsetWidth,
+            svgHeight = layout.height;
 
-        var svgWidth = svg.attr("width");
-        var svgHeight = svg.attr("height");
+        svg.attr("width", svgWidth).attr("height", svgHeight);
 
-        var width = svgWidth - margin.left - margin.right;
-        var height = svgHeight - margin.top - margin.bottom;
+        const width = svgWidth - margin.left - margin.right;
+        const height = svgHeight - margin.top - margin.bottom;
 
-        const cutLine=dbsliceData.xCut;
+        let cutLineData = [[[0,0],[0,0]]];
+        if (dbsliceData.derived[this.data.cutDataId] !== undefined) {
+            cutLineData = dbsliceData.derived[this.data.cutDataId];
+        }
 
-        const xData = cutLine.map(d => d[0][0]);
-        const yData = cutLine.map(d => d[0][1]);
+        const xData = cutLineData.map(d => d[0][0]);
+        const yData = cutLineData.map(d => d[0][1]);
 
+        let xRange, yRange;
         if ( layout.xRange === undefined ) {
-            var xRange = d3.extent(xData);
+            xRange = d3.extent(xData);
         } else {
-            var xRange = layout.xRange;
+            xRange = layout.xRange;
         }
 
         if ( layout.yRange === undefined ) {
-            var yRange = d3.extent(yData);
+            yRange = d3.extent(yData);
         } else {
-            var yRange = layout.yRange;
+            yRange = layout.yRange;
         }
 
-        if ( layout.xscale == "time" ) {
-            var xscale = d3.scaleTime(); 
-            var xscale0 = d3.scaleTime();        
-        } else {
-            var xscale = d3.scaleLinear();
-            var xscale0 = d3.scaleLinear();
-        }
+        let xscale = d3.scaleLinear();
+        let xscale0 = d3.scaleLinear();
 
         xscale.range( [0, width] )
               .domain( xRange );
@@ -82,20 +83,21 @@ const d3CutLine = {
         xscale0.range( [0, width] )
               .domain( xRange );
 
-        var yscale = d3.scaleLinear()
+        let yscale = d3.scaleLinear()
             .range( [height, 0] )
             .domain( yRange );
 
-        var yscale0 = d3.scaleLinear()
+        let yscale0 = d3.scaleLinear()
             .range( [height, 0] )
             .domain( yRange );
 
         //var colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeCategory10 ) : d3.scaleOrdinal( layout.colourMap );
         //if ( layout.cSet !== undefined) colour.domain( layout.cSet );
 
-        var line = d3.line()
-            .x( function( d ) { return xscale( d.x ); } )
-            .y( function( d ) { return yscale( d.y ); } );
+
+        const line = d3.line()
+            .x( d => xscale( d.x ) )
+            .y( d => yscale( d.y ) );
 
         function segLine(lineSegs) {
             let path="";
@@ -106,38 +108,40 @@ const d3CutLine = {
             return path;
         }
 
-        var clip = svg.append("defs").append("clipPath")
-            .attr("id", clipId)
-            .append("rect")
-                .attr("width", width)
-                .attr("height", height);
+        const clipRect = svg.select(".clip-rect");
 
-        var zoom = d3.zoom()
-           .scaleExtent([0.5, Infinity])
-            .on("zoom", zoomed);
+        if ( clipRect.empty() ) {
+            svg.append("defs").append("clipPath")
+                .attr("id", clipId)
+                .append("rect")
+                    .attr("class","clip-rect")
+                    .attr("width", width)
+                    .attr("height", height);
+        } else {
+            clipRect.attr("width", width)
+        }
 
-        svg.transition().call(zoom.transform, d3.zoomIdentity);
-        svg.call(zoom);
+        // no zoom 
+        //const zoom = d3.zoom()
+        //   .scaleExtent([0.5, Infinity])
+        //   .on("zoom", zoomed);
+        //svg.transition().call(zoom.transform, d3.zoomIdentity);
+        //svg.call(zoom);
 
-        var tip = d3tip()
-            .attr('class', 'd3-tip')
-            .offset([-10, 0])
-            .html(function( d ) {
-                return "<span>"+d.label+"</span>";
-        });
-
-        svg.call(tip);
-
-        var focus = plotArea.append("g")
-            .style("display","none")
-            .append("circle")
+        let focus = plotArea.select(".focus");
+        if ( focus.empty() ) {
+            plotArea.append("circle")
+                .attr("class","focus")
+                .attr("fill","none")
                 .attr("r",1);
+        }
 
         let linePath = plotArea.select(".line");
         if (linePath.empty()) {
             plotArea.append("path")
                 .attr("class","line")
-                .datum(cutLine)
+                .attr( "clip-path", `url(#${clipId})` )
+                .datum(cutLineData)
                 .attr("fill", "none")
                 .attr("stroke", "steelblue")
                 .attr("stroke-width", 2)
@@ -145,33 +149,39 @@ const d3CutLine = {
                 .attr("stroke-linecap", "round")
                 .attr("d", segLine);
         } else {
-            linePath.datum(cutLine).attr("d",segLine);
+            linePath.datum(cutLineData).attr("d",segLine);
         }
 
+        const xAxis = d3.axisBottom( xscale );
+        if ( layout.xTickNumber !== undefined ) { xAxis.ticks(layout.xTickNumber); }
+        if ( layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(layout.xTickFormat)); }
 
-        var xAxis = d3.axisBottom( xscale ).ticks(5);
-        var yAxis = d3.axisLeft( yscale );
+        const yAxis = d3.axisLeft( yscale );
+        if ( layout.yTickNumber !== undefined ) { yAxis.ticks(layout.yTickNumber); }
+        if ( layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(layout.yTickFormat)); }
 
-        var gX = plotArea.select(".axis--x");
+        let gX = plotArea.select(".axis-x");
         if ( gX.empty() ) {
             gX = plotArea.append("g")
-                .attr( "transform", "translate(0," + height + ")" )
-                .attr( "class", "axis--x")
+                .attr( "transform", `translate(0,${height})` )
+                .attr( "class", "axis-x")
                 .call( xAxis );
             gX.append("text")
+                .attr("class","x-axis-text")
                 .attr("fill", "#000")
                 .attr("x", width)
                 .attr("y", margin.bottom-2)
                 .attr("text-anchor", "end")
                 .text(layout.xAxisLabel);
         } else {
-            gX.transition().call( xAxis );
+            gX.call( xAxis );
+            gX.select(".x-axis-text").attr("x", width)
         }
 
-        var gY = plotArea.select(".axis--y");
+        let gY = plotArea.select(".axis-y");
         if ( gY.empty() ) {
             gY = plotArea.append("g")
-                .attr( "class", "axis--y")
+                .attr( "class", "axis-y")
                 .call( yAxis );
             gY.append("text")
                     .attr("fill", "#000")
@@ -181,23 +191,25 @@ const d3CutLine = {
                     .attr("text-anchor", "end")
                     .text(layout.yAxisLabel);
         } else {
-            gY.transition().call( yAxis );
+            gY.call( yAxis );
         }
 
-
-
-        function zoomed() {
-            var t = d3.event.transform;
+        function zoomed(event) {
+            const t = event.transform;
             xscale.domain(t.rescaleX(xscale0).domain());
             yscale.domain(t.rescaleY(yscale0).domain());
             gX.call(xAxis);
             gY.call(yAxis);
-            //plotArea.selectAll(".line").attr( "d", function( d ) { return line( d.data ); } );
-            plotArea.select(".line").datum(cutLine).attr("d",segLine);
+            plotArea.select(".line").datum(cutLineData).attr("d",segLine);
         }
 
-
         layout.newData = false;
+    },
+
+    highlightTasks : function() {
+        
+        return;
+
     }
 };
 
