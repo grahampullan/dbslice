@@ -164,7 +164,7 @@ const threeTriMesh = {
 
 
 		let iStep;
-		if (this.watchedTime.iStep !== undefined) {
+		if (this.watchedTime !== undefined) {
 			iStep = this.watchedTime.iStep;
 		} else {
 			iStep = 0
@@ -195,16 +195,27 @@ const threeTriMesh = {
 		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 		const material = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 
-		// use size of first surface to set camera and lights
-		let iSurface = 0;
-		let thisSurface = offsets[iStep][iSurface];
-		let xRange = thisSurface.xRange;
-		let yRange = thisSurface.yRange;
-		let zRange = thisSurface.zRange;
+		// look at all surfaces for sizes to set camera and lights
+		const xRanges = offsets[iStep].map(d => d.xRange);
+		const yRanges = offsets[iStep].map(d => d.yRange);
+		const zRanges = offsets[iStep].map(d => d.zRange);
+		const xMin = Math.min(...xRanges.map(d => d[0]));
+		const xMax = Math.max(...xRanges.map(d => d[1]));
+		const yMin = Math.min(...yRanges.map(d => d[0]));
+		const yMax = Math.max(...yRanges.map(d => d[1]));
+		const zMin = Math.min(...zRanges.map(d => d[0]));
+		const zMax = Math.max(...zRanges.map(d => d[1]));
+		let xRange = [xMin, xMax];
+		let yRange = [yMin, yMax];
+		let zRange = [zMin, zMax];
 		let xMid = 0.5*( xRange[0] + xRange[1] );
 		let yMid = 0.5*( yRange[0] + yRange[1] );
 		let zMid = 0.5*( zRange[0] + zRange[1] );
-		let rMax = thisSurface.rMax;
+		let rMax = Math.sqrt((xMax-xMin)**2 + (yMax-yMin)**2 + (zMax-zMin)**2);
+
+		if (xRange[1]-xRange[0]==0.) {
+			this.twoD=true;
+		}
 
 		const light1 = new THREE.PointLight( 0xffffff, 0.8 );
 		light1.position.set( xMid, yMid, zMid + 10*rMax );
@@ -249,11 +260,27 @@ const threeTriMesh = {
 		this.scene = scene;
 	
 		// Define the camera
-		const camera = new THREE.PerspectiveCamera( 45, width/height, 0.0001, 1000. );
-		camera.position.x = xMid + 2*rMax;
-		camera.position.y = yMid;
-		camera.position.z = zMid;
-		camera.up.set(0,0,1);
+		if (!this.camera) {
+			let camera;
+			if (!this.twoD) {
+				camera = new THREE.PerspectiveCamera( 45, width/height, 0.0001, 1000. );
+				camera.position.x = xMid + rMax;
+				camera.position.y = yMid;
+				camera.position.z = zMid;
+			} else {
+				let yDiff = yRange[1] - yRange[0];
+				let zDiff = zRange[1] - zRange[0];
+				let maxDiff = Math.max(yDiff, zDiff);
+				camera = new THREE.OrthographicCamera( -maxDiff, maxDiff, maxDiff, -maxDiff, 0.0001, 100000.);
+				camera.position.x = xMid + 1000*rMax;
+				camera.position.y = yMid;
+				camera.position.z = zMid;
+			}
+			
+			camera.up.set(0,0,1);
+			this.camera = camera;
+		}
+		const camera = this.camera;
 
 		if (this.watchedCamera !== undefined) {
 			camera.position.copy(this.watchedCamera.position);
@@ -278,7 +305,7 @@ const threeTriMesh = {
 			controls.target.set( xMid, yMid, zMid );
 			controls.enabled = true;
 			controls.update();
-			if (xRange[1]-xRange[0]==0.) {
+			if (this.twoD) {
 				controls.enableRotate = false;
 			}
 
