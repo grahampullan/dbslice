@@ -193,7 +193,8 @@ const threeTriMesh = {
 		scene.background = new THREE.Color( 0xefefef );
 
 		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-		const material = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		const materialCol = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		const materialGrey = new THREE.MeshLambertMaterial( { color: 0xaaaaaa, side: THREE.DoubleSide, wireframe:false } );
 
 		// look at all surfaces for sizes to set camera and lights
 		const xRanges = offsets[iStep].map(d => d.xRange);
@@ -240,6 +241,7 @@ const threeTriMesh = {
 		// add all surfaces to scene
 		this.meshUuids = [];
 		const meshUuids = this.meshUuids;
+		const surfFlags = this.layout.surfFlags;
 		for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
 			let thisSurface = offsets[iStep][iSurf];
 			const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
@@ -253,6 +255,16 @@ const threeTriMesh = {
 			geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 			geometry.computeVertexNormals();
 
+			let material;
+			if ( surfFlags !== undefined ) {
+				if ( surfFlags[iSurf] == -1 ) {
+					material = materialGrey;
+				} else {
+					material = materialCol;
+				} 
+			} else {
+				material = materialCol;
+			}
 			const mesh = new THREE.Mesh( geometry, material );
 			meshUuids.push( mesh.uuid );
 			scene.add( mesh );
@@ -355,6 +367,7 @@ const threeTriMesh = {
 			const offsets = this.offsets;
 			const buffer = this.data;
 			const meshUuids = this.meshUuids;
+			const surfFlags = this.layout.surfFlags;
 			const scene = this.scene;
 			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
 				let thisSurface = offsets[iStep][iSurf];
@@ -374,6 +387,16 @@ const threeTriMesh = {
 				oldMesh.material.dispose();
     			scene.remove(oldMesh);
 
+				let material;
+				if ( surfFlags !== undefined ) {
+					if ( surfFlags[iSurf] == -1 ) {
+						material = materialGrey;
+					} else {
+						material = materialCol;
+					} 
+				} else {
+					material = materialCol;
+				}
 				const newMesh = new THREE.Mesh( geometry, material );
 				meshUuids[iSurf] = newMesh.uuid;
 				scene.add( newMesh );

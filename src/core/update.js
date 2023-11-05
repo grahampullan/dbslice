@@ -15,12 +15,14 @@ function update( elementId = dbsliceData.elementId, session = dbsliceData.sessio
 	}
 
 	// Update the exploration session title.
-    if (dbsliceData.filteredTaskIds !== undefined){
-        element.select(".filteredTaskCount")
-            .html(`<p> Number of ${tasksName} in Filter = ${dbsliceData.filteredTaskIds.length} </p>` );
-    } else {
-        element.select(".filteredTaskCount").html(`<p> Number of ${tasksName} in Filter = All </p>`);
-    }
+	if (!dbsliceData.session.uiConfig.noSessionHeader) {
+    	if (dbsliceData.filteredTaskIds !== undefined){
+        	element.select(".filteredTaskCount")
+            	.html(`<p> Number of ${tasksName} in Filter = ${dbsliceData.filteredTaskIds.length} </p>` );
+   		} else {
+        	element.select(".filteredTaskCount").html(`<p> Number of ${tasksName} in Filter = All </p>`);
+    	}
+	}
 
 
 	// First plot-rows

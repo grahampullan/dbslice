@@ -3,6 +3,10 @@ import { downloadCurrentTasks } from './downloadCurrentTasks.js';
 
 function makeSessionHeader( element, title, subtitle, config ) {
 
+	if (config.noSessionHeader) {
+		return;
+	}
+
 	element.append( "div" )
 		.attr( "class" , "row sessionHeader" )
 		.append( "div" )

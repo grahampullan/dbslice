@@ -14,16 +14,34 @@ const makePlotRowDefault = function() {
         .attr( "style" , "margin-bottom:20px" )
         .attr( "plot-row-index", this.plotRowIndex );
 
-    const plotRowHeaderDiv = plotRowDiv.append("div")
-        .attr( "class", "card-header plot-row-title" )
-        .style( "vertical-align", "middle" )
-        .style( "display", "inline-block" )
+    if (!this.noPlotRowHeader) {
 
-    let html = `<h3 style='display:inline'>${this.title}</h3>`;
-    if ( this.headerButton !== undefined ){
-        html += `<button class='btn btn-success float-right' id='${d.headerButton.id}'>${d.headerButton.label}</button>`
+        const plotRowHeaderDiv = plotRowDiv.append("div")
+            .attr( "class", "card-header plot-row-title" )
+            .style( "vertical-align", "middle" )
+            .style( "display", "inline-block" )
+
+        let html = `<h3 style='display:inline'>${this.title}</h3>`;
+        if ( this.headerButton !== undefined ){
+            html += `<button class='btn btn-success float-right' id='${d.headerButton.id}'>${d.headerButton.label}</button>`
+        }
+        plotRowHeaderDiv.html(html);
+
+        plotRowHeaderDiv.append("button")
+            .attr("class", "btn collapseRow icon")
+            .style("float", "right")
+            .style("cursor", "pointer")
+            .html(icon(faDownLeftAndUpRightToCenter).html)
+            .on("click", function(){
+                // Add in the functionality to collapse/expand the corresponding plot-row-body.
+                let elementToCollapse = plotRowBodyDiv.node();
+                let isHidden = elementToCollapse.style.display === "none";
+                elementToCollapse.style.display = isHidden ? "" : "none";
+                // Change the button icon
+                this.innerHTML = isHidden ? icon(faDownLeftAndUpRightToCenter).html : icon(faUpRightAndDownLeftFromCenter).html;
+                update();
+            });
     }
-    plotRowHeaderDiv.html(html);
 
     if (this.addPlotButton) {
         plotRowHeaderDiv.append("button")
@@ -43,21 +61,6 @@ const makePlotRowDefault = function() {
         .attr( "class", "row no-gutters g-1 plot-row-body" )
         .attr( "id", `plot-row-body-${this._id}`)
         .attr ("plot-row-index", this.plotRowIndex );
-
-	plotRowHeaderDiv.append("button")
-        .attr("class", "btn collapseRow icon")
-        .style("float", "right")
-        .style("cursor", "pointer")
-        .html(icon(faDownLeftAndUpRightToCenter).html)
-        .on("click", function(){
-            // Add in the functionality to collapse/expand the corresponding plot-row-body.
-            let elementToCollapse = plotRowBodyDiv.node();
-            let isHidden = elementToCollapse.style.display === "none";
-            elementToCollapse.style.display = isHidden ? "" : "none";
-            // Change the button icon
-            this.innerHTML = isHidden ? icon(faDownLeftAndUpRightToCenter).html : icon(faUpRightAndDownLeftFromCenter).html;
-            update();
-        });
 }
 
 const assignPlotId = function(plot) {
