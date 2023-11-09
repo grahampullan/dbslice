@@ -26,7 +26,7 @@ const threeTriMesh = {
 			.on( "mouseover", boundTipOn)
 			.on( "mouseout", boundTipOff );
 
-		const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true}); 
+		const renderer = new THREE.WebGLRenderer({logarithmicDepthBuffer: true});
 		renderer.setPixelRatio( window.devicePixelRatio );
 		renderer.setSize( width , height );
 		div.node().appendChild( renderer.domElement );
