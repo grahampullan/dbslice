@@ -188,6 +188,53 @@ const threeTriMesh = {
 			}
 		}
 
+		if (layout.colorBar) {
+
+			const colorBarMargin = { "left" : width - 60, "top" : 24};
+			const colorBarHeight = parseInt(height/3);
+			const cscale = d3.scaleLinear()
+				.domain( vScale )
+				.range( [colorBarHeight, 0]);
+
+			let colorBarArea = overlay.select(".color-bar");
+			if ( colorBarArea.empty() ) {
+
+				colorBarArea = overlay.append("g")
+					.attr("class", "color-bar")
+					.attr("transform", `translate( ${colorBarMargin.left} , ${colorBarMargin.top} )`);
+
+				const colorBarScale = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
+				colorBarScale.domain( [0, colorBarHeight]);
+			
+				const scaleBars = colorBarArea.selectAll(".scale-bar")
+					.data(d3.range(colorBarHeight), function(d) { return d; })
+					.enter().append("rect")
+						.attr("class", "scale-bar")
+						.attr("x", 0 )
+						.attr("y", (d, i) => colorBarHeight - i )
+						.attr("height", 1)
+						.attr("width", 16)
+						.style("fill", d => colorBarScale(d) );
+
+			}
+
+			colorBarArea.attr("transform", `translate( ${colorBarMargin.left} , ${colorBarMargin.top} )`);
+			
+			const cAxis = d3.axisRight( cscale );
+			if ( layout.cBarTickNumber !== undefined ) { cAxis.ticks(layout.cBarTickNumber); }
+			if ( layout.cBarTickFormat !== undefined ) { cAxis.tickFormat(d3.format(layout.cBarTickFormat)); }
+			let gC = colorBarArea.select(".axis-c");
+			if ( gC.empty() ) {
+				gC = colorBarArea.append("g")
+					.attr( "class", "axis-c")
+					.attr("transform", "translate(18,0)")
+					.call( cAxis );
+			} else {
+				gC.call( cAxis );
+			}
+
+		}
+
 		// Initialise threejs scene
 		const scene = new THREE.Scene();
 		scene.background = new THREE.Color( 0xefefef );
