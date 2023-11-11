@@ -274,6 +274,7 @@ const threeTriMesh = {
 		// Define the camera
 		if (!this.camera) {
 			let camera;
+
 			if (!this.twoD) {
 				camera = new THREE.PerspectiveCamera( 45, width/height, 0.0001, 1000. );
 				camera.position.x = xMid + rMax;
