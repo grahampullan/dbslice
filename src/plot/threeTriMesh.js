@@ -261,6 +261,8 @@ const threeTriMesh = {
 					material = materialGrey;
 				} else {
 					material = materialCol;
+					material.transparent = true;
+					material.opacity = surfFlags[iSurf];
 				} 
 			} else {
 				material = materialCol;
