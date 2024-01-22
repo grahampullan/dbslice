@@ -326,12 +326,13 @@ const cfWglScatter = {
     attribute vec3 a_color;
     
     uniform mat4 u_matrix;
+    uniform float u_pointsize;
     
     varying vec3 v_color;
     
     void main() {
       gl_Position = u_matrix*vec4(a_position,0,1);
-      gl_PointSize = 20.;
+      gl_PointSize = u_pointsize;
       v_color = a_color;
     }`,
     
@@ -456,7 +457,13 @@ const cfWglScatter = {
 
         const projectionMatrix = glMatrix.mat4.create();
         glMatrix.mat4.ortho(projectionMatrix, 0, this.width, 0, this.height, 0, 1.);
-        const uniforms = {u_matrix: projectionMatrix};
+        let pointSize;
+        if (this.layout.pointSize !== undefined) {
+            pointSize = this.layout.pointSize;
+        } else {
+            pointSize = 20.
+        }
+        const uniforms = {u_matrix: projectionMatrix, u_pointsize: pointSize};
         twgl.setUniforms(programInfo, uniforms);
 
         gl.drawArrays(gl.POINTS,0,nPts);
