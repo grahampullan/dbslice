@@ -319,6 +319,7 @@ const cfWglCorrMat = {
     attribute vec3 a_color;
     
     uniform mat4 u_matrix;
+    uniform float u_pointsize;
     
     varying vec3 v_color;
     
