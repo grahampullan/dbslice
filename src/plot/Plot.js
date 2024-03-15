@@ -10,13 +10,13 @@ import { Component } from 'board-box';
 class Plot extends Component {
     constructor(options) {
         if (!options) { options={} }
-        this.containerClassName = options.containerClassName || "plot-area";
         super(options);
-        this.layout = options.layout;
-        this.data = options.data;
-        this.fetchData = options.fetchData;
-        this.lastWidth = this.width;
-        this.lastHeight = this.height;
+        this.containerClassName = options.containerClassName || "plot-area";
+        this.layout = options.layout || {};
+        this.data = options.data || {};
+        this.fetchData = options.fetchData || null;
+        //this.lastWidth = this.width;
+        //this.lastHeight = this.height;
         this.newData = true;
     }
 

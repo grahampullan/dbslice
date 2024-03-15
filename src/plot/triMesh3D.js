@@ -11,12 +11,11 @@ class triMesh3D extends Plot {
 
     constructor(options) {
 		if (!options) { options={} }
-		options.margin = {top:0, right:0, bottom:0, left:0};
+		options.margin = {top:10, right:10, bottom:10, left:10};
         super(options);
     }
 
 	make() {
-
 		const container = d3.select(`#${this.parentId}`);
 		const boundTipOn = this.tipOn.bind(this);
 		const boundTipOff = this.tipOff.bind(this);
@@ -26,6 +25,8 @@ class triMesh3D extends Plot {
             .style("position", "relative")
 			.on( "mouseover", boundTipOn)
 			.on( "mouseout", boundTipOff );
+		this.lastWidth = this.width;
+		this.lastHeight = this.height;
         this.setContainerSize();  
 
 		const renderer = new THREE.WebGLRenderer({logarithmicDepthBuffer: true});
@@ -60,6 +61,8 @@ class triMesh3D extends Plot {
 		const container = d3.select(`#${this.parentId}`);
 		const overlay = container.select(".svg-overlay");
 		const plotArea = container.select(".plot-area");
+		const width = this.containerWidth;
+		const height = this.containerHeight;
 		const layout = this.layout;
 		const cameraSync = layout.cameraSync;
 		const timeSync = layout.timeSync;
@@ -79,11 +82,12 @@ class triMesh3D extends Plot {
             return
         }
 
-		renderer.setSize( this.containerWidth , this.containerHeight );
+		console.log(width, height);
+		renderer.setSize( width , height );
 		this.setContainerSize();
 		overlay
-			.attr("width", this.containerWidth)
-			.attr("height", this.containerHeight)
+			.attr("width", width)
+			.attr("height", height);
 
 		this.getOffsets();
 		const offsets = this.offsets;
@@ -327,7 +331,10 @@ class triMesh3D extends Plot {
 			camera.up.set(0,0,1);
 			this.camera = camera;
 		}
+	
 		const camera = this.camera;
+		camera.aspect = width / height;
+		camera.updateProjectionMatrix();
 
 		if (this.watchedCamera !== undefined) {
 			camera.position.copy(this.watchedCamera.position);
