@@ -81,8 +81,7 @@ class triMesh3D extends Plot {
 		if ( !this.newData && !this.checkResize ) {
             return
         }
-
-		console.log(width, height);
+		
 		renderer.setSize( width , height );
 		this.setContainerSize();
 		overlay
