@@ -7,7 +7,7 @@ import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
 //import { update } from '../core/update.js';
 import { Plot } from './Plot.js';
 
-class triMesh3D extends Plot {
+class TriMesh3D extends Plot {
 
     constructor(options) {
 		if (!options) { options={} }
@@ -67,6 +67,7 @@ class triMesh3D extends Plot {
 		const cameraSync = layout.cameraSync;
 		const timeSync = layout.timeSync;
 		const highlightTasks = layout.highlightTasks;
+		const sharedCamera = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCamera;
 		//const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
 		//const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 		const buffer = this.data;
@@ -77,11 +78,12 @@ class triMesh3D extends Plot {
 		const boundRenderScene = renderScene.bind(this);
 		const boundFindZpCut = findZpCut.bind(this);
 		const boundGetCutLine = getCutLine.bind(this);
+		const boundUpdateCameraAndRenderScene = updateCameraAndRenderScene.bind(this);
 
 		if ( !this.newData && !this.checkResize ) {
             return
         }
-		
+
 		renderer.setSize( width , height );
 		this.setContainerSize();
 		overlay
@@ -335,22 +337,29 @@ class triMesh3D extends Plot {
 		camera.aspect = width / height;
 		camera.updateProjectionMatrix();
 
-		if (this.watchedCamera !== undefined) {
-			camera.position.copy(this.watchedCamera.position);
-			camera.rotation.copy(this.watchedCamera.rotation);
+		if ( cameraSync ) {
+			//sharedCamera.state = {position: camera.position, rotation: camera.rotation};
+			if (!sharedCamera.isSubscribed(boundUpdateCameraAndRenderScene)) {
+				sharedCamera.subscribe(boundUpdateCameraAndRenderScene);
+			}
 		}
 
-		if ( cameraSync && !this.watchedCamera) {
-			let handler = {
-				set: function(target, key, value) {
-					camera[key].copy(value);
-					boundRenderScene();
-					return true;
-				}
-			};
-			let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, handler);
-			this.watchedCamera = watchedCamera;
-		}
+		//if (this.watchedCamera !== undefined) {
+		//	camera.position.copy(this.watchedCamera.position);
+		//	camera.rotation.copy(this.watchedCamera.rotation);
+		//}
+
+		//if ( cameraSync && !this.watchedCamera) {
+		//	let handler = {
+		//		set: function(target, key, value) {
+		//			camera[key].copy(value);
+		//			boundRenderScene();
+		//			return true;
+		//		}
+		//	};
+		//	let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, handler);
+		//	this.watchedCamera = watchedCamera;
+		//}
 
 		// Add controls 
 		if (!this.controls) {
@@ -366,6 +375,9 @@ class triMesh3D extends Plot {
 				boundRenderScene();
 				if ( layout.xCut) {
 					boundFindZpCut(cutData.zpClip, 0.);
+				}
+				if ( cameraSync ) {
+					sharedCamera.state = {position: camera.position, rotation: camera.rotation};
 				}
 				//if ( cameraSync ) {
 				//	let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
@@ -447,7 +459,13 @@ class triMesh3D extends Plot {
 		}
 
 		function renderScene() {
-			this.renderer.render(this.scene, camera);
+			this.renderer.render(this.scene, this.camera);
+		}
+
+		function updateCameraAndRenderScene(cameraView) {
+			this.camera.position.copy(cameraView.position);
+			this.camera.rotation.copy(cameraView.rotation);
+			boundRenderScene();
 		}
 
 		function barDragged(event,d){
@@ -739,4 +757,4 @@ class triMesh3D extends Plot {
 
 }
 
-export { triMesh3D };
+export { TriMesh3D };
