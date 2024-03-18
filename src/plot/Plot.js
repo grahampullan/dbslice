@@ -21,7 +21,8 @@ class Plot extends Component {
     }
 
     get checkResize() {
-        return (this.lastWidth !== this.width || this.lastHeight !== this.height);
+        const ifResize = this.width !== this.lastWidth || this.height !== this.lastHeight;
+        return ifResize;
     }
 }
 

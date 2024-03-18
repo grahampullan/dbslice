@@ -81,7 +81,7 @@ class TriMesh3D extends Plot {
 		const boundUpdateCameraAndRenderScene = updateCameraAndRenderScene.bind(this);
 
 		if ( !this.newData && !this.checkResize ) {
-            return
+            return;
         }
 
 		renderer.setSize( width , height );
@@ -89,6 +89,13 @@ class TriMesh3D extends Plot {
 		overlay
 			.attr("width", width)
 			.attr("height", height);
+
+		if ( this.checkResize && !this.newData ) {
+			this.lastWidth = width;
+			this.lastHeight = height;
+			boundRenderScene();
+			return;
+		}
 
 		this.getOffsets();
 		const offsets = this.offsets;

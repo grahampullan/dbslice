@@ -33,7 +33,7 @@
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.3.0",
     "@fortawesome/free-solid-svg-icons": "^6.3.0",
-    "board-box": "^0.1.7",
+    "board-box": "^0.1.8",
     "bootstrap": "^5.2.2",
     "crossfilter2": "^1.5.4",
     "d3": "^4.13.0",
