@@ -21,9 +21,18 @@ class Plot extends Component {
     }
 
     get checkResize() {
-        const ifResize = this.width !== this.lastWidth || this.height !== this.lastHeight;
-        return ifResize;
+        const ifResize = Math.round(this.width) !== Math.round(this.lastWidth) || Math.round(this.height) !== Math.round(this.lastHeight);
+        const ifMove = Math.round(this.left) !== Math.round(this.lastLeft) || Math.round(this.top) !== Math.round(this.lastTop);
+        return ifResize || ifMove;
     }
+
+    setLasts() {
+        this.lastWidth = this.width;
+        this.lastHeight = this.height;
+        this.lastLeft = this.left;
+        this.lastTop = this.top;
+    }
+
 }
 
 export { Plot };

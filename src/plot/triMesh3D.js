@@ -6,12 +6,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
 //import { update } from '../core/update.js';
 import { Plot } from './Plot.js';
+import { render } from '../Dbslice.js';
 
 class TriMesh3D extends Plot {
 
     constructor(options) {
 		if (!options) { options={} }
-		options.margin = {top:10, right:10, bottom:10, left:10};
+		options.margin = options.margin || {top:10, right:10, bottom:10, left:10};
         super(options);
     }
 
@@ -25,20 +26,20 @@ class TriMesh3D extends Plot {
             .style("position", "relative")
 			.on( "mouseover", boundTipOn)
 			.on( "mouseout", boundTipOff );
-		this.lastWidth = this.width;
-		this.lastHeight = this.height;
+		div.style("height",`${this.containerHeight}px`);
+		this.setLasts();
         this.setContainerSize();  
 
-		const renderer = new THREE.WebGLRenderer({logarithmicDepthBuffer: true});
-		renderer.setPixelRatio( window.devicePixelRatio );
-		renderer.setSize( this.containerWidth , this.containerHeight );
-		div.node().appendChild( renderer.domElement );
-		this.renderer = renderer;
+		//const renderer = new THREE.WebGLRenderer({logarithmicDepthBuffer: true});
+		//renderer.setPixelRatio( window.devicePixelRatio );
+		//renderer.setSize( this.containerWidth , this.containerHeight );
+		//div.node().appendChild( renderer.domElement );
+		this.renderer = this.sharedStateByAncestorId["context"].renderer;
 
-		div.select("canvas")
-			.style("position","absolute")
-			.style("top","0px")
-			.style("left","0px");
+		//div.select("canvas")
+		//	.style("position","absolute")
+		//	.style("top","0px")
+		//	.style("left","0px");
 
 		const overlay = div.append("svg")
 			.attr("class","svg-overlay")
@@ -52,6 +53,7 @@ class TriMesh3D extends Plot {
 
 		this.cutData = {};
 		
+
 		this.update();
 
 	}
@@ -75,25 +77,39 @@ class TriMesh3D extends Plot {
 		const cutData = this.cutData;
 
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
-		const boundRenderScene = renderScene.bind(this);
+		const boundRenderScene = this.renderScene.bind(this);
 		const boundFindZpCut = findZpCut.bind(this);
 		const boundGetCutLine = getCutLine.bind(this);
 		const boundUpdateCameraAndRenderScene = updateCameraAndRenderScene.bind(this);
 
+		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
+		//console.log("in TriMesh3D update");
+		console.log("TriMesh ",this.updateType)
+		if (this.updateType == "layout") {
+			//console.log("update type is layout");
+			return;
+		}
+		
+		if (this.renderObserverId !== undefined) {
+			requestWebGLRender.setObserverLastById(this.renderObserverId);
+		}
+		if (requestWebGLRender.state = false) {
+			requestWebGLRender.state = true;
+	   	}
+	
 		if ( !this.newData && !this.checkResize ) {
             return;
         }
 
-		renderer.setSize( width , height );
 		this.setContainerSize();
 		overlay
 			.attr("width", width)
 			.attr("height", height);
 
 		if ( this.checkResize && !this.newData ) {
-			this.lastWidth = width;
-			this.lastHeight = height;
-			boundRenderScene();
+			this.setLasts();
+			//boundRenderScene();
+			this.renderScene();
 			return;
 		}
 
@@ -370,7 +386,7 @@ class TriMesh3D extends Plot {
 
 		// Add controls 
 		if (!this.controls) {
-			const controls = new OrbitControls( camera, renderer.domElement );
+			const controls = new OrbitControls( camera, plotArea.node() );
 			controls.target.set( xMid, yMid, zMid );
 			controls.enabled = true;
 			controls.update();
@@ -400,7 +416,12 @@ class TriMesh3D extends Plot {
 			this.controls = controls;
 		}
 	
-		boundRenderScene();
+		//boundRenderScene();
+		this.renderScene();
+
+		if (!this.renderObserverId) {
+			this.renderObserverId = requestWebGLRender.subscribe(boundRenderScene);
+		}
 
 		if ( layout.xCut && !this.checkResize ) {
 			boundFindZpCut(cutData.zpClip, 0.);
@@ -462,17 +483,15 @@ class TriMesh3D extends Plot {
 				scene.add( newMesh );
 			} 
 			this.scene = scene;
-			boundRenderScene();
-		}
-
-		function renderScene() {
-			this.renderer.render(this.scene, this.camera);
+			//boundRenderScene();
+			this.renderScene();
 		}
 
 		function updateCameraAndRenderScene(cameraView) {
 			this.camera.position.copy(cameraView.position);
 			this.camera.rotation.copy(cameraView.rotation);
-			boundRenderScene();
+			//boundRenderScene();
+			this.renderScene();
 		}
 
 		function barDragged(event,d){
@@ -648,6 +667,56 @@ class TriMesh3D extends Plot {
 		this.lastWidth = this.width;
 		this.lastHeight = this.height;
 
+	}
+
+	renderScene() {
+		const renderer = this.renderer;
+		const container = d3.select(`#${this.parentId}`);
+		const plotArea = container.select(".plot-area");
+		renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
+		let plotRect = plotArea.node().getBoundingClientRect();
+		const ancestorId = this.ancestorIds[this.ancestorIds.length-1];
+		let rect={left:plotRect.left, right:plotRect.right, top:plotRect.top, bottom:plotRect.bottom};
+		if (ancestorId !== "context") {
+			let plotGroupRect = d3.select(`#${ancestorId}`).node().getBoundingClientRect();
+			if (plotRect.right < plotGroupRect.left) {return;}
+			if (plotRect.left > plotGroupRect.right) {return;}
+			if (plotRect.bottom < plotGroupRect.top) {return;}
+			if (plotRect.top > plotGroupRect.bottom) {return;}
+			if (plotRect.left < plotGroupRect.left && plotRect.right > plotGroupRect.left) {
+				rect.left = plotGroupRect.left + 2; 
+			}
+			if (plotRect.right > plotGroupRect.right && plotRect.left < plotGroupRect.right) { 
+				rect.right = plotGroupRect.right -2 ; 
+			}
+			if (plotRect.top < plotGroupRect.top && plotRect.bottom > plotGroupRect.top) { 
+				rect.top = plotGroupRect.top + 2; 
+			}
+			if (plotRect.bottom > plotGroupRect.bottom && plotRect.top < plotRect.bottom) { 
+				rect.bottom = plotGroupRect.bottom - 2;
+			}
+		}
+
+		const scissorLeft = Math.floor(rect.left);
+		const scissorBottom = Math.floor(renderer.domElement.clientHeight - rect.bottom);
+		const scissorWidth = Math.floor(rect.right - rect.left);
+		const scissorHeight = Math.floor(rect.bottom - rect.top);
+
+		const viewLeft = Math.floor(plotRect.left);
+		const viewBottom = Math.floor(renderer.domElement.clientHeight - plotRect.bottom);
+		const viewWidth = Math.floor(plotRect.right - plotRect.left);
+		const viewHeight = Math.floor(plotRect.bottom - plotRect.top);
+
+		renderer.setClearColor( 0xe0e0e0 );
+		renderer.setScissorTest( true );
+	
+		renderer.setViewport( viewLeft, viewBottom, viewWidth, viewHeight );
+		renderer.setScissor( scissorLeft, scissorBottom, scissorWidth, scissorHeight);
+		renderer.clear();
+			
+		//console.log("rendering scene", this.parentId);
+		renderer.render(this.scene, this.camera);
+		renderer.setScissorTest( false );
 	}
 
 	highlightTasks(){
