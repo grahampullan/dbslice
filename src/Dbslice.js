@@ -34,3 +34,9 @@ export { d3CutLine } from './plot/d3CutLine.js';
 export { getPlotFunc } from './plot/getPlotFunc.js';
 export { getDataFilterFunc } from './filters/getDataFilterFunc.js';
 export { dbsliceData } from './core/dbsliceData.js';
+export { TriMesh3D } from './plot/TriMesh3D.js';
+export { PlotBox } from './core/PlotBox.js';
+export { Context } from './core/Context.js';
+export { Board } from './core/Board.js';
+
+
