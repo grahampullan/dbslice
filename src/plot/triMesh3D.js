@@ -26,7 +26,6 @@ class TriMesh3D extends Plot {
             .style("position", "relative")
 			.on( "mouseover", boundTipOn)
 			.on( "mouseout", boundTipOff );
-		div.style("height",`${this.containerHeight}px`);
 		this.setLasts();
         this.setContainerSize();  
 		this.renderer = this.sharedStateByAncestorId["context"].renderer;
@@ -71,8 +70,7 @@ class TriMesh3D extends Plot {
 		const boundUpdateCameraAndRenderScene = updateCameraAndRenderScene.bind(this);
 
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
-		//console.log("in TriMesh3D update");
-		console.log("TriMesh ",this.updateType)
+	
 		this.setContainerSize();
 		overlay
 			.attr("width", width)
@@ -81,7 +79,6 @@ class TriMesh3D extends Plot {
 		if (this.updateType == "layout") {
 			return;
 		}
-
 		
 		if (this.renderObserverId !== undefined) {
 			requestWebGLRender.setObserverLastById(this.renderObserverId);
