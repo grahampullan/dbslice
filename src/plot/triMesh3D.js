@@ -29,17 +29,7 @@ class TriMesh3D extends Plot {
 		div.style("height",`${this.containerHeight}px`);
 		this.setLasts();
         this.setContainerSize();  
-
-		//const renderer = new THREE.WebGLRenderer({logarithmicDepthBuffer: true});
-		//renderer.setPixelRatio( window.devicePixelRatio );
-		//renderer.setSize( this.containerWidth , this.containerHeight );
-		//div.node().appendChild( renderer.domElement );
 		this.renderer = this.sharedStateByAncestorId["context"].renderer;
-
-		//div.select("canvas")
-		//	.style("position","absolute")
-		//	.style("top","0px")
-		//	.style("left","0px");
 
 		const overlay = div.append("svg")
 			.attr("class","svg-overlay")
@@ -70,8 +60,6 @@ class TriMesh3D extends Plot {
 		const timeSync = layout.timeSync;
 		const highlightTasks = layout.highlightTasks;
 		const sharedCamera = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCamera;
-		//const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
-		//const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 		const buffer = this.data;
 		const renderer = this.renderer;
 		const cutData = this.cutData;
@@ -85,10 +73,15 @@ class TriMesh3D extends Plot {
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
 		//console.log("in TriMesh3D update");
 		console.log("TriMesh ",this.updateType)
+		this.setContainerSize();
+		overlay
+			.attr("width", width)
+			.attr("height", height);
+
 		if (this.updateType == "layout") {
-			//console.log("update type is layout");
 			return;
 		}
+
 		
 		if (this.renderObserverId !== undefined) {
 			requestWebGLRender.setObserverLastById(this.renderObserverId);
@@ -96,19 +89,18 @@ class TriMesh3D extends Plot {
 		if (requestWebGLRender.state = false) {
 			requestWebGLRender.state = true;
 	   	}
+
+
 	
-		if ( !this.newData && !this.checkResize ) {
+		if ( !this.newData && this.updateType == "move") {
+			this.setLasts();
+			this.renderScene();
             return;
         }
 
-		this.setContainerSize();
-		overlay
-			.attr("width", width)
-			.attr("height", height);
 
 		if ( this.checkResize && !this.newData ) {
 			this.setLasts();
-			//boundRenderScene();
 			this.renderScene();
 			return;
 		}
@@ -367,23 +359,6 @@ class TriMesh3D extends Plot {
 			}
 		}
 
-		//if (this.watchedCamera !== undefined) {
-		//	camera.position.copy(this.watchedCamera.position);
-		//	camera.rotation.copy(this.watchedCamera.rotation);
-		//}
-
-		//if ( cameraSync && !this.watchedCamera) {
-		//	let handler = {
-		//		set: function(target, key, value) {
-		//			camera[key].copy(value);
-		//			boundRenderScene();
-		//			return true;
-		//		}
-		//	};
-		//	let watchedCamera = new Proxy({position: camera.position, rotation: camera.rotation}, handler);
-		//	this.watchedCamera = watchedCamera;
-		//}
-
 		// Add controls 
 		if (!this.controls) {
 			const controls = new OrbitControls( camera, plotArea.node() );
@@ -402,21 +377,11 @@ class TriMesh3D extends Plot {
 				if ( cameraSync ) {
 					sharedCamera.state = {position: camera.position, rotation: camera.rotation};
 				}
-				//if ( cameraSync ) {
-				//	let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
-				//	plots.forEach( (plot) =>  {
-				//		if (plot.watchedCamera !== undefined) {
-				//			plot.watchedCamera.position = camera.position;
-				//			plot.watchedCamera.rotation = camera.rotation;
-				//		}
-				//	});
-				//}
 			} ); 
 			controls.enableZoom = true; 
 			this.controls = controls;
 		}
 	
-		//boundRenderScene();
 		this.renderScene();
 
 		if (!this.renderObserverId) {
