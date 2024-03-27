@@ -12,48 +12,50 @@ class TriMesh3D extends Plot {
 
     constructor(options) {
 		if (!options) { options={} }
-		options.margin = options.margin || {top:10, right:10, bottom:10, left:10};
+		options.layout = options.layout || {};
+		options.layout.margin = options.layout.margin || {top:0, right:0, bottom:0, left:0};
         super(options);
     }
 
 	make() {
-		const container = d3.select(`#${this.parentId}`);
+		//console.log(this);
+		this.addPlotAreaDiv();
+		const container = d3.select(`#${this.id}`);
+		const plotArea = d3.select(`#${this.plotAreaId}`);
+	
 		const boundTipOn = this.tipOn.bind(this);
 		const boundTipOff = this.tipOff.bind(this);
 
-        const div = container.append("div")
-            .attr("class", `${this.containerClassName}`)
-            .style("position", "relative")
+		plotArea
+			//.style("position","relative")
 			.on( "mouseover", boundTipOn)
 			.on( "mouseout", boundTipOff );
 		this.setLasts();
-        this.setContainerSize();  
+ 
 		this.renderer = this.sharedStateByAncestorId["context"].renderer;
 
-		const overlay = div.append("svg")
+		const overlay = container.append("svg")
 			.attr("class","svg-overlay")
 			.style("position","absolute")
 			.style("pointer-events", "none")
 			.style("z-index",2)
-			.style("top","0px")
-			.style("left","0px")
-			.attr("width", this.containerWidth)
-			.attr("height", this.containerHeight);
+			.style("top",`${this.plotAreaTop}px`)
+			.style("left",`${this.plotAreaLeft}px`)
+			.attr("width", `${this.plotAreaWidth}px`)
+			.attr("height", `${this.plotAreaHeight}px`);
 
 		this.cutData = {};
-		
-
 		this.update();
 
 	}
 
 	update() {
 
-		const container = d3.select(`#${this.parentId}`);
+		const container = d3.select(`#${this.id}`);
 		const overlay = container.select(".svg-overlay");
 		const plotArea = container.select(".plot-area");
-		const width = this.containerWidth;
-		const height = this.containerHeight;
+		const width = this.plotAreaWidth;
+		const height = this.plotAreaHeight;
 		const layout = this.layout;
 		const cameraSync = layout.cameraSync;
 		const timeSync = layout.timeSync;
@@ -71,7 +73,8 @@ class TriMesh3D extends Plot {
 
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
 	
-		this.setContainerSize();
+		this.updatePlotAreaSize();
+		//this.setContainerSize();
 		overlay
 			.attr("width", width)
 			.attr("height", height);
@@ -633,7 +636,7 @@ class TriMesh3D extends Plot {
 
 	renderScene() {
 		const renderer = this.renderer;
-		const container = d3.select(`#${this.parentId}`);
+		const container = d3.select(`#${this.id}`);
 		const plotArea = container.select(".plot-area");
 		renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
 		let plotRect = plotArea.node().getBoundingClientRect();
