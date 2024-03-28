@@ -19,6 +19,7 @@ class TriMesh3D extends Plot {
 
 	make() {
 		//console.log(this);
+		this.updateHeader();
 		this.addPlotAreaDiv();
 		const container = d3.select(`#${this.id}`);
 		const plotArea = d3.select(`#${this.plotAreaId}`);
@@ -73,6 +74,7 @@ class TriMesh3D extends Plot {
 
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
 	
+		this.updateHeader();
 		this.updatePlotAreaSize();
 		//this.setContainerSize();
 		overlay

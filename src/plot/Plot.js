@@ -15,6 +15,7 @@ class Plot extends Component {
         this.layout = options.layout || {};
         this.data = options.data || {};
         this.fetchData = options.fetchData || null;
+        this.headerOffset = 0;
         this.newData = true;
     }
 
@@ -36,7 +37,7 @@ class Plot extends Component {
     }
 
     get plotAreaHeight() {
-        return this.height - this.layout.margin.top - this.layout.margin.bottom;
+        return this.height - this.layout.margin.top - this.layout.margin.bottom - this.headerOffset;
     }
 
     get plotAreaLeft() {
@@ -44,7 +45,7 @@ class Plot extends Component {
     }
 
     get plotAreaTop() {
-        return this.layout.margin.top;
+        return this.layout.margin.top + this.headerOffset;
     }
 
     get plotAreaId() {
@@ -86,6 +87,8 @@ class Plot extends Component {
         const container = d3.select(`#${this.id}`);
         const plotArea = container.select(".plot-area");
         plotArea
+            .style("top", `${this.plotAreaTop}px`)
+            .style("left", `${this.plotAreaLeft}px`)
             .style("width", `${this.plotAreaWidth}px`)
             .style("height", `${this.plotAreaHeight}px`)
             .attr("width", this.width)
@@ -93,20 +96,34 @@ class Plot extends Component {
         return;
     }
 
-    /*
-    addTitle() {
-        const container = d3.select(`#${this.parentId}`);
-        if ( this.layout.title ) {
-            const title = container.append("div")
+    
+    setTitle() {
+        const container = d3.select(`#${this.id}`);
+        if ( !this.layout.title ) {
+            container.select(".plot-title").remove();
+            return;
+        }
+        const title = container.select(".plot-title");
+        if ( title.empty() ) {
+            const newTitle = container.append("div")
                 .attr("class", "plot-title")
+                .attr("id", `${this.id}-plot-title`)
                 .style("position", "absolute")
                 .style("top", "0")
                 .style("left", "0")
                 .style("width", "100%")
-                .style("text-align", "center")
-                .style("font-size", "1.5em")
                 .text(this.layout.title);
-    }*/
+            this.headerOffset = newTitle.node().clientHeight + 3;
+        } else {
+            title.text(this.layout.title);
+            this.headerOffset = title.node().clientHeight + 3;
+        }
+    }
+
+    updateHeader() {
+        this.setTitle();
+        return;
+    }
 
 
 }

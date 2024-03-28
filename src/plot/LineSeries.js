@@ -11,12 +11,13 @@ class LineSeries extends Plot {
 		if (!options) { options={} }
         options.layout = options.layout || {};
         console.log(options.layout);
-		options.layout.margin = options.layout.margin || {top:20, right:20, bottom:30, left:53};
+		options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
         super(options);
     }
 
     make() {
         const container = d3.select(`#${this.id}`);
+        this.updateHeader();
         this.addPlotAreaSvg();
         this.setLasts();
         
@@ -60,6 +61,7 @@ class LineSeries extends Plot {
             }
         }
 
+        this.updateHeader();
         this.updatePlotAreaSize();
 
         const clipId = `${this.id}-clip`;
