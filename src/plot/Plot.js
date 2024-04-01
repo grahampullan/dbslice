@@ -1,4 +1,5 @@
 import { Component } from 'board-box';
+import { fetchPlotData } from '../core/fetchPlotData';
 import * as d3 from 'd3v7';
 import { icon } from '@fortawesome/fontawesome-svg-core'
 import { faXmark } from '@fortawesome/free-solid-svg-icons'
@@ -21,6 +22,7 @@ class Plot extends Component {
         this.fetchData = options.fetchData || null;
         this.headerOffset = 0;
         this.newData = true;
+        this.fetchDataNow = true;
         this.icons = [];
         this.setCommonIcons();
     }
@@ -176,6 +178,16 @@ class Plot extends Component {
         return;
     }
 
+    async getData() {
+        if (!this.fetchData || !this.fetchDataNow){
+            return;
+        }
+        this.fetchingData = true;
+        this.data = await fetchPlotData(this.fetchData);
+        this.fetchingData = false;
+        this.fetchDataNow = false;
+        this.newData = true;
+    }
 
 }
 

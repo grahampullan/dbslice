@@ -18,7 +18,6 @@ class TriMesh3D extends Plot {
     }
 
 	make() {
-		//console.log(this);
 		this.updateHeader();
 		this.addPlotAreaDiv();
 		const container = d3.select(`#${this.id}`);
@@ -28,7 +27,6 @@ class TriMesh3D extends Plot {
 		const boundTipOff = this.tipOff.bind(this);
 
 		plotArea
-			//.style("position","relative")
 			.on( "mouseover", boundTipOn)
 			.on( "mouseout", boundTipOff );
 		this.setLasts();
@@ -50,7 +48,9 @@ class TriMesh3D extends Plot {
 
 	}
 
-	update() {
+	async update() {
+		if (this.fetchingData) return;
+		await this.getData();
 
 		const container = d3.select(`#${this.id}`);
 		const overlay = container.select(".svg-overlay");
@@ -76,7 +76,7 @@ class TriMesh3D extends Plot {
 	
 		this.updateHeader();
 		this.updatePlotAreaSize();
-		//this.setContainerSize();
+
 		overlay
 			.attr("width", width)
 			.attr("height", height);
@@ -92,8 +92,6 @@ class TriMesh3D extends Plot {
 			requestWebGLRender.state = true;
 	   	}
 
-
-	
 		if ( !this.newData && this.updateType == "move") {
 			this.setLasts();
 			this.renderScene();
@@ -104,6 +102,10 @@ class TriMesh3D extends Plot {
 		if ( this.checkResize && !this.newData ) {
 			this.setLasts();
 			this.renderScene();
+			return;
+		}	
+
+		if ( !this.newData ) {
 			return;
 		}
 
@@ -645,7 +647,7 @@ class TriMesh3D extends Plot {
 		const ancestorId = this.ancestorIds[this.ancestorIds.length-1];
 		let rect={left:plotRect.left, right:plotRect.right, top:plotRect.top, bottom:plotRect.bottom};
 		if (ancestorId !== "context") {
-			let plotGroupRect = d3.select(`#${ancestorId}`).node().getBoundingClientRect();
+			let plotGroupRect = d3.select(`#${ancestorId}-component-plot-area`).node().getBoundingClientRect();
 			if (plotRect.right < plotGroupRect.left) {return;}
 			if (plotRect.left > plotGroupRect.right) {return;}
 			if (plotRect.bottom < plotGroupRect.top) {return;}

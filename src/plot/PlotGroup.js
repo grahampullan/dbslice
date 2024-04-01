@@ -1,4 +1,5 @@
 import { Plot } from './Plot.js';
+import * as d3 from 'd3v7'
 
 class PlotGroup extends Plot {
 
@@ -10,6 +11,7 @@ class PlotGroup extends Plot {
     make() {
         this.updateHeader();
         this.addPlotAreaDiv();
+        d3.select(`#${this.plotAreaId}`).style("overflow", "hidden");
         this.setLasts();
         this.update();
     }

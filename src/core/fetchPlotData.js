@@ -1,12 +1,12 @@
 import { getDataFilterFunc } from '../filters/getDataFilterFunc.js';
-import { dbsliceData } from './dbsliceData.js';
+//import { dbsliceData } from './dbsliceData.js';
 import * as d3 from 'd3';
 
 function fetchPlotData( fetchData ) {
 
     if ( fetchData.url !== undefined ) {
 
-        let taskPromise = fetch(fetchData.url)
+        let itemPromise = fetch(fetchData.url)
 
         .then(function( response ) {
 
@@ -30,7 +30,7 @@ function fetchPlotData( fetchData ) {
     
         });
 
-        return taskPromise.then(function( responseJson ) {
+        return itemPromise.then(function( responseJson ) {
 
             if ( fetchData.csv == true ) {
     
@@ -78,32 +78,32 @@ function fetchPlotData( fetchData ) {
 
     if ( fetchData.urlTemplate !== undefined ) {
 
-        const allTaskPromises = [];
-        const tasksOnPlot = [];
+        const allItemPromises = [];
+        const itemsOnPlot = [];
 
-        if ( fetchData.tasksByFilter ) {
+        //if ( fetchData.tasksByFilter ) {
+        //
+        //    fetchData.taskIds = dbsliceData.filteredTaskIds;
+        //    fetchData.taskLabels = dbsliceData.filteredTaskLabels;
+        //    
+        //}
 
-            fetchData.taskIds = dbsliceData.filteredTaskIds;
-            fetchData.taskLabels = dbsliceData.filteredTaskLabels;
-            
-        }
-
-        if ( fetchData.taskIds == undefined ) {
-            console.log("no tasks yet");
+        if ( fetchData.itemIds == undefined ) {
+            console.log("no itemIds yet");
             return null;
         }
 
-	    let nTasks = fetchData.taskIds.length;
+	    let nItems = fetchData.itemIds.length;
 
-	    if ( fetchData.maxTasks !== undefined ) nTasks = Math.min( nTasks, fetchData.maxTasks );
+	    if ( fetchData.maxItems !== undefined ) nItems = Math.min( nItems, fetchData.maxItems );
 
-	    for ( let index = 0; index < nTasks; ++index ) {
+	    for ( let index = 0; index < nItems; ++index ) {
 
-            tasksOnPlot.push( fetchData.taskIds[index] );
+            itemsOnPlot.push( fetchData.itemIds[index] );
 
-    		let url = fetchData.urlTemplate.replace( "${taskId}", fetchData.taskIds[ index ] );
+    		let url = fetchData.urlTemplate.replace( "${itemId}", fetchData.itemIds[ index ] );
 
-			let taskPromise = fetch(url).then( function( response ) {
+			let itemPromise = fetch(url).then( function( response ) {
 
 				if ( fetchData.csv === undefined && fetchData.text === undefined && fetchData.buffer === undefined ) {
 
@@ -125,11 +125,11 @@ function fetchPlotData( fetchData ) {
 
 			});
 
-		    allTaskPromises.push( taskPromise );
+		    allItemPromises.push( itemPromise );
 
 	    }
 
-        return Promise.all( allTaskPromises ).then( function ( responseJson ) {
+        return Promise.all( allItemPromises ).then( function ( responseJson ) {
 
         if ( fetchData.csv == true ) {
 
@@ -171,7 +171,7 @@ function fetchPlotData( fetchData ) {
 
             let dataFilterConfig = fetchData.dataFilterConfig;
 
-    		data = dataFilterFunc( responseJson, tasksOnPlot, dataFilterConfig );
+    		data = dataFilterFunc( responseJson, itemsOnPlot, dataFilterConfig );
 
     	} else {
 
