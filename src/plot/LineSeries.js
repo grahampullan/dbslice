@@ -10,7 +10,6 @@ class LineSeries extends Plot {
     constructor(options) {
 		if (!options) { options={} }
         options.layout = options.layout || {};
-        console.log(options.layout);
 		options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
         super(options);
     }

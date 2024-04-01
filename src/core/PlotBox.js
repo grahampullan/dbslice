@@ -5,6 +5,7 @@ class PlotBox extends Box {
         if (!options) { options={} }
         super(options);
         this.sharedState = {...this.sharedState, sharedCamera: new Observable({flag: false, state: {}})};
+        this.locationForChildBoxes = options.locationForChildBoxes || "component-plot-area";
     }
 }
 
