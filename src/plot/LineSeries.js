@@ -3,24 +3,22 @@
 import * as d3 from 'd3v7';
 //import d3tip from 'd3-tip';
 import { Plot } from './Plot.js';
+import { la } from 'nd4js';
 
 class LineSeries extends Plot {
 
     constructor(options) {
 		if (!options) { options={} }
-		options.margin = options.margin || {top:20, right:20, bottom:30, left:53};
+        options.layout = options.layout || {};
+		options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
         super(options);
     }
 
     make() {
-        const container = d3.select(`#${this.parentId}`);
-
-        const svg = container.append("svg")
-            .attr("class", `${this.containerClassName}`)
-            .style("position", "relative")
-            .style("overflow", "visible");
+        const container = d3.select(`#${this.id}`);
+        this.updateHeader();
+        this.addPlotAreaSvg();
         this.setLasts();
-        this.setContainerSize(); 
         
         if ( this.data == null || this.data == undefined ) {
             console.log ("in line plot - no data");
@@ -32,7 +30,6 @@ class LineSeries extends Plot {
             .style("opacity", 0);
 
         this.update();
-
     }
 
     update() {
@@ -41,7 +38,7 @@ class LineSeries extends Plot {
             return
         }
 
-        const container = d3.select(`#${this.parentId}`);
+        const container = d3.select(`#${this.id}`);
         const layout = this.layout;
         //const svg = container.select("svg");
         const plotArea = container.select(".plot-area");
@@ -49,7 +46,7 @@ class LineSeries extends Plot {
         const timeSync = layout.timeSync;
         const xAxisMean = layout.xAxisMean;
         const yAxisMean = layout.yAxisMean;
-        const margin = this.margin;
+        const margin = layout.margin;
         ///const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
         //const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 
@@ -63,9 +60,10 @@ class LineSeries extends Plot {
             }
         }
 
-        this.setContainerSize();
+        this.updateHeader();
+        this.updatePlotAreaSize();
 
-        const clipId = `clip-${this._prid}-${this._id}`;
+        const clipId = `${this.id}-clip`;
 
 
 
@@ -77,8 +75,8 @@ class LineSeries extends Plot {
         //const width = svgWidth - margin.left - margin.right;
         //const height = svgHeight - margin.top - margin.bottom;
 
-        const width = this.containerWidth;
-        const height = this.containerHeight;
+        const width = this.plotAreaWidth;
+        const height = this.plotAreaHeight;
 
         const nSeries = this.data.series.length;
 
@@ -173,21 +171,23 @@ class LineSeries extends Plot {
             .x( d => xscale( d.x ) )
             .y( d => yscale( d.y ) );
 
-        const clipRect = container.select(".clip-rect");
+        const clipRect = plotArea.select(".clip-rect");
 
         if ( clipRect.empty() ) {
-            container.append("defs").append("clipPath")
+            plotArea.append("defs").append("clipPath")
                 .attr("id", clipId)
                 .append("rect")
                     .attr("class","clip-rect")
-                    .style("position", "relative")
+                    .style("position", "absolute")
                     .attr("width", width)
                     .attr("height", height)
-                    .style("left", `${this.margin.left}px`)
-                    .style("top", `${this.margin.top}px`);
+                    .style("left", `${this.plotAreaLeft}px`)
+                    .style("top", `${this.plotAreaTop}px`);
         } else {
             clipRect.attr("width", width)
-                .attr("height", height);
+                .attr("height", height)
+                .style("left", `${this.plotAreaLeft}px`)
+                .style("top", `${this.plotAreaTop}px`);
         }
 
         const zoom = d3.zoom()
