@@ -21,6 +21,24 @@ class Context extends bbContext {
         renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight);
         renderer.setScissorTest( true );
         this.sharedState.renderer = renderer;
+        this.metaData={datasets:[], filters:[]};
+        this.sharedState.filters = this.metaData.filters;
+        this.maxDataset = 0;
+        this.maxFilter = 0;
+    }
+
+    addDataset(dataset) {
+        const id = `dataset-${this.maxDataset}`;
+        this.maxDataset++;
+        dataset.id = id;
+        this.metaData.datasets.push(dataset);   
+    }
+
+    addFilter(filter) {
+        const id = `filter-${this.maxFilter}`;
+        this.maxFilter++;
+        filter.id = id;
+        this.metaData.filters.push(filter);
     }
 }
 
