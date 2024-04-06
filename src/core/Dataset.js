@@ -104,6 +104,8 @@ class Dataset {
 		this.continuousProperties.forEach( ( property, i ) => {
 			continuousExtents[property] = d3.extent( this.data.map(d => d[property]));
 		});
+		this.categoricalUniqueValues = categoricalUniqueValues;
+		this.continuousExtents = continuousExtents;
 	}
 
 	createFilter(options) {
@@ -121,6 +123,8 @@ class Dataset {
 		const cf = crossfilter( this.data );
 		const categoricalProperties = this.categoricalProperties;
 		const continuousProperties = this.continuousProperties;
+		const categoricalUniqueValues = this.categoricalUniqueValues;
+		const continuousExtents = this.continuousExtents;
 		const categoricalDims = [];
 		const continuousDims = [];
 		categoricalProperties.forEach( ( property, i ) => {
@@ -134,7 +138,7 @@ class Dataset {
 		const categoricalFilterSelected = [];
 		const continuousFilterSelectedRanges = [];
 		const itemIds = this.data.map( d => d.itemId );
-		const filter = {name, cf, categoricalProperties, continuousProperties, categoricalDims, continuousDims, categoricalFilterSelected, continuousFilterSelectedRanges, itemIds};
+		const filter = {name, cf, categoricalProperties, continuousProperties, categoricalDims, continuousDims, categoricalFilterSelected, continuousFilterSelectedRanges, itemIds, categoricalUniqueValues, continuousExtents};
 		return filter;
 	}	
 
