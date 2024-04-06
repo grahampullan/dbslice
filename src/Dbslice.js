@@ -36,6 +36,7 @@ export { getDataFilterFunc } from './filters/getDataFilterFunc.js';
 export { dbsliceData } from './core/dbsliceData.js';
 export { TriMesh3D } from './plot/TriMesh3D.js';
 export { LineSeries } from './plot/LineSeries.js';
+export { MetaDataScatter } from './plot/MetaDataScatter.js';
 export { PlotGroup } from './plot/PlotGroup.js';
 export { Box } from './core/Box.js';
 export { Context } from './core/Context.js';
