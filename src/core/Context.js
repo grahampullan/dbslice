@@ -21,7 +21,7 @@ class Context extends bbContext {
         renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight);
         renderer.setScissorTest( true );
         this.sharedState.renderer = renderer;
-        this.metaData={datasets:[], filters:[]};
+        this.metaData = {datasets:[], filters:[]};
         this.sharedState.filters = this.metaData.filters;
         this.maxDataset = 0;
         this.maxFilter = 0;

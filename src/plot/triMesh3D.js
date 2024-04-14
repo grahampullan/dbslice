@@ -99,7 +99,7 @@ class TriMesh3D extends Plot {
         }
 
 
-		if ( this.checkResize && !this.newData ) {
+		if ( (this.checkResize || this.checkMove) && !this.newData ) {
 			this.setLasts();
 			this.renderScene();
 			return;

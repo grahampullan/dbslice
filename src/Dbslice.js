@@ -37,10 +37,13 @@ export { dbsliceData } from './core/dbsliceData.js';
 export { TriMesh3D } from './plot/TriMesh3D.js';
 export { LineSeries } from './plot/LineSeries.js';
 export { MetaDataScatter } from './plot/MetaDataScatter.js';
+export { MetaDataHistogram } from './plot/MetaDataHistogram.js';
+export { Plot } from './plot/Plot.js';
 export { PlotGroup } from './plot/PlotGroup.js';
 export { Box } from './core/Box.js';
 export { Context } from './core/Context.js';
 export { Board } from './core/Board.js';
 export { Dataset } from './core/Dataset.js';
+export { Filter } from './core/Filter.js';
 
 

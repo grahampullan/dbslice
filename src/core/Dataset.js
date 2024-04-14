@@ -1,5 +1,5 @@
 import * as d3 from 'd3v7';
-import crossfilter from 'crossfilter2';
+import { Filter } from './Filter.js';
 
 class Dataset {
 	constructor( options ) {
@@ -110,37 +110,18 @@ class Dataset {
 
 	createFilter(options) {
 		options = options || {};
-		options.type = options.type || "crossfilter";
-		options.name = options.name || "filter";
+		options.data = this.data;
+		options.categoricalProperties = this.categoricalProperties;
+		options.continuousProperties = this.continuousProperties;
+		options.categoricalUniqueValues = this.categoricalUniqueValues;
+		options.continuousExtents = this.continuousExtents;
+		options.allItemIds = this.data.map( d => d.itemId );
+		console.log(options);
+		const filter = new Filter(options);
+		console.log(filter);
 
-		if (options.type == "crossfilter") {
-			return this.createCrossfilter(options);
-		}
-	}
-
-	createCrossfilter(options) {
-		const name = options.name;
-		const cf = crossfilter( this.data );
-		const categoricalProperties = this.categoricalProperties;
-		const continuousProperties = this.continuousProperties;
-		const categoricalUniqueValues = this.categoricalUniqueValues;
-		const continuousExtents = this.continuousExtents;
-		const categoricalDims = [];
-		const continuousDims = [];
-		categoricalProperties.forEach( ( property, i ) => {
-			categoricalDims.push( cf.dimension( d => d[ property ] ) );
-		});
-		categoricalDims.forEach( dim => dim.filterAll() );
-		continuousProperties.forEach( ( property, i ) => {
-			continuousDims.push ( cf.dimension( d => d[ property ] ) );
-		});
-		continuousDims.forEach( dim => dim.filterAll() );
-		const categoricalFilterSelected = [];
-		const continuousFilterSelectedRanges = [];
-		const itemIds = this.data.map( d => d.itemId );
-		const filter = {name, cf, categoricalProperties, continuousProperties, categoricalDims, continuousDims, categoricalFilterSelected, continuousFilterSelectedRanges, itemIds, categoricalUniqueValues, continuousExtents};
 		return filter;
-	}	
+	}
 
 }
 

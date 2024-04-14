@@ -29,9 +29,14 @@ class Plot extends Component {
 
     get checkResize() {
         const ifResize = Math.round(this.width) !== Math.round(this.lastWidth) || Math.round(this.height) !== Math.round(this.lastHeight);
-        const ifMove = Math.round(this.left) !== Math.round(this.lastLeft) || Math.round(this.top) !== Math.round(this.lastTop);
-        return ifResize || ifMove;
+        return ifResize;
     }
+
+    get checkMove() {
+        const ifMove = Math.round(this.left) !== Math.round(this.lastLeft) || Math.round(this.top) !== Math.round(this.lastTop);
+        return ifMove;
+    }
+
 
     setLasts() {
         this.lastWidth = this.width;
@@ -99,8 +104,8 @@ class Plot extends Component {
             .style("left", `${this.plotAreaLeft}px`)
             .style("width", `${this.plotAreaWidth}px`)
             .style("height", `${this.plotAreaHeight}px`)
-            .attr("width", this.width)
-            .attr("height", this.height);
+            .attr("width", this.plotAreaWidth)
+            .attr("height", this.plotAreaHeight);
         return;
     }
 
