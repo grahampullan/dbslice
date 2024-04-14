@@ -21,7 +21,8 @@ class MetaDataScatter extends Plot {
         this.filterId = this.data.filterId;
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
         this.dimId = filter.continuousProperties.indexOf( this.data.xProperty );
-
+        filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        
         container.append("div")
             .attr("class", "tool-tip")
             .style("opacity", 0);
@@ -351,6 +352,10 @@ class MetaDataScatter extends Plot {
                     .raise();
             });
         }*/
+    }
+
+    handleFilterChange( data ) {
+        this.update();
     }
 
 }
