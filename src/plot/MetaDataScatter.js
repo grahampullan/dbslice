@@ -9,6 +9,7 @@ class MetaDataScatter extends Plot {
 		if (!options) { options={} }
         options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
+        options.layout.highlightItems = options.layout.highlightItems || true;
         super(options);
     }
 
@@ -22,6 +23,9 @@ class MetaDataScatter extends Plot {
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
         this.dimId = filter.continuousProperties.indexOf( this.data.xProperty );
         filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        if ( this.layout.highlightItems ) {
+            filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+        }
         
         container.append("div")
             .attr("class", "tool-tip")
@@ -48,7 +52,8 @@ class MetaDataScatter extends Plot {
         const xProperty = this.data.xProperty;
         const yProperty = this.data.yProperty;
         const cProperty = this.data.cProperty;
-        //const highlightTasks =layout.highlightTasks;
+        const highlightItemsFlag = layout.highlightItems;
+        const highlightItemIds = filter.highlightItemIds;
         const dimId = this.dimId;
         const dim = filter.continuousDims[ dimId ];
         const pointData = dim.top( Infinity );
@@ -290,21 +295,20 @@ class MetaDataScatter extends Plot {
                 .style("left", target.attr("cx")+ "px")
                 .style("top", target.attr("cy")-30 + "px");
        
-            //if ( highlightTasks ) {
-            //    dbsliceData.highlightTasks = [ d.taskId ];
-            //    highlightTasksAllPlots();
-            //}
+            if ( highlightItemsFlag ) {
+                highlightItemIds.state = { itemIds : [ d.itemId ] };
+            }
         }
 
         function tipOff(event, d) {
             plotArea.selectAll( ".point" ).style( "opacity" , opacity );
             d3.select(event.target)
                 .attr( "r", 5 );
-            container.select(".tool-tip").style("opacity", 0.0)
-            //if ( highlightTasks ) {
-            //    dbsliceData.highlightTasks = [];
-            //    highlightTasksAllPlots();
-            //}
+            container.select(".tool-tip").style("opacity", 0.0);
+
+            if ( highlightItemsFlag ) {
+                highlightItemIds.state = { itemIds : [] };
+            }
         }
         
         function getLines(map) {
@@ -323,19 +327,20 @@ class MetaDataScatter extends Plot {
 
     }
 
-    highlightTasks(){
+    highlightItems(){
 
-        /*if (!this.layout.highlightTasks) return;
-
-        const cfData = dbsliceData.session.cfData;
-        const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
-        const opacity = ( this.layout.opacity === undefined ) ? 1.0 : this.layout.opacity;
+        const container = d3.select(`#${this.id}`);
+        const layout = this.layout;
+        const plotArea = container.select(".plot-area");
+        const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+        const highlightItemIds = filter.highlightItemIds.state.itemIds;
+        const opacity = ( layout.opacity === undefined ) ? 1.0 : layout.opacity;
         const cProperty = this.data.cProperty;
-        const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
-        colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
+        const colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( layout.colourMap );
+        colour.domain( filter.categoricalUniqueValues[ cProperty ] );
         const points = plotArea.selectAll( ".point" );
 
-        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+        if (highlightItemIds === undefined || highlightItemIds.length == 0) {
             points
                 .style( "opacity" , opacity )
                 .style( "stroke-width", "0px")
@@ -343,15 +348,15 @@ class MetaDataScatter extends Plot {
         } else {
             points.style( "opacity" , 0.2);
             points.style( "fill" , "#d3d3d3");
-            dbsliceData.highlightTasks.forEach( function (taskId) {
-                points.filter( (d,i) => d.taskId == taskId)
+            highlightItemIds.forEach( function (itemId) {
+                points.filter( (d,i) => d.itemId == itemId)
                     .style( "fill", d => colour( d[ cProperty ] )  )
                     .style( "opacity" , opacity)
                     .style( "stroke", "red")
                     .style( "stroke-width", "2px")
                     .raise();
             });
-        }*/
+        }
     }
 
     handleFilterChange( data ) {

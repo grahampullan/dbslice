@@ -10,6 +10,7 @@ class MetaDataHistogram extends Plot {
         if (!options) { options={} }
         options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
+        options.layout.highlightItems = options.layout.highlightItems || true;
         super(options);
         this.brushInitialised = false;
     }
@@ -20,7 +21,9 @@ class MetaDataHistogram extends Plot {
         this.currentFilterSetting = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId ).continuousExtents[this.data.property];
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
         filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
-        
+        if ( this.layout.highlightItems ) {
+            filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+        }
         this.dimId = filter.continuousProperties.indexOf( this.data.property );
     
         this.updateHeader(); 
@@ -50,6 +53,8 @@ class MetaDataHistogram extends Plot {
 
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
         const property = this.data.property;
+        const highlightItemsFlag = layout.highlightItems;
+        const highlightItemIds = filter.highlightItemIds;
         const dimId = this.dimId;
         const dim = filter.continuousDims[ dimId ];
         const currentFilterSetting = this.currentFilterSetting;
@@ -302,17 +307,17 @@ class MetaDataHistogram extends Plot {
 
     }
 
-    highlightTasks() {
+    highlightItems() {
 
-        /*if (!this.layout.highlightTasks) return;
-
-        const plotArea = d3.select(`#plot-area-${this._prid}-${this._id}`);
-        const bars = plotArea.selectAll("rect");
+        const container = d3.select(`#${this.id}`);
+        const plotArea = container.select(".plot-area");
+        const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+        const highlightItemIds = filter.highlightItemIds.state.itemIds;
+        const bars = plotArea.selectAll( ".bar" );
         const property = this.data.property;
-        const cfData = dbsliceData.session.cfData;
-        const dim = cfData.continuousDims[ this.dimId ]; 
+        const dim = filter.continuousDims[ this.dimId ];
 
-        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+        if ( highlightItemIds === undefined || highlightItemIds.length == 0) {
 
             bars.style( "stroke-width", "0px" );
                       
@@ -321,13 +326,13 @@ class MetaDataHistogram extends Plot {
             bars
                 .style( "stroke-width", "0px" )
                 .style( "stroke", "red" ); 
-            dbsliceData.highlightTasks.forEach( function (taskId) {
-                let valueNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][property];
+            highlightItemIds.forEach( (itemId) => {
+                let valueNow = dim.top(Infinity).filter(d => d.itemId==itemId)[0][property];
                 bars.filter( (d,i) => (d.x0 <= valueNow && d.x1 > valueNow) )
                     .style( "stroke-width", "4px" )
             });
 
-        }*/
+        }
 
     } 
 

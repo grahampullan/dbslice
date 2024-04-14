@@ -15,6 +15,7 @@ class Filter {
 		this.itemIdsInFilter = new Observable({flag: false, state: {itemIds:options.allItemIds, brushing:false} });
         this.requestSetContinuousFilterRange = new Observable({flag: false, state: {}});
         this.requestSetCategoricalFilter = new Observable({flag: false, state: {}});
+        this.highlightItemIds = new Observable({flag: false, state: {itemIds:[]}});
         console.log(this);
 
         if (this.type == "crossfilter") {
