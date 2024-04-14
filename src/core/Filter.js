@@ -48,7 +48,6 @@ class Filter {
             const currentMetaData = this.categoricalDims[0].top(Infinity);
             this.itemIdsInFilter.state = {itemIds: currentMetaData.map( d => d.itemId), brushing };
             this.labelsInFilter = currentMetaData.map( d => d.label );
-            console.log(this.itemIdsInFilter.state);
         }
 
         function crossfilterSetCategoricalFilter( data ) {
@@ -58,6 +57,9 @@ class Filter {
             const categoricalFilterSelected = this.categoricalFilterSelected;
             const categoricalDims = this.categoricalDims;
 
+            if ( categoricalFilterSelected[ dimId ] === undefined ) {
+                categoricalFilterSelected[ dimId ] = [];
+            }
             if ( categoricalFilterSelected[ dimId ].indexOf( value ) !== -1 ) {
                 let index = categoricalFilterSelected[ dimId ].indexOf( value );
                 categoricalFilterSelected[ dimId ].splice( index, 1 );
@@ -70,7 +72,7 @@ class Filter {
                   //reset filter
                   categoricalDims[ i ].filterAll();
                 } else {
-                  crossfilter.categoricalDims[ i ].filter( ( d ) => filters.indexOf( d ) > -1 );
+                  categoricalDims[ i ].filter( ( d ) => filters.indexOf( d ) > -1 );
                 }
               } );
             const currentMetaData = this.categoricalDims[0].top(Infinity);
