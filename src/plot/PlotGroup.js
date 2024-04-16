@@ -16,8 +16,12 @@ class PlotGroup extends Plot {
         this.checkForCtrl();
         this.updateHeader();
         this.addPlotAreaDiv();
-        d3.select(`#${this.plotAreaId}`).style("overflow", "hidden");
-        d3.select(`#${this.plotAreaId}`).style("overflow-y", "auto");
+        const plotArea = d3.select(`#${this.plotAreaId}`);
+        plotArea.style("overflow", "hidden")
+            .style("overflow-y", "auto");
+        const boundHandleScroll = this.handleScroll.bind(this);
+        plotArea.on("scroll", boundHandleScroll);
+        this.sharedState.scrolling = new Observable({flag: false, state: {}});
         this.setLasts();
         this.update();
     }
@@ -70,6 +74,14 @@ class PlotGroup extends Plot {
         this.sharedState.requestUpdateBoxes.state = {boxesToRemove, boxesToAdd};
     }
 
+    handleScroll() {
+        this.sharedState.scrolling.state = {scrolling:true};
+        /*clearTimeout(this.scrollTimeout);
+        this.scrollTimeout = setTimeout( () => {
+            this.sharedState.scrolling.state = {scrolling:false};
+            console.log("scrolling done")
+        }, 200);*/
+    }
 
 }
 

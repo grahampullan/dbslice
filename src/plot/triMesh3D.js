@@ -68,7 +68,9 @@ class TriMesh3D extends Plot {
 		const cameraSync = layout.cameraSync;
 		const timeSync = layout.timeSync;
 		const highlightTasks = layout.highlightTasks;
-		const sharedCamera = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCamera;
+		const plotGroupId = this.ancestorIds[this.ancestorIds.length-1];
+		const sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
+		const scrolling = this.sharedStateByAncestorId[plotGroupId].scrolling;
 		const buffer = this.data;
 		const renderer = this.renderer;
 		const cutData = this.cutData;
@@ -399,6 +401,8 @@ class TriMesh3D extends Plot {
 		if (!this.renderObserverId) {
 			this.renderObserverId = requestWebGLRender.subscribe(boundRenderScene);
 			this.subscriptions.push({observable:requestWebGLRender, id:this.renderObserverId});
+			const id = scrolling.subscribe(boundRenderScene);
+			this.subscriptions.push({observable:scrolling, id});
 		}
 
 		if ( layout.xCut && !this.checkResize ) {
