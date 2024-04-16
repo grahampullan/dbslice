@@ -8,6 +8,9 @@ class Dataset {
 		this.url = options.url;
 		this.csv = options.csv || false;
 		this.data = options.data || null;
+		this.metaDataFilter = options.metaDataFilter || false;
+		this.metaDataFilterKey = options.metaDataFilterKey || null;
+		this.metaDataFilterValue = options.metaDataFilterValue || null;
 		this.categoricalProperties = options.categoricalProperties || [];
 		this.continuousProperties = options.continuousProperties || [];
 		this.generateItemIds = options.generateItemIds || false;
@@ -21,6 +24,9 @@ class Dataset {
 
 	applyOptions() {
 		if (this.data) {
+			if (this.metaDataFilter) {
+				this.filterRaw();
+			}
 			if (this.autoDetectProperties) {
 				this.autoDetect();
 			}
@@ -55,6 +61,10 @@ class Dataset {
 			}
 			return d3.autoType(row);
 		}
+	}
+
+	filterRaw() {
+		this.data = this.data.filter( d => d[this.metaDataFilterKey] == this.metaDataFilterValue);
 	}
 
 	autoDetect() {

@@ -15,6 +15,7 @@ class Plot extends Component {
     constructor(options) {
         if (!options) { options={} }
         super(options);
+        this.itemId = options.itemId || null;
         this.layout = options.layout || {};
         this.layout.icons = this.layout.icons || [];
         this.layout.margin = this.layout.margin || {top: 0, right: 0, bottom: 0, left: 0};
@@ -24,6 +25,7 @@ class Plot extends Component {
         this.newData = true;
         this.fetchDataNow = true;
         this.icons = [];
+        this.subscriptions = [];
         this.setCommonIcons();
     }
 
@@ -192,6 +194,12 @@ class Plot extends Component {
         this.fetchingData = false;
         this.fetchDataNow = false;
         this.newData = true;
+    }
+
+    removeSubscriptions() {
+        this.subscriptions.forEach( sub => {
+			sub.observable.unsubscribeById(sub.id);
+		});
     }
 
 }
