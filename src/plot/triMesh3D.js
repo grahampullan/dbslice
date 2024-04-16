@@ -22,6 +22,13 @@ class TriMesh3D extends Plot {
 		this.addPlotAreaDiv();
 		const container = d3.select(`#${this.id}`);
 		const plotArea = d3.select(`#${this.plotAreaId}`);
+		if (this.layout.filterId) {
+			this.filterId = this.layout.filterId;
+        	const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+        	if ( this.layout.highlightItems ) {
+            	filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+			}
+        }
 	
 		const boundTipOn = this.tipOn.bind(this);
 		const boundTipOff = this.tipOff.bind(this);
@@ -359,7 +366,8 @@ class TriMesh3D extends Plot {
 		if ( cameraSync ) {
 			//sharedCamera.state = {position: camera.position, rotation: camera.rotation};
 			if (!sharedCamera.isSubscribed(boundUpdateCameraAndRenderScene)) {
-				sharedCamera.subscribe(boundUpdateCameraAndRenderScene);
+				const id = sharedCamera.subscribe(boundUpdateCameraAndRenderScene);
+				this.subscriptions.push({observable:sharedCamera, id});
 			}
 		}
 
@@ -390,6 +398,7 @@ class TriMesh3D extends Plot {
 
 		if (!this.renderObserverId) {
 			this.renderObserverId = requestWebGLRender.subscribe(boundRenderScene);
+			this.subscriptions.push({observable:requestWebGLRender, id:this.renderObserverId});
 		}
 
 		if ( layout.xCut && !this.checkResize ) {
@@ -688,19 +697,32 @@ class TriMesh3D extends Plot {
 		renderer.setScissorTest( false );
 	}
 
-	highlightTasks(){
+	remove() {
+		this.removeSubscriptions();
+		const meshUuids = this.meshUuids;
+		meshUuids.forEach( meshUuid => {
+			const oldMesh = this.scene.getObjectByProperty('uuid',meshUuid);
+			oldMesh.geometry.dispose();
+			oldMesh.material.dispose();
+			this.scene.remove(oldMesh);
+		});
+	}
 
-		/*if (!this.layout.highlightTasks) return;
+	highlightItems(){
 
-		const container = d3.select(`#${this.elementId}`);
-        const thisTaskId = this.taskId;
+		const container = d3.select(`#${this.id}`);
+        const plotArea = container.select(".plot-area");
+        const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+        const highlightItemIds = filter.highlightItemIds.state.itemIds;
+        
+        const thisItemId = this.itemId;
 
-		if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+		if (highlightItemIds === undefined || highlightItemIds.length == 0) {
 			container.style("outline-width","0px")
  		} else {
 			container.style("outline-width","0px")
-			dbsliceData.highlightTasks.forEach( function (taskId) {
-				if ( taskId == thisTaskId ) {
+			highlightItemIds.forEach( function (itemId) {
+				if ( itemId == thisItemId ) {
                     container
                         .style("outline-style","solid")
                         .style("outline-color","red")
@@ -709,7 +731,7 @@ class TriMesh3D extends Plot {
                         .raise();
 				}
             });
-        }*/
+        }
 	}
 
 	getOffsets() {
@@ -776,28 +798,28 @@ class TriMesh3D extends Plot {
 	}
 
 	tipOn() {
-		/*const container = d3.select(`#${this.elementId}`);
-		const highlightTasks = this.layout.highlightTasks;
-		if ( highlightTasks ) {
+		const container = d3.select(`#${this.id}`);
+		const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+		const highlightItemIds = filter.highlightItemIds;
+		if ( this.layout.highlightItems) {
 			container
 				.style("outline-style","solid")
 				.style("outline-color","red")
 				.style("outline-width","4px")
 				.style("outline-offset","0px")
 				.raise();
-			dbsliceData.highlightTasks = [taskId];
-			highlightTasksAllPlots();
-		}*/
+			highlightItemIds.state = {itemIds:[this.itemId]};
+		}
 	}
 
 	tipOff() {
-		/*const container = d3.select(`#${this.elementId}`);
-		const highlightTasks = this.layout.highlightTasks;
-		if ( highlightTasks ) {
+		const container = d3.select(`#${this.id}`);
+		const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+		const highlightItemIds = filter.highlightItemIds;
+		if ( this.layout.highlightItems) {
 			container.style("outline-width","0px")
-			dbsliceData.highlightTasks = [];
-			highlightTasksAllPlots();
-		}*/
+			highlightItemIds.state = {itemIds:[]};
+		}
 	}
 
 }
