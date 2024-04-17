@@ -23,6 +23,7 @@ class Context extends bbContext {
         this.sharedState.renderer = renderer;
         this.metaData = {datasets:[], filters:[]};
         this.sharedState.filters = this.metaData.filters;
+        this.sharedState.datasets = this.metaData.datasets;
         this.maxDataset = 0;
         this.maxFilter = 0;
     }
