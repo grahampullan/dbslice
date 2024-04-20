@@ -1,5 +1,6 @@
 import * as d3 from 'd3v7';
 import { Filter } from './Filter.js';
+import { opt } from 'nd4js';
 
 class Dataset {
 	constructor( options ) {
@@ -20,6 +21,7 @@ class Dataset {
 		this.discardRowsWithUndefinedValues = options.discardRowsWithUndefinedValues || false;
 		this.itemIdRoot = options.itemIdRoot || "item";
 		this.itemIdFormat = options.itemIdFormat || "04";
+		this.availablePlots = options.availablePlots || [];
 	}
 
 	applyOptions() {

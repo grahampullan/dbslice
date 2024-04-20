@@ -33,7 +33,9 @@ class LineSeries extends Plot {
                 filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
                 this.datasetId = this.fetchData.datasetId;
                 const dataset = this.sharedStateByAncestorId["context"].datasets.find( d => d.id == this.datasetId );
-                this.fetchData.itemIds = filter.itemIdsInFilter.state.itemIds;
+                if (this.fetchData.getItemIdsFromFilter) {
+                    this.fetchData.itemIds = filter.itemIdsInFilter.state.itemIds;
+                }
                 if (this.fetchData.dataFilterConfig) {
                     const config = this.fetchData.dataFilterConfig;
                     config.itemLabels = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id ).label );
@@ -596,19 +598,23 @@ class LineSeries extends Plot {
 
 
     handleFilterChange(data) {
-        if (!data.brushing) {
+        if (data.brushing) return;
+        if (this.fetchData.getItemIdsFromFilter && !data.noFilter) {
             this.fetchData.itemIds = data.itemIds;
-            this.fetchDataNow = true;
-            if (this.fetchData.dataFilterConfig) {
-                const config = this.fetchData.dataFilterConfig;
-                const dataset = this.sharedStateByAncestorId["context"].datasets.find( d => d.id == this.datasetId );
-                config.itemLabels = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id ).label );
-                if (config.cProperty) {
-                    config.cPropertyValues = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id )[config.cProperty] );
-                }
-            }
-            this.update();
         }
+        if (!this.fetchData.getItemIdsFromFilter && data.noFilter) {
+            this.fetchData.itemIds = data.itemIds;
+        }
+        this.fetchDataNow = true;
+        if (this.fetchData.dataFilterConfig) {
+            const config = this.fetchData.dataFilterConfig;
+            const dataset = this.sharedStateByAncestorId["context"].datasets.find( d => d.id == this.datasetId );
+            config.itemLabels = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id ).label );
+            if (config.cProperty) {
+                config.cPropertyValues = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id )[config.cProperty] );
+            }
+        }
+        this.update();
     }
 
     remove() {

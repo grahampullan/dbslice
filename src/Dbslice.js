@@ -34,11 +34,6 @@ export { d3CutLine } from './plot/d3CutLine.js';
 export { getPlotFunc } from './plot/getPlotFunc.js';
 export { getDataFilterFunc } from './filters/getDataFilterFunc.js';
 export { dbsliceData } from './core/dbsliceData.js';
-export { TriMesh3D } from './plot/TriMesh3D.js';
-export { LineSeries } from './plot/LineSeries.js';
-export { MetaDataScatter } from './plot/MetaDataScatter.js';
-export { MetaDataHistogram } from './plot/MetaDataHistogram.js';
-export { MetaDataBarChart } from './plot/MetaDataBarChart.js';
 export { Plot } from './plot/Plot.js';
 export { PlotGroup } from './plot/PlotGroup.js';
 export { Box } from './core/Box.js';
@@ -46,5 +41,11 @@ export { Context } from './core/Context.js';
 export { Board } from './core/Board.js';
 export { Dataset } from './core/Dataset.js';
 export { Filter } from './core/Filter.js';
+export { TriMesh3D } from './plot/TriMesh3D.js';
+export { LineSeries } from './plot/LineSeries.js';
+export { MetaDataScatter } from './plot/MetaDataScatter.js';
+export { MetaDataHistogram } from './plot/MetaDataHistogram.js';
+export { MetaDataBarChart } from './plot/MetaDataBarChart.js';
+
 
 

@@ -1,4 +1,5 @@
 import { Context as bbContext } from 'board-box';
+import { Observable } from 'board-box';
 import * as d3 from 'd3v7';
 import * as THREE from 'three';
 
@@ -24,6 +25,10 @@ class Context extends bbContext {
         this.metaData = {datasets:[], filters:[]};
         this.sharedState.filters = this.metaData.filters;
         this.sharedState.datasets = this.metaData.datasets;
+        this.sharedState.showFilters = false;
+        const requestCreateFilter = new Observable({flag: false, state: {}});
+        requestCreateFilter.subscribe( this.createNewFilter.bind(this) );
+        this.sharedState.requestCreateFilter = requestCreateFilter;
         this.maxDataset = 0;
         this.maxFilter = 0;
     }
@@ -41,6 +46,13 @@ class Context extends bbContext {
         filter.id = id;
         this.metaData.filters.push(filter);
     }
+
+    createNewFilter(data) {
+        datasetId = data.datasetId;
+        const newFilter = this.datasets.find( dataset => dataset.id == datasetId ).createFilter();
+        this.addFilter(newFilter);
+    }
+
 }
 
 export { Context };
