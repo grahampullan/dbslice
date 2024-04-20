@@ -2,6 +2,7 @@ import { Box as bbBox, Observable } from 'board-box';
 import { MetaDataHistogram } from '../plot/MetaDataHistogram.js';
 import { MetaDataScatter } from '../plot/MetaDataScatter.js';
 import { MetaDataBarChart } from '../plot/MetaDataBarChart.js';
+import { MetaDataRankCorrBarChart } from '../plot/MetaDataRankCorrBarChart.js';
 import * as d3 from 'd3v7';
 
 
@@ -98,6 +99,12 @@ class Box extends bbBox {
         if (plotType == "Bar chart") {
             const title = dataProperties.property;
             const box = new Box({x:0,y:0, width:250, height:250, component: new MetaDataBarChart({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
+            console.log(box);
+            this.updateBoxes({boxesToAdd:[box], boxesToRemove:[]});
+        }
+        if (plotType == "Rank correlation") {
+            const title = `Correlation for ${dataProperties.outputProperty}`;
+            const box = new Box({x:0,y:0, width:250, height:250, component: new MetaDataRankCorrBarChart({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
             this.updateBoxes({boxesToAdd:[box], boxesToRemove:[]});
         }
     }

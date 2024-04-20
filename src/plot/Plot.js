@@ -346,8 +346,8 @@ class Plot extends Component {
         const continuousProperties = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId ).continuousProperties;
         const categoricalProperties = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId ).categoricalProperties;
         const propertyOptions = {};
-        propertyOptions.continuous = continuousProperties;
-        propertyOptions.categorical = categoricalProperties;
+        propertyOptions.continuous = [...continuousProperties].sort();
+        propertyOptions.categorical = [...categoricalProperties].sort();
         console.log(propertyOptions);
 
         const boardId = this.ancestorIds[this.ancestorIds.length-1];
@@ -360,9 +360,11 @@ class Plot extends Component {
         });
         modalContent.append("hr");
         modalContent.select(".dropdown-container").remove();
+        const dataNeededProps = dataNeeded.filter(d => !d.array);
+        const dataNeededArrays = dataNeeded.filter(d => d.array);
         const dropdownContainer = modalContent.append("div")
             .attr("class", "dropdown-container");
-        const dropdowns = dropdownContainer.selectAll(".dropdown").data(dataNeeded)
+        const dropdowns = dropdownContainer.selectAll(".dropdown").data(dataNeededProps)
             .enter().append("div");
         dropdowns.append("label")
             .text(function(d) { return d.name; });
@@ -379,6 +381,24 @@ class Plot extends Component {
             .enter()
                 .append("option")
                 .text(function(d) { return d; });
+
+        dataNeededArrays.forEach( d => {
+            const checkboxContainer = dropdowns.append("div");
+            checkboxContainer.append("p").html(d.name);
+            const propOptions = propertyOptions[d.type];
+            const checkboxes = checkboxContainer.selectAll(".checkbox")
+                .data(propOptions);
+            checkboxes.enter().each( p => {
+                const checkboxDiv = checkboxContainer.append("div").attr("class", "checkbox");
+                const checkboxInput = checkboxDiv.append("input")
+                    .attr("type", "checkbox")
+                    .attr("id", `checkbox-${d.name}-${p}`)
+                    .attr("value", p);
+                checkboxDiv.append("label")
+                    .attr("for", `checkbox-${d.name}-${p}`)
+                    .text(` ${p}`);
+                });
+        });
             
         dropdownContainer.append("button")
             .attr("class", "button")
@@ -390,6 +410,18 @@ class Plot extends Component {
                     let selectedValue = dropdown.property("value");
                     dropdownValues[dataNeeded[i].name] = selectedValue;
                 });
+                dataNeededArrays.forEach( d => {
+                    const propOptions = propertyOptions[d.type];
+                    const selectedValues = [];
+                    propOptions.forEach( p => {
+                        const checkbox = d3.select(`#checkbox-${d.name}-${p}`);
+                        if (checkbox.property("checked")) {
+                            selectedValues.push(p);
+                        }
+                    });
+                    dropdownValues[d.name] = selectedValues;
+                });
+                
                 requestAddFilterPlot.state={plotType, filterId, dataProperties:dropdownValues};
                 modal.style("display","none");
                 modalContent.selectAll("*").remove();
