@@ -19,10 +19,31 @@ class LineSeries extends Plot {
         this.updateHeader();
         this.addPlotAreaSvg();
         this.setLasts();
-        
-        if ( this.data == null || this.data == undefined ) {
-            console.log ("in line plot - no data");
-            return
+
+        if ( this.layout.highlightItems ) {
+            this.filterId = this.layout.filterId;
+            const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+            filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+        }
+
+        if (this.fetchData) {
+            if (this.fetchData.urlTemplate) {
+                this.filterId = this.fetchData.filterId;
+                const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+                filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+                this.datasetId = this.fetchData.datasetId;
+                const dataset = this.sharedStateByAncestorId["context"].datasets.find( d => d.id == this.datasetId );
+                if (this.fetchData.getItemIdsFromFilter) {
+                    this.fetchData.itemIds = filter.itemIdsInFilter.state.itemIds;
+                }
+                if (this.fetchData.dataFilterConfig) {
+                    const config = this.fetchData.dataFilterConfig;
+                    config.itemLabels = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id ).label );
+                    if (config.cProperty) {
+                        config.cPropertyValues = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id )[config.cProperty] );
+                    }
+                }
+            }
         }
 
         container.append("div")
@@ -32,17 +53,22 @@ class LineSeries extends Plot {
         this.update();
     }
 
-    update() {
+    async update() {
+        if (this.fetchingData) return;
+        await this.getData();
 
-        if (!this.newData && !this.checkResize) {
-            return
-        }
+        if (!this.newData && !this.checkResize) return;
 
         const container = d3.select(`#${this.id}`);
         const layout = this.layout;
         //const svg = container.select("svg");
         const plotArea = container.select(".plot-area");
-        const highlightTasks = layout.highlightTasks;
+        const highlightItemsFlag = layout.highlightItems;
+        let highlightItemIds;
+        if (highlightItemsFlag) {
+            const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+            highlightItemIds = filter.highlightItemIds;
+        }
         const timeSync = layout.timeSync;
         const xAxisMean = layout.xAxisMean;
         const yAxisMean = layout.yAxisMean;
@@ -54,9 +80,10 @@ class LineSeries extends Plot {
 
         if ( layout.cSet !== undefined) {
             if ( Array.isArray( layout.cSet ) ) {
-                colour.domain( layout.cSet )
+                colour.domain( layout.cSet );
             } else {
-                //colour.domain( dbsliceData.session.cfData.categoricalUniqueValues[ layout.cSet ] )
+                const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+                colour.domain( filter.categoricalUniqueValues[ layout.cSet ] );
             }
         }
 
@@ -454,10 +481,10 @@ class LineSeries extends Plot {
                 .html("<span>"+d.label+"</span>")
                 .style("left", d3.pointer(event)[0]+ "px")
                 .style("top", d3.pointer(event)[1] + "px");
-            if ( highlightTasks ) {
-                dbsliceData.highlightTasks = [ d.itemId ];
-                //highlightTasksAllPlots();
+            if ( highlightItemsFlag ) {
+                highlightItemIds.state = { itemIds : [ d.itemId ] };
             }
+                
 
 
 
@@ -480,9 +507,8 @@ class LineSeries extends Plot {
                     .style( "stroke-width", "2.5px" );
             }
             container.select(".tool-tip").style("opacity", 0.0)
-            if ( highlightTasks ) {
-                dbsliceData.highlightTasks = [];
-                //highlightTasksAllPlots();
+            if ( highlightItemsFlag ) {
+                highlightItemIds.state = { itemIds : []  };
             }
         }
 
@@ -532,14 +558,14 @@ class LineSeries extends Plot {
         this.layout.newData = false;
     }
 
-    /*
-    highlightTasks : function() {
-
-        if (!this.layout.highlightTasks) return;
-
-        const container = d3.select(`#${this.elementId}`);
-        const svg = container.select("svg");
-        const plotArea = svg.select(".plot-area");
+    highlightItems() {
+  
+        const container = d3.select(`#${this.id}`);
+        const layout = this.layout;
+        const plotArea = container.select(".plot-area");
+        const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+        const highlightItemIds = filter.highlightItemIds.state.itemIds;
+       
         const lines = plotArea.selectAll(".line");
         const colour = ( this.layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( this.layout.colourMap );
 
@@ -547,11 +573,11 @@ class LineSeries extends Plot {
             if ( Array.isArray( this.layout.cSet ) ) {
                 colour.domain( this.layout.cSet )
             } else {
-                colour.domain( dbsliceData.session.cfData.categoricalUniqueValues[ this.layout.cSet ] )
+                colour.domain( filter.categoricalUniqueValues[ this.layout.cSet ] )
             }
         }
 
-        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+        if ( highlightItemIds === undefined || highlightItemIds.length == 0) {
             lines
                 .style( "stroke-width", "2.5px" )
                 .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } );   
@@ -559,8 +585,8 @@ class LineSeries extends Plot {
             lines
                 .style( "stroke-width", "2.5px" )
                 .style( "stroke", "#d3d3d3" ); 
-            dbsliceData.highlightTasks.forEach( function (taskId) {
-                lines.filter( (d,i) => d.taskId == taskId)
+            highlightItemIds.forEach( function (itemId) {
+                lines.filter( (d,i) => d.itemId == itemId)
                     .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } ) 
                     .style( "stroke-width", "4px" )
                     .each(function() {
@@ -569,7 +595,32 @@ class LineSeries extends Plot {
                 });
         }
     }
-*/
+
+
+    handleFilterChange(data) {
+        if (data.brushing) return;
+        if (this.fetchData.getItemIdsFromFilter && !data.noFilter) {
+            this.fetchData.itemIds = data.itemIds;
+        }
+        if (!this.fetchData.getItemIdsFromFilter && data.noFilter) {
+            this.fetchData.itemIds = data.itemIds;
+        }
+        this.fetchDataNow = true;
+        if (this.fetchData.dataFilterConfig) {
+            const config = this.fetchData.dataFilterConfig;
+            const dataset = this.sharedStateByAncestorId["context"].datasets.find( d => d.id == this.datasetId );
+            config.itemLabels = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id ).label );
+            if (config.cProperty) {
+                config.cPropertyValues = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id )[config.cProperty] );
+            }
+        }
+        this.update();
+    }
+
+    remove() {
+        this.removeSubscriptions();
+    }
+
 }
 
 export { LineSeries };

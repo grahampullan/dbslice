@@ -1,8 +1,9 @@
 import { Component } from 'board-box';
 import { fetchPlotData } from '../core/fetchPlotData';
+import { filterPlots } from './filterPlots.js';
 import * as d3 from 'd3v7';
 import { icon } from '@fortawesome/fontawesome-svg-core'
-import { faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faXmark, faFilter, faPlus  } from '@fortawesome/free-solid-svg-icons'
 
 //
 // Plot is a class that extends Component. It is a base class for all plot types.
@@ -164,7 +165,7 @@ class Plot extends Component {
             .append("div")
             .attr("class", "plot-icon")
             .html(d => icon(d.icon).html)
-            .on("click", (e,d) => d.action() );
+            .on("click", (e,d) => {console.log("click");d.action()} );
         icons.exit().remove();
     }
     
@@ -173,7 +174,13 @@ class Plot extends Component {
 
         this.layout.icons.forEach( iconAlias => {
             if ( iconAlias === "remove" ) {
-                icons.push({icon: faXmark, action: () => {console.log(`remove plot id = ${this.id}`)}});
+                icons.push({icon: faXmark, action: () => {this.removePlot()}});
+            }
+            if ( iconAlias === "filter" ) {
+                icons.push({icon: faFilter, action: () => {this.selectItemIds()}});
+            }
+            if ( iconAlias === "add" ) {
+                icons.push({icon: faPlus, action: () => {this.addPlot()}});
             }
         });
     
@@ -201,6 +208,207 @@ class Plot extends Component {
 			sub.observable.unsubscribeById(sub.id);
 		});
     }
+
+    selectItemIds() {
+        const boundHandleCheckboxesApply = this.handleCheckboxesApply.bind(this);
+        const boundHandleFilterSelected = this.handleFilterSelected.bind(this);
+        const boardId = this.ancestorIds[this.ancestorIds.length-1];
+        const showFilters = this.sharedStateByAncestorId["context"].showFilters;
+        const modal = d3.select(`#${boardId}-modal`);
+        const modalContent = d3.select(`#${boardId}-modal-content`);
+       
+        modalContent.selectAll("*").remove();
+        const dataset = this.sharedStateByAncestorId["context"].datasets[0];
+        const allItemIds = dataset.data.map( d => d.itemId);
+
+
+        modalContent.append("h4").html("Select items");
+        modalContent.append("hr");
+        if (showFilters) {
+            modalContent.append("h4").html("Filters:");
+            const filtersContainer = modalContent.append("div")
+                .attr("class", "button-container");
+        
+            const filterIds = this.sharedStateByAncestorId["context"].filters.map( f => f.id );
+      
+            const buttonGrid = filtersContainer.append("div")
+            buttonGrid.selectAll(".button")
+                .data(filterIds)
+                .enter()
+                .append("button")
+                .attr("class", "button")
+                .text(function(d) { return d; })
+                .on("click", (event, d) => {
+                    const filterSelected = d;
+                    modal.style("display", "none");
+                    modalContent.selectAll("*").remove();
+                    boundHandleFilterSelected(filterSelected);
+            });
+            modalContent.append("hr");
+        }
+        
+        modalContent.append("h4").html("Items:");
+        let currentItemIds = this.itemIds;
+        if (!currentItemIds) {currentItemIds = [];}
+        const checkboxContainer = modalContent.append("div")
+            .attr("class", "checkbox-container");
+        const checkboxes = checkboxContainer.selectAll(".checkbox")
+            .data(allItemIds);
+        checkboxes.enter().each( d => {
+            const checkboxDiv = checkboxContainer.append("div").attr("class", "checkbox");
+            const checkboxInput = checkboxDiv.append("input")
+                .attr("type", "checkbox")
+                .attr("id", `checkbox-${d}`)
+                .attr("value", d);
+            if (currentItemIds.indexOf(d) !== -1) {
+                checkboxInput.attr("checked", true);
+            }
+            checkboxDiv.append("label")
+                .attr("for", `checkbox-${d}`)
+                .text(` ${d}`);
+            });
+        
+        const buttonContainer = modalContent.append("div")
+            .attr("class", "button-container");
+        buttonContainer.append("button")
+            .attr("class", "button")
+            .html("Apply")
+            .on("click", boundHandleCheckboxesApply);
+        modal.node().scrollTop = 0;
+        modalContent.node().scrollTop = 0;
+        
+        modal.style("display", "block");
+        
+    }
+
+    handleCheckboxesApply() {
+        const boardId = this.ancestorIds[this.ancestorIds.length-1];
+        const modal = d3.select(`#${boardId}-modal`);
+        const modalContent = d3.select(`#${boardId}-modal-content`);
+        const checkedBoxes = modalContent.selectAll("input:checked");
+        const itemIds = checkedBoxes.nodes().map( cb => cb.value);
+        modal.style("display", "none");
+        modalContent.selectAll("*").remove();
+        console.log(itemIds);
+        this.itemIds = itemIds;
+        this.sharedState.requestFetchDataByItemIds.state = {itemIds: itemIds};
+        // this.sharedState.requestFetchDataByFilter.state = {filterId: filterId};
+
+    }
+
+    handleFilterSelected(filterSelected) {
+        console.log("filterSelected");
+        console.log(filterSelected);
+        this.sharedState.requestFetchDataByFilter.state = {filterId: filterSelected};
+    }
+
+    addPlot() {
+        console.log("add plot");
+        console.log(this);
+        console.log(filterPlots);
+        const boundAddNewFilterPlot = this.addNewFilterPlot.bind(this);
+        const boardId = this.ancestorIds[this.ancestorIds.length-1];
+        this.sharedStateByAncestorId[boardId].preventZoom = true;
+        const modal = d3.select(`#${boardId}-modal`);
+        const modalContent = d3.select(`#${boardId}-modal-content`);
+        modalContent.selectAll("*").remove();
+        modalContent.append("h4").html("Select plot type");
+        modalContent.append("hr");
+        const plotTypes = filterPlots.map( p => p.name );
+        const buttonGrid = modalContent.append("div")
+            .attr("class", "button-container");
+        buttonGrid.selectAll(".button")
+            .data(plotTypes)
+            .enter()
+            .append("button")
+            .attr("class", "button")
+            .text(function(d) { return d; })
+            .on("click", (event, d) => {
+                const plotType = d;
+                //modal.style("display", "none");
+                //modalContent.selectAll("*").remove();
+                event.stopPropagation();
+                boundAddNewFilterPlot(plotType);
+        });
+        modal.style("display", "block");
+      
+
+        //this.sharedState.requestAddNewFilterPlot.state = {type, data};
+    }
+
+    addNewFilterPlot(plotType) {
+        console.log("addNewFilterPlot");
+        console.log(plotType);
+        const requestAddFilterPlot = this.sharedState.requestAddFilterPlot;
+        const dataNeeded = filterPlots.find( p => p.name === plotType ).dataNeeded;
+        console.log(dataNeeded);
+        const filterId = "filter-0"; // hard coded for now
+        const continuousProperties = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId ).continuousProperties;
+        const categoricalProperties = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId ).categoricalProperties;
+        const propertyOptions = {};
+        propertyOptions.continuous = continuousProperties;
+        propertyOptions.categorical = categoricalProperties;
+        console.log(propertyOptions);
+
+        const boardId = this.ancestorIds[this.ancestorIds.length-1];
+        const boardSharedState = this.sharedStateByAncestorId[boardId];
+        console.log(boardId);
+        const modal = d3.select(`#${boardId}-modal`);
+        const modalContent = d3.select(`#${boardId}-modal-content`);
+        modalContent.on("click", (event) => {
+            event.stopPropagation();
+        });
+        modalContent.append("hr");
+        modalContent.select(".dropdown-container").remove();
+        const dropdownContainer = modalContent.append("div")
+            .attr("class", "dropdown-container");
+        const dropdowns = dropdownContainer.selectAll(".dropdown").data(dataNeeded)
+            .enter().append("div");
+        dropdowns.append("label")
+            .text(function(d) { return d.name; });
+        dropdowns.append("select")
+            .on("click", (event) => {
+                console.log("click");
+                console.log(event);
+            })
+            .on("change input drag", (event) => {
+                console.log(event);
+                event.stopPropagation();})
+            .selectAll("option")
+            .data( d => propertyOptions[d.type] )
+            .enter()
+                .append("option")
+                .text(function(d) { return d; });
+            
+        dropdownContainer.append("button")
+            .attr("class", "button")
+            .text("Make plot")
+            .on("click", function() {
+                const dropdownValues = {};
+                dropdowns.each(function(d, i) {
+                    const dropdown = d3.select(this).select("select");
+                    let selectedValue = dropdown.property("value");
+                    dropdownValues[dataNeeded[i].name] = selectedValue;
+                });
+                requestAddFilterPlot.state={plotType, filterId, dataProperties:dropdownValues};
+                modal.style("display","none");
+                modalContent.selectAll("*").remove();
+                boardSharedState.preventZoom = false;
+            
+            });       
+    }
+
+    removePlot() {
+        console.log("removePlot");
+        const parentId = this.ancestorIds[this.ancestorIds.length-1];
+        console.log(parentId);
+        this.sharedStateByAncestorId[parentId].requestRemovePlot.state = {id:this.id};
+    }
+            
+       
+        
+
+       
 
 }
 

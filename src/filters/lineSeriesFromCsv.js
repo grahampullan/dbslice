@@ -1,7 +1,7 @@
-import { dbsliceData } from '../core/dbsliceData.js';
+//import { dbsliceData } from '../core/dbsliceData.js';
 import * as d3 from 'd3';
 
-function lineSeriesFromCsv( rawData , tasks, config ) {
+function lineSeriesFromCsv( rawData , items, config ) {
 
     const series = [];
 
@@ -48,13 +48,13 @@ function lineSeriesFromCsv( rawData , tasks, config ) {
 
         let line = data.map( d => ({x: +d[config.xProperty], y: +d[config.yProperty] }));
 
-        let taskId = tasks[index];
-        let label = dbsliceData.session.metaData.data.find( d => d.taskId==taskId).label;
-        let seriesNow = { label : label , data : line, taskId : taskId };
+        let itemId = items[index];
+        let label = config.itemLabels[index];
+        let seriesNow = { label : label , data : line, itemId };
 
         if ( config.cProperty != undefined ) {
 
-            seriesNow.cKey = dbsliceData.session.metaData.data.find( d => d.taskId==taskId)[config.cProperty];
+            seriesNow.cKey = config.cPropertyValues[index];
 
         }
 

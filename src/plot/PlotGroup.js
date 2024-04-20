@@ -13,7 +13,7 @@ class PlotGroup extends Plot {
     }
 
     make() {
-        this.checkForCtrl();
+        
         this.updateHeader();
         this.addPlotAreaDiv();
         const plotArea = d3.select(`#${this.plotAreaId}`);
@@ -23,6 +23,7 @@ class PlotGroup extends Plot {
         plotArea.on("scroll", boundHandleScroll);
         this.sharedState.scrolling = new Observable({flag: false, state: {}});
         this.setLasts();
+        this.checkForCtrl();
         this.update();
     }
 
@@ -37,20 +38,24 @@ class PlotGroup extends Plot {
         }
         if (this.ctrl.fetchData) {
             const fetchData = this.ctrl.fetchData;
+            if (fetchData.getItemIdsFromFilter) {
+                fetchData.itemIds =  this.sharedStateByAncestorId["context"].filters.find( f => f.id == fetchData.filterId ).itemIdsInFilter.state.itemIds;
+            }
             if (fetchData.autoFetchOnFilterChange) {
                 this.sharedStateByAncestorId["context"].filters.find( f => f.id == fetchData.filterId ).itemIdsInFilter.subscribe( this.refreshItemIds.bind(this) );
             }
+            this.refreshItemIds({itemIds:fetchData.itemIds, brushing:false});
         }
     }
 
     refreshItemIds(data) {
-        const itemIds = data.itemIds;
-        const brushing = data.brushing;
-        if (brushing) {
-            return;
-        }
+        if (data.brushing) return;
         const ctrl = this.ctrl;
         const fetchData = ctrl.fetchData;
+        let itemIds = fetchData.itemIds;
+        if (fetchData.getItemIdsFromFilter) {
+            itemIds = data.itemIds;
+        }
         const currentBoxes = this.sharedState.boxes;
         const currentItemIds = currentBoxes.map( box => box.itemId );
         const itemIdsToAdd = itemIds.filter( itemId => !currentItemIds.includes( itemId ) );

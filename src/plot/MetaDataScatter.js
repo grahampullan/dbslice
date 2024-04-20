@@ -346,8 +346,9 @@ class MetaDataScatter extends Plot {
                 .style( "stroke-width", "0px")
                 .style( "fill", d => colour( d[ cProperty ] ));
         } else {
-            points.style( "opacity" , 0.2);
-            points.style( "fill" , "#d3d3d3");
+            points.style( "opacity" , 0.2)
+                .style( "fill" , "#d3d3d3")
+                .style( "stroke-width", "0px");
             highlightItemIds.forEach( function (itemId) {
                 points.filter( (d,i) => d.itemId == itemId)
                     .style( "fill", d => colour( d[ cProperty ] )  )
