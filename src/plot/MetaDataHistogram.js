@@ -11,6 +11,7 @@ class MetaDataHistogram extends Plot {
         options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
         options.layout.highlightItems = options.layout.highlightItems || true;
+        options.layout.xTickNumber = options.layout.xTickNumber || 5;
         super(options);
         this.brushInitialised = false;
     }
@@ -121,7 +122,7 @@ class MetaDataHistogram extends Plot {
             .rangeRound( [ 0, width ] );
 
         const xAxis = d3.axisBottom( x );
-        if ( this.layout.xTickNumber !== undefined ) { xAxis.ticks(this.layout.xTickNumber); }
+        xAxis.ticks(this.layout.xTickNumber);
         if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
 
         

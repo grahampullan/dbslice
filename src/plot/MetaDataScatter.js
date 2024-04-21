@@ -10,6 +10,8 @@ class MetaDataScatter extends Plot {
         options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
         options.layout.highlightItems = options.layout.highlightItems || true;
+        options.layout.xTickNumber = options.layout.xTickNumber || 5;
+        options.layout.yTickNumber = options.layout.yTickNumber || 5;
         super(options);
     }
 
@@ -206,11 +208,11 @@ class MetaDataScatter extends Plot {
         }
 
         const xAxis = d3.axisBottom( xscale );
-        if ( layout.xTickNumber ) { xAxis.ticks(layout.xTickNumber); }
+        xAxis.ticks(layout.xTickNumber); 
         if ( layout.xTickFormat ) { xAxis.tickFormat(d3.format(layout.xTickFormat)); }
 
         const yAxis = d3.axisLeft( yscale );
-        if ( layout.yTickNumber ) { yAxis.ticks(layout.yTickNumber); }
+        yAxis.ticks(layout.yTickNumber); 
         if ( layout.yTickFormat ) { yAxis.tickFormat(d3.format(layout.yTickFormat)); }
 
         let gX = plotArea.select(".axis-x");
