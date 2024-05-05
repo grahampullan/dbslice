@@ -31,11 +31,11 @@ function makeSessionHeader( element, title, subtitle, config ) {
 
 	}
 
-	if ( config.saveTasksButton ) {
+	if ( config.downloadTasksButton ) {
 
-		let buttonLabel = "Save Selected Tasks";
+		let buttonLabel = "Download Selected Tasks";
         if (config.replaceTasksNameWith !== undefined) {
-            buttonLabel = `Save Selected ${config.replaceTasksNameWith}`;
+            buttonLabel = `Download Selected ${config.replaceTasksNameWith}`;
         }
 
 		titleHtml += `<button class='btn btn-success mr-1 float-right float-end' id='downloadTasks'>${buttonLabel}</button>`;
@@ -64,7 +64,7 @@ function makeSessionHeader( element, title, subtitle, config ) {
 		document.getElementById("refreshTasks").onclick = function() { refreshTasksInPlotRows() };
 	}
 
-	if ( config.downloadCurrentTasks) {
+	if ( config.downloadTasksButton ) {
 		document.getElementById("downloadTasks").onclick = function() { downloadCurrentTasks() };
 	}
 
