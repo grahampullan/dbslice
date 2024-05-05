@@ -1,7 +1,7 @@
 import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
 import { refreshTasksInPlotRows } from '../core/refreshTasksInPlotRows.js';
 import { dbsliceData } from '../core/dbsliceData.js';
-import * as d3 from 'd3';
+import * as d3 from 'd3v7';
 
 const cfD3Histogram = {
 
@@ -136,60 +136,30 @@ const cfD3Histogram = {
             gX.call( xAxis );
         }
 
-        const brush = d3.brushX()
-            .extent( [
-                [ 0, 0 ],
-                [ width, height ]
-            ] )
-            .on( "start brush", brushmoved )
-            .on( "end", brushend )
 
-        let gBrush = svg.select(".brush");
-        if ( gBrush.empty() ) {
-            gBrush = svg.append( "g" )
-                .attr( "transform", `translate(${margin.left}, ${margin.top})` )
-                .attr( "class", "brush" );
-        }
-        gBrush.call(brush);
-
-        let handle = gBrush.selectAll( ".handle-custom");
-        if ( handle.empty() ) {
-            handle = gBrush.selectAll( ".handle-custom" )
-                .data( [ { type: "w" } , { type: "e" } ] )
-                .enter().append( "path" )
-                    .attr( "class", "handle-custom" )
-                    .attr( "stroke", "#000" )
-                    .attr( "cursor", "ewResize" )
-                    .attr( "d", brushResizePath );
-        }
-
-
-        if (!this.brushInitialised) {
-            brushInit = true;
-            gBrush.call( brush.move, itemExtent.map( x ) );
-            brushInit = false;
-            this.brushInitialised = true;
-        }
-
-
-        const histogram = d3.histogram()
+        const bins = d3.bin()
             .value( d => d[ property ] )
             .domain( x.domain() )
-            .thresholds( x.ticks( 20 ) );
-
-        const bins = histogram( items );
+            .thresholds( x.ticks( 20 ) )(items);
 
         const y = d3.scaleLinear()
             .domain( [ 0, d3.max( bins, d => d.length ) ] )
             .range( [ height, 0 ] );
 
-        const bars = plotArea.selectAll( "rect" )
+        let gBars = plotArea.select(".gbars");
+        if ( gBars.empty() ) {
+             gBars = plotArea.append("g")
+                .attr("class", "gbars");
+        }
+
+        const bars = gBars.selectAll( ".bar" )
             .data( bins );
 
         const colour = ( this.layout.colour === undefined ) ? "cornflowerblue" : this.layout.colour;
 
         bars.enter()
             .append( "rect" )
+                .attr( "class", "bar" )
                 .attr( "transform", d => `translate(${x( d.x0 )},${y( d.length )})` )
                 .attr( "x", 1 )
                 .attr( "width", d => x(d.x1)-x(d.x0)-1 )
@@ -204,6 +174,36 @@ const cfD3Histogram = {
             .attr( "height", d => height - y( d.length ) );
 
         bars.exit().remove();
+
+        const brush = d3.brushX()
+            .extent( [
+                [ 0, 0 ],
+                [ width, height ]
+            ] )
+            .on( "start brush", brushMoved )
+            .on( "end", brushEnd );
+        
+        let gBrush = plotArea.select(".gbrush");
+        let handle;
+        if ( gBrush.empty() ) {
+            gBrush = plotArea.append( "g" )
+                .attr( "class", "gbrush" );
+            handle = gBrush.selectAll( ".handle-custom");
+            if ( handle.empty() ) {
+                handle = gBrush.selectAll( ".handle-custom" )
+                    .data( [ { type: "w" } , { type: "e" } ] )
+                    .enter().append( "path" )
+                        .attr( "class", "handle-custom" )
+                        .attr( "stroke", "#000" )
+                        .attr( "cursor", "ewResize" )
+                        .attr( "d", brushResizePath );
+            }
+            brushInit = true;
+            gBrush.call(brush);
+            gBrush.call( brush.move, itemExtent.map( x ) );
+            brushInit = false;
+            this.brushInitialised = true;            
+        }
 
         const yAxis = d3.axisLeft( y );
         if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
@@ -261,8 +261,10 @@ const cfD3Histogram = {
         }
 
 
-        function brushmoved() {
-            let s = d3.event.selection;
+        function brushMoved(event) {
+            const s = event.selection;
+            const handle = gBrush.selectAll(".handle-custom");
+
             if ( s == null ) {
                 handle.attr( "display", "none" );
                 cfData.histogramSelectedRanges[ dimId ] = [];
@@ -277,9 +279,10 @@ const cfD3Histogram = {
                 cfUpdateFilters(cfData);
                 if ( brushInit == false ) refreshTasksInPlotRows(true);
             }
+            
         }
 
-        function brushend() {
+        function brushEnd(event) {
             dbsliceData.allowAutoFetch = true;
             if ( brushInit == false ) refreshTasksInPlotRows(true);
             dbsliceData.allowAutoFetch = false;
@@ -291,26 +294,21 @@ const cfD3Histogram = {
                     [ 0, 0 ],
                     [ width, height ]
                 ] )
-                .on( "start brush", brushmoved )
-                .on( "end", brushend )
+                .on( "start brush", brushMoved )
+                .on( "end", brushEnd )
          
-            const gBrush = svg.select(".brush");
+            const gBrush = svg.select(".gbrush");
             
             gBrush.call(brush);
     
             const handle = gBrush.selectAll( ".handle-custom" );
             const s = cfData.histogramSelectedRanges[ dimId ].map( r => x(r) );
+            console.log(s);
+            console.log(dimId);
 
             brushInit = true;
             gBrush.call( brush.move, s );
             brushInit = false;
-
-            handle.attr( "display", null ).attr( "transform", function( d, i ) {
-                return "translate(" + [ s[ i ], -height / 4 ] + ")";
-                } );
-        
-
-        
 
         }
 
