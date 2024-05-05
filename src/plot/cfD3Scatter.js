@@ -258,10 +258,14 @@ const cfD3Scatter = {
 
         function zoomed(event) {
             var t = event.transform;
-            xscale.domain(t.rescaleX(xscale0).domain());
-            yscale.domain(t.rescaleY(yscale0).domain());
-            gX.call(xAxis);
-            gY.call(yAxis);
+            //if (layout.xZoomOnly === undefined || layout.xZoomOnly) {
+                xscale.domain(t.rescaleX(xscale0).domain());
+                gX.call(xAxis);
+            //}
+            //if (layout.yZoomOnly === undefined || layout.yZoomOnly) {
+                yscale.domain(t.rescaleY(yscale0).domain());
+                gY.call(yAxis);
+            //}
             plotArea.selectAll(".point")
                 .attr( "cx", d => xscale( d[ xProperty ] ) )
                 .attr( "cy", d => yscale( d[ yProperty ] ) );
