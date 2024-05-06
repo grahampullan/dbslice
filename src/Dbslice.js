@@ -16,6 +16,7 @@ export { cfD3ResSurfScatter } from './plot/cfD3ResSurfScatter.js'
 export { cfLeafletMapWithMarkers } from './plot/cfLeafletMapWithMarkers.js';
 export { cfAddPlot } from './plot/cfAddPlot.js';
 export { threeTriMesh } from './plot/threeTriMesh.js' ;
+export { cfD3Buttons } from './plot/cfD3Buttons.js';
 export { start } from './core/start.js';
 export { render } from './core/render.js';
 export { update } from './core/update.js';
