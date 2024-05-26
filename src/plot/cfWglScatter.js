@@ -442,6 +442,8 @@ const cfWglScatter = {
 
     drawPoints : function(gl, vertices, colours) {
 
+        const scale = window.devicePixelRatio;
+
         const nPts = vertices.length/2;
 
         const programInfo = twgl.createProgramInfo(gl, [this.vertShader, this.fragShader]);
@@ -459,9 +461,9 @@ const cfWglScatter = {
         glMatrix.mat4.ortho(projectionMatrix, 0, this.width, 0, this.height, 0, 1.);
         let pointSize;
         if (this.layout.pointSize !== undefined) {
-            pointSize = this.layout.pointSize;
+            pointSize = this.layout.pointSize * scale;
         } else {
-            pointSize = 20.
+            pointSize = 10 * scale;
         }
         const uniforms = {u_matrix: projectionMatrix, u_pointsize: pointSize};
         twgl.setUniforms(programInfo, uniforms);
