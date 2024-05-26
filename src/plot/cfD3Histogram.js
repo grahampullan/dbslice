@@ -180,6 +180,7 @@ const cfD3Histogram = {
                 [ 0, 0 ],
                 [ width, height ]
             ] )
+            .handleSize( 12 )
             .on( "start brush", brushMoved )
             .on( "end", brushEnd );
         
@@ -200,7 +201,10 @@ const cfD3Histogram = {
             }
             brushInit = true;
             gBrush.call(brush);
-            gBrush.call( brush.move, itemExtent.map( x ) );
+            gBrush.call(brush.move, itemExtent.map( x ) );
+            gBrush.call(g => g.select(".overlay")
+                .datum({type: "selection"})
+                .on("mousedown touchstart", beforebrushstarted));
             brushInit = false;
             this.brushInitialised = true;            
         }
@@ -288,23 +292,40 @@ const cfD3Histogram = {
             dbsliceData.allowAutoFetch = false;
         }
 
+        function beforebrushstarted(event) {
+            const s = cfData.histogramSelectedRanges[ dimId ];
+            const sx = s.map( x );
+            const dx = sx[1] - sx[0]; 
+            const [[cx]] = d3.pointers(event);
+            const [x0, x1] = [cx - dx / 2, cx + dx / 2];
+            const [X0, X1] = x.range();
+            d3.select(this.parentNode)
+                .call(brush.move, x1 > X1 ? [X1 - dx, X1] 
+                    : x0 < X0 ? [X0, X0 + dx] 
+                : [x0, x1]);
+        }
+
         if (dbsliceData.windowResize ) {
             const brush = d3.brushX()
                 .extent( [
                     [ 0, 0 ],
                     [ width, height ]
                 ] )
+                .handleSize( 12 )
                 .on( "start brush", brushMoved )
                 .on( "end", brushEnd )
          
             const gBrush = svg.select(".gbrush");
             
             gBrush.call(brush);
+            gBrush.call(g => g.select(".overlay")
+                .datum({type: "selection"})
+                .on("mousedown touchstart", beforebrushstarted));
     
             const handle = gBrush.selectAll( ".handle-custom" );
             const s = cfData.histogramSelectedRanges[ dimId ].map( r => x(r) );
-            console.log(s);
-            console.log(dimId);
+            //console.log(s);
+            //console.log(dimId);
 
             brushInit = true;
             gBrush.call( brush.move, s );
