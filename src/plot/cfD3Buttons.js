@@ -75,6 +75,8 @@ const cfD3Buttons = {
         }
         const buttonWidth = `calc(${100/numCols}% - 4px)`;
 
+        buttonContainer.style("width", `${width}px`)
+
         const buttons = buttonContainer.selectAll(".grid-button")
             .data( buttonNames );
 
@@ -114,13 +116,14 @@ const cfD3Buttons = {
                 dbsliceData.allowAutoFetch = false;
             });
 
-        buttons.style( "opacity", ( d ) => {
-            if ( cfData.filterSelected[ dimId ] === undefined || cfData.filterSelected[ dimId ].length === 0 ) {
-                return 1;
-            } else {
-                return cfData.filterSelected[ dimId ].indexOf( d ) === -1 ? 0.2 : 1;
-            }
-        });
+        buttons
+            .style( "opacity", ( d ) => {
+                if ( cfData.filterSelected[ dimId ] === undefined || cfData.filterSelected[ dimId ].length === 0 ) {
+                    return 1;
+                } else {
+                    return cfData.filterSelected[ dimId ].indexOf( d ) === -1 ? 0.2 : 1;
+                }
+            });
         
     },
 
