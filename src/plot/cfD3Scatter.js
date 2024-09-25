@@ -273,7 +273,7 @@ const cfD3Scatter = {
         }
 
         function tipOn( event, d ) {
-            plotArea.selectAll( ".point" ).style( "opacity" , 0.2);
+            plotArea.selectAll( ".point" ).style( "opacity" , 0.4);
             let target = d3.select(event.target);
             target
                 .style( "opacity" , 1.0)
@@ -350,14 +350,22 @@ const cfD3Scatter = {
         colour.domain( cfData.categoricalUniqueValues[ cProperty ] );
         const points = plotArea.selectAll( ".point" );
 
+        const joiningLines = plotArea.selectAll(".joining-line");
+
         if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
             points
                 .style( "opacity" , opacity )
                 .style( "stroke-width", "0px")
                 .style( "fill", d => colour( d[ cProperty ] ));
+            joiningLines
+                .style( "opacity" , 1.0)
+                .style( "stroke-width", "2.5px");
         } else {
-            points.style( "opacity" , 0.2);
+            points.style( "opacity" , 0.6);
             points.style( "fill" , "#d3d3d3");
+            joiningLines
+                .style( "opacity" , 0.6)
+                .style( "stroke-width", "1px");
             dbsliceData.highlightTasks.forEach( function (taskId) {
                 points.filter( (d,i) => d.taskId == taskId)
                     .style( "fill", d => colour( d[ cProperty ] )  )
@@ -365,6 +373,9 @@ const cfD3Scatter = {
                     .style( "stroke", "red")
                     .style( "stroke-width", "2px")
                     .raise();
+                joiningLines.filter( (d,i) => d.map( d => d.taskId ).includes(taskId))
+                    .style( "opacity" , 1.0)
+                    .style( "stroke-width", "2.5px");
             });
         }
     }
