@@ -125,6 +125,30 @@ const cfD3Buttons = {
     },
 
     highlightTasks : function () {
+    
+        if (!this.layout.highlightTasks) return;
+
+        const cfData = dbsliceData.session.cfData;
+        const dim = cfData.categoricalDims[ this.dimId ];
+        const property = this.data.property;
+
+        const container = d3.select(`#${this.elementId}`);
+        const buttonContainer = container.select(".button-container");
+        const buttons = buttonContainer.selectAll(".grid-button");
+
+        if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
+            buttons.style( "border", "none" );
+        } else {
+            buttons
+                .style( "border-style", "solid" )
+                .style( "border-width", "0px" )
+                .style( "border-color", "red" ); 
+            dbsliceData.highlightTasks.forEach( function (taskId) {
+                let keyNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][property];
+                buttons.filter( (d,i) => d == keyNow)
+                    .style( "border-width", "4px" )
+            });
+        }
 
 
     }
