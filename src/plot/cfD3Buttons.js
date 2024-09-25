@@ -16,10 +16,14 @@ const cfD3Buttons = {
         const height = this.layout.height - margin.top - margin.bottom;
         this.dimId = dbsliceData.session.cfData.categoricalProperties.indexOf( this.data.property );
         
-        const div = container.append("div")
+        const background = container.append("div")
+            .attr("class","button-background")
+            .style("width", `${container.node().offsetWidth}px`)
+            .style("height", `${this.layout.height}px`);
+        const div = background.append("div")
             .attr("class","button-container")
             .attr("id", `button-container-${this._prid}-${this._id}`)
-            .style("position", "absolute")
+            .style("position", "relative")
             .style("width", `${width}px`)
             .style("height", `${height}px`)
             .style("left", `${margin.left}px`)
@@ -37,6 +41,7 @@ const cfD3Buttons = {
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
+        const buttonBackground = container.select(".button-background");
         const buttonContainer = container.select(".button-container");
         const layout = this.layout;
 
@@ -75,6 +80,7 @@ const cfD3Buttons = {
         }
         const buttonWidth = `calc(${100/numCols}% - 4px)`;
 
+        buttonBackground.style("width", `${container.node().offsetWidth}px`)
         buttonContainer.style("width", `${width}px`)
 
         const buttons = buttonContainer.selectAll(".grid-button")
@@ -140,16 +146,13 @@ const cfD3Buttons = {
         const buttons = buttonContainer.selectAll(".grid-button");
 
         if (dbsliceData.highlightTasks === undefined || dbsliceData.highlightTasks.length == 0) {
-            buttons.style( "border", "none" );
+            buttons.style("box-shadow", "none");
         } else {
-            buttons
-                .style( "border-style", "solid" )
-                .style( "border-width", "0px" )
-                .style( "border-color", "red" ); 
+            buttons.style("box-shadow", "none");
             dbsliceData.highlightTasks.forEach( function (taskId) {
                 let keyNow = dim.top(Infinity).filter(d => d.taskId==taskId)[0][property];
                 buttons.filter( (d,i) => d == keyNow)
-                    .style( "border-width", "4px" )
+                    .style("box-shadow", "inset 0 0 0 4px red");
             });
         }
 
