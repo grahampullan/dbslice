@@ -99,6 +99,8 @@ const cfD3Buttons = {
             .style("white-space", "nowrap") 
             .style("overflow", "hidden") 
             .style("text-overflow", "ellipsis")
+            .style("cursor", "pointer")
+            //.style("transition", "0.4s ease")
             .style( "opacity", ( d ) => {
                 if ( cfData.filterSelected[ dimId ] === undefined || cfData.filterSelected[ dimId ].length === 0 ) {
                     return 1.;
@@ -120,7 +122,9 @@ const cfD3Buttons = {
                 dbsliceData.allowAutoFetch = true;
                 refreshTasksInPlotRows( true );
                 dbsliceData.allowAutoFetch = false;
-            });
+            })
+            .on( "mouseover", ( event, d ) => {d3.select(event.target).style("filter", "brightness(1.2)")})
+            .on( "mouseout", ( event, d ) => {d3.select(event.target).style("filter", "brightness(1)")});
 
         buttons
             .style( "opacity", ( d ) => {
