@@ -129,6 +129,7 @@ const cfD3BarChart = {
 
         bars.enter()
             .append( "rect" )
+            .attr( "rx", 3 )
             .on( "click", ( event, selectedItem ) => {
 
                 if ( cfData.filterSelected[ dimId ] === undefined ) {
@@ -158,6 +159,8 @@ const cfD3BarChart = {
             .attr( "y", v => y(v.key) )
             .style( "fill", v => colour(v.key) )
             .style( "cursor", "pointer")
+            .on( "mouseover", function ( event, d ) { d3.select(event.target).style("fill", d3.rgb(colour(d.key)).brighter(0.5))})
+            .on( "mouseout", function ( event, d ) { d3.select(event.target).style("fill", colour(d.key))})
             .transition()
                 .attr( "width", v => x( v.value ) )
                 .attr( "opacity", ( v ) => {

@@ -91,6 +91,16 @@ const cfD3Buttons = {
             .attr("class", "grid-button")
             .style("width", buttonWidth) 
             .style("background-color", d => {let col=d3.rgb(colour( d )); col.opacity=0.8; return col;})
+            .on( "mouseover", ( event, d ) => {
+                let col=d3.rgb(colour( d )).brighter(0.50);
+                col.opacity=0.8;
+                d3.select(event.target).style("background-color", col);
+            })
+            .on( "mouseout", ( event, d ) => {
+                let col=d3.rgb(colour( d ));
+                col.opacity=0.8;
+                d3.select(event.target).style("background-color", col);
+            })
             .style("border-radius", "10px")
             .style("border","none")
             .style("font-size", "1.0em")
@@ -122,10 +132,8 @@ const cfD3Buttons = {
                 dbsliceData.allowAutoFetch = true;
                 refreshTasksInPlotRows( true );
                 dbsliceData.allowAutoFetch = false;
-            })
-            .on( "mouseover", ( event, d ) => {d3.select(event.target).style("filter", "brightness(1.2)")})
-            .on( "mouseout", ( event, d ) => {d3.select(event.target).style("filter", "brightness(1)")});
-
+            });
+            
         buttons
             .style( "opacity", ( d ) => {
                 if ( cfData.filterSelected[ dimId ] === undefined || cfData.filterSelected[ dimId ].length === 0 ) {
