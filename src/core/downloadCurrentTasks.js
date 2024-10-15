@@ -13,8 +13,9 @@ function downloadCurrentTasks() {
     });
     csv.unshift(header);
     const csvOut = csv.join('\n');
+    const BOM = '\uFEFF';  // BOM in UTF-8
 
-    const blob = new Blob([csvOut], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([BOM + csvOut], { type: 'text/csv;charset=utf-8;' });
 
     let a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
