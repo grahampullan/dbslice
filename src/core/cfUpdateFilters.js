@@ -36,13 +36,22 @@ function cfUpdateFilters( crossfilter ) {
 
     }
 
-    if ( currentMetaData[0].label !== undefined ) {
+    if ( currentMetaData.length > 0 ) {
+
+      if ( currentMetaData[0].label !== undefined ) {
 
         dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.label});
 
-    } else {
+      } else {
 
         dbsliceData.filteredTaskLabels = currentMetaData.map(function(d){return d.taskId});
+
+      }
+
+    } else {
+
+        dbsliceData.filteredTaskLabels = [];
+
     }
 
     if ( dbsliceData.session.addRefTaskId !== undefined && dbsliceData.session.addRefTaskId == true ) {
