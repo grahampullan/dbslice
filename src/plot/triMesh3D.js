@@ -15,6 +15,7 @@ class TriMesh3D extends Plot {
 		options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:0, right:0, bottom:0, left:0};
         super(options);
+		this.stencilRects = [];
     }
 
 	make() {
@@ -97,6 +98,12 @@ class TriMesh3D extends Plot {
 		if (this.renderObserverId !== undefined) {
 			requestWebGLRender.setObserverLastById(this.renderObserverId);
 		}
+
+		if (this.sharedCameraObserverId !== undefined) {
+			sharedCamera.setObserverLastById(this.sharedCameraObserverId);
+		}
+
+
 		if (requestWebGLRender.state = false) {
 			requestWebGLRender.state = true;
 	   	}
@@ -255,7 +262,23 @@ class TriMesh3D extends Plot {
 
 		// Initialise threejs scene
 		const scene = new THREE.Scene();
-		scene.background = new THREE.Color( 0xefefef );
+		//scene.background = new THREE.Color( 0xefefef );
+		const backgroundGeometry = new THREE.PlaneGeometry(2, 2);
+		const backgroundColour = this.layout.backgroundColour || 0xefefef;
+        const backgroundMaterial = new THREE.MeshBasicMaterial({color: backgroundColour});
+        backgroundMaterial.depthWrite = false;
+        backgroundMaterial.stencilWrite = true;
+        backgroundMaterial.stencilRef = 1;
+        backgroundMaterial.stencilFunc = THREE.NotEqualStencilFunc;
+        const background = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
+        background.material.onBeforeCompile = function( shader ){
+                    shader.vertexShader = shader.vertexShader.replace( `#include <project_vertex>` , 
+                        `gl_Position = vec4( position , 1.0 );`
+                    );
+                }
+        background.renderOrder = 9;
+        scene.add(background);
+
 
 		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 		const materialCol = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
@@ -332,7 +355,12 @@ class TriMesh3D extends Plot {
 			} else {
 				material = materialCol;
 			}
+			material.stencilWrite = true;
+        	material.stencilRef = 1;
+        	material.stencilFunc = THREE.NotEqualStencilFunc;
+
 			const mesh = new THREE.Mesh( geometry, material );
+			mesh.renderOrder = 10;
 			meshUuids.push( mesh.uuid );
 			scene.add( mesh );
 		}
@@ -369,6 +397,7 @@ class TriMesh3D extends Plot {
 			//sharedCamera.state = {position: camera.position, rotation: camera.rotation};
 			if (!sharedCamera.isSubscribed(boundUpdateCameraAndRenderScene)) {
 				const id = sharedCamera.subscribe(boundUpdateCameraAndRenderScene);
+				this.sharedCameraObserverId = id;
 				this.subscriptions.push({observable:sharedCamera, id});
 			}
 		}
@@ -460,7 +489,11 @@ class TriMesh3D extends Plot {
 				} else {
 					material = materialCol;
 				}
+				material.stencilWrite = true;
+        		material.stencilRef = 1;
+        		material.stencilFunc = THREE.NotEqualStencilFunc;
 				const newMesh = new THREE.Mesh( geometry, material );
+				newMesh.renderOrder = 10;
 				meshUuids[iSurf] = newMesh.uuid;
 				scene.add( newMesh );
 			} 
@@ -652,6 +685,8 @@ class TriMesh3D extends Plot {
 	}
 
 	renderScene() {
+		console.log("starting renderScene");
+		console.log(this.boxId);
 		const renderer = this.renderer;
 		const container = d3.select(`#${this.id}`);
 		const plotArea = container.select(".plot-area");
@@ -660,7 +695,8 @@ class TriMesh3D extends Plot {
 		const ancestorId = this.ancestorIds[this.ancestorIds.length-1];
 		let rect={left:plotRect.left, right:plotRect.right, top:plotRect.top, bottom:plotRect.bottom};
 		if (ancestorId !== "context") {
-			let plotGroupRect = d3.select(`#${ancestorId}-component-plot-area`).node().getBoundingClientRect();
+			const plotGroup = d3.select(`#${ancestorId}-component-plot-area`);
+			let plotGroupRect = plotGroup.node().getBoundingClientRect();
 			if (plotRect.right < plotGroupRect.left) {return;}
 			if (plotRect.left > plotGroupRect.right) {return;}
 			if (plotRect.bottom < plotGroupRect.top) {return;}
@@ -677,6 +713,77 @@ class TriMesh3D extends Plot {
 			if (plotRect.bottom > plotGroupRect.bottom && plotRect.top < plotRect.bottom) { 
 				rect.bottom = plotGroupRect.bottom - 2;
 			}
+			console.log("hello");
+			console.log(plotGroup.selectAll(".board-box"));
+			console.log(this.id);
+			console.log(this);
+			const peerBoxes = plotGroup.selectAll(".board-box");
+			const peerBoxesNodes = peerBoxes.nodes();
+			const currentBox = d3.select(`#${this.boxId}`);
+			const indexOfCurrentBox = peerBoxesNodes.indexOf(currentBox.node());
+			console.log(indexOfCurrentBox);
+			const nearerDivs = peerBoxesNodes.filter((d, j) => indexOfCurrentBox < j).map(d => d.getBoundingClientRect());
+			console.log(nearerDivs);
+			console.log(plotRect);
+			const nearerDivsClipSpace = nearerDivs.map(d => {
+                const left = (d.left - plotRect.left) / plotRect.width * 2 - 1;
+                const right = (d.right - plotRect.left) / plotRect.width * 2 - 1;
+                const top = (plotRect.top + plotRect.height - d.top) / plotRect.height * 2 - 1;
+                const bottom = (plotRect.top + plotRect.height - d.bottom) / plotRect.height * 2 - 1;
+                let overlap = false;
+                if (left < 1 && right > -1 && bottom < 1 && top > -1) {
+                    overlap = true;
+                }
+                return {left, right, top, bottom, overlap};
+            });
+            const overlappingDivsClipSpace = nearerDivsClipSpace.filter(d => d.overlap);
+			console.log("overlappingDivsClipSpace");
+			console.log(overlappingDivsClipSpace);
+
+            this.stencilRects.forEach( uuid => {
+                const oldRect = this.scene.getObjectByProperty('uuid', uuid);
+                oldRect.geometry.dispose();
+                oldRect.material.dispose();
+                this.scene.remove(oldRect);
+            })
+            this.stencilRects = [];
+
+            overlappingDivsClipSpace.forEach(d => {
+                const rectangleBufferGeometryForMesh = new THREE.BufferGeometry();
+                const vertices = new Float32Array([
+                    d.left, d.top, -1,
+                    d.right, d.top, -1,
+                    d.right, d.bottom, -1,
+                    d.left, d.bottom, -1
+                ]);
+				console.log("vertices");
+				console.log(vertices);
+                const indices = new Uint32Array([
+                    0, 2, 1,
+                    0, 3, 2
+                ]);
+                rectangleBufferGeometryForMesh.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                rectangleBufferGeometryForMesh.setIndex(new THREE.BufferAttribute(indices, 1));
+                const rectangleMaterial = new THREE.MeshBasicMaterial({color: "red"});
+                rectangleMaterial.colorWrite = false;
+                rectangleMaterial.depthWrite = false;
+                rectangleMaterial.stencilWrite = true;
+                rectangleMaterial.stencilRef = 1;
+                rectangleMaterial.stencilFunc = THREE.AlwaysStencilFunc;
+                rectangleMaterial.stencilZPass = THREE.ReplaceStencilOp;
+                const rectangle = new THREE.Mesh(rectangleBufferGeometryForMesh, rectangleMaterial);
+                rectangle.material.onBeforeCompile = function( shader ){
+                    shader.vertexShader = shader.vertexShader.replace( `#include <project_vertex>` , 
+                        `gl_Position = vec4( position , 1.0 );`
+                    );
+                }
+                rectangle.renderOrder = 0;
+
+                this.stencilRects.push(rectangle.uuid)
+                this.scene.add(rectangle);  
+                
+            });
+
 		}
 
 		const scissorLeft = Math.floor(rect.left);
@@ -689,12 +796,12 @@ class TriMesh3D extends Plot {
 		const viewWidth = Math.floor(plotRect.right - plotRect.left);
 		const viewHeight = Math.floor(plotRect.bottom - plotRect.top);
 
-		renderer.setClearColor( 0xe0e0e0 );
+		//renderer.setClearColor( 0xe0e0e0 );
 		renderer.setScissorTest( true );
 	
 		renderer.setViewport( viewLeft, viewBottom, viewWidth, viewHeight );
 		renderer.setScissor( scissorLeft, scissorBottom, scissorWidth, scissorHeight);
-		renderer.clear();
+		//renderer.clear();
 			
 		//console.log("rendering scene", this.parentId);
 		renderer.render(this.scene, this.camera);

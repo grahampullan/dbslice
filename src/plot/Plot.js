@@ -70,6 +70,7 @@ class Plot extends Component {
 
     addPlotAreaDiv() {
         const container = d3.select(`#${this.id}`);
+        container.style("pointer-events", "all");
         container.append("div")
             .attr("id", `${this.plotAreaId}`)
             .attr("class", "plot-area")
@@ -85,6 +86,7 @@ class Plot extends Component {
 
     addPlotAreaSvg() {
         const container = d3.select(`#${this.id}`);
+        container.style("pointer-events", "all");
         container.append("svg")
             .attr("id", `${this.plotAreaId}`)
             .attr("class", "plot-area")
