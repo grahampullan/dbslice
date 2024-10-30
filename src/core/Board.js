@@ -8,7 +8,9 @@ class Board extends bbBoard {
         if (!options) { options={} };
         super(options);
         const requestWebGLRender = new Observable({flag:true, state:false});
-        this.sharedState = {...this.sharedState, requestWebGLRender};
+        const requestWebGLRenderOrderUpdate = new Observable({flag:true, state:false});
+        requestWebGLRenderOrderUpdate.subscribe(this.webGLRenderOrderUpdate.bind(this));
+        this.sharedState = {...this.sharedState, requestWebGLRender, requestWebGLRenderOrderUpdate};
     }
 
     make() {
@@ -19,7 +21,6 @@ class Board extends bbBoard {
             .attr("class", "modal")
             .attr("id", `${this.id}-modal`)
             .on("click", (event)=>{
-                console.log("modal click");
                 event.stopPropagation();
                 })
             .append("div")
@@ -70,15 +71,11 @@ class Board extends bbBoard {
     makePlotGroupDetailed() {
         const dataset = this.sharedStateByAncestorId["context"].datasets[0];
         const boxesToAdd = dataset.availablePlots;
-        console.log(boxesToAdd);
         const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:4, autoLayout:true, component: new PlotGroup({layout:{title:"Detail plots", icons:["filter"]}})});
         this.sharedState.requestUpdateBoxes.state = {boxesToAdd:[plotGroupBox]};
         const plotGroupBoxId = plotGroupBox.id;
         const parentBox = this.boxes.find( box => box.id == plotGroupBoxId );
-        parentBox.sharedState.requestUpdateBoxes.state = {boxesToAdd, boxesToRemove:[]};
-
-
-        
+        parentBox.sharedState.requestUpdateBoxes.state = {boxesToAdd, boxesToRemove:[]};   
     }
 
     makePlotGroupFilter() {
@@ -89,8 +86,19 @@ class Board extends bbBoard {
         const filters = this.sharedStateByAncestorId["context"].filters;
         const filterId = filters[filters.length-1].id;
         const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:4, autoLayout:true, component: new PlotGroup({layout:{title:"Filter plots", filterPlots:true, datasetId, filterId, icons:["add"]}})});
-        console.log(plotGroupBox);
         this.sharedState.requestUpdateBoxes.state = {boxesToAdd:[plotGroupBox]};
+    }
+
+    webGLRenderOrderUpdate() {
+        const board = d3.select(`#${this.id}`);
+        const allBoxesInDOMOrder = board.selectAll(".board-box").nodes();
+        const allBoxIdsInDOMOrder = allBoxesInDOMOrder.map( box => box.id );
+        const observers = this.sharedState.requestWebGLRender.observers;
+        const idOrderMap = allBoxIdsInDOMOrder.reduce((map, id, index) => {
+            map[id] = index;
+            return map;
+        }, {});
+        observers.sort((a, b) => idOrderMap[a.data.boxId] - idOrderMap[b.data.boxId]);
     }
 }
 
