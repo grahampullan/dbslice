@@ -17,7 +17,7 @@ class Context extends bbContext {
             .style("height", "100%")
             //.style("z-index", "100")
             .style("pointer-events", "none");
-        const renderer = new THREE.WebGLRenderer({canvas: canvas.node(), logarithmicDepthBuffer: true});
+        const renderer = new THREE.WebGLRenderer({canvas: canvas.node(), alpha:true, logarithmicDepthBuffer: true, stencil: true, antialias: true});
         renderer.setPixelRatio( window.devicePixelRatio );
         renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight);
         renderer.setScissorTest( true );

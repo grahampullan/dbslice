@@ -1,12 +1,10 @@
-//import { dbsliceData } from '../core/dbsliceData.js';
-//import { highlightTasksAllPlots } from '../core/plot.js';
+
 import * as d3 from 'd3v7';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three';
 import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
-//import { update } from '../core/update.js';
 import { Plot } from './Plot.js';
-import { render } from '../Dbslice.js';
+
 
 class TriMesh3D extends Plot {
 
@@ -15,6 +13,7 @@ class TriMesh3D extends Plot {
 		options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:0, right:0, bottom:0, left:0};
         super(options);
+		this.stencilRects = [];
     }
 
 	make() {
@@ -59,6 +58,8 @@ class TriMesh3D extends Plot {
 		if (this.fetchingData) return;
 		await this.getData();
 
+
+
 		const container = d3.select(`#${this.id}`);
 		const overlay = container.select(".svg-overlay");
 		const plotArea = container.select(".plot-area");
@@ -70,16 +71,16 @@ class TriMesh3D extends Plot {
 		const highlightTasks = layout.highlightTasks;
 		const plotGroupId = this.ancestorIds[this.ancestorIds.length-1];
 		const sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
-		const scrolling = this.sharedStateByAncestorId[plotGroupId].scrolling;
 		const buffer = this.data;
 		const renderer = this.renderer;
 		const cutData = this.cutData;
+		
 
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
 		const boundRenderScene = this.renderScene.bind(this);
 		const boundFindZpCut = findZpCut.bind(this);
 		const boundGetCutLine = getCutLine.bind(this);
-		const boundUpdateCameraAndRenderScene = updateCameraAndRenderScene.bind(this);
+		const boundWebGLUpdate = this.webGLUpdate.bind(this);
 
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
 	
@@ -90,29 +91,12 @@ class TriMesh3D extends Plot {
 			.attr("width", width)
 			.attr("height", height);
 
-		if (this.updateType == "layout") {
-			return;
-		}
-		
-		if (this.renderObserverId !== undefined) {
-			requestWebGLRender.setObserverLastById(this.renderObserverId);
-		}
-		if (requestWebGLRender.state = false) {
-			requestWebGLRender.state = true;
-	   	}
+		this.setLasts();
+		this.webGLUpdate();
 
-		if ( !this.newData && this.updateType == "move") {
-			this.setLasts();
-			this.renderScene();
-            return;
-        }
-
-
-		if ( (this.checkResize || this.checkMove) && !this.newData ) {
-			this.setLasts();
-			this.renderScene();
-			return;
-		}	
+		//if (this.updateType == "layout") {
+		//		return;
+		//}
 
 		if ( !this.newData ) {
 			return;
@@ -255,7 +239,22 @@ class TriMesh3D extends Plot {
 
 		// Initialise threejs scene
 		const scene = new THREE.Scene();
-		scene.background = new THREE.Color( 0xefefef );
+		const backgroundGeometry = new THREE.PlaneGeometry(2, 2);
+		const backgroundColour = this.layout.backgroundColour || 0xefefef;
+        const backgroundMaterial = new THREE.MeshBasicMaterial({color: backgroundColour});
+        backgroundMaterial.depthWrite = false;
+        backgroundMaterial.stencilWrite = true;
+        backgroundMaterial.stencilRef = 1;
+        backgroundMaterial.stencilFunc = THREE.NotEqualStencilFunc;
+        const background = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
+        background.material.onBeforeCompile = function( shader ){
+                    shader.vertexShader = shader.vertexShader.replace( `#include <project_vertex>` , 
+                        `gl_Position = vec4( position , 1.0 );`
+                    );
+                }
+        background.renderOrder = 9;
+        scene.add(background);
+
 
 		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 		const materialCol = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
@@ -332,7 +331,12 @@ class TriMesh3D extends Plot {
 			} else {
 				material = materialCol;
 			}
+			material.stencilWrite = true;
+        	material.stencilRef = 1;
+        	material.stencilFunc = THREE.NotEqualStencilFunc;
+
 			const mesh = new THREE.Mesh( geometry, material );
+			mesh.renderOrder = 10;
 			meshUuids.push( mesh.uuid );
 			scene.add( mesh );
 		}
@@ -343,7 +347,7 @@ class TriMesh3D extends Plot {
 			let camera;
 
 			if (!this.twoD) {
-				camera = new THREE.PerspectiveCamera( 45, width/height, 0.0001, 1000. );
+				camera = new THREE.PerspectiveCamera( 75, width/height,0.001 , 1000. );
 				camera.position.x = xMid + rMax;
 				camera.position.y = yMid;
 				camera.position.z = zMid;
@@ -364,16 +368,7 @@ class TriMesh3D extends Plot {
 		const camera = this.camera;
 		camera.aspect = width / height;
 		camera.updateProjectionMatrix();
-
-		if ( cameraSync ) {
-			//sharedCamera.state = {position: camera.position, rotation: camera.rotation};
-			if (!sharedCamera.isSubscribed(boundUpdateCameraAndRenderScene)) {
-				const id = sharedCamera.subscribe(boundUpdateCameraAndRenderScene);
-				this.subscriptions.push({observable:sharedCamera, id});
-			}
-		}
-
-		// Add controls 
+		
 		if (!this.controls) {
 			const controls = new OrbitControls( camera, plotArea.node() );
 			controls.target.set( xMid, yMid, zMid );
@@ -384,13 +379,15 @@ class TriMesh3D extends Plot {
 			}
 
 			controls.addEventListener( 'change', function(){
-				boundRenderScene();
+				if ( cameraSync ) {
+					sharedCamera.position = camera.position;
+					sharedCamera.rotation = camera.rotation;
+				}
+				boundWebGLUpdate();
 				if ( layout.xCut) {
 					boundFindZpCut(cutData.zpClip, 0.);
 				}
-				if ( cameraSync ) {
-					sharedCamera.state = {position: camera.position, rotation: camera.rotation};
-				}
+				
 			} ); 
 			controls.enableZoom = true; 
 			this.controls = controls;
@@ -398,12 +395,12 @@ class TriMesh3D extends Plot {
 	
 		this.renderScene();
 
+		
 		if (!this.renderObserverId) {
-			this.renderObserverId = requestWebGLRender.subscribe(boundRenderScene);
+			this.renderObserverId = requestWebGLRender.subscribeWithData({observer:boundRenderScene, data:{boxId:this.boxId}});
 			this.subscriptions.push({observable:requestWebGLRender, id:this.renderObserverId});
-			const id = scrolling.subscribe(boundRenderScene);
-			this.subscriptions.push({observable:scrolling, id});
 		}
+		
 
 		if ( layout.xCut && !this.checkResize ) {
 			boundFindZpCut(cutData.zpClip, 0.);
@@ -460,19 +457,15 @@ class TriMesh3D extends Plot {
 				} else {
 					material = materialCol;
 				}
+				material.stencilWrite = true;
+        		material.stencilRef = 1;
+        		material.stencilFunc = THREE.NotEqualStencilFunc;
 				const newMesh = new THREE.Mesh( geometry, material );
+				newMesh.renderOrder = 10;
 				meshUuids[iSurf] = newMesh.uuid;
 				scene.add( newMesh );
 			} 
 			this.scene = scene;
-			//boundRenderScene();
-			this.renderScene();
-		}
-
-		function updateCameraAndRenderScene(cameraView) {
-			this.camera.position.copy(cameraView.position);
-			this.camera.rotation.copy(cameraView.rotation);
-			//boundRenderScene();
 			this.renderScene();
 		}
 
@@ -652,15 +645,26 @@ class TriMesh3D extends Plot {
 	}
 
 	renderScene() {
+		if (!this.scene) return;
 		const renderer = this.renderer;
 		const container = d3.select(`#${this.id}`);
+		const sharedCamera = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCamera;
+		const sharedCameraPosition = sharedCamera.position;
+		const sharedCameraRotation = sharedCamera.rotation;
+	
+		if (this.layout.cameraSync && sharedCameraPosition) {
+			this.camera.position.copy(sharedCameraPosition);
+			this.camera.rotation.copy(sharedCameraRotation);
+			this.camera.updateMatrixWorld();
+		}
 		const plotArea = container.select(".plot-area");
 		renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
 		let plotRect = plotArea.node().getBoundingClientRect();
 		const ancestorId = this.ancestorIds[this.ancestorIds.length-1];
 		let rect={left:plotRect.left, right:plotRect.right, top:plotRect.top, bottom:plotRect.bottom};
 		if (ancestorId !== "context") {
-			let plotGroupRect = d3.select(`#${ancestorId}-component-plot-area`).node().getBoundingClientRect();
+			const plotGroup = d3.select(`#${ancestorId}-component-plot-area`);
+			let plotGroupRect = plotGroup.node().getBoundingClientRect();
 			if (plotRect.right < plotGroupRect.left) {return;}
 			if (plotRect.left > plotGroupRect.right) {return;}
 			if (plotRect.bottom < plotGroupRect.top) {return;}
@@ -677,6 +681,57 @@ class TriMesh3D extends Plot {
 			if (plotRect.bottom > plotGroupRect.bottom && plotRect.top < plotRect.bottom) { 
 				rect.bottom = plotGroupRect.bottom - 2;
 			}
+            const overlappingDivsClipSpace = this.getOverlappingBoxesInClipSpace(plotRect);
+            this.stencilRects.forEach( uuid => {
+                const oldRect = this.scene.getObjectByProperty('uuid', uuid);
+                oldRect.geometry.dispose();
+                oldRect.material.dispose();
+                this.scene.remove(oldRect);
+            })
+            this.stencilRects = [];
+
+            overlappingDivsClipSpace.forEach(d => {
+				const margin={left:0.00,right:0.02,top:0.00,bottom:0.02};
+                const rectangleBufferGeometryForMesh = new THREE.BufferGeometry();
+				const vertTopLeftClip = new THREE.Vector3(d.left-margin.left, d.top+margin.top, 0.5);
+				const vertTopRightClip = new THREE.Vector3(d.right+margin.right, d.top+margin.top, 0.5);
+				const vertBottomLeftClip = new THREE.Vector3(d.left-margin.left, d.bottom-margin.bottom, 0.5);
+				const vertBottomRightClip = new THREE.Vector3(d.right+margin.right, d.bottom-margin.bottom, 0.5);
+				const vertTopLeftWorld = vertTopLeftClip.unproject(this.camera);
+				const vertTopRightWorld = vertTopRightClip.unproject(this.camera);
+				const vertBottomLeftWorld = vertBottomLeftClip.unproject(this.camera);
+				const vertBottomRightWorld = vertBottomRightClip.unproject(this.camera);
+
+				const vertices = new Float32Array([
+					vertTopLeftWorld.x, vertTopLeftWorld.y, vertTopLeftWorld.z,
+					vertTopRightWorld.x, vertTopRightWorld.y, vertTopRightWorld.z,
+					vertBottomRightWorld.x, vertBottomRightWorld.y, vertBottomRightWorld.z,
+					vertBottomLeftWorld.x, vertBottomLeftWorld.y, vertBottomLeftWorld.z
+				]);
+
+                const indices = new Uint32Array([
+                    0, 2, 1,
+                    0, 3, 2
+                ]);
+                rectangleBufferGeometryForMesh.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                rectangleBufferGeometryForMesh.setIndex(new THREE.BufferAttribute(indices, 1));
+
+                const rectangleMaterial = new THREE.MeshBasicMaterial({color: "red", wireframe: false});
+                rectangleMaterial.colorWrite = false;
+                rectangleMaterial.depthWrite = false;
+				rectangleMaterial.depthTest = false;
+                rectangleMaterial.stencilWrite = true;
+                rectangleMaterial.stencilRef = 1;
+                rectangleMaterial.stencilFunc = THREE.AlwaysStencilFunc;
+                rectangleMaterial.stencilZPass = THREE.ReplaceStencilOp;
+                const rectangle = new THREE.Mesh(rectangleBufferGeometryForMesh, rectangleMaterial);
+                rectangle.renderOrder = 0;
+
+                this.stencilRects.push(rectangle.uuid)
+                this.scene.add(rectangle);  
+                
+            });
+
 		}
 
 		const scissorLeft = Math.floor(rect.left);
@@ -689,14 +744,13 @@ class TriMesh3D extends Plot {
 		const viewWidth = Math.floor(plotRect.right - plotRect.left);
 		const viewHeight = Math.floor(plotRect.bottom - plotRect.top);
 
-		renderer.setClearColor( 0xe0e0e0 );
+		//renderer.setClearColor( 0xe0e0e0 );
 		renderer.setScissorTest( true );
 	
 		renderer.setViewport( viewLeft, viewBottom, viewWidth, viewHeight );
 		renderer.setScissor( scissorLeft, scissorBottom, scissorWidth, scissorHeight);
-		renderer.clear();
+		renderer.clear(true,true,false);
 			
-		//console.log("rendering scene", this.parentId);
 		renderer.render(this.scene, this.camera);
 		renderer.setScissorTest( false );
 	}
@@ -802,10 +856,11 @@ class TriMesh3D extends Plot {
 	}
 
 	tipOn() {
+		if (!this.layout.highlightItems) { return; };
 		const container = d3.select(`#${this.id}`);
 		const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
 		const highlightItemIds = filter.highlightItemIds;
-		if ( this.layout.highlightItems) {
+		if ( this.layout.highlightItems ) {
 			container
 				.style("outline-style","solid")
 				.style("outline-color","red")
@@ -817,10 +872,11 @@ class TriMesh3D extends Plot {
 	}
 
 	tipOff() {
+		if (!this.layout.highlightItems) { return; };
 		const container = d3.select(`#${this.id}`);
 		const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
 		const highlightItemIds = filter.highlightItemIds;
-		if ( this.layout.highlightItems) {
+		if ( this.layout.highlightItems ) {
 			container.style("outline-width","0px")
 			highlightItemIds.state = {itemIds:[]};
 		}
