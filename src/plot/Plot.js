@@ -439,11 +439,55 @@ class Plot extends Component {
         this.sharedStateByAncestorId[parentId].requestRemovePlot.state = {id:this.id};
     }
             
-       
+    getOverlappingBoxesInClipSpace( currentRect ) {
+        const currentBoxId = this.boxId;
+        const parts = currentBoxId.split("-");
+        const allBoxNodes = d3.select(`#${this.boardId}`).selectAll(".board-box").nodes();
+        const allBoxIds = allBoxNodes.map( box => box.id );
+
+        const ancestors = new Set();
+        for (let i = parts.length; i > 1; i -= 2) {
+          ancestors.add(parts.slice(0, i).join('-'));
+        }
         
+        const possibleOverlappingBoxesSet = new Set();
+        for (let i = parts.length; i>1; i-=2) {
+            const parentPrefix = parts.slice(0,i-2).join("-");
+            const siblings = allBoxIds.filter(id => 
+                id.startsWith(parentPrefix) && 
+                id.split('-').length === i &&
+                !ancestors.has(id) 
+            );
+            siblings.forEach(sibling => possibleOverlappingBoxesSet.add(sibling));
+        }
+        const possibleOverlappingBoxes = Array.from(possibleOverlappingBoxesSet);
+        possibleOverlappingBoxes.push(currentBoxId);
+        
+        const possibleOverlappingBoxNodes = allBoxNodes.filter( node => possibleOverlappingBoxes.includes(node.id) );
+        const currentBoxNodeIndex = possibleOverlappingBoxNodes.findIndex( node => node.id == currentBoxId );
+        const nearerBoxNodes = possibleOverlappingBoxNodes.filter( (node, index) => currentBoxNodeIndex < index);
+        const nearerBoxRects = nearerBoxNodes.map( node => node.getBoundingClientRect() );
+        const nearerBoxesClipSpace = nearerBoxRects.map(d => {
+            let left = (d.left - currentRect.left) / currentRect.width * 2 - 1;
+            let right = (d.right - currentRect.left) / currentRect.width * 2 - 1;
+            let top = (currentRect.top + currentRect.height - d.top) / currentRect.height * 2 - 1;
+            let bottom = (currentRect.top + currentRect.height - d.bottom) / currentRect.height * 2 - 1;
+            let overlap = false;
+            if (left < 1 && right > -1 && bottom < 1 && top > -1) {
+                overlap = true;
+            }
+            return {left, right, top, bottom, overlap};
+        });
+        return nearerBoxesClipSpace.filter( box => box.overlap );
+    }
 
-       
-
+    webGLUpdate() {
+        const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
+        if (requestWebGLRender.state = false) {
+            requestWebGLRender.state = true;
+        }
+    }
+    
 }
 
 export { Plot };

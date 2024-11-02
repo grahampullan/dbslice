@@ -11,7 +11,7 @@ class Box extends bbBox {
         if (!options) { options={} }
         options.boxesSharedStateKeys = ["boxId", "itemId"];
         super(options);
-        this.sharedState = {...this.sharedState, boxes:[], sharedCamera: new Observable({flag: false, state: {}})};
+        this.sharedState = {...this.sharedState, boxes:[]}// sharedCamera: new Observable({flag: false, state: {}})};
         const requestFetchDataByItemIds = new Observable({flag: false, state: {}});
         requestFetchDataByItemIds.subscribe( this.fetchDataByItemIds.bind(this) );   
         this.sharedState.requestFetchDataByItemIds = requestFetchDataByItemIds;

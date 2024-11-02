@@ -21,7 +21,9 @@ class PlotGroup extends Plot {
             .style("overflow-y", "auto");
         const boundHandleScroll = this.handleScroll.bind(this);
         plotArea.on("scroll", boundHandleScroll);
-        this.sharedState.scrolling = new Observable({flag: false, state: {}});
+        //this.sharedState.scrolling = new Observable({flag: false, state: {}});
+        //this.sharedState.scrolling.subscribe(this.scrollingRenderOrderUpdate.bind(this));
+        this.sharedState.sharedCamera = {position:null, rotation:null};
         this.setLasts();
         this.checkForCtrl();
         this.update();
@@ -30,6 +32,8 @@ class PlotGroup extends Plot {
     update() {
         this.updateHeader();
         this.updatePlotAreaSize();
+        this.webGLUpdate();
+        
     }
 
     checkForCtrl() {
@@ -80,12 +84,17 @@ class PlotGroup extends Plot {
     }
 
     handleScroll() {
-        this.sharedState.scrolling.state = {scrolling:true};
-        /*clearTimeout(this.scrollTimeout);
-        this.scrollTimeout = setTimeout( () => {
-            this.sharedState.scrolling.state = {scrolling:false};
-            console.log("scrolling done")
-        }, 200);*/
+        //this.sharedState.scrolling.state = {scrolling:true};
+        this.webGLUpdate();
+    }
+
+    scrollingRenderOrderUpdate() {
+        const plotGroupBox = d3.select(`#${this.boxId}`);
+        const allBoxIdsInDOMOrder = plotGroupBox.selectAll(".board-box").nodes().map( node => node.id );
+        let observers = this.sharedState.scrolling.observers.slice(1);
+        if (observers.length == 0) {return;};
+        const sortedObservers = allBoxIdsInDOMOrder.map( id => observers.find( observer => observer.data.boxId == id ) ).filter(Boolean);
+        this.sharedState.scrolling.observers.splice(1,sortedObservers.length, ...sortedObservers);
     }
 
 }

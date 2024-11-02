@@ -1,12 +1,10 @@
-//import { dbsliceData } from '../core/dbsliceData.js';
-//import { highlightTasksAllPlots } from '../core/plot.js';
+
 import * as d3 from 'd3v7';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three';
 import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
-//import { update } from '../core/update.js';
 import { Plot } from './Plot.js';
-import { render } from '../Dbslice.js';
+
 
 class TriMesh3D extends Plot {
 
@@ -73,17 +71,16 @@ class TriMesh3D extends Plot {
 		const highlightTasks = layout.highlightTasks;
 		const plotGroupId = this.ancestorIds[this.ancestorIds.length-1];
 		const sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
-		const scrolling = this.sharedStateByAncestorId[plotGroupId].scrolling;
-		const requestWebGLRenderOrderUpdate = this.sharedStateByAncestorId[this.boardId].requestWebGLRenderOrderUpdate;
 		const buffer = this.data;
 		const renderer = this.renderer;
 		const cutData = this.cutData;
+		
 
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
 		const boundRenderScene = this.renderScene.bind(this);
 		const boundFindZpCut = findZpCut.bind(this);
 		const boundGetCutLine = getCutLine.bind(this);
-		const boundUpdateCameraAndRenderScene = updateCameraAndRenderScene.bind(this);
+		const boundWebGLUpdate = this.webGLUpdate.bind(this);
 
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
 	
@@ -94,35 +91,12 @@ class TriMesh3D extends Plot {
 			.attr("width", width)
 			.attr("height", height);
 
-		if (this.updateType == "layout") {
-			return;
-		}
-		
-		if (this.renderObserverId !== undefined) {
-			requestWebGLRender.setObserverLastById(this.renderObserverId);
-		}
+		this.setLasts();
+		this.webGLUpdate();
 
-		if (this.sharedCameraObserverId !== undefined) {
-			sharedCamera.setObserverLastById(this.sharedCameraObserverId);
-		}
-
-
-		if (requestWebGLRender.state = false) {
-			requestWebGLRender.state = true;
-	   	}
-
-		if ( !this.newData && this.updateType == "move") {
-			this.setLasts();
-			this.renderScene();
-            return;
-        }
-
-
-		if ( (this.checkResize || this.checkMove) && !this.newData ) {
-			this.setLasts();
-			this.renderScene();
-			return;
-		}	
+		//if (this.updateType == "layout") {
+		//		return;
+		//}
 
 		if ( !this.newData ) {
 			return;
@@ -394,18 +368,6 @@ class TriMesh3D extends Plot {
 		const camera = this.camera;
 		camera.aspect = width / height;
 		camera.updateProjectionMatrix();
-
-		if ( cameraSync ) {
-			//sharedCamera.state = {position: camera.position, rotation: camera.rotation};
-			if (!sharedCamera.isSubscribed(boundUpdateCameraAndRenderScene)) {
-				const id = sharedCamera.subscribe(boundUpdateCameraAndRenderScene);
-				this.sharedCameraObserverId = id;
-				this.subscriptions.push({observable:sharedCamera, id});
-			}
-		}
-
-		// Add controls
-		
 		
 		if (!this.controls) {
 			const controls = new OrbitControls( camera, plotArea.node() );
@@ -417,13 +379,15 @@ class TriMesh3D extends Plot {
 			}
 
 			controls.addEventListener( 'change', function(){
-				boundRenderScene();
+				if ( cameraSync ) {
+					sharedCamera.position = camera.position;
+					sharedCamera.rotation = camera.rotation;
+				}
+				boundWebGLUpdate();
 				if ( layout.xCut) {
 					boundFindZpCut(cutData.zpClip, 0.);
 				}
-				if ( cameraSync ) {
-					sharedCamera.state = {position: camera.position, rotation: camera.rotation};
-				}
+				
 			} ); 
 			controls.enableZoom = true; 
 			this.controls = controls;
@@ -434,10 +398,7 @@ class TriMesh3D extends Plot {
 		
 		if (!this.renderObserverId) {
 			this.renderObserverId = requestWebGLRender.subscribeWithData({observer:boundRenderScene, data:{boxId:this.boxId}});
-			requestWebGLRenderOrderUpdate.state = true;
 			this.subscriptions.push({observable:requestWebGLRender, id:this.renderObserverId});
-			const id = scrolling.subscribe(boundRenderScene);
-			this.subscriptions.push({observable:scrolling, id});
 		}
 		
 
@@ -505,14 +466,6 @@ class TriMesh3D extends Plot {
 				scene.add( newMesh );
 			} 
 			this.scene = scene;
-			//boundRenderScene();
-			this.renderScene();
-		}
-
-		function updateCameraAndRenderScene(cameraView) {
-			this.camera.position.copy(cameraView.position);
-			this.camera.rotation.copy(cameraView.rotation);
-			this.camera.updateMatrixWorld();
 			this.renderScene();
 		}
 
@@ -695,6 +648,15 @@ class TriMesh3D extends Plot {
 		if (!this.scene) return;
 		const renderer = this.renderer;
 		const container = d3.select(`#${this.id}`);
+		const sharedCamera = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCamera;
+		const sharedCameraPosition = sharedCamera.position;
+		const sharedCameraRotation = sharedCamera.rotation;
+	
+		if (this.layout.cameraSync && sharedCameraPosition) {
+			this.camera.position.copy(sharedCameraPosition);
+			this.camera.rotation.copy(sharedCameraRotation);
+			this.camera.updateMatrixWorld();
+		}
 		const plotArea = container.select(".plot-area");
 		renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
 		let plotRect = plotArea.node().getBoundingClientRect();
@@ -719,23 +681,7 @@ class TriMesh3D extends Plot {
 			if (plotRect.bottom > plotGroupRect.bottom && plotRect.top < plotRect.bottom) { 
 				rect.bottom = plotGroupRect.bottom - 2;
 			}
-			const peerBoxes = plotGroup.selectAll(".board-box");
-			const peerBoxesNodes = peerBoxes.nodes();
-			const currentBox = d3.select(`#${this.boxId}`);
-			const indexOfCurrentBox = peerBoxesNodes.indexOf(currentBox.node());
-			const nearerDivs = peerBoxesNodes.filter((d, j) => indexOfCurrentBox < j).map(d => d.getBoundingClientRect());
-			const nearerDivsClipSpace = nearerDivs.map(d => {
-                let left = (d.left - plotRect.left) / plotRect.width * 2 - 1;
-                let right = (d.right - plotRect.left) / plotRect.width * 2 - 1;
-                let top = (plotRect.top + plotRect.height - d.top) / plotRect.height * 2 - 1;
-                let bottom = (plotRect.top + plotRect.height - d.bottom) / plotRect.height * 2 - 1;
-                let overlap = false;
-                if (left < 1 && right > -1 && bottom < 1 && top > -1) {
-                    overlap = true;
-                }
-                return {left, right, top, bottom, overlap};
-            });
-            const overlappingDivsClipSpace = nearerDivsClipSpace.filter(d => d.overlap);
+            const overlappingDivsClipSpace = this.getOverlappingBoxesInClipSpace(plotRect);
             this.stencilRects.forEach( uuid => {
                 const oldRect = this.scene.getObjectByProperty('uuid', uuid);
                 oldRect.geometry.dispose();
@@ -745,11 +691,12 @@ class TriMesh3D extends Plot {
             this.stencilRects = [];
 
             overlappingDivsClipSpace.forEach(d => {
+				const margin={left:0.00,right:0.02,top:0.00,bottom:0.02};
                 const rectangleBufferGeometryForMesh = new THREE.BufferGeometry();
-				const vertTopLeftClip = new THREE.Vector3(d.left, d.top, 0.5);
-				const vertTopRightClip = new THREE.Vector3(d.right, d.top, 0.5);
-				const vertBottomLeftClip = new THREE.Vector3(d.left, d.bottom, 0.5);
-				const vertBottomRightClip = new THREE.Vector3(d.right, d.bottom, 0.5);
+				const vertTopLeftClip = new THREE.Vector3(d.left-margin.left, d.top+margin.top, 0.5);
+				const vertTopRightClip = new THREE.Vector3(d.right+margin.right, d.top+margin.top, 0.5);
+				const vertBottomLeftClip = new THREE.Vector3(d.left-margin.left, d.bottom-margin.bottom, 0.5);
+				const vertBottomRightClip = new THREE.Vector3(d.right+margin.right, d.bottom-margin.bottom, 0.5);
 				const vertTopLeftWorld = vertTopLeftClip.unproject(this.camera);
 				const vertTopRightWorld = vertTopRightClip.unproject(this.camera);
 				const vertBottomLeftWorld = vertBottomLeftClip.unproject(this.camera);
@@ -909,10 +856,11 @@ class TriMesh3D extends Plot {
 	}
 
 	tipOn() {
+		if (!this.layout.highlightItems) { return; };
 		const container = d3.select(`#${this.id}`);
 		const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
 		const highlightItemIds = filter.highlightItemIds;
-		if ( this.layout.highlightItems) {
+		if ( this.layout.highlightItems ) {
 			container
 				.style("outline-style","solid")
 				.style("outline-color","red")
@@ -924,10 +872,11 @@ class TriMesh3D extends Plot {
 	}
 
 	tipOff() {
+		if (!this.layout.highlightItems) { return; };
 		const container = d3.select(`#${this.id}`);
 		const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
 		const highlightItemIds = filter.highlightItemIds;
-		if ( this.layout.highlightItems) {
+		if ( this.layout.highlightItems ) {
 			container.style("outline-width","0px")
 			highlightItemIds.state = {itemIds:[]};
 		}

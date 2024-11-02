@@ -8,9 +8,8 @@ class Board extends bbBoard {
         if (!options) { options={} };
         super(options);
         const requestWebGLRender = new Observable({flag:true, state:false});
-        const requestWebGLRenderOrderUpdate = new Observable({flag:true, state:false});
-        requestWebGLRenderOrderUpdate.subscribe(this.webGLRenderOrderUpdate.bind(this));
-        this.sharedState = {...this.sharedState, requestWebGLRender, requestWebGLRenderOrderUpdate};
+        requestWebGLRender.subscribe(this.webGLRenderOrderUpdate.bind(this));
+        this.sharedState = {...this.sharedState, requestWebGLRender} 
     }
 
     make() {
@@ -91,15 +90,19 @@ class Board extends bbBoard {
 
     webGLRenderOrderUpdate() {
         const board = d3.select(`#${this.id}`);
-        const allBoxesInDOMOrder = board.selectAll(".board-box").nodes();
-        const allBoxIdsInDOMOrder = allBoxesInDOMOrder.map( box => box.id );
-        const observers = this.sharedState.requestWebGLRender.observers;
-        const idOrderMap = allBoxIdsInDOMOrder.reduce((map, id, index) => {
-            map[id] = index;
-            return map;
-        }, {});
-        observers.sort((a, b) => idOrderMap[a.data.boxId] - idOrderMap[b.data.boxId]);
+        const allBoxIdsInDOMOrder = board.selectAll(".board-box").nodes().map( node => node.id );
+        let observers = this.sharedState.requestWebGLRender.observers.slice(1);
+        if (observers.length == 0) {return;};
+        const sortedObservers = allBoxIdsInDOMOrder.map( id => observers.find( observer => observer.data.boxId == id ) ).filter(Boolean);
+        this.sharedState.requestWebGLRender.observers.splice(1, sortedObservers.length, ...sortedObservers);
     }
+
+
+
+    
+
+
+
 }
 
 export { Board };
