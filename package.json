@@ -45,7 +45,7 @@
     "leaflet": "^1.7.1",
     "nd4js": "^1.3.0",
     "simple-statistics": "^7.7.5",
-    "three": "^0.139.2",
+    "three": "^0.170.0",
     "three124": "npm:three@^0.124.0",
     "twgl.js": "^4.21.2"
   }

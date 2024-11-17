@@ -15,7 +15,7 @@ class Context extends bbContext {
             .style("left", "0")
             .style("width", "100%")
             .style("height", "100%")
-            //.style("z-index", "100")
+            .style("z-index", "1")
             .style("pointer-events", "none");
         const renderer = new THREE.WebGLRenderer({canvas: canvas.node(), alpha:true, logarithmicDepthBuffer: true, stencil: true, antialias: true});
         renderer.setPixelRatio( window.devicePixelRatio );

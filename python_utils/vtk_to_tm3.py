@@ -210,6 +210,11 @@ def vtm_to_tm3(config):
             vertices, rmax, x_min_max, y_min_max, z_min_max = centre_vertices(vertices)
             values, v_min_max = normalise(values)
 
+            if ( 'store_value_range' not in surface ):
+                surface['store_value_range'] = True
+            if (surface['store_value_range'] == False):
+                v_min_max = np.float32([0.0,1.0])
+
             f.write(nverts.tobytes())
             if ( istep > 0 and fp['fixed_vertices'] ):
                 f.write(np.int32(0).tobytes()) # write ntris=0 if fixed vertices

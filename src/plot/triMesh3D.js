@@ -3,7 +3,11 @@ import * as d3 from 'd3v7';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three';
 import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Plot } from './Plot.js';
+import { light } from '@fortawesome/fontawesome-svg-core/import.macro';
 
 
 class TriMesh3D extends Plot {
@@ -50,6 +54,9 @@ class TriMesh3D extends Plot {
 			.attr("height", `${this.plotAreaHeight}px`);
 
 		this.cutData = {};
+		this.raycaster = new THREE.Raycaster();
+		this.pointer = new THREE.Vector2();
+		this.cutLineDragging = false;
 		this.update();
 
 	}
@@ -57,8 +64,6 @@ class TriMesh3D extends Plot {
 	async update() {
 		if (this.fetchingData) return;
 		await this.getData();
-
-
 
 		const container = d3.select(`#${this.id}`);
 		const overlay = container.select(".svg-overlay");
@@ -71,9 +76,12 @@ class TriMesh3D extends Plot {
 		const highlightTasks = layout.highlightTasks;
 		const plotGroupId = this.ancestorIds[this.ancestorIds.length-1];
 		const sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
+		const sharedCutValue = this.sharedStateByAncestorId[plotGroupId].sharedCutValue;
 		const buffer = this.data;
 		const renderer = this.renderer;
 		const cutData = this.cutData;
+		const pointer = this.pointer;
+		const raycaster = this.raycaster;
 		
 
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
@@ -81,6 +89,12 @@ class TriMesh3D extends Plot {
 		const boundFindZpCut = findZpCut.bind(this);
 		const boundGetCutLine = getCutLine.bind(this);
 		const boundWebGLUpdate = this.webGLUpdate.bind(this);
+		const boundCheckOnCutLine = checkOnCutLine.bind(this);
+		const boundCutLineDragged = cutLineDragged.bind(this);
+		const boundCutLineDragEnd = cutLineDragEnd.bind(this);
+		//const boundSetCutLinePosition = setCutLinePosition.bind(this);
+		//const boundSetCutValue = setCutValue.bind(this);
+		
 
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
 	
@@ -107,9 +121,9 @@ class TriMesh3D extends Plot {
 		const nSteps = this.nSteps;
 		const nSurfsNow = this.nSurfsNow;
 
-		if (layout.xCut) {
-			makeQuadTree();
-		}
+		//if (layout.xCut) {
+		//	makeQuadTree();
+		//}
 		
 		let vScale;
         if (layout.vScale === undefined) {
@@ -178,7 +192,7 @@ class TriMesh3D extends Plot {
 			iStep = 0
 		}
 
-		if (layout.xCut) {
+		/*if (layout.xCut) {
 			let xBar = overlay.select(".x-bar");
             if ( xBar.empty() ) {
 				cutData.zpClip = 0.;
@@ -186,15 +200,15 @@ class TriMesh3D extends Plot {
 				overlay.append("path")
 					.attr("class","x-bar")
 					.attr("fill", "none")
-					.attr("stroke", "Gray")
-					.attr("stroke-width", 5)
+					.attr("stroke", "black")
+					.attr("stroke-width", 2)
 					.style("pointer-events","stroke")
-					.style("opacity",0.5)
+					.style("opacity", 1.)
 					.style("cursor","ew-resize")
 					.attr("d",d3.line()([[cutData.zpPix,0],[cutData.zpPix,height]]))
 					.call(d3.drag().on("drag", barDragged));
 			}
-		}
+		}*/
 
 		if (layout.colorBar) {
 			const colorBarMargin = { "left" : width - 60, "top" : 24};
@@ -257,7 +271,7 @@ class TriMesh3D extends Plot {
 
 
 		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-		const materialCol = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		const materialCol = new THREE.MeshLambertMaterial( { color:0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 		const materialGrey = new THREE.MeshLambertMaterial( { color: 0xaaaaaa, side: THREE.DoubleSide, wireframe:false } );
 
 		// look at all surfaces for sizes to set camera and lights
@@ -277,12 +291,15 @@ class TriMesh3D extends Plot {
 		let yMid = 0.5*( yRange[0] + yRange[1] );
 		let zMid = 0.5*( zRange[0] + zRange[1] );
 		let rMax = Math.sqrt((xMax-xMin)**2 + (yMax-yMin)**2 + (zMax-zMin)**2);
+		this.mid = {x:xMid, y:yMid, z:zMid};
+		this.rMax = rMax;
 
 		if (xRange[1]-xRange[0]==0.) {
 			this.twoD=true;
 		}
 
-		const light1 = new THREE.PointLight( 0xffffff, 0.8 );
+		/*
+		const light1 = new THREE.Light( 0xffffff, 0.8 );
 		light1.position.set( xMid, yMid, zMid + 10*rMax );
 		const light2 = new THREE.PointLight( 0xffffff, 0.8 );
 		light2.position.set( xMid, yMid, zMid - 10*rMax );
@@ -301,6 +318,13 @@ class TriMesh3D extends Plot {
 		scene.add( light4 );
 		scene.add( light5 );
 		scene.add( light6 );
+		*/
+		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.5 );	
+		scene.add( ambientLight );
+		const light = new THREE.DirectionalLight( 0xffffff, 1 );
+		scene.add( light );
+		this.light = light;
+		
 
 		// add all surfaces to scene
 		this.meshUuids = [];
@@ -366,6 +390,7 @@ class TriMesh3D extends Plot {
 		}
 	
 		const camera = this.camera;
+		light.position.copy( camera.position );
 		camera.aspect = width / height;
 		camera.updateProjectionMatrix();
 		
@@ -382,17 +407,47 @@ class TriMesh3D extends Plot {
 				if ( cameraSync ) {
 					sharedCamera.position = camera.position;
 					sharedCamera.rotation = camera.rotation;
+					sharedCamera.zoom = camera.zoom;
 				}
+				light.position.copy( camera.position );
 				boundWebGLUpdate();
-				if ( layout.xCut) {
-					boundFindZpCut(cutData.zpClip, 0.);
-				}
+				//if ( layout.xCut) {
+				//	boundFindZpCut(cutData.zpClip, 0.);
+				//}
 				
 			} ); 
 			controls.enableZoom = true; 
 			this.controls = controls;
 		}
-	
+		//this.controls.enabled = false;
+
+		if (layout.xCut && !this.cutLineAdded) {
+			
+			const lineMaterial = new LineMaterial( { color: 0x000000, linewidth: 2 } );
+			lineMaterial.stencilWrite = true;
+			lineMaterial.resolution.set( width, height );
+			lineMaterial.depthTest = false;
+			lineMaterial.stencilRef = 1;
+        	lineMaterial.stencilFunc = THREE.NotEqualStencilFunc;
+			const lineGeometry = new LineGeometry();
+			lineGeometry.setPositions( [xMid+0.5*rMax,yMid,zMid-rMax,xMid+0.5*rMax,yMid,zMid+rMax] );
+			const line = new Line2( lineGeometry, lineMaterial );
+			line.renderOrder = 10;
+			line.computeLineDistances();
+			this.scene.add( line );
+			this.cutLine = line;
+			this.cutLineAdded = true;
+			
+			const cutLineDrag = d3.drag()
+				.on("drag", boundCutLineDragged)
+				.on("end", boundCutLineDragEnd);
+
+			plotArea.call(cutLineDrag);
+			plotArea.node().addEventListener("pointerdown", boundCheckOnCutLine, true);
+
+
+		}
+
 		this.renderScene();
 
 		
@@ -401,10 +456,50 @@ class TriMesh3D extends Plot {
 			this.subscriptions.push({observable:requestWebGLRender, id:this.renderObserverId});
 		}
 		
-
-		if ( layout.xCut && !this.checkResize ) {
-			boundFindZpCut(cutData.zpClip, 0.);
+		function checkOnCutLine(event) {
+			updatePointerPosition(event);
+			const raycaster = this.raycaster;
+			raycaster.setFromCamera( this.pointer, this.camera );
+			const intersects = raycaster.intersectObject( this.cutLine );
+			if (intersects.length > 0) {
+				this.cutLineDragging = true;
+				this.controls.enabled = false;
+			}
 		}
+
+		function cutLineDragged(event) {
+			if (this.cutLineDragging) {
+				updatePointerPosition(event.sourceEvent);
+				const raycaster = this.raycaster;
+				raycaster.setFromCamera( this.pointer, this.camera );
+				const planeNormal = new THREE.Vector3(1, 0, 0);
+				const plane = new THREE.Plane(planeNormal);
+				const planeIntersect = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+				if (planeIntersect) {
+					this.cutPoint = planeIntersect;
+					this.setCutValue();
+					this.setCutLinePosition();
+					boundWebGLUpdate();
+				}
+			}
+		}
+
+		function cutLineDragEnd() {
+			this.cutLineDragging = false;
+			this.controls.enabled = true;
+		}
+
+		
+		function updatePointerPosition(event) {
+			const rect = plotArea.node().getBoundingClientRect();
+			pointer.x = ( event.clientX - rect.left ) / width * 2 - 1;
+			pointer.y = - ( event.clientY - rect.top ) / height * 2 + 1;
+		}
+
+
+		//if ( layout.xCut && !this.checkResize ) {
+		//	boundFindZpCut(cutData.zpClip, 0.);
+		//}
 
 		function timeStepSliderChange() {
 			iStep = this.value;
@@ -647,16 +742,30 @@ class TriMesh3D extends Plot {
 	renderScene() {
 		if (!this.scene) return;
 		const renderer = this.renderer;
+		const light = this.light;
 		const container = d3.select(`#${this.id}`);
 		const sharedCamera = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCamera;
 		const sharedCameraPosition = sharedCamera.position;
 		const sharedCameraRotation = sharedCamera.rotation;
+		const sharedCameraZoom = sharedCamera.zoom;
+		const sharedCutValue = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCutValue;
 	
 		if (this.layout.cameraSync && sharedCameraPosition) {
+			//console.log("cameraSync");
+			//console.log(sharedCameraPosition);
 			this.camera.position.copy(sharedCameraPosition);
 			this.camera.rotation.copy(sharedCameraRotation);
+			this.camera.zoom = sharedCameraZoom;
+			this.camera.updateProjectionMatrix();
 			this.camera.updateMatrixWorld();
+			light.position.copy( this.camera.position );
 		}
+
+		if (this.layout.cutValueSync && sharedCutValue.cutValue) {
+			this.cutValue = sharedCutValue.cutValue;
+			this.setCutLinePosition();
+		}
+
 		const plotArea = container.select(".plot-area");
 		renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
 		let plotRect = plotArea.node().getBoundingClientRect();
@@ -754,6 +863,25 @@ class TriMesh3D extends Plot {
 		renderer.render(this.scene, this.camera);
 		renderer.setScissorTest( false );
 	}
+
+	setCutValue() {
+		// need to check what kind of cut is being made
+		this.cutValue = this.cutPoint.y;
+		if (this.layout.cutValueSync) {
+			const sharedCutValue = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCutValue;
+			sharedCutValue.cutValue = this.cutValue;
+		}
+	}
+
+	setCutLinePosition() {
+		const cutLine = this.cutLine;
+		// need to check what kind of cut is being made
+		const rMax = this.rMax;
+		const xMid = this.mid.x;
+		const zMid = this.mid.z;
+		cutLine.geometry.setPositions( [xMid+0.5*rMax,this.cutValue,zMid-rMax,xMid+0.5*rMax,this.cutValue,zMid+rMax] );
+	}
+
 
 	remove() {
 		this.removeSubscriptions();
