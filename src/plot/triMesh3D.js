@@ -409,7 +409,7 @@ class TriMesh3D extends Plot {
 
 		if (layout.cut && !this.cut.LineAdded) {
 			
-			const lineMaterial = new LineMaterial( { color: 0x000000, linewidth: 2 } );
+			const lineMaterial = new LineMaterial( { color: 0x39fc03, linewidth: 3 } );
 			lineMaterial.stencilWrite = true;
 			lineMaterial.resolution.set( width, height );
 			lineMaterial.depthTest = false;
