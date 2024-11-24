@@ -23,14 +23,16 @@ class LineSeries extends Plot {
         if ( this.layout.highlightItems ) {
             this.filterId = this.layout.filterId;
             const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-            filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+            const obsId = filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+            this.subscriptions.push({observable:filter.highlightItemIds, id:obsId});
         }
 
         if (this.fetchData) {
             if (this.fetchData.urlTemplate) {
                 this.filterId = this.fetchData.filterId;
                 const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-                filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+                const obsId = filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+                this.subscriptions.push({observable:filter.itemIdsInFilter, id:obsId});
                 this.datasetId = this.fetchData.datasetId;
                 const dataset = this.sharedStateByAncestorId["context"].datasets.find( d => d.id == this.datasetId );
                 if (this.fetchData.getItemIdsFromFilter) {
@@ -44,6 +46,18 @@ class LineSeries extends Plot {
                     }
                 }
             }
+
+            if (this.fetchData.derivedDataName) {
+                const derivedData = this.sharedStateByAncestorId["context"].derivedData;
+                let derivedDataStore = derivedData.find( d => d.name == this.fetchData.derivedDataName );
+                if (!derivedDataStore) {
+                    this.sharedStateByAncestorId["context"].requestCreateDerivedDataStore.state = {name:this.fetchData.derivedDataName};
+                    derivedDataStore = derivedData.find( d => d.name == this.fetchData.derivedDataName );
+                }
+                const obsId = derivedDataStore.newData.subscribe( this.handleDerivedDataChange.bind(this) );
+                this.subscriptions.push({observable:derivedDataStore.newData, id:obsId});
+            }
+            
         }
 
         container.append("div")
@@ -56,6 +70,7 @@ class LineSeries extends Plot {
     async update() {
         if (this.fetchingData) return;
         await this.getData();
+        if (!this.data || this.data.series.length == 0) return;
 
         if (!this.newData && !this.checkResize) return;
 
@@ -134,20 +149,39 @@ class LineSeries extends Plot {
             }
 		}
 
-        let xmin = d3.min( this.data.series[0].data, d => d.x );
-        let xmax = d3.max( this.data.series[0].data, d => d.x );
-        let ymin = d3.min( this.data.series[0].data, d => d.y );
-        let ymax = d3.max( this.data.series[0].data, d => d.y );
+        let xmin, xmax, ymin, ymax;
+        if (!layout.segmentedLine) {
+            xmin = d3.min( this.data.series[0].data, d => d.x );
+            xmax = d3.max( this.data.series[0].data, d => d.x );
+            ymin = d3.min( this.data.series[0].data, d => d.y );
+            ymax = d3.max( this.data.series[0].data, d => d.y );
 
-        for (let n = 1; n < nSeries; ++n) {
-            var xminNow =  d3.min( this.data.series[n].data, d => d.x );
-            ( xminNow < xmin ) ? xmin = xminNow : xmin = xmin;
-            var xmaxNow =  d3.max( this.data.series[n].data, d => d.x );
-            ( xmaxNow > xmax ) ? xmax = xmaxNow : xmax = xmax;
-            var yminNow =  d3.min( this.data.series[n].data, d => d.y );
-            ( yminNow < ymin ) ? ymin = yminNow : ymin = ymin;
-            var ymaxNow =  d3.max( this.data.series[n].data, d => d.y );
-            ( ymaxNow > ymax ) ? ymax = ymaxNow : ymax = ymax;
+            for (let n = 1; n < nSeries; ++n) {
+                let xminNow =  d3.min( this.data.series[n].data, d => d.x );
+                ( xminNow < xmin ) ? xmin = xminNow : xmin = xmin;
+                let xmaxNow =  d3.max( this.data.series[n].data, d => d.x );
+                ( xmaxNow > xmax ) ? xmax = xmaxNow : xmax = xmax;
+                let yminNow =  d3.min( this.data.series[n].data, d => d.y );
+                ( yminNow < ymin ) ? ymin = yminNow : ymin = ymin;
+                let ymaxNow =  d3.max( this.data.series[n].data, d => d.y );
+                ( ymaxNow > ymax ) ? ymax = ymaxNow : ymax = ymax;
+            }
+        } else {
+            xmin = d3.min( this.data.series[0].data, d => d[0][0] );
+            xmax = d3.max( this.data.series[0].data, d => d[0][0] );
+            ymin = d3.min( this.data.series[0].data, d => d[0][1] );
+            ymax = d3.max( this.data.series[0].data, d => d[0][1] );
+
+            for (let n = 1; n < nSeries; ++n) {
+                let xminNow =  d3.min( this.data.series[n].data, d => d[0][0] );
+                ( xminNow < xmin ) ? xmin = xminNow : xmin = xmin;
+                let xmaxNow =  d3.max( this.data.series[n].data, d => d[0][0] );
+                ( xmaxNow > xmax ) ? xmax = xmaxNow : xmax = xmax;
+                let yminNow =  d3.min( this.data.series[n].data, d => d[0][1] );
+                ( yminNow < ymin ) ? ymin = yminNow : ymin = ymin;
+                let ymaxNow =  d3.max( this.data.series[n].data, d => d[0][1] );
+                ( ymaxNow > ymax ) ? ymax = ymaxNow : ymax = ymax;
+            }
         }
 
         let xDiff = xmax - xmin;
@@ -194,9 +228,26 @@ class LineSeries extends Plot {
             .range( [height, 0] )
             .domain( yRange );
 
-        const line = d3.line()
-            .x( d => xscale( d.x ) )
-            .y( d => yscale( d.y ) );
+        let line;
+
+        if ( !layout.segmentedLine ) {
+            line = d3.line()
+                .x( d => xscale( d.x ) )
+                .y( d => yscale( d.y ) );
+        } else {
+            function segLine(lineSegs) {
+                let line = d3.line()
+                    .x( d => xscale( d.x ) )
+                    .y( d => yscale( d.y ) );
+                let path="";
+                lineSegs.forEach(d => {
+                    let seg=[{x:d[0][0], y:d[0][1]},{x:d[1][0],y:d[1][1]}];
+                    path += line(seg);
+                });
+                return path;
+            }
+            line = segLine;
+        }
 
         const clipRect = plotArea.select(".clip-rect");
 
@@ -614,6 +665,13 @@ class LineSeries extends Plot {
                 config.cPropertyValues = this.fetchData.itemIds.map( id => dataset.data.find( i => i.itemId == id )[config.cProperty] );
             }
         }
+        this.update();
+    }
+
+    async handleDerivedDataChange() {
+        this.fetchDataNow = true;        
+        await this.update();
+        this.fetchDataNow = true; // catch any derived data changes that arrived during the update
         this.update();
     }
 

@@ -2,6 +2,7 @@ import { threeMeshFromStruct } from './threeMeshFromStruct.js';
 import { lineSeriesFromLines } from './lineSeriesFromLines.js';
 import { lineSeriesFromCsv } from './lineSeriesFromCsv.js';
 import { lineSeriesFromTimeSnapshotCsv } from './lineSeriesFromTimeSnapshotCsv.js'
+import { lineSeriesFromDerivedData } from './lineSeriesFromDerivedData.js'; 
 
 function getDataFilterFunc(dataFilterType) {
 
@@ -10,7 +11,8 @@ function getDataFilterFunc(dataFilterType) {
         'threeMeshFromStruct'           : threeMeshFromStruct,
         'lineSeriesFromLines'           : lineSeriesFromLines,
         'lineSeriesFromCsv'             : lineSeriesFromCsv,
-        'lineSeriesFromTimeSnapshotCsv' : lineSeriesFromTimeSnapshotCsv
+        'lineSeriesFromTimeSnapshotCsv' : lineSeriesFromTimeSnapshotCsv,
+        'lineSeriesFromDerivedData'     : lineSeriesFromDerivedData
         
     };
     

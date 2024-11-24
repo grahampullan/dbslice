@@ -26,9 +26,16 @@ class Context extends bbContext {
         this.sharedState.filters = this.metaData.filters;
         this.sharedState.datasets = this.metaData.datasets;
         this.sharedState.showFilters = false;
+        this.sharedState.derivedData = [];
         const requestCreateFilter = new Observable({flag: false, state: {}});
         requestCreateFilter.subscribe( this.createNewFilter.bind(this) );
         this.sharedState.requestCreateFilter = requestCreateFilter;
+        const requestCreateDerivedDataStore = new Observable({flag: false, state: {}});
+        requestCreateDerivedDataStore.subscribe( this.createDerivedDataStore.bind(this) );
+        this.sharedState.requestCreateDerivedDataStore = requestCreateDerivedDataStore;
+        const requestSaveToDerivedData = new Observable({flag: false, state: {}});
+        requestSaveToDerivedData.subscribe( this.saveToDerivedData.bind(this) );
+        this.sharedState.requestSaveToDerivedData = requestSaveToDerivedData;
         this.maxDataset = 0;
         this.maxFilter = 0;
     }
@@ -51,6 +58,28 @@ class Context extends bbContext {
         datasetId = data.datasetId;
         const newFilter = this.datasets.find( dataset => dataset.id == datasetId ).createFilter();
         this.addFilter(newFilter);
+    }
+
+    createDerivedDataStore(data) {
+        const derivedData = {name:data.name, data:[], newData: new Observable({flag: true, state:false})};
+        this.sharedState.derivedData.push(derivedData);
+    }
+
+    saveToDerivedData(data) {
+        let derivedData = this.sharedState.derivedData.find( d => d.name == data.name );
+        if (!derivedData) {
+            this.createDerivedDataStore({name:data.name});
+            derivedData = this.sharedState.derivedData.find( d => d.name == data.name );
+        }
+        const itemId = data.itemId;
+        const targetStore = derivedData.data.find( d => d.itemId == itemId );
+        if (targetStore) {
+            targetStore.data = data.data;
+            targetStore.newDate = true;
+        } else {
+            derivedData.data.push({itemId, data:data.data, newDate:true});
+        }
+        derivedData.newData.state = true;
     }
 
 }

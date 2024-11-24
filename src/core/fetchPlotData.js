@@ -2,7 +2,7 @@ import { getDataFilterFunc } from '../filters/getDataFilterFunc.js';
 //import { dbsliceData } from './dbsliceData.js';
 import * as d3 from 'd3';
 
-function fetchPlotData( fetchData ) {
+function fetchPlotData( fetchData, derivedData ) {
 
     if ( fetchData.url !== undefined ) {
 
@@ -182,6 +182,54 @@ function fetchPlotData( fetchData ) {
     	return data;
 
     });
+
+    }
+
+    if ( fetchData.derivedDataName !== undefined ) {
+
+        let derivedDataStore = derivedData.find( d => d.name == fetchData.derivedDataName );
+
+        if ( derivedDataStore === undefined ) {
+
+            console.log("Derived data store not found");
+
+            return null;
+
+        }
+
+        let dataFilterFunc;
+    
+        if (fetchData.dataFilterFunc !== undefined) {
+    
+            dataFilterFunc = fetchData.dataFilterFunc;
+    
+        }
+    
+        if (fetchData.formatDataFunc !== undefined) {
+    
+            dataFilterFunc = fetchData.formatDataFunc;
+                
+        }
+    
+        if (fetchData.dataFilterType !== undefined) {
+    
+            dataFilterFunc = getDataFilterFunc(fetchData.dataFilterType);
+    
+        }
+
+        let data;
+    
+        if (dataFilterFunc !== undefined ) {
+    
+            data = dataFilterFunc( derivedDataStore.data, fetchData.dataFilterConfig ); 
+    
+        } else {
+    
+            data = derivedDataStore.data;
+    
+        }
+
+        return Promise.resolve( data );
 
     }
 
