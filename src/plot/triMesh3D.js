@@ -93,6 +93,7 @@ class TriMesh3D extends Plot {
 		const boundCheckOnCutLine = checkOnCutLine.bind(this);
 		const boundCutLineDragged = cutLineDragged.bind(this);
 		const boundCutLineDragEnd = cutLineDragEnd.bind(this);
+		const boundUpdatePointerPosition = updatePointerPosition.bind(this);
 		//const boundSetCutLinePosition = setCutLinePosition.bind(this);
 		//const boundSetCutValue = setCutValue.bind(this);
 
@@ -469,7 +470,7 @@ class TriMesh3D extends Plot {
 		}
 		
 		function checkOnCutLine(event) {
-			updatePointerPosition(event);
+			boundUpdatePointerPosition(event);
 			const raycaster = this.raycaster;
 			raycaster.setFromCamera( this.pointer, this.camera );
 			const intersects = raycaster.intersectObject( this.cut.line );
@@ -481,7 +482,7 @@ class TriMesh3D extends Plot {
 
 		function cutLineDragged(event) {
 			if (this.cut.lineDragging) {
-				updatePointerPosition(event.sourceEvent);
+				boundUpdatePointerPosition(event.sourceEvent);
 				const raycaster = this.raycaster;
 				raycaster.setFromCamera( this.pointer, this.camera );
 				const planeNormal = new THREE.Vector3(1, 0, 0);
@@ -507,7 +508,10 @@ class TriMesh3D extends Plot {
 
 		
 		function updatePointerPosition(event) {
+			const plotArea = d3.select(`#${this.id}`).select(".plot-area");
 			const rect = plotArea.node().getBoundingClientRect();
+			const width = rect.width;
+			const height = rect.height;
 			pointer.x = ( event.clientX - rect.left ) / width * 2 - 1;
 			pointer.y = - ( event.clientY - rect.top ) / height * 2 + 1;
 		}
