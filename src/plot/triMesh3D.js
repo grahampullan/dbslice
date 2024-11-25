@@ -3,7 +3,11 @@ import * as d3 from 'd3v7';
 import { interpolateSpectral } from 'd3-scale-chromatic';
 import * as THREE from 'three';
 import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Plot } from './Plot.js';
+import { light } from '@fortawesome/fontawesome-svg-core/import.macro';
 
 
 class TriMesh3D extends Plot {
@@ -25,7 +29,8 @@ class TriMesh3D extends Plot {
 			this.filterId = this.layout.filterId;
         	const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
         	if ( this.layout.highlightItems ) {
-            	filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+            	const obsId = filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+				this.subscriptions.push({observable:filter.highlightItemIds, id:obsId});
 			}
         }
 	
@@ -49,7 +54,10 @@ class TriMesh3D extends Plot {
 			.attr("width", `${this.plotAreaWidth}px`)
 			.attr("height", `${this.plotAreaHeight}px`);
 
-		this.cutData = {};
+		this.cut= {};
+		this.raycaster = new THREE.Raycaster();
+		this.pointer = new THREE.Vector2();
+		this.cut.lineDragging = false;
 		this.update();
 
 	}
@@ -57,8 +65,6 @@ class TriMesh3D extends Plot {
 	async update() {
 		if (this.fetchingData) return;
 		await this.getData();
-
-
 
 		const container = d3.select(`#${this.id}`);
 		const overlay = container.select(".svg-overlay");
@@ -71,18 +77,31 @@ class TriMesh3D extends Plot {
 		const highlightTasks = layout.highlightTasks;
 		const plotGroupId = this.ancestorIds[this.ancestorIds.length-1];
 		const sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
+		const sharedCutValue = this.sharedStateByAncestorId[plotGroupId].sharedCutValue;
 		const buffer = this.data;
 		const renderer = this.renderer;
-		const cutData = this.cutData;
+		const cut = this.cut;
+		const pointer = this.pointer;
+		const raycaster = this.raycaster;
 		
 
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
 		const boundRenderScene = this.renderScene.bind(this);
-		const boundFindZpCut = findZpCut.bind(this);
+		//const boundFindZpCut = findZpCut.bind(this);
 		const boundGetCutLine = getCutLine.bind(this);
 		const boundWebGLUpdate = this.webGLUpdate.bind(this);
+		const boundCheckOnCutLine = checkOnCutLine.bind(this);
+		const boundCutLineDragged = cutLineDragged.bind(this);
+		const boundCutLineDragEnd = cutLineDragEnd.bind(this);
+		const boundUpdatePointerPosition = updatePointerPosition.bind(this);
+		//const boundSetCutLinePosition = setCutLinePosition.bind(this);
+		//const boundSetCutValue = setCutValue.bind(this);
+
+		let iStep = 0;
+		
 
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
+		const requestCutEvaluate = this.sharedStateByAncestorId[plotGroupId].requestCutEvaluate;
 	
 		this.updateHeader();
 		this.updatePlotAreaSize();
@@ -107,8 +126,12 @@ class TriMesh3D extends Plot {
 		const nSteps = this.nSteps;
 		const nSurfsNow = this.nSurfsNow;
 
-		if (layout.xCut) {
+		if (layout.cut) {
 			makeQuadTree();
+			if (!this.cut.requestCutObserverId) {
+				this.cut.requestCutObserverId = requestCutEvaluate.subscribe( boundGetCutLine );
+				this.subscriptions.push({observable:requestCutEvaluate, id:this.cut.requestCutObserverId});
+			}
 		}
 		
 		let vScale;
@@ -171,29 +194,11 @@ class TriMesh3D extends Plot {
 		}
 
 
-		let iStep;
+
 		if (this.watchedTime !== undefined) {
 			iStep = this.watchedTime.iStep;
 		} else {
 			iStep = 0
-		}
-
-		if (layout.xCut) {
-			let xBar = overlay.select(".x-bar");
-            if ( xBar.empty() ) {
-				cutData.zpClip = 0.;
-				cutData.zpPix = width/2.;
-				overlay.append("path")
-					.attr("class","x-bar")
-					.attr("fill", "none")
-					.attr("stroke", "Gray")
-					.attr("stroke-width", 5)
-					.style("pointer-events","stroke")
-					.style("opacity",0.5)
-					.style("cursor","ew-resize")
-					.attr("d",d3.line()([[cutData.zpPix,0],[cutData.zpPix,height]]))
-					.call(d3.drag().on("drag", barDragged));
-			}
 		}
 
 		if (layout.colorBar) {
@@ -257,7 +262,7 @@ class TriMesh3D extends Plot {
 
 
 		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-		const materialCol = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		const materialCol = new THREE.MeshLambertMaterial( { color:0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 		const materialGrey = new THREE.MeshLambertMaterial( { color: 0xaaaaaa, side: THREE.DoubleSide, wireframe:false } );
 
 		// look at all surfaces for sizes to set camera and lights
@@ -277,12 +282,15 @@ class TriMesh3D extends Plot {
 		let yMid = 0.5*( yRange[0] + yRange[1] );
 		let zMid = 0.5*( zRange[0] + zRange[1] );
 		let rMax = Math.sqrt((xMax-xMin)**2 + (yMax-yMin)**2 + (zMax-zMin)**2);
+		this.mid = {x:xMid, y:yMid, z:zMid};
+		this.rMax = rMax;
 
 		if (xRange[1]-xRange[0]==0.) {
 			this.twoD=true;
 		}
 
-		const light1 = new THREE.PointLight( 0xffffff, 0.8 );
+		/*
+		const light1 = new THREE.Light( 0xffffff, 0.8 );
 		light1.position.set( xMid, yMid, zMid + 10*rMax );
 		const light2 = new THREE.PointLight( 0xffffff, 0.8 );
 		light2.position.set( xMid, yMid, zMid - 10*rMax );
@@ -301,6 +309,13 @@ class TriMesh3D extends Plot {
 		scene.add( light4 );
 		scene.add( light5 );
 		scene.add( light6 );
+		*/
+		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.5 );	
+		scene.add( ambientLight );
+		const light = new THREE.DirectionalLight( 0xffffff, 1 );
+		scene.add( light );
+		this.light = light;
+		
 
 		// add all surfaces to scene
 		this.meshUuids = [];
@@ -366,6 +381,7 @@ class TriMesh3D extends Plot {
 		}
 	
 		const camera = this.camera;
+		light.position.copy( camera.position );
 		camera.aspect = width / height;
 		camera.updateProjectionMatrix();
 		
@@ -382,17 +398,69 @@ class TriMesh3D extends Plot {
 				if ( cameraSync ) {
 					sharedCamera.position = camera.position;
 					sharedCamera.rotation = camera.rotation;
+					sharedCamera.zoom = camera.zoom;
 				}
+				light.position.copy( camera.position );
 				boundWebGLUpdate();
-				if ( layout.xCut) {
-					boundFindZpCut(cutData.zpClip, 0.);
-				}
-				
 			} ); 
 			controls.enableZoom = true; 
 			this.controls = controls;
 		}
-	
+		//this.controls.enabled = false;
+
+		if (layout.cut && !this.cut.LineAdded) {
+			
+			const lineMaterial = new LineMaterial( { color: 0x39fc03, linewidth: 3 } );
+			lineMaterial.stencilWrite = true;
+			lineMaterial.resolution.set( width, height );
+			lineMaterial.depthTest = false;
+			lineMaterial.stencilRef = 1;
+        	lineMaterial.stencilFunc = THREE.NotEqualStencilFunc;
+			const lineGeometry = new LineGeometry();
+			if (layout.cutType=="x") {
+				this.cut.value = yMid;
+				lineGeometry.setPositions( this.getCutLinePositionsFromCutValue() );
+			} else if (layout.cutType=="r") {
+				this.cut.value = Math.sqrt( yMid**2 + zMid**2);
+				lineGeometry.setPositions( this.getCutLinePositionsFromCutValue() );
+			}
+			//lineGeometry.setPositions( [xMid+0.5*rMax,yMid,zMid-rMax,xMid+0.5*rMax,yMid,zMid+rMax] );
+			lineGeometry.computeBoundingSphere();
+			const line = new Line2( lineGeometry, lineMaterial );
+			line.renderOrder = 10;
+			line.computeLineDistances();
+			if (layout.cutType=="r") {
+			line.raycast = function (raycaster, intersects) {
+				if (!this.geometry.boundingBox) {
+					this.geometry.computeBoundingBox();
+				}
+				const boundingBox = this.geometry.boundingBox.clone();
+				boundingBox.applyMatrix4(this.matrixWorld); // Transform to world space
+			
+				if (raycaster.ray.intersectsBox(boundingBox)) {
+					intersects.push({
+						distance: raycaster.ray.origin.distanceTo(boundingBox.getCenter(new THREE.Vector3())),
+						point: boundingBox.getCenter(new THREE.Vector3()),
+						object: this,
+					});
+				}
+			};
+			}
+				
+			this.scene.add( line );
+			this.cut.line = line;
+			this.cut.lineAdded = true;
+			
+			const cutLineDrag = d3.drag()
+				.on("drag", boundCutLineDragged)
+				.on("end", boundCutLineDragEnd);
+
+			plotArea.call(cutLineDrag);
+			plotArea.node().addEventListener("pointerdown", boundCheckOnCutLine, true);
+
+
+		}
+
 		this.renderScene();
 
 		
@@ -401,16 +469,58 @@ class TriMesh3D extends Plot {
 			this.subscriptions.push({observable:requestWebGLRender, id:this.renderObserverId});
 		}
 		
+		function checkOnCutLine(event) {
+			boundUpdatePointerPosition(event);
+			const raycaster = this.raycaster;
+			raycaster.setFromCamera( this.pointer, this.camera );
+			const intersects = raycaster.intersectObject( this.cut.line );
+			if (intersects.length > 0) {
+				this.cut.lineDragging = true;
+				this.controls.enabled = false;
+			}
+		}
 
-		if ( layout.xCut && !this.checkResize ) {
-			boundFindZpCut(cutData.zpClip, 0.);
+		function cutLineDragged(event) {
+			if (this.cut.lineDragging) {
+				boundUpdatePointerPosition(event.sourceEvent);
+				const raycaster = this.raycaster;
+				raycaster.setFromCamera( this.pointer, this.camera );
+				const planeNormal = new THREE.Vector3(1, 0, 0);
+				const plane = new THREE.Plane(planeNormal);
+				const planeIntersect = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+				if (planeIntersect) {
+					this.cut.point = planeIntersect;
+					this.setCutValue();
+					this.setCutLinePosition();
+					boundWebGLUpdate();
+					boundGetCutLine();
+				}
+			}
+		}
+
+		function cutLineDragEnd() {
+			if (this.cut.lineDragging) {
+				this.cut.lineDragging = false;
+				requestCutEvaluate.state = true;
+			}				
+			this.controls.enabled = true;
+		}
+
+		
+		function updatePointerPosition(event) {
+			const plotArea = d3.select(`#${this.id}`).select(".plot-area");
+			const rect = plotArea.node().getBoundingClientRect();
+			const width = rect.width;
+			const height = rect.height;
+			pointer.x = ( event.clientX - rect.left ) / width * 2 - 1;
+			pointer.y = - ( event.clientY - rect.top ) / height * 2 + 1;
 		}
 
 		function timeStepSliderChange() {
 			iStep = this.value;
-			if ( layout.xCut) {
-				boundFindZpCut(cutData.zpClip, 0.);
-			}
+			//if ( layout.xCut) {
+			//	boundFindZpCut(cutData.zpClip, 0.);
+			//}
 			//const plot = dbsliceData.session.plotRows[plotRowIndex].plots[plotIndex];
 			//plot.watchedTime.iStep = iStep;
 			//if ( timeSync ) {
@@ -469,6 +579,7 @@ class TriMesh3D extends Plot {
 			this.renderScene();
 		}
 
+		/*
 		function barDragged(event,d){
 			let xCutPix = event.x;
 			d3.select(this)
@@ -478,9 +589,9 @@ class TriMesh3D extends Plot {
 			boundFindZpCut( xClip, yClip );
 			cutData.zpClip = xClip;
 			cutData.zpPix = xCutPix;    
-		}
+		}*/
 
-		function findZpCut(xPt, yPt) {
+		/*function findZpCut(xPt, yPt) {
 			let objects = this.meshUuids.map(d => this.scene.getObjectByProperty('uuid',d));
 			let raycaster = new THREE.Raycaster();
 			let pointer = new THREE.Vector2();
@@ -496,16 +607,16 @@ class TriMesh3D extends Plot {
 				}
 			});
 			if (intersects.length > 0 ){
-				cutData.zpCutValue = d3.mean(intersects, d => d.point.y);
+				cut.zpCutValue = d3.mean(intersects, d => d.point.y);
 				const cutLine = boundGetCutLine();
 				//dbsliceData.derived[layout.cutDataId] = cutLine;
 				//update();
 			}
 
-		}
+		}*/
 
 		function makeQuadTree() {
-			cutData.quadtrees = [];
+			cut.quadtrees = [];
 			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
 				const tris = [];
 				let thisSurface = offsets[0][iSurf]; // iStep = 0
@@ -516,7 +627,12 @@ class TriMesh3D extends Plot {
 					let i0 = indices[iTri*3];
 					let i1 = indices[iTri*3+1];
 					let i2 = indices[iTri*3+2];
-					let zpTri = [vertices[i0*3+1], vertices[i1*3+1], vertices[i2*3+1]]; // y coord 
+					let zpTri;
+					if (layout.cutType=="x") {
+						zpTri = [vertices[i0*3+1], vertices[i1*3+1], vertices[i2*3+1]]; // y coord 
+					} else if (layout.cutType=="r") {
+						zpTri = [Math.sqrt(vertices[i0*3+1]**2 + vertices[i0*3+2]**2), Math.sqrt(vertices[i1*3+1]**2 + vertices[i1*3+2]**2), Math.sqrt(vertices[i2*3+1]**2 + vertices[i2*3+2]**2)]; // r coord
+					}
 					let zpMin = Math.min(...zpTri);
 					let zpMax = Math.max(...zpTri);
 					tris.push( {zpMin,zpMax,i:iTri} );
@@ -525,7 +641,7 @@ class TriMesh3D extends Plot {
 					.x(d => d.zpMin)
 					.y(d => d.zpMax)
 					.addAll(tris);
-				cutData.quadtrees.push(quadtree);
+				cut.quadtrees.push(quadtree);
 			}
 			
 		}
@@ -542,16 +658,21 @@ class TriMesh3D extends Plot {
 				const tm = {vertices, indices, values};
 				const zp = new Float32Array(thisSurface.nVerts);
         		for (let i=0; i<thisSurface.nVerts; i++) {
-          			zp[i] = vertices[3*i + 1];  // y values
+					if (layout.cutType=="x") {
+          				zp[i] = vertices[3*i + 1];  // y values
+					} else if (layout.cutType=="r") {
+						zp[i] = Math.sqrt(vertices[3*i + 1]**2 + vertices[3*i + 2]**2); // r values
+					}
         		} 
-				const line = getCut(tm, zp, cutData.zpCutValue, iSurf );
+				const line = getCut(tm, zp, cut.value, iSurf );
 				lineSegmentsAll = lineSegmentsAll.concat(line);
 			}
+			this.sharedStateByAncestorId["context"].requestSaveToDerivedData.state={name:this.layout.cutDataStoreName, itemId:this.itemId, data:lineSegmentsAll};
 			return lineSegmentsAll;
 		}
 
 		function getCut( tm, zp, zpCut, iSurf) {
-			let cutTris = findCutTrisLine(cutData.quadtrees[iSurf], zpCut);
+			let cutTris = findCutTrisLine(cut.quadtrees[iSurf], zpCut);
 			let line = getLineFromCutTris(tm, zp, zpCut, cutTris);
 			return line;
 		}
@@ -614,7 +735,12 @@ class TriMesh3D extends Plot {
 			  	let vert = [];
 			  	vert.push(zp[ivert]);
 			  	//vert.push(tm.vertices[ivert*2]);
-			  	vert.push(tm.vertices[ivert*3+2]);
+				if (layout.cutType=="x") {
+			  		vert.push(tm.vertices[ivert*3+2]);
+				} else if (layout.cutType=="r") {
+					let theta = Math.atan2(tm.vertices[ivert*3+1],tm.vertices[ivert*3+2]);
+					vert.push(zp[ivert]*theta); // r*theta
+				}
 			  	vert.push(tm.values[ivert]);
 			  	verts.push(vert);
 			}
@@ -647,16 +773,28 @@ class TriMesh3D extends Plot {
 	renderScene() {
 		if (!this.scene) return;
 		const renderer = this.renderer;
+		const light = this.light;
 		const container = d3.select(`#${this.id}`);
 		const sharedCamera = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCamera;
 		const sharedCameraPosition = sharedCamera.position;
 		const sharedCameraRotation = sharedCamera.rotation;
+		const sharedCameraZoom = sharedCamera.zoom;
+		const sharedCutValue = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCutValue;
 	
 		if (this.layout.cameraSync && sharedCameraPosition) {
 			this.camera.position.copy(sharedCameraPosition);
 			this.camera.rotation.copy(sharedCameraRotation);
+			this.camera.zoom = sharedCameraZoom;
+			this.camera.updateProjectionMatrix();
 			this.camera.updateMatrixWorld();
+			light.position.copy( this.camera.position );
 		}
+
+		if (this.layout.cutValueSync && sharedCutValue.cutValue) {
+			this.cut.value = sharedCutValue.cutValue;
+			this.setCutLinePosition();
+		}
+
 		const plotArea = container.select(".plot-area");
 		renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
 		let plotRect = plotArea.node().getBoundingClientRect();
@@ -755,6 +893,41 @@ class TriMesh3D extends Plot {
 		renderer.setScissorTest( false );
 	}
 
+	setCutValue() {
+		// need to check what kind of cut is being made
+		const cutType = this.layout.cutType;
+		if (cutType == "x") {
+			this.cut.value = this.cut.point.y;
+		} else if (cutType == "r") {
+			this.cut.value = Math.sqrt(this.cut.point.y**2 + this.cut.point.z**2);
+		}
+		if (this.layout.cutValueSync) {
+			const sharedCutValue = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCutValue;
+			sharedCutValue.cutValue = this.cut.value;
+		}
+	}
+
+	setCutLinePosition() {
+		const cutLine = this.cut.line;
+		cutLine.geometry.setPositions( this.getCutLinePositionsFromCutValue() );
+	}
+
+	getCutLinePositionsFromCutValue() {
+		const mid = this.mid;
+		const rMax = this.rMax;
+		const cutType = this.layout.cutType;
+		const cutValue = this.cut.value;
+		if (cutType == "x") {
+			return [mid.x+0.5*rMax,cutValue,mid.z-rMax,mid.x+0.5*rMax,cutValue,mid.z+rMax];
+		} else if (cutType == "r") {
+			const npts=360;
+			const theta = Array.from({length:npts}, (d,i) => 2*Math.PI*i/npts);
+			const positions = theta.map(t => ([mid.x+0.5*rMax, cutValue*Math.cos(t),cutValue*Math.sin(t)]));
+			return positions.flat();
+		}
+	}
+
+
 	remove() {
 		this.removeSubscriptions();
 		const meshUuids = this.meshUuids;
@@ -769,14 +942,15 @@ class TriMesh3D extends Plot {
 	highlightItems(){
 
 		const container = d3.select(`#${this.id}`);
-        const plotArea = container.select(".plot-area");
+		const box = d3.select(`#${this.boxId}`);
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
         const highlightItemIds = filter.highlightItemIds.state.itemIds;
+		const boundWebGLUpdate = this.webGLUpdate.bind(this);
         
         const thisItemId = this.itemId;
-
+	
 		if (highlightItemIds === undefined || highlightItemIds.length == 0) {
-			container.style("outline-width","0px")
+			container.style("outline-width","0px");
  		} else {
 			container.style("outline-width","0px")
 			highlightItemIds.forEach( function (itemId) {
@@ -785,8 +959,9 @@ class TriMesh3D extends Plot {
                         .style("outline-style","solid")
                         .style("outline-color","red")
                         .style("outline-width","4px")
-                        .style("outline-offset","0px")
-                        .raise();
+                        .style("outline-offset","0px");
+                    box.raise();
+					boundWebGLUpdate();
 				}
             });
         }
@@ -816,14 +991,12 @@ class TriMesh3D extends Plot {
 				let nVerts = ints[0];
 				let nTris = ints[1];
 				let nValues = ints[2];
-				//console.log(surfName, nVerts, nTris, nValues);
 				let floats = new Float32Array(buffer,ii,7);
 				ii += 28;
 				let rMax = floats[0];
 				let xRange = floats.slice(1,3);
 				let yRange = floats.slice(3,5);
 				let zRange = floats.slice(5,7);
-				//console.log(xRange,yRange,zRange);
 				let verticesOffset;
 				let indicesOffset;
 				if ( nVerts > 0 && nTris == 0 && iStep > 0 ) { // this is a fixed vertices check

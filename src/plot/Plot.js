@@ -198,8 +198,9 @@ class Plot extends Component {
         if (!this.fetchData || !this.fetchDataNow){
             return;
         }
+        const derivedData = this.sharedStateByAncestorId["context"].derivedData;
         this.fetchingData = true;
-        this.data = await fetchPlotData(this.fetchData);
+        this.data = await fetchPlotData(this.fetchData, derivedData);
         this.fetchingData = false;
         this.fetchDataNow = false;
         this.newData = true;

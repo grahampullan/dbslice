@@ -23,7 +23,9 @@ class PlotGroup extends Plot {
         plotArea.on("scroll", boundHandleScroll);
         //this.sharedState.scrolling = new Observable({flag: false, state: {}});
         //this.sharedState.scrolling.subscribe(this.scrollingRenderOrderUpdate.bind(this));
-        this.sharedState.sharedCamera = {position:null, rotation:null};
+        this.sharedState.sharedCamera = {position:null, rotation:null, zoom:null};
+        this.sharedState.sharedCutValue = {cutValue:null};
+        this.sharedState.requestCutEvaluate = new Observable({flag: true, state: false});
         this.setLasts();
         this.checkForCtrl();
         this.update();
