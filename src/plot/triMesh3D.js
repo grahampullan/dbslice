@@ -947,11 +947,15 @@ class TriMesh3D extends Plot {
 	highlightItems(){
 
 		const container = d3.select(`#${this.id}`);
+		const box = d3.select(`#${this.boxId}`);
         const plotArea = container.select(".plot-area");
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
         const highlightItemIds = filter.highlightItemIds.state.itemIds;
+		const boundWebGLUpdate = this.webGLUpdate.bind(this);
         
         const thisItemId = this.itemId;
+		console.log("highlightItems", this.id);
+		console.log(this);
 
 		if (highlightItemIds === undefined || highlightItemIds.length == 0) {
 			container.style("outline-width","0px")
@@ -963,8 +967,9 @@ class TriMesh3D extends Plot {
                         .style("outline-style","solid")
                         .style("outline-color","red")
                         .style("outline-width","4px")
-                        .style("outline-offset","0px")
-                        .raise();
+                        .style("outline-offset","0px");
+                    box.raise();
+					boundWebGLUpdate();
 				}
             });
         }
