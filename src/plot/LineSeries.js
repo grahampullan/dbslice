@@ -317,8 +317,8 @@ class LineSeries extends Plot {
                 let series = d3.select( this );
                 let seriesLine = series.select( "path.line" );
                 seriesLine
-                    .attr( "d", d => line( d.data ) )
-                    .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )  ;
+                    .attr( "d", d => line( d.data ) );
+                    //.style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )  ;
             } );
 
             allSeries.exit().remove();

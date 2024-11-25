@@ -948,17 +948,14 @@ class TriMesh3D extends Plot {
 
 		const container = d3.select(`#${this.id}`);
 		const box = d3.select(`#${this.boxId}`);
-        const plotArea = container.select(".plot-area");
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
         const highlightItemIds = filter.highlightItemIds.state.itemIds;
 		const boundWebGLUpdate = this.webGLUpdate.bind(this);
         
         const thisItemId = this.itemId;
-		console.log("highlightItems", this.id);
-		console.log(this);
-
+	
 		if (highlightItemIds === undefined || highlightItemIds.length == 0) {
-			container.style("outline-width","0px")
+			container.style("outline-width","0px");
  		} else {
 			container.style("outline-width","0px")
 			highlightItemIds.forEach( function (itemId) {
