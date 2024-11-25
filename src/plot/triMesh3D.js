@@ -665,11 +665,8 @@ class TriMesh3D extends Plot {
 					}
         		} 
 				const line = getCut(tm, zp, cut.value, iSurf );
-				//console.log("cutting at ",cut.value);
 				lineSegmentsAll = lineSegmentsAll.concat(line);
 			}
-			//console.log(lineSegmentsAll);
-			//console.log(this.sharedStateByAncestorId["context"]);
 			this.sharedStateByAncestorId["context"].requestSaveToDerivedData.state={name:this.layout.cutDataStoreName, itemId:this.itemId, data:lineSegmentsAll};
 			return lineSegmentsAll;
 		}
@@ -785,8 +782,6 @@ class TriMesh3D extends Plot {
 		const sharedCutValue = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCutValue;
 	
 		if (this.layout.cameraSync && sharedCameraPosition) {
-			//console.log("cameraSync");
-			//console.log(sharedCameraPosition);
 			this.camera.position.copy(sharedCameraPosition);
 			this.camera.rotation.copy(sharedCameraRotation);
 			this.camera.zoom = sharedCameraZoom;
@@ -996,14 +991,12 @@ class TriMesh3D extends Plot {
 				let nVerts = ints[0];
 				let nTris = ints[1];
 				let nValues = ints[2];
-				//console.log(surfName, nVerts, nTris, nValues);
 				let floats = new Float32Array(buffer,ii,7);
 				ii += 28;
 				let rMax = floats[0];
 				let xRange = floats.slice(1,3);
 				let yRange = floats.slice(3,5);
 				let zRange = floats.slice(5,7);
-				//console.log(xRange,yRange,zRange);
 				let verticesOffset;
 				let indicesOffset;
 				if ( nVerts > 0 && nTris == 0 && iStep > 0 ) { // this is a fixed vertices check
