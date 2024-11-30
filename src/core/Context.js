@@ -21,6 +21,7 @@ class Context extends bbContext {
         renderer.setPixelRatio( window.devicePixelRatio );
         renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight);
         renderer.setScissorTest( true );
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.sharedState.renderer = renderer;
         this.metaData = {datasets:[], filters:[]};
         this.sharedState.filters = this.metaData.filters;

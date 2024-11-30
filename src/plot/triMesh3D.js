@@ -150,7 +150,8 @@ class TriMesh3D extends Plot {
   		let k=0;
   		for (let j=0; j<textureHeight; j++) {
     		for (let i=0; i<textureWidth; i++) {
-      			let col = d3.rgb(color(i/textureWidth));
+				let t = i/textureWidth;
+      			let col = d3.rgb(color(t));
       			texData[k] = col.r;
       			texData[k+1] = col.g;
       			texData[k+2] = col.b;
@@ -159,7 +160,7 @@ class TriMesh3D extends Plot {
     		}
   		}
   		const tex = new THREE.DataTexture( texData, textureWidth, textureHeight,  THREE.RGBAFormat, THREE.UnsignedByteType, THREE.UVMapping);
-  		tex.needsUpdate = true;
+		tex.needsUpdate = true;
 
 		if ( nSteps > 1 ){
 			let timeSlider = plotArea.select(".time-slider");
@@ -261,7 +262,7 @@ class TriMesh3D extends Plot {
         scene.add(background);
 
 
-		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		//const materialCol = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 		const materialCol = new THREE.MeshLambertMaterial( { color:0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
 		const materialGrey = new THREE.MeshLambertMaterial( { color: 0xaaaaaa, side: THREE.DoubleSide, wireframe:false } );
 
@@ -310,9 +311,9 @@ class TriMesh3D extends Plot {
 		scene.add( light5 );
 		scene.add( light6 );
 		*/
-		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.5 );	
+		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.7 );	
 		scene.add( ambientLight );
-		const light = new THREE.DirectionalLight( 0xffffff, 1 );
+		const light = new THREE.DirectionalLight( 0xffffff, 0.8 );
 		scene.add( light );
 		this.light = light;
 		
@@ -410,7 +411,7 @@ class TriMesh3D extends Plot {
 
 		if (layout.cut && !this.cut.LineAdded) {
 			
-			const lineMaterial = new LineMaterial( { color: 0x39fc03, linewidth: 3 } );
+			const lineMaterial = new LineMaterial( { color: 0xd0d5db, linewidth: 3 } ); // 0x39fc03
 			lineMaterial.stencilWrite = true;
 			lineMaterial.resolution.set( width, height );
 			lineMaterial.depthTest = false;
