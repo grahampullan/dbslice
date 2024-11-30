@@ -855,7 +855,11 @@ class TriMesh3D extends Plot {
                 rectangleBufferGeometryForMesh.setIndex(new THREE.BufferAttribute(indices, 1));
 
                 const rectangleMaterial = new THREE.MeshBasicMaterial({color: "red", wireframe: false});
-                rectangleMaterial.colorWrite = false;
+				if (this.layout.showStencilRects) {
+					rectangleMaterial.colorWrite = true;
+				} else {
+					rectangleMaterial.colorWrite = false;
+				}
                 rectangleMaterial.depthWrite = false;
 				rectangleMaterial.depthTest = false;
                 rectangleMaterial.stencilWrite = true;
