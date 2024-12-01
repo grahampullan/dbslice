@@ -160,6 +160,7 @@ class TriMesh3D extends Plot {
     		}
   		}
   		const tex = new THREE.DataTexture( texData, textureWidth, textureHeight,  THREE.RGBAFormat, THREE.UnsignedByteType, THREE.UVMapping);
+		tex.colorSpace = THREE.SRGBColorSpace;
 		tex.needsUpdate = true;
 
 		if ( nSteps > 1 ){
@@ -311,9 +312,9 @@ class TriMesh3D extends Plot {
 		scene.add( light5 );
 		scene.add( light6 );
 		*/
-		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.7 );	
+		const ambientLight = new THREE.AmbientLight( 0xffffff, 1.0 );	
 		scene.add( ambientLight );
-		const light = new THREE.DirectionalLight( 0xffffff, 0.8 );
+		const light = new THREE.DirectionalLight( 0xffffff, 1.0 );
 		scene.add( light );
 		this.light = light;
 		
