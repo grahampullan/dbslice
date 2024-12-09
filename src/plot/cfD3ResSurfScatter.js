@@ -82,6 +82,13 @@ const cfD3ResSurfScatter = {
         const pinv = nd.la.matmul(v, sigmaInv, u.T); // psuedo-inverse
         const beta = nd.la.matmul(pinv,ymat);
 
+        console.log("data model = ",dataModel);
+        console.log("Input properties = ",inputProperties);
+        console.log("beta array of coefficients: ");
+        console.log(beta.toNestedArray());
+        
+
+
 
         const resSurfResult = [];
         pointData.forEach(d => {
