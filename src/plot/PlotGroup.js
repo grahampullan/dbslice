@@ -1,6 +1,6 @@
 import { Plot } from './Plot.js';
 import { Box } from '../core/Box.js';
-import { TriMesh3D } from './triMesh3D.js';
+import { TriMesh3D } from './TriMesh3D.js';
 import { Observable } from 'board-box';
 import * as d3 from 'd3v7'
 

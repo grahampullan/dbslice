@@ -800,83 +800,81 @@ class TriMesh3D extends Plot {
 		const plotArea = container.select(".plot-area");
 		renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
 		let plotRect = plotArea.node().getBoundingClientRect();
-		const ancestorId = this.ancestorIds[this.ancestorIds.length-1];
 		let rect={left:plotRect.left, right:plotRect.right, top:plotRect.top, bottom:plotRect.bottom};
-		if (ancestorId !== "context") {
+
+		// set scissor limits
+		const ancestorIds = this.ancestorIds.filter(d => (d !== "context" && d.includes("box")) );
+		for (let ancestorId of ancestorIds) {
 			const plotGroup = d3.select(`#${ancestorId}-component-plot-area`);
 			let plotGroupRect = plotGroup.node().getBoundingClientRect();
-			if (plotRect.right < plotGroupRect.left) {return;}
-			if (plotRect.left > plotGroupRect.right) {return;}
-			if (plotRect.bottom < plotGroupRect.top) {return;}
-			if (plotRect.top > plotGroupRect.bottom) {return;}
-			if (plotRect.left < plotGroupRect.left && plotRect.right > plotGroupRect.left) {
+			if (rect.right < plotGroupRect.left) return;
+			if (rect.left > plotGroupRect.right) return;
+			if (rect.bottom < plotGroupRect.top) return;
+			if (rect.top > plotGroupRect.bottom) return;
+			if (rect.left < plotGroupRect.left && rect.right > plotGroupRect.left) {
 				rect.left = plotGroupRect.left + 2; 
 			}
-			if (plotRect.right > plotGroupRect.right && plotRect.left < plotGroupRect.right) { 
+			if (rect.right > plotGroupRect.right && rect.left < plotGroupRect.right) { 
 				rect.right = plotGroupRect.right -2 ; 
 			}
-			if (plotRect.top < plotGroupRect.top && plotRect.bottom > plotGroupRect.top) { 
+			if (rect.top < plotGroupRect.top && rect.bottom > plotGroupRect.top) { 
 				rect.top = plotGroupRect.top + 2; 
 			}
-			if (plotRect.bottom > plotGroupRect.bottom && plotRect.top < plotRect.bottom) { 
+			if (rect.bottom > plotGroupRect.bottom && rect.top < plotRect.bottom) { 
 				rect.bottom = plotGroupRect.bottom - 2;
 			}
-            const overlappingDivsClipSpace = this.getOverlappingBoxesInClipSpace(plotRect);
-            this.stencilRects.forEach( uuid => {
-                const oldRect = this.scene.getObjectByProperty('uuid', uuid);
-                oldRect.geometry.dispose();
-                oldRect.material.dispose();
-                this.scene.remove(oldRect);
-            })
-            this.stencilRects = [];
-
-            overlappingDivsClipSpace.forEach(d => {
-				const margin={left:0.00,right:0.02,top:0.00,bottom:0.02};
-                const rectangleBufferGeometryForMesh = new THREE.BufferGeometry();
-				const vertTopLeftClip = new THREE.Vector3(d.left-margin.left, d.top+margin.top, 0.5);
-				const vertTopRightClip = new THREE.Vector3(d.right+margin.right, d.top+margin.top, 0.5);
-				const vertBottomLeftClip = new THREE.Vector3(d.left-margin.left, d.bottom-margin.bottom, 0.5);
-				const vertBottomRightClip = new THREE.Vector3(d.right+margin.right, d.bottom-margin.bottom, 0.5);
-				const vertTopLeftWorld = vertTopLeftClip.unproject(this.camera);
-				const vertTopRightWorld = vertTopRightClip.unproject(this.camera);
-				const vertBottomLeftWorld = vertBottomLeftClip.unproject(this.camera);
-				const vertBottomRightWorld = vertBottomRightClip.unproject(this.camera);
-
-				const vertices = new Float32Array([
-					vertTopLeftWorld.x, vertTopLeftWorld.y, vertTopLeftWorld.z,
-					vertTopRightWorld.x, vertTopRightWorld.y, vertTopRightWorld.z,
-					vertBottomRightWorld.x, vertBottomRightWorld.y, vertBottomRightWorld.z,
-					vertBottomLeftWorld.x, vertBottomLeftWorld.y, vertBottomLeftWorld.z
-				]);
-
-                const indices = new Uint32Array([
-                    0, 2, 1,
-                    0, 3, 2
-                ]);
-                rectangleBufferGeometryForMesh.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                rectangleBufferGeometryForMesh.setIndex(new THREE.BufferAttribute(indices, 1));
-
-                const rectangleMaterial = new THREE.MeshBasicMaterial({color: "red", wireframe: false});
-				if (this.layout.showStencilRects) {
-					rectangleMaterial.colorWrite = true;
-				} else {
-					rectangleMaterial.colorWrite = false;
-				}
-                rectangleMaterial.depthWrite = false;
-				rectangleMaterial.depthTest = false;
-                rectangleMaterial.stencilWrite = true;
-                rectangleMaterial.stencilRef = 1;
-                rectangleMaterial.stencilFunc = THREE.AlwaysStencilFunc;
-                rectangleMaterial.stencilZPass = THREE.ReplaceStencilOp;
-                const rectangle = new THREE.Mesh(rectangleBufferGeometryForMesh, rectangleMaterial);
-                rectangle.renderOrder = 0;
-
-                this.stencilRects.push(rectangle.uuid)
-                this.scene.add(rectangle);  
-                
-            });
-
 		}
+
+		// set stencil rectangles
+        const overlappingDivsClipSpace = this.getOverlappingBoxesInClipSpace(plotRect);
+        this.stencilRects.forEach( uuid => {
+            const oldRect = this.scene.getObjectByProperty('uuid', uuid);
+            oldRect.geometry.dispose();
+            oldRect.material.dispose();
+            this.scene.remove(oldRect);
+        });
+        this.stencilRects = [];
+
+        overlappingDivsClipSpace.forEach(d => {
+			const margin={left:0.00,right:0.02,top:0.00,bottom:0.02};
+            const rectangleBufferGeometryForMesh = new THREE.BufferGeometry();
+			const vertTopLeftClip = new THREE.Vector3(d.left-margin.left, d.top+margin.top, 0.5);
+			const vertTopRightClip = new THREE.Vector3(d.right+margin.right, d.top+margin.top, 0.5);
+			const vertBottomLeftClip = new THREE.Vector3(d.left-margin.left, d.bottom-margin.bottom, 0.5);
+			const vertBottomRightClip = new THREE.Vector3(d.right+margin.right, d.bottom-margin.bottom, 0.5);
+			const vertTopLeftWorld = vertTopLeftClip.unproject(this.camera);
+			const vertTopRightWorld = vertTopRightClip.unproject(this.camera);
+			const vertBottomLeftWorld = vertBottomLeftClip.unproject(this.camera);
+			const vertBottomRightWorld = vertBottomRightClip.unproject(this.camera);
+
+			const vertices = new Float32Array([
+				vertTopLeftWorld.x, vertTopLeftWorld.y, vertTopLeftWorld.z,
+				vertTopRightWorld.x, vertTopRightWorld.y, vertTopRightWorld.z,
+				vertBottomRightWorld.x, vertBottomRightWorld.y, vertBottomRightWorld.z,
+				vertBottomLeftWorld.x, vertBottomLeftWorld.y, vertBottomLeftWorld.z
+			]);
+            const indices = new Uint32Array([0, 2, 1, 0, 3, 2]);
+            rectangleBufferGeometryForMesh.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            rectangleBufferGeometryForMesh.setIndex(new THREE.BufferAttribute(indices, 1));
+
+            const rectangleMaterial = new THREE.MeshBasicMaterial({color: "red", wireframe: false});
+			if (this.layout.showStencilRects) {
+				rectangleMaterial.colorWrite = true;
+			} else {
+				rectangleMaterial.colorWrite = false;
+			}
+            rectangleMaterial.depthWrite = false;
+			rectangleMaterial.depthTest = false;
+            rectangleMaterial.stencilWrite = true;
+            rectangleMaterial.stencilRef = 1;
+            rectangleMaterial.stencilFunc = THREE.AlwaysStencilFunc;
+            rectangleMaterial.stencilZPass = THREE.ReplaceStencilOp;
+            const rectangle = new THREE.Mesh(rectangleBufferGeometryForMesh, rectangleMaterial);
+            rectangle.renderOrder = 0;
+
+            this.stencilRects.push(rectangle.uuid)
+            this.scene.add(rectangle);  
+        });
 
 		const scissorLeft = Math.floor(rect.left);
 		const scissorBottom = Math.floor(renderer.domElement.clientHeight - rect.bottom);
