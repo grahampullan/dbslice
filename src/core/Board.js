@@ -70,7 +70,7 @@ class Board extends bbBoard {
     makePlotGroupDetailed() {
         const dataset = this.sharedStateByAncestorId["context"].datasets[0];
         const boxesToAdd = dataset.availablePlots;
-        const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:4, autoLayout:true, component: new PlotGroup({layout:{title:"Detail plots", icons:["filter"]}})});
+        const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:0, autoLayout:true, component: new PlotGroup({layout:{title:"Detail plots", icons:["filter"]}})});
         this.sharedState.requestUpdateBoxes.state = {boxesToAdd:[plotGroupBox]};
         const plotGroupBoxId = plotGroupBox.id;
         const parentBox = this.boxes.find( box => box.id == plotGroupBoxId );
@@ -84,7 +84,7 @@ class Board extends bbBoard {
         //this.sharedStateByAncestorId["context"].requestCreateFilter.state = {datasetId};
         const filters = this.sharedStateByAncestorId["context"].filters;
         const filterId = filters[filters.length-1].id;
-        const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:4, autoLayout:true, component: new PlotGroup({layout:{title:"Filter plots", filterPlots:true, datasetId, filterId, icons:["add"]}})});
+        const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:0, autoLayout:true, component: new PlotGroup({layout:{title:"Filter plots", filterPlots:true, datasetId, filterId, icons:["add"]}})});
         this.sharedState.requestUpdateBoxes.state = {boxesToAdd:[plotGroupBox]};
     }
 
