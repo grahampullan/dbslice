@@ -17,7 +17,9 @@ class PlotGroup extends Plot {
         this.updateHeader();
         this.addPlotAreaDiv();
         const plotArea = d3.select(`#${this.plotAreaId}`);
-        plotArea.style("overflow", "hidden")
+        plotArea
+            .style("will-change", "transform")
+            .style("overflow", "hidden")
             .style("overflow-y", "auto");
         const boundHandleScroll = this.handleScroll.bind(this);
         plotArea.on("scroll", boundHandleScroll);
