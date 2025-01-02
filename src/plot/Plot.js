@@ -167,7 +167,7 @@ class Plot extends Component {
             .append("div")
             .attr("class", "plot-icon")
             .html(d => icon(d.icon).html)
-            .on("click", (e,d) => {console.log("click");d.action()} );
+            .on("click", (e,d) => {console.log("click");d.action()}) 
         icons.exit().remove();
     }
     
@@ -433,10 +433,15 @@ class Plot extends Component {
     }
 
     removePlot() {
-        //console.log("removePlot");
+
+        console.log("removePlot");
         const parentId = this.ancestorIds[this.ancestorIds.length-1];
+        console.log(this.id);
+        console.log(this.boxId);
+        console.log(this.sharedStateByAncestorId[parentId]);
+        this.sharedStateByAncestorId[parentId].requestUpdateBoxes.state = {boxesToAdd:[],boxesToRemove:[this.boxId]};
         //console.log(parentId);
-        this.sharedStateByAncestorId[parentId].requestRemovePlot.state = {id:this.id};
+        //this.sharedStateByAncestorId[parentId].requestRemovePlot.state = {id:this.id};
     }
             
     getOverlappingBoxesInClipSpace( currentRect ) {

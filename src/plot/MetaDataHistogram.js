@@ -21,9 +21,11 @@ class MetaDataHistogram extends Plot {
         this.filterId = this.data.filterId;
         this.currentFilterSetting = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId ).continuousExtents[this.data.property];
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-        filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        const filterObsId = filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        this.subscriptions.push({observable:filter.itemIdsInFilter, id:filterObsId});
         if ( this.layout.highlightItems ) {
-            filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+            const highlightObsId = filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+            this.subscriptions.push({observable:filter.highlightItemIds, id:highlightObsId});
         }
         this.dimId = filter.continuousProperties.indexOf( this.data.property );
     
@@ -46,7 +48,7 @@ class MetaDataHistogram extends Plot {
         const margin = layout.margin;
         const plotArea = container.select(".plot-area");
 
-        this.updateHeader();
+        //this.updateHeader();
         this.updatePlotAreaSize();
 
         const width = this.plotAreaWidth;
@@ -339,6 +341,10 @@ class MetaDataHistogram extends Plot {
 
     handleFilterChange(data) {
         this.update();
+    }
+
+    remove() {
+		this.removeSubscriptions();
     }
 
 }
