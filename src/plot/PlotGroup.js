@@ -36,7 +36,7 @@ class PlotGroup extends Plot {
     update() {
         this.updateHeader();
         this.updatePlotAreaSize();
-        this.webGLUpdate();
+        //this.webGLUpdate();
         
     }
 

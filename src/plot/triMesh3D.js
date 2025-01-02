@@ -111,7 +111,7 @@ class TriMesh3D extends Plot {
 			.attr("height", height);
 
 		this.setLasts();
-		this.webGLUpdate();
+		//this.webGLUpdate();
 
 		//if (this.updateType == "layout") {
 		//		return;
@@ -463,7 +463,7 @@ class TriMesh3D extends Plot {
 
 		}
 
-		this.renderScene();
+		//this.renderScene();
 
 		
 		if (!this.renderObserverId) {
@@ -766,6 +766,8 @@ class TriMesh3D extends Plot {
 		}
 
 		
+		if(this.newData) this.webGLUpdate(); // ensures a webGL render after waiting for new data
+
 		this.newData = false;
 		this.lastWidth = this.width;
 		this.lastHeight = this.height;
@@ -783,20 +785,6 @@ class TriMesh3D extends Plot {
 		const sharedCameraZoom = sharedCamera.zoom;
 		const sharedCutValue = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCutValue;
 	
-		if (this.layout.cameraSync && sharedCameraPosition) {
-			this.camera.position.copy(sharedCameraPosition);
-			this.camera.rotation.copy(sharedCameraRotation);
-			this.camera.zoom = sharedCameraZoom;
-			this.camera.updateProjectionMatrix();
-			this.camera.updateMatrixWorld();
-			light.position.copy( this.camera.position );
-		}
-
-		if (this.layout.cutValueSync && sharedCutValue.cutValue) {
-			this.cut.value = sharedCutValue.cutValue;
-			this.setCutLinePosition();
-		}
-
 		const plotArea = container.select(".plot-area");
 		renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
 		let plotRect = plotArea.node().getBoundingClientRect();
@@ -823,6 +811,20 @@ class TriMesh3D extends Plot {
 			if (rect.bottom > plotGroupRect.bottom && rect.top < plotRect.bottom) { 
 				rect.bottom = plotGroupRect.bottom - 2;
 			}
+		}
+
+		if (this.layout.cameraSync && sharedCameraPosition) {
+			this.camera.position.copy(sharedCameraPosition);
+			this.camera.rotation.copy(sharedCameraRotation);
+			this.camera.zoom = sharedCameraZoom;
+			this.camera.updateProjectionMatrix();
+			this.camera.updateMatrixWorld();
+			light.position.copy( this.camera.position );
+		}
+
+		if (this.layout.cutValueSync && sharedCutValue.cutValue) {
+			this.cut.value = sharedCutValue.cutValue;
+			this.setCutLinePosition();
 		}
 
 		// set stencil rectangles
