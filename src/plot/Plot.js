@@ -292,7 +292,7 @@ class Plot extends Component {
         const itemIds = checkedBoxes.nodes().map( cb => cb.value);
         modal.style("display", "none");
         modalContent.selectAll("*").remove();
-        console.log(itemIds);
+        //console.log(itemIds);
         this.itemIds = itemIds;
         this.sharedState.requestFetchDataByItemIds.state = {itemIds: itemIds};
         // this.sharedState.requestFetchDataByFilter.state = {filterId: filterId};
@@ -300,15 +300,15 @@ class Plot extends Component {
     }
 
     handleFilterSelected(filterSelected) {
-        console.log("filterSelected");
-        console.log(filterSelected);
+        //console.log("filterSelected");
+        //console.log(filterSelected);
         this.sharedState.requestFetchDataByFilter.state = {filterId: filterSelected};
     }
 
     addPlot() {
-        console.log("add plot");
-        console.log(this);
-        console.log(filterPlots);
+        //console.log("add plot");
+        //console.log(this);
+        //console.log(filterPlots);
         const boundAddNewFilterPlot = this.addNewFilterPlot.bind(this);
         const boardId = this.ancestorIds[this.ancestorIds.length-1];
         this.sharedStateByAncestorId[boardId].preventZoom = true;
@@ -340,22 +340,21 @@ class Plot extends Component {
     }
 
     addNewFilterPlot(plotType) {
-        console.log("addNewFilterPlot");
-        console.log(plotType);
+        //console.log("addNewFilterPlot");
+        //console.log(plotType);
         const requestAddFilterPlot = this.sharedState.requestAddFilterPlot;
         const dataNeeded = filterPlots.find( p => p.name === plotType ).dataNeeded;
-        console.log(dataNeeded);
+        //console.log(dataNeeded);
         const filterId = "filter-0"; // hard coded for now
         const continuousProperties = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId ).continuousProperties;
         const categoricalProperties = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId ).categoricalProperties;
         const propertyOptions = {};
         propertyOptions.continuous = [...continuousProperties].sort();
         propertyOptions.categorical = [...categoricalProperties].sort();
-        console.log(propertyOptions);
+        //console.log(propertyOptions);
 
         const boardId = this.ancestorIds[this.ancestorIds.length-1];
         const boardSharedState = this.sharedStateByAncestorId[boardId];
-        console.log(boardId);
         const modal = d3.select(`#${boardId}-modal`);
         const modalContent = d3.select(`#${boardId}-modal-content`);
         modalContent.on("click", (event) => {
@@ -373,11 +372,11 @@ class Plot extends Component {
             .text(function(d) { return d.name; });
         dropdowns.append("select")
             .on("click", (event) => {
-                console.log("click");
-                console.log(event);
+                //console.log("click");
+                //console.log(event);
             })
             .on("change input drag", (event) => {
-                console.log(event);
+                //console.log(event);
                 event.stopPropagation();})
             .selectAll("option")
             .data( d => propertyOptions[d.type] )
@@ -434,9 +433,9 @@ class Plot extends Component {
     }
 
     removePlot() {
-        console.log("removePlot");
+        //console.log("removePlot");
         const parentId = this.ancestorIds[this.ancestorIds.length-1];
-        console.log(parentId);
+        //console.log(parentId);
         this.sharedStateByAncestorId[parentId].requestRemovePlot.state = {id:this.id};
     }
             
@@ -483,8 +482,9 @@ class Plot extends Component {
     }
 
     webGLUpdate() {
+        //console.log(this.id, "webGLUpdate");
         const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
-        if (requestWebGLRender.state = false) {
+        if (requestWebGLRender.state == false) {
             requestWebGLRender.state = true;
         }
     }

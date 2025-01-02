@@ -97,11 +97,10 @@ class Board extends bbBoard {
         this.sharedState.requestWebGLRender.observers.splice(1, sortedObservers.length, ...sortedObservers);
     }
 
-
-
-    
-
-
+    customOnUpdateEnd() {
+        const requestWebGLRender = this.sharedState.requestWebGLRender;
+        requestWebGLRender.state = true;
+    }
 
 }
 

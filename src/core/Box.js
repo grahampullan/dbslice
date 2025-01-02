@@ -115,6 +115,11 @@ class Box extends bbBox {
         const idToRemove = data.id;
         this.updateBoxes({boxesToAdd:[], boxesToRemove:[idToRemove]});
     }
+
+    customOnUpdateEnd() {
+        const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
+        requestWebGLRender.state = true;
+    }
     
 
 }
