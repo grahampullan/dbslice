@@ -213,6 +213,7 @@ class Plot extends Component {
     }
 
     selectItemIds() {
+        this.clearWebGLRenderer();
         const boundHandleCheckboxesApply = this.handleCheckboxesApply.bind(this);
         const boundHandleFilterSelected = this.handleFilterSelected.bind(this);
         const boardId = this.ancestorIds[this.ancestorIds.length-1];
@@ -487,6 +488,12 @@ class Plot extends Component {
         if (requestWebGLRender.state == false) {
             requestWebGLRender.state = true;
         }
+    }
+
+    clearWebGLRenderer() {
+        const renderer = this.sharedStateByAncestorId["context"].renderer;
+        renderer.setClearColor(0x000000, 0); 
+        renderer.clear();
     }
     
 }
