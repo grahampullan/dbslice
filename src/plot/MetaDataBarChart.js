@@ -17,9 +17,11 @@ class MetaDataBarChart extends Plot {
     make() {
         this.filterId = this.data.filterId;
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-        filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        const filterObsId = filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        this.subscriptions.push({observable:filter.itemIdsInFilter, id:filterObsId});
         if ( this.layout.highlightItems ) {
-            filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+            const highlightObsId = filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+            this.subscriptions.push({observable:filter.highlightItemIds, id:highlightObsId});
         }
         this.dimId = filter.categoricalProperties.indexOf( this.data.property );
     
@@ -36,7 +38,7 @@ class MetaDataBarChart extends Plot {
         const margin = layout.margin;
         const plotArea = container.select(".plot-area");
 
-        this.updateHeader();
+        //this.updateHeader();
         this.updatePlotAreaSize();
 
         const width = this.plotAreaWidth;
@@ -244,6 +246,10 @@ class MetaDataBarChart extends Plot {
 
     handleFilterChange( data ) {
         this.update();
+    }
+
+    remove() {
+		this.removeSubscriptions();
     }
 
 

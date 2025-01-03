@@ -23,11 +23,13 @@ class MetaDataScatter extends Plot {
         
         this.filterId = this.data.filterId;
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-        this.dimId = filter.continuousProperties.indexOf( this.data.xProperty );
-        filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        const filterObsId = filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        this.subscriptions.push({observable:filter.itemIdsInFilter, id:filterObsId});
         if ( this.layout.highlightItems ) {
-            filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+            const highlightObsId = filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+            this.subscriptions.push({observable:filter.highlightItemIds, id:highlightObsId});
         }
+        this.dimId = filter.continuousProperties.indexOf( this.data.xProperty );
         
         container.append("div")
             .attr("class", "tool-tip")
@@ -43,7 +45,7 @@ class MetaDataScatter extends Plot {
         const margin = layout.margin;
         const plotArea = container.select(".plot-area");
        
-        this.updateHeader();
+        //this.updateHeader();
         this.updatePlotAreaSize();
 
         const width = this.plotAreaWidth;
@@ -364,6 +366,10 @@ class MetaDataScatter extends Plot {
 
     handleFilterChange( data ) {
         this.update();
+    }
+
+    remove() {
+        this.removeSubscriptions();
     }
 
 }

@@ -17,7 +17,8 @@ class MetaDataRankCorrBarChart extends Plot {
     make() {
         this.filterId = this.data.filterId;
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-        filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        const filterObsId = filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
+        this.subscriptions.push({observable:filter.itemIdsInFilter, id:filterObsId});
         this.dimId = filter.continuousProperties.indexOf( this.data.outputProperty );
     
         this.updateHeader(); 
@@ -33,7 +34,7 @@ class MetaDataRankCorrBarChart extends Plot {
         const margin = layout.margin;
         const plotArea = container.select(".plot-area");
 
-        this.updateHeader();
+        //this.updateHeader();
         this.updatePlotAreaSize();
 
         const width = this.plotAreaWidth;
@@ -145,6 +146,11 @@ class MetaDataRankCorrBarChart extends Plot {
     handleFilterChange( data ) {
         this.update();
     }
+
+    remove() {
+        this.removeSubscriptions();
+    }
+    
 };
 
 export { MetaDataRankCorrBarChart };
