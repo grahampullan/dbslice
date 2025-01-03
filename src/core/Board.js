@@ -19,7 +19,7 @@ class Board extends bbBoard {
         boardDiv.append("div")
             .attr("class", "modal")
             .attr("id", `${this.id}-modal`)
-            .on("click", (event)=>{
+            .on("click mousedown wheel", (event)=>{
                 event.stopPropagation();
                 })
             .append("div")
@@ -37,6 +37,7 @@ class Board extends bbBoard {
     }
 
     plotGroupModal() {
+        this.clearWebGLRenderer();
         const modal = d3.select(`#${this.id}-modal`);
         const modalContent = d3.select(`#${this.id}-modal-content`);
         const boundMakePlotGroupDetailed = this.makePlotGroupDetailed.bind(this);
@@ -100,6 +101,12 @@ class Board extends bbBoard {
     customOnUpdateEnd() {
         const requestWebGLRender = this.sharedState.requestWebGLRender;
         requestWebGLRender.state = true;
+    }
+
+    clearWebGLRenderer() {
+        const renderer = this.sharedStateByAncestorId["context"].renderer;
+        renderer.setClearColor(0x000000, 0); 
+        renderer.clear();
     }
 
 }
