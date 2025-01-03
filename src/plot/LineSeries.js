@@ -102,7 +102,7 @@ class LineSeries extends Plot {
             }
         }
 
-        this.updateHeader();
+        //this.updateHeader();
         this.updatePlotAreaSize();
 
         const clipId = `${this.id}-clip`;
