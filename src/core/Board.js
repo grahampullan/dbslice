@@ -41,6 +41,10 @@ class Board extends bbBoard {
                 .attr("cy", 10)
                 .attr("r", 8)
                 .attr("fill", "green");
+
+        if (this.showPlotGroupModalOnStart) {
+            this.plotGroupModal();
+        }
     }
 
     boardClick() {
@@ -118,7 +122,7 @@ class Board extends bbBoard {
         //this.sharedStateByAncestorId["context"].requestCreateFilter.state = {datasetId};
         const filters = this.sharedStateByAncestorId["context"].filters;
         const filterId = filters[filters.length-1].id;
-        const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:0, autoLayout:true, component: new PlotGroup({layout:{title:"Filter plots", filterPlots:true, datasetId, filterId, icons:["add"]}})});
+        const plotGroupBox = new Box({x:200,y:100, width:500, height:500, margin:0, autoLayout:true, component: new PlotGroup({layout:{title:"Filter plots", filterPlots:true, datasetId, filterId, icons:["add"]}})});
         this.sharedState.requestUpdateBoxes.state = {boxesToAdd:[plotGroupBox]};
     }
 
