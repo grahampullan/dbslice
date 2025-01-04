@@ -10,7 +10,9 @@ class Board extends bbBoard {
         super(options);
         const requestWebGLRender = new Observable({flag:true, state:false});
         requestWebGLRender.subscribe(this.webGLRenderOrderUpdate.bind(this));
-        this.sharedState = {...this.sharedState, requestWebGLRender} 
+        const requestSetTrafficLightColor = new Observable({flag:false, state:"green"});
+        requestSetTrafficLightColor.subscribe( this.setTrafficLightColor.bind(this) );
+        this.sharedState = {...this.sharedState, requestWebGLRender, requestSetTrafficLightColor}; 
     }
 
     make() {
@@ -27,6 +29,18 @@ class Board extends bbBoard {
                 .attr("class", "modal-content")
                 .attr("id", `${this.id}-modal-content`);
         boardDiv.on("click", boundBoardClick);
+        boardDiv.append("svg")
+            .attr("width", 20)
+            .attr("height", 20)
+            .style("position", "absolute")
+            .style("top", "0")
+            .style("right", "0")
+            .append("circle")
+                .attr("class", "board-traffic-light")
+                .attr("cx", 10)
+                .attr("cy", 10)
+                .attr("r", 8)
+                .attr("fill", "green");
     }
 
     boardClick() {
@@ -43,7 +57,6 @@ class Board extends bbBoard {
         const modalContent = d3.select(`#${this.id}-modal-content`);
         const boundMakePlotGroupDetailed = this.makePlotGroupDetailed.bind(this);
         const boundMakePlotGroupFilter = this.makePlotGroupFilter.bind(this);
-        // add small cancel link to top right corner
         modalContent.append("a")
             .attr("class", "cancel")
             .style("text-decoration", "none")
@@ -55,7 +68,7 @@ class Board extends bbBoard {
             .on("click", () => {
                 modal.style("display", "none");
                 modalContent.selectAll("*").remove();
-            });
+        });
         modalContent.append("h4").html("Add plot container");
         modalContent.append("hr");
         const buttonContainer = modalContent.append("div")
@@ -79,7 +92,7 @@ class Board extends bbBoard {
                 modalContent.selectAll("*").remove();
             });
         if (this.filterContainer) filterButton.attr("disabled", true);
-        
+
         modal.style("display", "block");
     }
 
@@ -127,6 +140,11 @@ class Board extends bbBoard {
         const renderer = this.sharedStateByAncestorId["context"].renderer;
         renderer.setClearColor(0x000000, 0); 
         renderer.clear();
+    }
+
+    setTrafficLightColor(color) {
+        const board = d3.select(`#${this.id}`);
+        board.select(".board-traffic-light").attr("fill", color);
     }
 
 }

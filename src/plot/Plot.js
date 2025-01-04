@@ -198,11 +198,14 @@ class Plot extends Component {
         if (!this.fetchData || !this.fetchDataNow){
             return;
         }
+        const requestSetTrafficLightColor = this.sharedStateByAncestorId[this.boardId].requestSetTrafficLightColor;
         const derivedData = this.sharedStateByAncestorId["context"].derivedData;
         this.fetchingData = true;
+        requestSetTrafficLightColor.state = "yellow";
         this.data = await fetchPlotData(this.fetchData, derivedData);
         this.fetchingData = false;
         this.fetchDataNow = false;
+        requestSetTrafficLightColor.state = "green";
         this.newData = true;
     }
 
@@ -310,6 +313,7 @@ class Plot extends Component {
         //console.log("add plot");
         //console.log(this);
         //console.log(filterPlots);
+        this.clearWebGLRenderer();
         const boundAddNewFilterPlot = this.addNewFilterPlot.bind(this);
         const boardId = this.ancestorIds[this.ancestorIds.length-1];
         this.sharedStateByAncestorId[boardId].preventZoom = true;

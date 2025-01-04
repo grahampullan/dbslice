@@ -21,7 +21,6 @@ class TriMesh3D extends Plot {
     }
 
 	make() {
-		console.log(this.layout);
 		this.updateHeader();
 		this.addPlotAreaDiv();
 		const container = d3.select(`#${this.id}`);
