@@ -2,6 +2,7 @@ import { Board as bbBoard, Observable } from 'board-box';
 import { PlotGroup } from '../plot/PlotGroup.js';
 import { Box } from './Box.js';
 import * as d3 from 'd3v7';
+//import cloneDeep from 'lodash/cloneDeep';
 
 class Board extends bbBoard {
     constructor(options) {
@@ -42,11 +43,24 @@ class Board extends bbBoard {
         const modalContent = d3.select(`#${this.id}-modal-content`);
         const boundMakePlotGroupDetailed = this.makePlotGroupDetailed.bind(this);
         const boundMakePlotGroupFilter = this.makePlotGroupFilter.bind(this);
+        // add small cancel link to top right corner
+        modalContent.append("a")
+            .attr("class", "cancel")
+            .style("text-decoration", "none")
+            .style("position", "absolute")
+            .style("top", "0")
+            .style("right", "10px")
+            .style("cursor", "pointer")
+            .html("cancel")
+            .on("click", () => {
+                modal.style("display", "none");
+                modalContent.selectAll("*").remove();
+            });
         modalContent.append("h4").html("Add plot container");
         modalContent.append("hr");
         const buttonContainer = modalContent.append("div")
             .attr("class", "button-container");
-        buttonContainer.append("button")
+        const detailedButton = buttonContainer.append("button")
             .attr("class", "button")
             .html("Detail")
             .on("click", () => {
@@ -54,7 +68,9 @@ class Board extends bbBoard {
                 modal.style("display", "none");
                 modalContent.selectAll("*").remove();
             });
-        buttonContainer.append("button")
+        if (this.detailedContainer) detailedButton.attr("disabled", true);
+
+        const filterButton = buttonContainer.append("button")
             .attr("class", "button")
             .html("Filters")
             .on("click", () => {
@@ -62,6 +78,8 @@ class Board extends bbBoard {
                 modal.style("display", "none");
                 modalContent.selectAll("*").remove();
             });
+        if (this.filterContainer) filterButton.attr("disabled", true);
+        
         modal.style("display", "block");
     }
 
@@ -69,8 +87,9 @@ class Board extends bbBoard {
     }
 
     makePlotGroupDetailed() {
+        this.detailedContainer = true;
         const dataset = this.sharedStateByAncestorId["context"].datasets[0];
-        const boxesToAdd = dataset.availablePlots;
+        const boxesToAdd = [...dataset.availablePlots];                 
         const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:0, autoLayout:true, component: new PlotGroup({layout:{title:"Detail plots", icons:["filter"]}})});
         this.sharedState.requestUpdateBoxes.state = {boxesToAdd:[plotGroupBox]};
         const plotGroupBoxId = plotGroupBox.id;
@@ -79,6 +98,7 @@ class Board extends bbBoard {
     }
 
     makePlotGroupFilter() {
+        this.filterContainer = true;
         this.sharedStateByAncestorId["context"].showFilters = true;
         const datasets = this.sharedStateByAncestorId["context"].datasets;
         const datasetId = datasets[0].id; // set to first dataset for now

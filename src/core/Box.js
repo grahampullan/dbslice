@@ -36,12 +36,12 @@ class Box extends bbBox {
     }
 
     fetchDataByItemIds(data) {
-        console.log("fetchDataByItemIds");
+        //console.log("fetchDataByItemIds");
         const itemIds = data.itemIds;
-        console.log(itemIds);
+        //console.log(itemIds);
         this.boxes.forEach( box => {
             const plot = box.component;
-            console.log(plot);
+            //console.log(plot);
             if (plot.ctrl) {
                 const fetchData = plot.ctrl.fetchData;
                 fetchData.itemIds = itemIds;
@@ -59,13 +59,13 @@ class Box extends bbBox {
     }
 
     fetchDataByFilter(data) {
-        console.log("fetchDataByFilter");
+        //console.log("fetchDataByFilter");
         const filterId = data.filterId;
         const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId );
         const itemIds = filter.itemIdsInFilter.state.itemIds;
         this.boxes.forEach( box => {
             const plot = box.component;
-            console.log(plot);
+            //console.log(plot);
             if (plot.ctrl) {
                 const fetchData = plot.ctrl.fetchData;
                 fetchData.itemIds = itemIds;
@@ -82,7 +82,7 @@ class Box extends bbBox {
     }
 
     addFilterPlot(data) {
-        console.log(data);
+        //console.log(data);
         const plotType = data.plotType;
         const filterId = data.filterId;
         const dataProperties = data.dataProperties;
@@ -99,7 +99,7 @@ class Box extends bbBox {
         if (plotType == "Bar chart") {
             const title = dataProperties.property;
             const box = new Box({x:0,y:0, width:250, height:250, component: new MetaDataBarChart({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
-            console.log(box);
+            //console.log(box);
             this.updateBoxes({boxesToAdd:[box], boxesToRemove:[]});
         }
         if (plotType == "Rank correlation") {
@@ -110,8 +110,8 @@ class Box extends bbBox {
     }
 
     removePlot(data) {
-        console.log("removePlot");
-        console.log(data);
+        //console.log("removePlot");
+        //console.log(data);
         const idToRemove = data.id;
         this.updateBoxes({boxesToAdd:[], boxesToRemove:[idToRemove]});
     }
