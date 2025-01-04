@@ -316,6 +316,18 @@ class Plot extends Component {
         const modal = d3.select(`#${boardId}-modal`);
         const modalContent = d3.select(`#${boardId}-modal-content`);
         modalContent.selectAll("*").remove();
+        modalContent.append("a")
+            .attr("class", "cancel")
+            .style("text-decoration", "none")
+            .style("position", "absolute")
+            .style("top", "0")
+            .style("right", "10px")
+            .style("cursor", "pointer")
+            .html("cancel")
+            .on("click", () => {
+                modal.style("display", "none");
+                modalContent.selectAll("*").remove();
+        });
         modalContent.append("h4").html("Select plot type");
         modalContent.append("hr");
         const plotTypes = filterPlots.map( p => p.name );
@@ -361,6 +373,7 @@ class Plot extends Component {
         modalContent.on("click", (event) => {
             event.stopPropagation();
         });
+        
         modalContent.append("hr");
         modalContent.select(".dropdown-container").remove();
         const dataNeededProps = dataNeeded.filter(d => !d.array);

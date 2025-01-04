@@ -130,4 +130,9 @@ box-icon {
   background-color: #45a049;
 }
 
+.button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
 
