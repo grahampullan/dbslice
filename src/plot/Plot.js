@@ -80,7 +80,8 @@ class Plot extends Component {
             .style("width", `${this.plotAreaWidth}px`)
             .style("height", `${this.plotAreaHeight}px`)
             .attr("width", this.plotAreaWidth)
-            .attr("height", this.plotAreaHeight);
+            .attr("height", this.plotAreaHeight)
+            .style("pointer-events", "auto");
         return;
     }
 
@@ -97,7 +98,8 @@ class Plot extends Component {
             .style("height", `${this.plotAreaHeight}px`)
             .style("overflow", "visible")
             .attr("width", this.plotAreaWidth)
-            .attr("height", this.plotAreaHeight);
+            .attr("height", this.plotAreaHeight)
+            .style("pointer-events", "auto");
         return;
     }
 
