@@ -88,23 +88,23 @@ class Box extends bbBox {
         const dataProperties = data.dataProperties;
         if (plotType == "Histogram") {
             const title = dataProperties.property;
-            const box = new Box({x:0,y:0, width:250, height:250, component: new MetaDataHistogram({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
+            const box = new Box({x:0,y:0, width:250, height:200, component: new MetaDataHistogram({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
             this.updateBoxes({boxesToAdd:[box], boxesToRemove:[]});
         }
         if (plotType == "Scatter plot") {
             const title = dataProperties.yProperty;
-            const box = new Box({x:0,y:0, width:250, height:250, component: new MetaDataScatter({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
+            const box = new Box({x:0,y:0, width:250, height:200, component: new MetaDataScatter({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
             this.updateBoxes({boxesToAdd:[box], boxesToRemove:[]});
         }
         if (plotType == "Bar chart") {
             const title = dataProperties.property;
-            const box = new Box({x:0,y:0, width:250, height:250, component: new MetaDataBarChart({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
+            const box = new Box({x:0,y:0, width:250, height:200, component: new MetaDataBarChart({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
             //console.log(box);
             this.updateBoxes({boxesToAdd:[box], boxesToRemove:[]});
         }
         if (plotType == "Rank correlation") {
             const title = `Correlation for ${dataProperties.outputProperty}`;
-            const box = new Box({x:0,y:0, width:250, height:250, component: new MetaDataRankCorrBarChart({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
+            const box = new Box({x:0,y:0, width:250, height:200, component: new MetaDataRankCorrBarChart({data:{filterId, ...dataProperties}, layout:{title,icons:["remove"]}  })});
             this.updateBoxes({boxesToAdd:[box], boxesToRemove:[]});
         }
     }

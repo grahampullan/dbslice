@@ -13,6 +13,7 @@ class Board extends bbBoard {
         const requestSetTrafficLightColor = new Observable({flag:false, state:"green"});
         requestSetTrafficLightColor.subscribe( this.setTrafficLightColor.bind(this) );
         this.sharedState = {...this.sharedState, requestWebGLRender, requestSetTrafficLightColor}; 
+        this.fetchCount = 0;
     }
 
     make() {
@@ -146,9 +147,15 @@ class Board extends bbBoard {
         renderer.clear();
     }
 
-    setTrafficLightColor(color) {
+    setTrafficLightColor(status) {
+        if (status == "fetching") this.fetchCount++;
+        if (status == "fetched") this.fetchCount--;
         const board = d3.select(`#${this.id}`);
-        board.select(".board-traffic-light").attr("fill", color);
+        if (this.fetchCount > 0) {
+            board.select(".board-traffic-light").attr("fill","yellow");
+        } else {
+            board.select(".board-traffic-light").attr("fill", "green");
+        }
     }
 
 }
