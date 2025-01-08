@@ -1,5 +1,7 @@
 # dbslice
 
+**Looking for the [dbslice v3 development branch](https://github.com/grahampullan/dbslice/tree/v3)?**
+
 <a href="https://dbslice.org"><img src="/img/dbslice-logo.svg" width="180" height="180" align="left" hspace="10" vspace="6"></a>
 
 [**dbslice**](https://www.dbslice.org) is a web app for data exploration. The core principle is that the data to be visualized is hierarchical. [**dbslice**](http://www.dbslice.org) expects data items (called `tasks`) to be chracterised by high-level properties (referred to as meta-data) and also to be associated with several low-level, detailed data types (such as line data, surface data, 3D data). [**dbslice**](http://www.dbslice.org) allows the user to interactively filter the meta-data and then request detailed data for the subset of interest.
