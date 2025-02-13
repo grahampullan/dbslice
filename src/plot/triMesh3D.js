@@ -7,13 +7,11 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Plot } from './Plot.js';
-import { light } from '@fortawesome/fontawesome-svg-core/import.macro';
-
 
 class TriMesh3D extends Plot {
 
     constructor(options) {
-		if (!options) { options={} }
+		if (!options) { options = {} }
 		options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:0, right:0, bottom:0, left:0};
         super(options);
@@ -23,16 +21,10 @@ class TriMesh3D extends Plot {
 	make() {
 		this.updateHeader();
 		this.addPlotAreaDiv();
+		this.setLasts();
+
 		const container = d3.select(`#${this.id}`);
 		const plotArea = d3.select(`#${this.plotAreaId}`);
-		if (this.layout.filterId) {
-			this.filterId = this.layout.filterId;
-        	const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-        	if ( this.layout.highlightItems ) {
-            	const obsId = filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
-				this.subscriptions.push({observable:filter.highlightItemIds, id:obsId});
-			}
-        }
 	
 		const boundTipOn = this.tipOn.bind(this);
 		const boundTipOff = this.tipOff.bind(this);
@@ -40,10 +32,7 @@ class TriMesh3D extends Plot {
 		plotArea
 			.on( "mouseover", boundTipOn)
 			.on( "mouseout", boundTipOff );
-		this.setLasts();
  
-		this.renderer = this.sharedStateByAncestorId["context"].renderer;
-
 		const overlay = container.append("svg")
 			.attr("class","svg-overlay")
 			.style("position","absolute")
@@ -54,12 +43,21 @@ class TriMesh3D extends Plot {
 			.attr("width", `${this.plotAreaWidth}px`)
 			.attr("height", `${this.plotAreaHeight}px`);
 
-		this.cut= {};
+		if (this.layout.filterId) {
+			this.filterId = this.layout.filterId;
+			const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+			if ( this.layout.highlightItems ) {
+				const obsId = filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
+				this.subscriptions.push({observable:filter.highlightItemIds, id:obsId});
+			}
+		}
+
+		this.renderer = this.sharedStateByAncestorId["context"].renderer;
+		this.cut = {};
 		this.raycaster = new THREE.Raycaster();
 		this.pointer = new THREE.Vector2();
 		this.cut.lineDragging = false;
 		this.update();
-
 	}
 
 	async update() {
@@ -74,15 +72,15 @@ class TriMesh3D extends Plot {
 		const layout = this.layout;
 		const cameraSync = layout.cameraSync;
 		const timeSync = layout.timeSync;
-		const highlightTasks = layout.highlightTasks;
+		// const highlightTasks = layout.highlightTasks;
 		const plotGroupId = this.ancestorIds[this.ancestorIds.length-1];
 		const sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
-		const sharedCutValue = this.sharedStateByAncestorId[plotGroupId].sharedCutValue;
+		// const sharedCutValue = this.sharedStateByAncestorId[plotGroupId].sharedCutValue;
 		const buffer = this.data;
-		const renderer = this.renderer;
+		// const renderer = this.renderer;
 		const cut = this.cut;
 		const pointer = this.pointer;
-		const raycaster = this.raycaster;
+		// const raycaster = this.raycaster;
 		
 
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
@@ -99,7 +97,6 @@ class TriMesh3D extends Plot {
 
 		let iStep = 0;
 		
-
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
 		const requestCutEvaluate = this.sharedStateByAncestorId[plotGroupId].requestCutEvaluate;
 	
@@ -111,15 +108,8 @@ class TriMesh3D extends Plot {
 			.attr("height", height);
 
 		this.setLasts();
-		//this.webGLUpdate();
 
-		//if (this.updateType == "layout") {
-		//		return;
-		//}
-
-		if ( !this.newData ) {
-			return;
-		}
+		if ( !this.newData ) return;
 
 		this.getOffsets();
 		const offsets = this.offsets;
@@ -143,6 +133,8 @@ class TriMesh3D extends Plot {
 
 		const color = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
         color.domain( [0,1] );
+
+		
 
 		const textureWidth = 256;
 		const textureHeight = 4;
@@ -291,27 +283,6 @@ class TriMesh3D extends Plot {
 			this.twoD=true;
 		}
 
-		/*
-		const light1 = new THREE.Light( 0xffffff, 0.8 );
-		light1.position.set( xMid, yMid, zMid + 10*rMax );
-		const light2 = new THREE.PointLight( 0xffffff, 0.8 );
-		light2.position.set( xMid, yMid, zMid - 10*rMax );
-		const light3 = new THREE.PointLight( 0xffffff, 0.8 );
-		light3.position.set( xMid + 10*rMax, yMid, zMid  );
-		const light4 = new THREE.PointLight( 0xffffff, 0.8 );
-		light4.position.set( xMid - 10*rMax, yMid, zMid );
-		const light5 = new THREE.PointLight( 0xffffff, 0.8 );
-		light5.position.set( xMid, yMid + 10*rMax, zMid  );
-		const light6 = new THREE.PointLight( 0xffffff, 0.8 );
-		light6.position.set( xMid, yMid - 10*rMax, zMid );
-
-		scene.add( light1 );
-		scene.add( light2 );
-		scene.add( light3 );
-		scene.add( light4 );
-		scene.add( light5 );
-		scene.add( light6 );
-		*/
 		const ambientLight = new THREE.AmbientLight( 0xffffff, 1.0 );	
 		scene.add( ambientLight );
 		const light = new THREE.DirectionalLight( 0xffffff, 1.0 );
