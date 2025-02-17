@@ -74,28 +74,18 @@ class TriMesh3D extends Plot {
 		const layout = this.layout;
 		const cameraSync = layout.cameraSync;
 		const timeSync = layout.timeSync;
-		// const highlightTasks = layout.highlightTasks;
 		const plotGroupId = this.ancestorIds[this.ancestorIds.length-1];
 		const sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
-		// const sharedCutValue = this.sharedStateByAncestorId[plotGroupId].sharedCutValue;
-		const buffer = this.data;
-		// const renderer = this.renderer;
-		const cut = this.cut;
 		const pointer = this.pointer;
-		// const raycaster = this.raycaster;
-		
 
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
 		const boundRenderScene = this.renderScene.bind(this);
-		//const boundFindZpCut = findZpCut.bind(this);
 		const boundGetCutLine = this.getCutLine.bind(this);
 		const boundWebGLUpdate = this.webGLUpdate.bind(this);
 		const boundCheckOnCutLine = checkOnCutLine.bind(this);
 		const boundCutLineDragged = cutLineDragged.bind(this);
 		const boundCutLineDragEnd = cutLineDragEnd.bind(this);
 		const boundUpdatePointerPosition = updatePointerPosition.bind(this);
-		//const boundSetCutLinePosition = setCutLinePosition.bind(this);
-		//const boundSetCutValue = setCutValue.bind(this);
 
 		let iStep = 0;
 		
@@ -136,8 +126,6 @@ class TriMesh3D extends Plot {
 
 		const color = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
         color.domain( [0,1] );
-
-
 
 		const textureWidth = 256;
 		const textureHeight = 4;
