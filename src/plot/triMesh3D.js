@@ -7,6 +7,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Plot } from './Plot.js';
+import { makeQuadTree, getCutLine } from './cutQuadTrees.js';
 
 class TriMesh3D extends Plot {
 
@@ -130,11 +131,12 @@ class TriMesh3D extends Plot {
         } else {
         	vScale = layout.vScale;
         }
+		this.vScale = vScale;
 
 		const color = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
         color.domain( [0,1] );
 
-		
+
 
 		const textureWidth = 256;
 		const textureHeight = 4;
@@ -295,16 +297,11 @@ class TriMesh3D extends Plot {
 		const meshUuids = this.meshUuids;
 		const surfFlags = this.layout.surfFlags;
 		for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
-			let thisSurface = offsets[iStep][iSurf];
-			const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
-			const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
-			const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
-			const uvs = new Float32Array(Array.from(values).map( d => [ (d-vScale[0])/(vScale[1]-vScale[0]),0.5]).flat());
-
+			const surf = this.getSurface(0, iSurf);
 			const geometry = new THREE.BufferGeometry();
-			geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
-			geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-			geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+			geometry.setAttribute( 'position', new THREE.BufferAttribute( surf.vertices, 3 ) );
+			geometry.setAttribute( 'uv', new THREE.BufferAttribute( surf.uvs, 2 ) );
+			geometry.setIndex(new THREE.BufferAttribute( surf.indices, 1));
 			geometry.computeVertexNormals();
 
 			let material;
@@ -507,22 +504,15 @@ class TriMesh3D extends Plot {
 		}
 
 		function updateSurfaces(iStep) {
-			const offsets = this.offsets;
-			const buffer = this.data;
 			const meshUuids = this.meshUuids;
 			const surfFlags = this.layout.surfFlags;
 			const scene = this.scene;
 			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
-				let thisSurface = offsets[iStep][iSurf];
-				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
-				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
-				const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
-				const uvs = new Float32Array(Array.from(values).map( d => [(d-vScale[0])/(vScale[1]-vScale[0]),0.5]).flat());
-			
+				const surf = this.getSurface(iStep, iSurf);
 				const geometry = new THREE.BufferGeometry();
-				geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
-				geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-				geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+				geometry.setAttribute( 'position', new THREE.BufferAttribute( surf.vertices, 3 ) );
+				geometry.setAttribute( 'uv', new THREE.BufferAttribute( surf.uvs, 2 ) );
+				geometry.setIndex(new THREE.BufferAttribute(surf.indices, 1));
 				geometry.computeVertexNormals();
 
 				const oldMesh = scene.getObjectByProperty('uuid',meshUuids[iSurf]);
@@ -1030,6 +1020,19 @@ class TriMesh3D extends Plot {
 			container.style("outline-width","0px")
 			highlightItemIds.state = {itemIds:[]};
 		}
+	}
+
+	getSurface(iStep, iSurf) {
+		const offsets = this.offsets;
+		const buffer = this.data;
+		const thisSurface = offsets[iStep][iSurf];
+		const nVerts = thisSurface.nVerts;
+		const nTris = thisSurface.nTris;
+		const vertices = new Float32Array(buffer, thisSurface.verticesOffset, nVerts * 3);
+		const indices = new Uint32Array(buffer, thisSurface.indicesOffset, nTris * 3);
+		const values = new Float32Array(buffer, thisSurface.values[0].offset, nVerts);
+		const uvs = new Float32Array(Array.from(values).map( d => [ (d-this.vScale[0])/(this.vScale[1]-this.vScale[0]),0.5]).flat());
+		return {vertices, indices, values, uvs, nVerts, nTris};
 	}
 
 }
