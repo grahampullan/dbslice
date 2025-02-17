@@ -7,7 +7,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Plot } from './Plot.js';
-import { makeQuadTree, getCutLine } from './cutQuadTrees.js';
+import { makeQuadTree, getLine } from './cutQuadTrees.js';
 
 class TriMesh3D extends Plot {
 
@@ -58,6 +58,7 @@ class TriMesh3D extends Plot {
 		this.raycaster = new THREE.Raycaster();
 		this.pointer = new THREE.Vector2();
 		this.cut.lineDragging = false;
+		this.vScale = [0,1];
 		this.update();
 	}
 
@@ -87,7 +88,7 @@ class TriMesh3D extends Plot {
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
 		const boundRenderScene = this.renderScene.bind(this);
 		//const boundFindZpCut = findZpCut.bind(this);
-		const boundGetCutLine = getCutLine.bind(this);
+		const boundGetCutLine = this.getCutLine.bind(this);
 		const boundWebGLUpdate = this.webGLUpdate.bind(this);
 		const boundCheckOnCutLine = checkOnCutLine.bind(this);
 		const boundCutLineDragged = cutLineDragged.bind(this);
@@ -115,10 +116,10 @@ class TriMesh3D extends Plot {
 		this.getOffsets();
 		const offsets = this.offsets;
 		const nSteps = this.nSteps;
-		const nSurfsNow = this.nSurfsNow;
+		const nSurfs = this.nSurfs;
 
 		if (layout.cut) {
-			makeQuadTree();
+			this.makeQuadTrees();
 			if (!this.cut.requestCutObserverId) {
 				this.cut.requestCutObserverId = requestCutEvaluate.subscribe( boundGetCutLine );
 				this.subscriptions.push({observable:requestCutEvaluate, id:this.cut.requestCutObserverId});
@@ -296,7 +297,7 @@ class TriMesh3D extends Plot {
 		this.meshUuids = [];
 		const meshUuids = this.meshUuids;
 		const surfFlags = this.layout.surfFlags;
-		for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+		for (let iSurf = 0; iSurf < nSurfs; iSurf++) {
 			const surf = this.getSurface(0, iSurf);
 			const geometry = new THREE.BufferGeometry();
 			geometry.setAttribute( 'position', new THREE.BufferAttribute( surf.vertices, 3 ) );
@@ -507,7 +508,7 @@ class TriMesh3D extends Plot {
 			const meshUuids = this.meshUuids;
 			const surfFlags = this.layout.surfFlags;
 			const scene = this.scene;
-			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+			for (let iSurf = 0; iSurf < nSurfs; iSurf++) {
 				const surf = this.getSurface(iStep, iSurf);
 				const geometry = new THREE.BufferGeometry();
 				geometry.setAttribute( 'position', new THREE.BufferAttribute( surf.vertices, 3 ) );
@@ -578,153 +579,7 @@ class TriMesh3D extends Plot {
 
 		}*/
 
-		function makeQuadTree() {
-			cut.quadtrees = [];
-			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
-				const tris = [];
-				let thisSurface = offsets[0][iSurf]; // iStep = 0
-				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
-				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
-				let nt = indices.length/3;
-				for (let iTri=0; iTri < nt; iTri++) {
-					let i0 = indices[iTri*3];
-					let i1 = indices[iTri*3+1];
-					let i2 = indices[iTri*3+2];
-					let zpTri;
-					if (layout.cutType=="x") {
-						zpTri = [vertices[i0*3+1], vertices[i1*3+1], vertices[i2*3+1]]; // y coord 
-					} else if (layout.cutType=="r") {
-						zpTri = [Math.sqrt(vertices[i0*3+1]**2 + vertices[i0*3+2]**2), Math.sqrt(vertices[i1*3+1]**2 + vertices[i1*3+2]**2), Math.sqrt(vertices[i2*3+1]**2 + vertices[i2*3+2]**2)]; // r coord
-					}
-					let zpMin = Math.min(...zpTri);
-					let zpMax = Math.max(...zpTri);
-					tris.push( {zpMin,zpMax,i:iTri} );
-				}
-				const quadtree = d3.quadtree()
-					.x(d => d.zpMin)
-					.y(d => d.zpMax)
-					.addAll(tris);
-				cut.quadtrees.push(quadtree);
-			}
-			
-		}
-
-		function getCutLine() {
-			const buffer = this.data;
-			const offsets = this.offsets;
-			let lineSegmentsAll = [];
-			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
-				let thisSurface = offsets[iStep][iSurf]; // iStep = 0
-				const vertices = new Float32Array(buffer, thisSurface.verticesOffset, thisSurface.nVerts * 3);
-				const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
-				const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
-				const tm = {vertices, indices, values};
-				const zp = new Float32Array(thisSurface.nVerts);
-        		for (let i=0; i<thisSurface.nVerts; i++) {
-					if (layout.cutType=="x") {
-          				zp[i] = vertices[3*i + 1];  // y values
-					} else if (layout.cutType=="r") {
-						zp[i] = Math.sqrt(vertices[3*i + 1]**2 + vertices[3*i + 2]**2); // r values
-					}
-        		} 
-				const line = getCut(tm, zp, cut.value, iSurf );
-				lineSegmentsAll = lineSegmentsAll.concat(line);
-			}
-			this.sharedStateByAncestorId["context"].requestSaveToDerivedData.state={name:this.layout.cutDataStoreName, itemId:this.itemId, data:lineSegmentsAll};
-			return lineSegmentsAll;
-		}
-
-		function getCut( tm, zp, zpCut, iSurf) {
-			let cutTris = findCutTrisLine(cut.quadtrees[iSurf], zpCut);
-			let line = getLineFromCutTris(tm, zp, zpCut, cutTris);
-			return line;
-		}
-  
-  		function findCutTrisLine(tree, zpCut) {
-			const cutTris=[];
-			tree.visit(function(node,x1,x2,y1,y2) {
-				if (!node.length) {
-					do {
-				  		let d = node.data;
-				  		let triIndx = d.i;
-				  		let triCut = (d.zpMin <= zpCut) && (d.zpMax >= zpCut);
-				  		if ( triCut ) { cutTris.push(triIndx); }
-					} while (node = node.next);
-			  	}
-			  	return (x1 > zpCut || y2 < zpCut) ;
-			});
-			return cutTris;
-		}
-  
-  		function getLineFromCutTris(tm, zp, zpCut, cutTris) {
 	
-			let lineSegments = [];
-  
-			const cutEdgeCases = [
-			  	[ [0,1] , [0,2] ],
-			  	[ [0,1] , [0,2] ],
-			  	[ [0,1] , [1,2] ],
-			  	[ [0,2] , [1,2] ],
-			  	[ [0,2] , [1,2] ],
-			  	[ [0,1] , [1,2] ],
-			  	[ [0,1] , [0,2] ],
-			  	[ [0,1] , [0,2] ]  
-			];
-	
-			cutTris.forEach( itri => {
-			  	let verts = getVerts(itri, tm, zp);
-			  	let t0 = verts[0][0] <= zpCut;
-			  	let t1 = verts[1][0] <= zpCut;
-			  	let t2 = verts[2][0] <= zpCut;  
-			  	let caseIndx = t0<<0 | t1<<1 | t2<<2;
-			  	let cutEdges = cutEdgeCases[caseIndx];
-			  	let vertA = cutEdge(verts, cutEdges[0], zpCut);
-			  	let vertB = cutEdge(verts, cutEdges[1], zpCut);
-			  	let lineSegment = [];
-			  	vertA.shift();
-			  	vertB.shift();
-			  	lineSegment.push(vertA);
-			  	lineSegment.push(vertB);
-			  	lineSegments.push(lineSegment);
-			});
-  
-			return lineSegments;
-		}
-  
-		function getVerts(itri,tm,zp) {
-			let verts = [];
-			for (let i=0; i<3; i++) {
-			  	let ivert = tm.indices[itri*3 + i];
-			  	let vert = [];
-			  	vert.push(zp[ivert]);
-			  	//vert.push(tm.vertices[ivert*2]);
-				if (layout.cutType=="x") {
-			  		vert.push(tm.vertices[ivert*3+2]);
-				} else if (layout.cutType=="r") {
-					let theta = Math.atan2(tm.vertices[ivert*3+1],tm.vertices[ivert*3+2]);
-					vert.push(zp[ivert]*theta); // r*theta
-				}
-			  	vert.push(tm.values[ivert]);
-			  	verts.push(vert);
-			}
-		  return verts;
-		}
-  
-		function cutEdge(verts, edge, zpcut) {
-			let i0 = edge[0];
-			let i1 = edge[1];
-			let zp0 = verts[i0][0];
-			let zp1 = verts[i1][0];
-			let frac = (zpcut-zp0)/(zp1-zp0);
-			let frac1 = 1.-frac;
-			let vert = [];
-			let nvals = verts[0].length;
-			for (let n=0; n<nvals; n++) {
-			  	let cutVal = frac1*verts[i0][n] + frac*verts[i1][n];
-			  	vert.push(cutVal);
-			}
-			return vert;
-		}
 
 		
 		if(this.newData) this.webGLUpdate(); // ensures a webGL render after waiting for new data
@@ -943,13 +798,13 @@ class TriMesh3D extends Plot {
 		const nSteps = new Int32Array(buffer,ii,1)[0];
 		this.nSteps = nSteps;
 		ii += 4;
-		let nSurfsNow = new Int32Array(buffer,ii,1)[0];
-		this.nSurfsNow = nSurfsNow;
+		let nSurfs = new Int32Array(buffer,ii,1)[0];
+		this.nSurfs = nSurfs;
 		ii += 4;
 		const offsets = [];
 		for (let iStep = 0; iStep < nSteps; iStep++) {
 			let surfaces = [];
-			for (let iSurf = 0; iSurf < nSurfsNow; iSurf++) {
+			for (let iSurf = 0; iSurf < nSurfs; iSurf++) {
 				let surfNameBytes = new Int8Array(buffer,ii,96);
 				ii += 96;
 				let surfName = String.fromCharCode(...surfNameBytes).trim().split('\u0000')[0];
@@ -1028,11 +883,49 @@ class TriMesh3D extends Plot {
 		const thisSurface = offsets[iStep][iSurf];
 		const nVerts = thisSurface.nVerts;
 		const nTris = thisSurface.nTris;
+		const vScale = this.vScale;
 		const vertices = new Float32Array(buffer, thisSurface.verticesOffset, nVerts * 3);
 		const indices = new Uint32Array(buffer, thisSurface.indicesOffset, nTris * 3);
 		const values = new Float32Array(buffer, thisSurface.values[0].offset, nVerts);
-		const uvs = new Float32Array(Array.from(values).map( d => [ (d-this.vScale[0])/(this.vScale[1]-this.vScale[0]),0.5]).flat());
+		const uvs = new Float32Array(Array.from(values).map( d => [ (d-vScale[0])/(vScale[1]-vScale[0]),0.5]).flat());
 		return {vertices, indices, values, uvs, nVerts, nTris};
+	}
+
+	makeQuadTrees() {
+		this.cut.quadtrees = [];
+		this.cut.zps = [];
+		this.cut.sdists = [];
+		for (let iSurf = 0; iSurf < this.nSurfs; iSurf++) {
+			const surf = this.getSurface(0, iSurf);
+			const vertices = surf.vertices;
+			const indices = surf.indices;
+			const zp = new Float32Array(surf.nVerts);
+			const sdist = new Float32Array(surf.nVerts);
+			for (let iVert = 0; iVert < surf.nVerts; iVert++) {
+				const vert = [vertices[iVert*3], vertices[iVert*3+1], vertices[iVert*3+2]];
+				if (this.layout.cutType == "x") {
+					zp[iVert] = vert[1];
+					sdist[iVert] = vert[2];
+				} else if (this.layout.cutType == "r") {
+					zp[iVert] = Math.sqrt(vert[1]**2 + vert[2]**2);
+					let theta = Math.atan2(vert[1],vert[2]);
+					sdist[iVert] = zp[iVert]*theta;
+				}
+			}
+			this.cut.zps.push(zp);
+			this.cut.sdists.push(sdist);
+			this.cut.quadtrees.push(makeQuadTree(indices, zp));
+		}
+	}
+
+	getCutLine() {
+		let lineSegmentsAll = [];
+		for (let iSurf = 0; iSurf < this.nSurfs; iSurf++) {
+			const surf = this.getSurface(0, iSurf);
+			const line = getLine( {...surf, zp:this.cut.zps[iSurf], sdist:this.cut.sdists[iSurf]}, this.cut.quadtrees[iSurf], this.cut.value );
+			lineSegmentsAll = lineSegmentsAll.concat(line);
+		}
+		this.sharedStateByAncestorId["context"].requestSaveToDerivedData.state = { name:this.layout.cutDataStoreName, itemId:this.itemId, data:lineSegmentsAll};
 	}
 
 }

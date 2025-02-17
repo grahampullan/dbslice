@@ -19,7 +19,7 @@ function makeQuadTree(indices, zp) {
     return quadtree;
 }
 
-function getCutLine( surface, quadtree, zpCut) {
+function getLine( surface, quadtree, zpCut) {
     const cutTris = findCutTrisLine(quadtree, zpCut);
     const line = getLineFromCutTris(surface, zpCut, cutTris);
     return line;
@@ -75,8 +75,8 @@ function getLineFromCutTris(surface, zpCut, cutTris) {
 function getVerts(itri, surface) {
     let verts = [];
     for (let i=0; i<3; i++) {
-        let ivert = surfaces.indices[itri*3 + i];
-        const vert = [ surface.zp[ivert], surface.s[ivert], surface.values[ivert] ];
+        let ivert = surface.indices[itri*3 + i];
+        const vert = [ surface.zp[ivert], surface.sdist[ivert], surface.values[ivert] ];
         verts.push(vert);
     }
     return verts;
@@ -98,4 +98,4 @@ function cutEdge(verts, edge, zpCut) {
     return vert;
 }
 
-export { makeQuadTree, getCutLine };
+export { makeQuadTree, getLine };
