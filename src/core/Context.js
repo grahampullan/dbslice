@@ -28,6 +28,7 @@ class Context extends bbContext {
         this.sharedState.datasets = this.metaData.datasets;
         this.sharedState.showFilters = false;
         this.sharedState.derivedData = [];
+        this.sharedState.dimensions = [];
         const requestCreateFilter = new Observable({flag: false, state: {}});
         requestCreateFilter.subscribe( this.createNewFilter.bind(this) );
         this.sharedState.requestCreateFilter = requestCreateFilter;
@@ -37,6 +38,12 @@ class Context extends bbContext {
         const requestSaveToDerivedData = new Observable({flag: false, state: {}});
         requestSaveToDerivedData.subscribe( this.saveToDerivedData.bind(this) );
         this.sharedState.requestSaveToDerivedData = requestSaveToDerivedData;
+        const requestCreateDimension = new Observable({flag: false, state: {}});
+        requestCreateDimension.subscribe( this.createDimension.bind(this) );
+        this.sharedState.requestCreateDimension = requestCreateDimension;
+        const requestSetDimension = new Observable({flag: false, state: {}});
+        requestSetDimension.subscribe( this.setDimension.bind(this) );
+        this.sharedState.requestSetDimension = requestSetDimension;
         this.maxDataset = 0;
         this.maxFilter = 0;
     }
@@ -76,11 +83,26 @@ class Context extends bbContext {
         const targetStore = derivedData.data.find( d => d.itemId == itemId );
         if (targetStore) {
             targetStore.data = data.data;
-            targetStore.newDate = true;
+            targetStore.newData = true;
         } else {
-            derivedData.data.push({itemId, data:data.data, newDate:true});
+            derivedData.data.push({itemId, data:data.data, newData:true});
         }
         derivedData.newData.state = true;
+    }
+
+    createDimension(data) {
+        let dimension = this.sharedState.dimensions.find( d => d.name == data.name );
+        if (!dimension) {
+            dimension = new Observable({name:data.name, state:{value:data.value, brushing:false}, flag:false});
+            this.sharedState.dimensions.push(dimension);
+        }
+    }
+
+    setDimension(data) {
+        let dimension = this.sharedState.dimensions.find( d => d.name == data.name );
+        if (dimension) {
+            dimension.state = data.dimensionState;
+        }
     }
 
 }
