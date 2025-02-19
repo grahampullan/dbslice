@@ -57,7 +57,6 @@ class TriMesh3D extends Plot {
 		this.cuts = [];
 		this.raycaster = new THREE.Raycaster();
 		this.pointer = new THREE.Vector2();
-		//this.cut.lineDragging = false;
 		this.vScale = [0,1];
 		this.update();
 	}
@@ -90,7 +89,6 @@ class TriMesh3D extends Plot {
 		let iStep = 0;
 		
 		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
-		//const requestCutEvaluate = this.sharedStateByAncestorId[plotGroupId].requestCutEvaluate;
 	
 		this.updateHeader();
 		this.updatePlotAreaSize();
@@ -111,10 +109,6 @@ class TriMesh3D extends Plot {
 		if (layout.cuts.length > 0) {
 			this.initCuts();
 			this.makeQuadTrees();
-			//if (!this.cut.requestCutObserverId) {
-			//	this.cut.requestCutObserverId = requestCutEvaluate.subscribe( boundGetCutLine );
-			//	this.subscriptions.push({observable:requestCutEvaluate, id:this.cut.requestCutObserverId});
-			//}
 		}
 		
 		let vScale;
@@ -422,8 +416,6 @@ class TriMesh3D extends Plot {
 					cut.point = planeIntersect;
 					cut.brushing = true;
 					this.setCutValue(cut.dimensionName);
-					//this.setCutLinePosition(cut.dimensionName);
-					//boundWebGLUpdate();
 					boundGetCutLine(cut.dimensionName);
 				}
 			}
@@ -436,7 +428,6 @@ class TriMesh3D extends Plot {
 				this.cutLineDragging = false;
 				cut.brushing = false;
 				this.setCutValue(cut.dimensionName);
-				//requestCutEvaluate.state = true;
 			}				
 			this.controls.enabled = true;
 		}
@@ -901,6 +892,7 @@ class TriMesh3D extends Plot {
 				}
 				this.webGLUpdate();
 			});
+			this.subscriptions.push({observable:dimension, id:cutToAdd.dimensionObserverId});
 			this.cuts.push(cutToAdd);
 		});
 
