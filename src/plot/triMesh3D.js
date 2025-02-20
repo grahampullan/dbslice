@@ -106,7 +106,7 @@ class TriMesh3D extends Plot {
 		const nSteps = this.nSteps;
 		const nSurfs = this.nSurfs;
 
-		if (layout.cuts.length > 0) {
+		if (layout.cuts?.length > 0) {
 			this.initCuts();
 			this.makeQuadTrees();
 		}
@@ -860,21 +860,7 @@ class TriMesh3D extends Plot {
 			if (this.cuts.map( d => d.dimensionName ).includes(cut.dimensionName)) {
 				return;
 			}
-			const cutToAdd = {
-				dimensionName : cut.dimensionName,
-				type : cut.type,
-				dataStoreName : cut.dataStoreName,
-				dimensionObserverId : undefined,
-				requestCutEvaluateObserverId : undefined,
-				lineAdded : false,
-				lineDragging : false,
-				point : undefined,
-				value : undefined,
-				line : undefined,
-				quadtrees : [],
-				zps : [],
-				sdists : []
-			};
+			const cutToAdd = this.makeCutObject(cut);
 			this.setZp(cutToAdd);
 			const avgZp = d3.mean(cutToAdd.zps.map( zp => d3.mean(zp)));
 			const initValue = cut.value || avgZp;
