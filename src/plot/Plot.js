@@ -514,6 +514,25 @@ class Plot extends Component {
         renderer.setClearColor(0x000000, 0); 
         renderer.clear();
     }
+
+    makeCutObject(cutLayout) {
+        const cut = {
+            name : cutLayout.name || "cut",
+            dimensionName : cutLayout.dimensionName || "dim1",
+            type : cutLayout.type || "x",
+            dataStoreName : cutLayout.dataStoreName || "cutData",
+            dimensionObserverId : undefined,
+            lineAdded : false,
+            lineDragging : false,
+            point : undefined,
+            value : undefined,
+            line : undefined,
+            quadtrees : [],
+            zps : [],
+            sdists : []
+        };
+        return cut;
+    }
     
 }
 

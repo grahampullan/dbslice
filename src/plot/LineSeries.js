@@ -20,6 +20,7 @@ class LineSeries extends Plot {
         this.addPlotAreaSvg();
         this.setLasts();
 
+        // subscribe to filter.highlightItemIds
         if ( this.layout.highlightItems ) {
             this.filterId = this.layout.filterId;
             const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
@@ -27,6 +28,7 @@ class LineSeries extends Plot {
             this.subscriptions.push({observable:filter.highlightItemIds, id:obsId});
         }
 
+        // subscribe to filter.itemIdsInFilter
         if (this.fetchData) {
             if (this.fetchData.urlTemplate) {
                 this.filterId = this.fetchData.filterId;
@@ -47,6 +49,7 @@ class LineSeries extends Plot {
                 }
             }
 
+            // subscribe to derivedDataStore.newData
             if (this.fetchData.derivedDataName) {
                 const derivedData = this.sharedStateByAncestorId["context"].derivedData;
                 let derivedDataStore = derivedData.find( d => d.name == this.fetchData.derivedDataName );
@@ -64,19 +67,19 @@ class LineSeries extends Plot {
             .attr("class", "tool-tip")
             .style("opacity", 0);
 
+        this.cuts = [];
         this.update();
     }
 
     async update() {
         if (this.fetchingData) return;
         await this.getData();
-        if (!this.data || this.data.series.length == 0) return;
 
+        if (!this.data || this.data.series.length == 0) return;
         if (!this.newData && !this.checkResize) return;
 
         const container = d3.select(`#${this.id}`);
         const layout = this.layout;
-        //const svg = container.select("svg");
         const plotArea = container.select(".plot-area");
         const highlightItemsFlag = layout.highlightItems;
         let highlightItemIds;
@@ -88,11 +91,11 @@ class LineSeries extends Plot {
         const xAxisMean = layout.xAxisMean;
         const yAxisMean = layout.yAxisMean;
         const margin = layout.margin;
-        ///const plotRowIndex = dbsliceData.session.plotRows.findIndex( e => e._id == this._prid );
-        //const plotIndex = dbsliceData.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 
+        
+        
+        // colour scale
         const colour = ( layout.colourMap === undefined ) ? d3.scaleOrdinal( d3.schemeTableau10 ) : d3.scaleOrdinal( layout.colourMap );
-
         if ( layout.cSet !== undefined) {
             if ( Array.isArray( layout.cSet ) ) {
                 colour.domain( layout.cSet );
@@ -105,23 +108,12 @@ class LineSeries extends Plot {
         //this.updateHeader();
         this.updatePlotAreaSize();
 
+        const nSeries = this.data.series.length;
         const clipId = `${this.id}-clip`;
-
-
-
-        //const svgWidth = container.node().offsetWidth,
-        //    svgHeight = layout.height;
-
-        //svg.attr("width", svgWidth).attr("height", svgHeight);
-
-        //const width = svgWidth - margin.left - margin.right;
-        //const height = svgHeight - margin.top - margin.bottom;
-
         const width = this.plotAreaWidth;
         const height = this.plotAreaHeight;
 
-        const nSeries = this.data.series.length;
-
+        // time varying data (note format of data)
         if ( timeSync ) {
             let timeSlider = container.select(".time-slider");
             if ( timeSlider.empty() ) {
@@ -149,96 +141,39 @@ class LineSeries extends Plot {
             }
 		}
 
-        let xmin, xmax, ymin, ymax;
-        if (!layout.segmentedLine) {
-            xmin = d3.min( this.data.series[0].data, d => d.x );
-            xmax = d3.max( this.data.series[0].data, d => d.x );
-            ymin = d3.min( this.data.series[0].data, d => d.y );
-            ymax = d3.max( this.data.series[0].data, d => d.y );
+        //
+        // find the x and y ranges
+        //
+        this.setRanges();
 
-            for (let n = 1; n < nSeries; ++n) {
-                let xminNow =  d3.min( this.data.series[n].data, d => d.x );
-                ( xminNow < xmin ) ? xmin = xminNow : xmin = xmin;
-                let xmaxNow =  d3.max( this.data.series[n].data, d => d.x );
-                ( xmaxNow > xmax ) ? xmax = xmaxNow : xmax = xmax;
-                let yminNow =  d3.min( this.data.series[n].data, d => d.y );
-                ( yminNow < ymin ) ? ymin = yminNow : ymin = ymin;
-                let ymaxNow =  d3.max( this.data.series[n].data, d => d.y );
-                ( ymaxNow > ymax ) ? ymax = ymaxNow : ymax = ymax;
-            }
-        } else {
-            xmin = d3.min( this.data.series[0].data, d => d[0][0] );
-            xmax = d3.max( this.data.series[0].data, d => d[0][0] );
-            ymin = d3.min( this.data.series[0].data, d => d[0][1] );
-            ymax = d3.max( this.data.series[0].data, d => d[0][1] );
+        //
+        // set the x and y scales
+        //
+        this.setScales();
+        const xScale = this.xScale;
+        const yScale = this.yScale;
+        const xScale0 = this.xScale0;
+        const yScale0 = this.yScale0;
 
-            for (let n = 1; n < nSeries; ++n) {
-                let xminNow =  d3.min( this.data.series[n].data, d => d[0][0] );
-                ( xminNow < xmin ) ? xmin = xminNow : xmin = xmin;
-                let xmaxNow =  d3.max( this.data.series[n].data, d => d[0][0] );
-                ( xmaxNow > xmax ) ? xmax = xmaxNow : xmax = xmax;
-                let yminNow =  d3.min( this.data.series[n].data, d => d[0][1] );
-                ( yminNow < ymin ) ? ymin = yminNow : ymin = ymin;
-                let ymaxNow =  d3.max( this.data.series[n].data, d => d[0][1] );
-                ( ymaxNow > ymax ) ? ymax = ymaxNow : ymax = ymax;
-            }
-        }
+        //
+        // initialise cuts
+        //
+        this.initCuts();
+        
 
-        let xDiff = xmax - xmin;
-        xmin -= 0.05 * xDiff;
-        xmax += 0.05 * xDiff;
-
-        let yDiff = ymax - ymin;
-        ymin -= 0.05 * yDiff;
-        ymax += 0.05 * yDiff;
-
-        let xRange, yRange;
-        if ( layout.xRange === undefined ) {
-            xRange = [xmin, xmax];
-        } else {
-            xRange = layout.xRange;
-        }
-
-        if ( layout.yRange === undefined ) {
-            yRange = [ymin, ymax];
-        } else {
-            yRange = layout.yRange;
-        }
-
-        let xscale, xscale0;
-        if ( layout.xscale == "time" ) {
-            xscale = d3.scaleTime(); 
-            xscale0 = d3.scaleTime();        
-        } else {
-            xscale = d3.scaleLinear();
-            xscale0 = d3.scaleLinear();
-        }
-
-        xscale.range( [0, width] )
-            .domain( xRange );
-
-        xscale0.range( [0, width] )
-            .domain( xRange );
-
-        let yscale = d3.scaleLinear()
-            .range( [height, 0] )
-            .domain( yRange );
-
-        let yscale0 = d3.scaleLinear()
-            .range( [height, 0] )
-            .domain( yRange );
-
+        //
+        // set line function
+        //
         let line;
-
         if ( !layout.segmentedLine ) {
             line = d3.line()
-                .x( d => xscale( d.x ) )
-                .y( d => yscale( d.y ) );
+                .x( d => xScale( d.x ) )
+                .y( d => yScale( d.y ) );
         } else {
             function segLine(lineSegs) {
                 let line = d3.line()
-                    .x( d => xscale( d.x ) )
-                    .y( d => yscale( d.y ) );
+                    .x( d => xScale( d.x ) )
+                    .y( d => yScale( d.y ) );
                 let path="";
                 lineSegs.forEach(d => {
                     let seg=[{x:d[0][0], y:d[0][1]},{x:d[1][0],y:d[1][1]}];
@@ -248,9 +183,12 @@ class LineSeries extends Plot {
             }
             line = segLine;
         }
+        this.line = line;
 
+        //
+        // clip area
+        //
         const clipRect = plotArea.select(".clip-rect");
-
         if ( clipRect.empty() ) {
             plotArea.append("defs").append("clipPath")
                 .attr("id", clipId)
@@ -268,20 +206,15 @@ class LineSeries extends Plot {
                 .style("top", `${this.plotAreaTop}px`);
         }
 
+        // zoom
+        const boundZoomed = zoomed.bind(this);
         const zoom = d3.zoom()
             .scaleExtent([0.5, Infinity])
-            .on("zoom", zoomed);
-
+            .on("zoom", boundZoomed);
         plotArea.transition().call(zoom.transform, d3.zoomIdentity);
         plotArea.call(zoom);
 
-        //const tip = d3tip()
-        //    .attr('class', 'd3-tip')
-        //    .offset([-20, 0])
-        //    .html( d => `<span>${d.label}</span>`);
-
-        //svg.call(tip);
-
+        // focus circle
         let focus = plotArea.select(".focus");
         if ( focus.empty() ) {
             plotArea.append("circle")
@@ -290,7 +223,9 @@ class LineSeries extends Plot {
                 .attr("r",1);
         }
 
-
+        //
+        // draw one line for each series in series array
+        //
         if (!xAxisMean && !yAxisMean) {
 
             const allSeries = plotArea.selectAll( ".plot-series" ).data( this.data.series, k => k.itemId );
@@ -324,14 +259,15 @@ class LineSeries extends Plot {
             allSeries.exit().remove();
 
         }
-    
+
+        // if xAxisMean - compute mean and std deviation (area) data 
         let area;
         let areaData = [];
         if ( xAxisMean ) {
             area = d3.area()
-                .y( d => yscale(d.y) )
-                .x0( d => xscale(d.x0 ))
-                .x1( d => xscale(d.x1 ));
+                .y( d => yScale(d.y) )
+                .x0( d => xScale(d.x0 ))
+                .x1( d => xScale(d.x1 ));
             let seriesGroupedByCKey = Array.from(d3.group(this.data.series, d => d.cKey));
             seriesGroupedByCKey.forEach( s => {
                 let areaNow = {};
@@ -356,11 +292,12 @@ class LineSeries extends Plot {
             });
         }
         
+        // if yAxisMean - compute mean and std deviation (area) data
         if ( yAxisMean ) {
             area = d3.area()
-                .x( d => xscale(d.x) )
-                .y0( d => yscale(d.y0 ))
-                .y1( d => yscale(d.y1 ));
+                .x( d => xScale(d.x) )
+                .y0( d => yScale(d.y0 ))
+                .y1( d => yScale(d.y1 ));
             let seriesGroupedByCKey = Array.from(d3.group(this.data.series, d => d.cKey));
             seriesGroupedByCKey.forEach( s => {
                 let areaNow = {};
@@ -385,6 +322,9 @@ class LineSeries extends Plot {
             });
         }
 
+        //
+        // draw areas representing std deviations and mean lines
+        //
         if ( xAxisMean || yAxisMean ) {
 
             const areas = plotArea.selectAll( ".area" ).data( areaData, k => k.c );
@@ -429,14 +369,22 @@ class LineSeries extends Plot {
 
             meanLines.exit().remove();
 
-
         }
-    
-        const xAxis = d3.axisBottom( xscale );
+
+        //
+        // add cut lines
+        //
+        this.addCutLines();
+
+
+        //
+        // axes
+        //
+        const xAxis = d3.axisBottom( xScale );
         if ( layout.xTickNumber !== undefined ) { xAxis.ticks(layout.xTickNumber); }
         if ( layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(layout.xTickFormat)); }
 
-        const yAxis = d3.axisLeft( yscale );
+        const yAxis = d3.axisLeft( yScale );
         if ( layout.yTickNumber !== undefined ) { yAxis.ticks(layout.yTickNumber); }
         if ( layout.yTickFormat !== undefined ) { yAxis.tickFormat(d3.format(layout.yTickFormat)); }
 
@@ -475,6 +423,7 @@ class LineSeries extends Plot {
             gY.call( yAxis );
         }
 
+        // time varying
         if ( timeSync ) {
             highlightTimeStep(this.watchedTime.iStep);
         }
@@ -506,17 +455,20 @@ class LineSeries extends Plot {
 			highlightTimeStep(iStep);
 		}
 
+        // zoom behaviour
         function zoomed(event) {
             const t = event.transform;
-            xscale.domain(t.rescaleX(xscale0).domain());
-            yscale.domain(t.rescaleY(yscale0).domain());
+            xScale.domain(t.rescaleX(xScale0).domain());
+            yScale.domain(t.rescaleY(yScale0).domain());
             gX.call(xAxis);
             gY.call(yAxis);
             plotArea.selectAll(".line").attr( "d", d => line( d.data ) );
             plotArea.selectAll(".area").attr( "d", d => area( d.data ) );
             plotArea.selectAll(".mean-line").attr( "d", d => line( d.data ) );
+            this.cuts.forEach( cut => this.setCutLinePosition(cut.dimensionName) );
         }
 
+        // mouse over behaviour
         function tipOn( event, d ) {
             let lines = plotArea.selectAll(".line");
             lines.style( "stroke" , "#d3d3d3");
@@ -536,9 +488,6 @@ class LineSeries extends Plot {
                 highlightItemIds.state = { itemIds : [ d.itemId ] };
             }
                 
-
-
-
             if ( timeSync ) {
                 container.select(".time-slider").node().value = d.itemId;
 				let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
@@ -550,6 +499,7 @@ class LineSeries extends Plot {
             }
         }
 
+        // mouse out behaviour
         function tipOff(event,d) {
             if ( !timeSync ) {
                 let lines = plotArea.selectAll(".line");
@@ -563,6 +513,7 @@ class LineSeries extends Plot {
             }
         }
 
+        // mouse over behaviour for mean lines
         function tipOnMeanLine( event, d ) {
             let lines = plotArea.selectAll(".mean-line");
             lines.style( "stroke" , "#d3d3d3");
@@ -592,6 +543,7 @@ class LineSeries extends Plot {
                 .style("top", d3.pointer(event)[1] + "px");
         }
 
+        // mouse out behaviour for mean lines
         function tipOffMeanLine(event,d) {
             let areas = plotArea.selectAll(".area");
             areas 
@@ -677,6 +629,156 @@ class LineSeries extends Plot {
 
     remove() {
         this.removeSubscriptions();
+    }
+
+    initCuts() {
+        if (!this.layout.cuts?.length) return;
+        const requestCreateDimension = this.sharedStateByAncestorId["context"].requestCreateDimension;
+        this.layout.cuts.forEach( cut => {
+            if (this.cuts.map( d => d.dimensionName ).includes(cut.dimensionName)) {
+                return;
+            }
+            const cutToAdd = this.makeCutObject(cut);
+            let avgValue;
+			if ( cut.type == "x") {
+                avgValue = d3.mean(this.xDataRange);
+            } else if ( cut.type == "y") {
+                avgValue = d3.mean(this.yDataRange);
+            }	
+            const initValue = cut.value || avgValue;
+            const dimensionName = cut.dimensionName;
+            requestCreateDimension.state = {name:dimensionName, value:initValue};
+            const dimension = this.sharedStateByAncestorId["context"].dimensions.find( d => d.name == dimensionName );
+            const dimValue = dimension.state.value;
+            cutToAdd.value = dimValue;
+            cutToAdd.dimensionObserverId = dimension.subscribe( (data) => {
+                const cut = this.cuts.find( d => d.dimensionName == dimensionName );
+                cut.value = data.value;
+                this.setCutLinePosition(dimensionName);
+            });
+            this.subscriptions.push({observable:dimension, id:cutToAdd.dimensionObserverId});
+            this.cuts.push(cutToAdd);
+        });   
+    }
+
+    setRanges() {
+        let xMin, xMax, yMin, yMax;
+        if ( !this.layout.segmentedLine ) {
+            xMin = d3.min( this.data.series, d => d3.min( d.data, d => d.x ) );
+            xMax = d3.max( this.data.series, d => d3.max( d.data, d => d.x ) );
+            yMin = d3.min( this.data.series, d => d3.min( d.data, d => d.y ) );
+            yMax = d3.max( this.data.series, d => d3.max( d.data, d => d.y ) );
+        } else {
+            xMin = d3.min( this.data.series, d => d3.min( d.data, d => d[0][0] ) );
+            xMax = d3.max( this.data.series, d => d3.max( d.data, d => d[0][0] ) );
+            yMin = d3.min( this.data.series, d => d3.min( d.data, d => d[0][1] ) );
+            yMax = d3.max( this.data.series, d => d3.max( d.data, d => d[0][1] ) );
+        }
+
+        this.xDataRange = [xMin, xMax];
+        this.yDataRange = [yMin, yMax];
+
+        let xDiff = xMax - xMin;
+        xMin -= 0.05 * xDiff;
+        xMax += 0.05 * xDiff;
+        let yDiff = yMax - yMin;
+        yMin -= 0.05 * yDiff;
+        yMax += 0.05 * yDiff;
+
+        this.xRange = this.layout.xRange || [xMin, xMax];
+        this.yRange = this.layout.yRange || [yMin, yMax];
+    }
+
+    addCutLines() {
+        if ( !this.cuts.length ) return;
+        const plotArea = d3.select(`#${this.id}`).select(".plot-area");
+        const boundCutLineDragged = cutLineDragged.bind(this);
+        const boundCutLineDragEnd = cutLineDragEnd.bind(this);
+        this.cuts.forEach( cut => {
+            if ( cut.lineAdded ) return;
+            const dimensionName = cut.dimensionName;
+            let cutLine = plotArea.select(`#${dimensionName}-cut-line`);
+            if ( cutLine.empty() ) {
+                cutLine = plotArea.append("path")
+                    .attr("class","cut-line")
+                    .attr("id", `${dimensionName}-cut-line`)
+                    .attr("fill", "none")
+                    .attr("stroke", "#d0d5db")
+                    .attr("stroke-width", 3)
+                    .style("opacity",0.9)
+                    .attr("d", "")
+                    .attr("clip-path", `url(#${this.id}-clip)`)
+                    .call(d3.drag()
+                        .on("drag", (event) => boundCutLineDragged(event, dimensionName))
+                        .on("end", (event) => boundCutLineDragEnd(event, dimensionName)));   
+                this.setCutLinePosition(dimensionName);
+            }
+            cut.lineAdded = true;
+        });
+
+        function cutLineDragged(event,dimensionName) {
+            const cut = this.cuts.find( d => d.dimensionName == dimensionName );
+            const margin = 3;
+            const dx = Math.abs(this.xScale.invert(margin) - this.xScale.invert(0));
+            const dy = Math.abs(this.yScale.invert(margin) - this.yScale.invert(0));
+            if (cut.type == "x") {
+                let value = this.xScale.invert(event.x);
+                value = d3.min([d3.max([value, this.xRange[0]+dx]), this.xRange[1]-dx]);
+                cut.value = value;
+            } else if (cut.type == "y") {
+                let value = this.yScale.invert(event.y);
+                value = d3.min([d3.max([value, this.yRange[0]+dy]), this.yRange[1]-dy]);
+                cut.value = value;
+            }
+            cut.brushing = true;
+            this.setCutLinePosition(dimensionName);
+            const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
+		    requestSetDimension.state = { name:dimensionName, dimensionState:{value:cut.value, brushing:cut.brushing }};
+        }
+
+        function cutLineDragEnd(event,dimensionName) {
+            const cut = this.cuts.find( d => d.dimensionName == dimensionName );
+            cut.brushing = false;
+            const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
+            requestSetDimension.state = { name:dimensionName, dimensionState:{value:cut.value, brushing:cut.brushing }};
+        }
+    }
+
+    setCutLinePosition(dimensionName) {
+        const cut = this.cuts.find( d => d.dimensionName == dimensionName );
+        const plotArea = d3.select(`#${this.id}`).select(".plot-area");
+        const cutLine = plotArea.select(`#${dimensionName}-cut-line`);
+        let pathData;
+        if ( cut.type == "x") {
+            pathData = `M ${this.xScale(cut.value)} 0 L ${this.xScale(cut.value)} ${this.plotAreaHeight}`;
+        } else if ( cut.type == "y") {
+            pathData = `M 0 ${this.yScale(cut.value)} L ${this.plotAreaWidth} ${this.yScale(cut.value)}`;
+        }
+        cutLine.attr("d", pathData);
+    }   
+
+    setScales() {
+        if ( this.layout.xscale == "time" ) {
+            this.xScale = d3.scaleTime(); 
+            this.xScale0 = d3.scaleTime();        
+        } else {
+            this.xScale = d3.scaleLinear();
+            this.xScale0 = d3.scaleLinear();
+        }
+
+        this.xScale.range( [0, this.plotAreaWidth] )
+            .domain( this.xRange );
+
+        this.xScale0.range( [0, this.plotAreaWidth] )
+            .domain( this.xRange );
+
+        this.yScale = d3.scaleLinear()
+            .range( [this.plotAreaHeight, 0] )
+            .domain( this.yRange );
+
+        this.yScale0 = d3.scaleLinear()
+            .range( [this.plotAreaHeight, 0] )
+            .domain( this.yRange );
     }
 
 }
