@@ -266,6 +266,7 @@ class TriMesh3D extends Plot {
 		let rMax = Math.sqrt((xMax-xMin)**2 + (yMax-yMin)**2 + (zMax-zMin)**2);
 		this.mid = {x:xMid, y:yMid, z:zMid};
 		this.rMax = rMax;
+		this.radMax = Math.sqrt(yMax**2 + zMax**2);
 
 		if (xRange[1]-xRange[0]==0.) {
 			this.twoD=true;
@@ -397,8 +398,10 @@ class TriMesh3D extends Plot {
 				const intersects = raycaster.intersectObject( cut.line );
 				if (intersects.length > 0) {
 					cut.lineDragging = true;
+					cut.line.material.color.set(0x42d4f5);
 					this.cutLineDragging = true;
 					this.controls.enabled = false;
+					this.renderScene();
 				}
 			});
 		}
@@ -424,6 +427,7 @@ class TriMesh3D extends Plot {
 		function cutLineDragEnd() {
 			if (this.cutLineDragging) {
 				const cut = this.cuts.find( cut => cut.lineDragging );
+				cut.line.material.color.set(0xd0d5db);
 				cut.lineDragging = false;
 				this.cutLineDragging = false;
 				cut.brushing = false;
@@ -640,6 +644,8 @@ class TriMesh3D extends Plot {
 			cut.value = cut.point.y;
 		} else if ( cut.type == "r") {
 			cut.value = Math.sqrt(cut.point.y**2 + cut.point.z**2);
+		} else if ( cut.type == "theta") {
+			cut.value = Math.atan2(cut.point.y, cut.point.z);
 		}
 		const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
 		requestSetDimension.state = { name:dimensionName, dimensionState:{value:cut.value, brushing:cut.brushing }};
@@ -655,13 +661,16 @@ class TriMesh3D extends Plot {
 		const mid = this.mid;
 		const rMax = this.rMax;
 		if ( cut.type == "x" ) {
-			return [mid.x+0.5*rMax,cut.value,mid.z-rMax,mid.x+0.5*rMax,cut.value,mid.z+rMax];
+			return [mid.x+2*rMax,cut.value,mid.z-rMax,mid.x+2*rMax,cut.value,mid.z+rMax];
 		} else if ( cut.type == "r" ) {
 			const npts = 360;
-			const theta = Array.from({length:npts}, (d,i) => 2*Math.PI*i/npts);
-			const positions = theta.map(t => ([mid.x+0.5*rMax, cut.value*Math.cos(t), cut.value*Math.sin(t)]));
+			const theta = Array.from({length:npts}, (d,i) => 2*Math.PI*i/(npts-1));
+			const positions = theta.map(t => ([mid.x+2*rMax, cut.value*Math.sin(t), cut.value*Math.cos(t)]));
 			return positions.flat();
+		} else if ( cut.type == "theta" ) {
+			return [mid.x+2*rMax,0,0,mid.x+2*rMax,this.radMax*Math.sin(cut.value),this.radMax*Math.cos(cut.value)];
 		}
+
 	}
 
 
@@ -835,7 +844,10 @@ class TriMesh3D extends Plot {
 				} else if (cut.type == "r") {
 					zp[iVert] = Math.sqrt(vert[1]**2 + vert[2]**2);
 					let theta = Math.atan2(vert[1],vert[2]);
-					sdist[iVert] = zp[iVert]*theta;
+					sdist[iVert] = theta;
+				} else if (cut.type == "theta") {
+					zp[iVert] = Math.atan2(vert[1],vert[2]);
+					sdist[iVert] = Math.sqrt(vert[1]**2 + vert[2]**2);
 				}
 			}
 			cut.zps.push(zp);
@@ -900,6 +912,7 @@ class TriMesh3D extends Plot {
 			const line = new Line2( lineGeometry, lineMaterial );
 			line.renderOrder = 10;
 			line.computeLineDistances();
+			/*
 			if ( cut.type == "r" ) { // change raycast method for r cut
 				line.raycast = function (raycaster, intersects) {
 					if (!this.geometry.boundingBox) {
@@ -915,7 +928,7 @@ class TriMesh3D extends Plot {
 						});
 					}
 				};
-			}
+			}*/
 			cut.line = line;
 			cut.lineAdded = true;
 			this.getCutLine(cut.dimensionName);

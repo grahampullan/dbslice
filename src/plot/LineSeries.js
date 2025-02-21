@@ -692,6 +692,7 @@ class LineSeries extends Plot {
     addCutLines() {
         if ( !this.cuts.length ) return;
         const plotArea = d3.select(`#${this.id}`).select(".plot-area");
+        const boundCutLineDragStart = cutLineDragStart.bind(this);
         const boundCutLineDragged = cutLineDragged.bind(this);
         const boundCutLineDragEnd = cutLineDragEnd.bind(this);
         this.cuts.forEach( cut => {
@@ -709,12 +710,19 @@ class LineSeries extends Plot {
                     .attr("d", "")
                     .attr("clip-path", `url(#${this.id}-clip)`)
                     .call(d3.drag()
+                        .on("start", (event) => boundCutLineDragStart(event, dimensionName))
                         .on("drag", (event) => boundCutLineDragged(event, dimensionName))
                         .on("end", (event) => boundCutLineDragEnd(event, dimensionName)));   
                 this.setCutLinePosition(dimensionName);
             }
             cut.lineAdded = true;
         });
+
+        function cutLineDragStart(event,dimensionName) {
+            const cut = this.cuts.find( d => d.dimensionName == dimensionName );
+            cut.brushing = true;
+            this.setCutLinePosition(dimensionName);
+        }
 
         function cutLineDragged(event,dimensionName) {
             const cut = this.cuts.find( d => d.dimensionName == dimensionName );
@@ -730,10 +738,9 @@ class LineSeries extends Plot {
                 value = d3.min([d3.max([value, this.yRange[0]+dy]), this.yRange[1]-dy]);
                 cut.value = value;
             }
-            cut.brushing = true;
-            this.setCutLinePosition(dimensionName);
             const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
 		    requestSetDimension.state = { name:dimensionName, dimensionState:{value:cut.value, brushing:cut.brushing }};
+            this.setCutLinePosition(dimensionName);
         }
 
         function cutLineDragEnd(event,dimensionName) {
@@ -741,6 +748,7 @@ class LineSeries extends Plot {
             cut.brushing = false;
             const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
             requestSetDimension.state = { name:dimensionName, dimensionState:{value:cut.value, brushing:cut.brushing }};
+            this.setCutLinePosition(dimensionName);
         }
     }
 
@@ -755,6 +763,11 @@ class LineSeries extends Plot {
             pathData = `M 0 ${this.yScale(cut.value)} L ${this.plotAreaWidth} ${this.yScale(cut.value)}`;
         }
         cutLine.attr("d", pathData);
+        if (cut.brushing) {
+            cutLine.style("stroke", "#42d4f5");
+        } else {
+            cutLine.style("stroke", "#d0d5db");
+        }
     }   
 
     setScales() {
