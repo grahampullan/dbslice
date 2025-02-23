@@ -15,6 +15,9 @@ class TriMesh3D extends Plot {
 		if (!options) { options = {} }
 		options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:0, right:0, bottom:0, left:0};
+		if (options.layout.twoDSameScale == undefined) {
+			options.layout.twoDSameScale = true;
+		}
         super(options);
 		this.stencilRects = [];
     }
@@ -333,7 +336,11 @@ class TriMesh3D extends Plot {
 				let yDiff = yRange[1] - yRange[0];
 				let zDiff = zRange[1] - zRange[0];
 				let maxDiff = Math.max(yDiff, zDiff);
-				camera = new THREE.OrthographicCamera( -maxDiff, maxDiff, maxDiff, -maxDiff, 0.0001, 100000.);
+				if (this.layout.twoDSameScale) {
+					camera = new THREE.OrthographicCamera( -maxDiff, maxDiff, maxDiff, -maxDiff, 0.0001, 100000.);
+				} else {
+					camera = new THREE.OrthographicCamera( -yDiff/2, yDiff/2, zDiff/2, -zDiff/2, 0.0001, 100000.);
+				}
 				camera.position.x = xMid + 1000*rMax;
 				camera.position.y = yMid;
 				camera.position.z = zMid;
@@ -642,6 +649,8 @@ class TriMesh3D extends Plot {
 		const cut = this.cuts.find( d => d.dimensionName == dimensionName );
 		if ( cut.type == "x") {
 			cut.value = cut.point.y;
+		} else if ( cut.type == "y") {
+			cut.value = cut.point.z;
 		} else if ( cut.type == "r") {
 			cut.value = Math.sqrt(cut.point.y**2 + cut.point.z**2);
 		} else if ( cut.type == "theta") {
@@ -662,6 +671,8 @@ class TriMesh3D extends Plot {
 		const rMax = this.rMax;
 		if ( cut.type == "x" ) {
 			return [mid.x+2*rMax,cut.value,mid.z-rMax,mid.x+2*rMax,cut.value,mid.z+rMax];
+		} else if ( cut.type == "y") {
+			return [mid.x+2*rMax,mid.y-rMax,cut.value,mid.x+2*rMax,mid.y+rMax,cut.value];
 		} else if ( cut.type == "r" ) {
 			const npts = 360;
 			const theta = Array.from({length:npts}, (d,i) => 2*Math.PI*i/(npts-1));
@@ -841,6 +852,9 @@ class TriMesh3D extends Plot {
 				if (cut.type == "x") {
 					zp[iVert] = vert[1];
 					sdist[iVert] = vert[2];
+				} else if (cut.type == "y") {
+					zp[iVert] = vert[2];
+					sdist[iVert] = vert[1];
 				} else if (cut.type == "r") {
 					zp[iVert] = Math.sqrt(vert[1]**2 + vert[2]**2);
 					let theta = Math.atan2(vert[1],vert[2]);
