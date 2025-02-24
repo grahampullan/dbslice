@@ -2,7 +2,7 @@ import { getDataFilterFunc } from '../filters/getDataFilterFunc.js';
 //import { dbsliceData } from './dbsliceData.js';
 import * as d3 from 'd3';
 
-function fetchPlotData( fetchData, derivedData ) {
+function fetchPlotData( fetchData, derivedData, dimensions ) {
 
     if ( fetchData.url !== undefined ) {
 
@@ -230,6 +230,102 @@ function fetchPlotData( fetchData, derivedData ) {
         }
 
         return Promise.resolve( data );
+
+    }
+
+    if ( fetchData.getUrlFromDimensions !== undefined ) {
+
+        const getUrlFromDimensions = fetchData.getUrlFromDimensions;
+        let dimsNotSet = false;
+        const indx = getUrlFromDimensions.dimensionNames.map( (dimName, i) => {
+            const offset = getUrlFromDimensions.offsets[i];
+            const multiplier = getUrlFromDimensions.multipliers[i];
+            const dim = dimensions.find( d => d.name == dimName );
+            const value = dim.state.value;
+            if ( value == null || value == undefined ) {
+                dimsNotSet = true;
+            }
+            console.log(value);
+            const index = parseInt( (value + offset) * multiplier);
+            return index;
+        });
+        if (dimsNotSet) {
+            console.log("One or more dimensions not set");
+            return Promise.resolve( undefined ); // return empty data
+        }
+        let url = getUrlFromDimensions.urlTemplate;
+        indx.forEach( (i, j) => {
+            url = url.replace(`\${indx${j}}`, i);
+        });
+
+        console.log("in fetchPlotData");
+        console.log("about to fetch url: ", url);
+
+        let itemPromise = fetch(url).then(function( response ) {
+
+            if ( fetchData.csv === undefined && fetchData.text === undefined && fetchData.buffer === undefined ) {
+    
+                return response.json();
+    
+            }
+    
+            if ( fetchData.csv == true || fetchData.text == true ) {
+    
+                return response.text() ;
+    
+            }
+    
+            if ( fetchData.buffer == true ) {
+    
+                return response.arrayBuffer() ;
+    
+            }
+    
+        });
+
+        return itemPromise.then(function( responseJson ) {
+
+            if ( fetchData.csv == true ) {
+    
+                responseJson = d3.csvParse( responseJson );
+    
+            }
+            
+            let dataFilterFunc;
+    
+            if (fetchData.dataFilterFunc !== undefined) {
+    
+                dataFilterFunc = fetchData.dataFilterFunc;
+    
+            }
+    
+            if (fetchData.formatDataFunc !== undefined) {
+    
+                dataFilterFunc = fetchData.formatDataFunc;
+                
+            }
+    
+            if (fetchData.dataFilterType !== undefined) {
+    
+                dataFilterFunc = getDataFilterFunc(fetchData.dataFilterType);
+    
+            }
+
+            let data;
+    
+            if (dataFilterFunc !== undefined ) {
+    
+                data = dataFilterFunc( responseJson, fetchData.dataFilterConfig ); 
+    
+            } else {
+    
+                data = responseJson;
+    
+            }
+    
+            return data;
+    
+        } );
 
     }
 

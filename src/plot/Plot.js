@@ -202,9 +202,10 @@ class Plot extends Component {
         }
         const requestSetTrafficLightColor = this.sharedStateByAncestorId[this.boardId].requestSetTrafficLightColor;
         const derivedData = this.sharedStateByAncestorId["context"].derivedData;
+        const dimensions = this.sharedStateByAncestorId["context"].dimensions;
         this.fetchingData = true;
         requestSetTrafficLightColor.state = "fetching";
-        this.data = await fetchPlotData(this.fetchData, derivedData);
+        this.data = await fetchPlotData(this.fetchData, derivedData, dimensions);
         this.fetchingData = false;
         this.fetchDataNow = false;
         requestSetTrafficLightColor.state = "fetched";

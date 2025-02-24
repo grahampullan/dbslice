@@ -95,6 +95,10 @@ class Context extends bbContext {
         if (!dimension) {
             dimension = new Observable({name:data.name, state:{value:data.value, brushing:false}, flag:false});
             this.sharedState.dimensions.push(dimension);
+        } else {
+            if (data.value !== null && data.value !== undefined) {
+                dimension.state.value = data.value;
+            }
         }
     }
 

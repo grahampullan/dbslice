@@ -56,6 +56,22 @@ class TriMesh3D extends Plot {
 			}
 		}
 
+		if (this.fetchData.getUrlFromDimensions) {
+			const requestCreateDimension = this.sharedStateByAncestorId["context"].requestCreateDimension;
+			const dimensions = this.sharedStateByAncestorId["context"].dimensions;
+			const dimensionNames = this.fetchData.getUrlFromDimensions.dimensionNames;
+
+			console.log(dimensionNames);
+			console.log(dimensions);
+			dimensionNames.forEach( dimName => {
+				console.log(dimName);
+				requestCreateDimension.state = {name:dimName, value:null };
+				const dimension = dimensions.find( d => d.name == dimName ); 
+				const obsId = dimension.subscribe( this.handleDimensionChange.bind(this) );
+				this.subscriptions.push({observable:dimension, id:obsId});
+			});
+		}
+
 		this.renderer = this.sharedStateByAncestorId["context"].renderer;
 		this.cuts = [];
 		this.raycaster = new THREE.Raycaster();
@@ -67,6 +83,7 @@ class TriMesh3D extends Plot {
 	async update() {
 		if (this.fetchingData) return;
 		await this.getData();
+		if (this.data === undefined) return;
 
 		const container = d3.select(`#${this.id}`);
 		const overlay = container.select(".svg-overlay");
@@ -950,7 +967,11 @@ class TriMesh3D extends Plot {
 		});
 	}
 
-
+	handleDimensionChange() {
+		console.log("TriMesh handleDimensionChange");
+		this.fetchDataNow = true;
+		this.update();
+	}
 		
 
 
