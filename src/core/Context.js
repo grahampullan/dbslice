@@ -97,7 +97,7 @@ class Context extends bbContext {
             this.sharedState.dimensions.push(dimension);
         } else {
             if (data.value !== null && data.value !== undefined) {
-                dimension.state.value = data.value;
+                dimension.state = {value: data.value, brushing: false};
             }
         }
     }

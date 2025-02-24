@@ -245,7 +245,6 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
             if ( value == null || value == undefined ) {
                 dimsNotSet = true;
             }
-            console.log(value);
             const index = parseInt( (value + offset) * multiplier);
             return index;
         });
@@ -257,9 +256,6 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
         indx.forEach( (i, j) => {
             url = url.replace(`\${indx${j}}`, i);
         });
-
-        console.log("in fetchPlotData");
-        console.log("about to fetch url: ", url);
 
         let itemPromise = fetch(url).then(function( response ) {
 
