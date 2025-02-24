@@ -522,6 +522,7 @@ class Plot extends Component {
             dimensionName : cutLayout.dimensionName || "dim1",
             type : cutLayout.type || "x",
             dataStoreName : cutLayout.dataStoreName || "cutData",
+            cutWhileBrushing : cutLayout.cutWhileBrushing || false,
             dimensionObserverId : undefined,
             lineAdded : false,
             lineDragging : false,

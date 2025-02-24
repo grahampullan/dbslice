@@ -20,6 +20,7 @@ class TriMesh3D extends Plot {
 		}
         super(options);
 		this.stencilRects = [];
+		this.meshUuids = [];
     }
 
 	make() {
@@ -61,10 +62,7 @@ class TriMesh3D extends Plot {
 			const dimensions = this.sharedStateByAncestorId["context"].dimensions;
 			const dimensionNames = this.fetchData.getUrlFromDimensions.dimensionNames;
 
-			console.log(dimensionNames);
-			console.log(dimensions);
 			dimensionNames.forEach( dimName => {
-				console.log(dimName);
 				requestCreateDimension.state = {name:dimName, value:null };
 				const dimension = dimensions.find( d => d.name == dimName ); 
 				const obsId = dimension.subscribe( this.handleDimensionChange.bind(this) );
@@ -243,23 +241,35 @@ class TriMesh3D extends Plot {
 		}
 
 		// Initialise threejs scene
-		const scene = new THREE.Scene();
+		if (!this.scene) {
+			this.scene = new THREE.Scene();
 
-		// add background
-		const backgroundGeometry = new THREE.PlaneGeometry(2, 2);
-		const backgroundColour = this.layout.backgroundColour || 0xefefef;
-        const backgroundMaterial = new THREE.MeshBasicMaterial({color: backgroundColour});
-        backgroundMaterial.depthWrite = false;
-        backgroundMaterial.stencilWrite = true;
-        backgroundMaterial.stencilRef = 1;
-        backgroundMaterial.stencilFunc = THREE.NotEqualStencilFunc;
-        const background = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
-        background.material.onBeforeCompile = function( shader ){
-            shader.vertexShader = shader.vertexShader.replace( `#include <project_vertex>` , 
-                `gl_Position = vec4( position , 1.0 );`);
-        }
-        background.renderOrder = 9;
-        scene.add(background);
+			// add background
+			const backgroundGeometry = new THREE.PlaneGeometry(2, 2);
+			const backgroundColour = this.layout.backgroundColour || 0xefefef;
+        	const backgroundMaterial = new THREE.MeshBasicMaterial({color: backgroundColour});
+        	backgroundMaterial.depthWrite = false;
+        	backgroundMaterial.stencilWrite = true;
+        	backgroundMaterial.stencilRef = 1;
+        	backgroundMaterial.stencilFunc = THREE.NotEqualStencilFunc;
+        	const background = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
+        	background.material.onBeforeCompile = function( shader ){
+            	shader.vertexShader = shader.vertexShader.replace( `#include <project_vertex>` , 
+                	`gl_Position = vec4( position , 1.0 );`);
+        	}
+        	background.renderOrder = 9;
+        	this.scene.add(background);
+			this.background = background;
+
+			// add lights
+			const ambientLight = new THREE.AmbientLight( 0xffffff, 1.0 );	
+			this.scene.add( ambientLight );
+			const light = new THREE.DirectionalLight( 0xffffff, 1.0 );
+			this.scene.add( light );
+			this.light = light;
+		}
+
+
 
 
 		// materials for surface rendering
@@ -292,20 +302,18 @@ class TriMesh3D extends Plot {
 			this.twoD=true;
 		}
 
-		//
-		// add lights
-		//
-		const ambientLight = new THREE.AmbientLight( 0xffffff, 1.0 );	
-		scene.add( ambientLight );
-		const light = new THREE.DirectionalLight( 0xffffff, 1.0 );
-		scene.add( light );
-		this.light = light;
 		
 		//
 		// add all surfaces to scene
 		//
-		this.meshUuids = [];
-		const meshUuids = this.meshUuids;
+		this.meshUuids.forEach( uuid => { // remove old surface meshes from scene
+			const oldMesh = this.scene.getObjectByProperty('uuid',uuid);
+			oldMesh.geometry.dispose();
+			oldMesh.material.dispose();
+			this.scene.remove(oldMesh);
+		});
+		this.meshUuids=[];
+
 		const surfFlags = this.layout.surfFlags;
 		for (let iSurf = 0; iSurf < nSurfs; iSurf++) {
 			const surf = this.getSurface(0, iSurf);
@@ -333,10 +341,9 @@ class TriMesh3D extends Plot {
 
 			const mesh = new THREE.Mesh( geometry, material );
 			mesh.renderOrder = 10;
-			meshUuids.push( mesh.uuid );
-			scene.add( mesh );
+			this.meshUuids.push( mesh.uuid );
+			this.scene.add( mesh );
 		}
-		this.scene = scene;
 	
 		//
 		// add camera
@@ -368,7 +375,7 @@ class TriMesh3D extends Plot {
 		}
 	
 		const camera = this.camera;
-		light.position.copy( camera.position );
+		this.light.position.copy( camera.position );
 		camera.aspect = width / height;
 		camera.updateProjectionMatrix();
 
@@ -384,13 +391,13 @@ class TriMesh3D extends Plot {
 				controls.enableRotate = false;
 			}
 
-			controls.addEventListener( 'change', function(){
+			controls.addEventListener( 'change', (event) => {
 				if ( cameraSync ) {
-					sharedCamera.position = camera.position;
-					sharedCamera.rotation = camera.rotation;
-					sharedCamera.zoom = camera.zoom;
+					sharedCamera.position = this.camera.position;
+					sharedCamera.rotation = this.camera.rotation;
+					sharedCamera.zoom = this.camera.zoom;
 				}
-				light.position.copy( camera.position );
+				this.light.position.copy( this.camera.position );
 				boundWebGLUpdate();
 			} ); 
 			controls.enableZoom = true; 
@@ -425,7 +432,7 @@ class TriMesh3D extends Plot {
 					cut.line.material.color.set(0x42d4f5);
 					this.cutLineDragging = true;
 					this.controls.enabled = false;
-					this.renderScene();
+					this.webGLUpdate();
 				}
 			});
 		}
@@ -671,7 +678,7 @@ class TriMesh3D extends Plot {
 		} else if ( cut.type == "r") {
 			cut.value = Math.sqrt(cut.point.y**2 + cut.point.z**2);
 		} else if ( cut.type == "theta") {
-			cut.value = Math.atan2(cut.point.y, cut.point.z);
+			cut.value = Math.atan2(cut.point.z, cut.point.y);
 		}
 		const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
 		requestSetDimension.state = { name:dimensionName, dimensionState:{value:cut.value, brushing:cut.brushing }};
@@ -696,7 +703,7 @@ class TriMesh3D extends Plot {
 			const positions = theta.map(t => ([mid.x+2*rMax, cut.value*Math.sin(t), cut.value*Math.cos(t)]));
 			return positions.flat();
 		} else if ( cut.type == "theta" ) {
-			return [mid.x+2*rMax,0,0,mid.x+2*rMax,this.radMax*Math.sin(cut.value),this.radMax*Math.cos(cut.value)];
+			return [mid.x+2*rMax,0,0,mid.x+2*rMax,this.radMax*Math.cos(cut.value),this.radMax*Math.sin(cut.value)];
 		}
 
 	}
@@ -853,6 +860,7 @@ class TriMesh3D extends Plot {
 				const zp = cut.zps[iSurf];
 				cut.quadtrees.push(makeQuadTree(indices, zp));
 			}
+			this.getCutLine(cut.dimensionName);
 		});
 	}
 
@@ -877,7 +885,7 @@ class TriMesh3D extends Plot {
 					let theta = Math.atan2(vert[1],vert[2]);
 					sdist[iVert] = theta;
 				} else if (cut.type == "theta") {
-					zp[iVert] = Math.atan2(vert[1],vert[2]);
+					zp[iVert] = Math.atan2(vert[2],vert[1]);
 					sdist[iVert] = Math.sqrt(vert[1]**2 + vert[2]**2);
 				}
 			}
@@ -917,6 +925,8 @@ class TriMesh3D extends Plot {
 				cut.value = data.value;
 				this.setCutLinePosition(dimensionName);
 				if (!data.brushing) {
+					this.getCutLine(dimensionName);
+				} else if (cut.cutWhileBrushing) {
 					this.getCutLine(dimensionName);
 				}
 				this.webGLUpdate();
@@ -968,7 +978,6 @@ class TriMesh3D extends Plot {
 	}
 
 	handleDimensionChange() {
-		console.log("TriMesh handleDimensionChange");
 		this.fetchDataNow = true;
 		this.update();
 	}
