@@ -60,6 +60,20 @@ class LineSeries extends Plot {
                 const obsId = derivedDataStore.newData.subscribe( this.handleDerivedDataChange.bind(this) );
                 this.subscriptions.push({observable:derivedDataStore.newData, id:obsId});
             }
+
+            // subscribe to dimensions
+            if (this.fetchData.getUrlFromDimensions) {
+                const requestCreateDimension = this.sharedStateByAncestorId["context"].requestCreateDimension;
+                const dimensions = this.sharedStateByAncestorId["context"].dimensions;
+                const dimensionNames = this.fetchData.getUrlFromDimensions.dimensionNames;
+    
+                dimensionNames.forEach( dimName => {
+                    requestCreateDimension.state = {name:dimName, value:null };
+                    const dimension = dimensions.find( d => d.name == dimName ); 
+                    const obsId = dimension.subscribe( this.handleDimensionChange.bind(this) );
+                    this.subscriptions.push({observable:dimension, id:obsId});
+                });
+            }
             
         }
 
@@ -207,12 +221,15 @@ class LineSeries extends Plot {
         }
 
         // zoom
-        const boundZoomed = zoomed.bind(this);
-        const zoom = d3.zoom()
-            .scaleExtent([0.5, Infinity])
-            .on("zoom", boundZoomed);
-        plotArea.transition().call(zoom.transform, d3.zoomIdentity);
-        plotArea.call(zoom);
+        if (!this.zoomSet) {
+            const boundZoomed = zoomed.bind(this);
+            const zoom = d3.zoom()
+                .scaleExtent([0.5, Infinity])
+                .on("zoom", boundZoomed);
+            plotArea.transition().call(zoom.transform, d3.zoomIdentity);
+            plotArea.call(zoom);
+            this.zoomSet = true;
+        }
 
         // focus circle
         let focus = plotArea.select(".focus");
@@ -771,28 +788,37 @@ class LineSeries extends Plot {
     }   
 
     setScales() {
-        if ( this.layout.xscale == "time" ) {
-            this.xScale = d3.scaleTime(); 
-            this.xScale0 = d3.scaleTime();        
-        } else {
-            this.xScale = d3.scaleLinear();
-            this.xScale0 = d3.scaleLinear();
+        if (!this.xScale || !this.layout.xRange) {
+            if ( this.layout.xscale == "time" ) {
+                this.xScale = d3.scaleTime(); 
+                this.xScale0 = d3.scaleTime();        
+            } else {
+                this.xScale = d3.scaleLinear();
+                this.xScale0 = d3.scaleLinear();
+            }
+
+            this.xScale.range( [0, this.plotAreaWidth] )
+                .domain( this.xRange );
+
+            this.xScale0.range( [0, this.plotAreaWidth] )
+                .domain( this.xRange );
         }
 
-        this.xScale.range( [0, this.plotAreaWidth] )
-            .domain( this.xRange );
+        if (!this.yScale || !this.layout.yRange) {
+            this.yScale = d3.scaleLinear()
+                .range( [this.plotAreaHeight, 0] )
+                .domain( this.yRange );
 
-        this.xScale0.range( [0, this.plotAreaWidth] )
-            .domain( this.xRange );
-
-        this.yScale = d3.scaleLinear()
-            .range( [this.plotAreaHeight, 0] )
-            .domain( this.yRange );
-
-        this.yScale0 = d3.scaleLinear()
-            .range( [this.plotAreaHeight, 0] )
-            .domain( this.yRange );
+            this.yScale0 = d3.scaleLinear()
+                .range( [this.plotAreaHeight, 0] )
+                .domain( this.yRange );
+        }
     }
+
+    handleDimensionChange() {
+		this.fetchDataNow = true;
+		this.update();
+	}
 
 }
 
