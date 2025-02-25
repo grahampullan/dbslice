@@ -8,6 +8,7 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Plot } from './Plot.js';
 import { makeQuadTree, getLine } from './cutQuadTrees.js';
+import { point } from 'leaflet';
 
 class TriMesh3D extends Plot {
 
@@ -17,6 +18,12 @@ class TriMesh3D extends Plot {
 		options.layout.margin = options.layout.margin || {top:0, right:0, bottom:0, left:0};
 		if (options.layout.twoDSameScale == undefined) {
 			options.layout.twoDSameScale = true;
+		}
+		if (options.layout.showXAxis) {
+			options.layout.margin.bottom += 20;
+		}
+		if (options.layout.showYAxis) {
+			options.layout.margin.left += 35;
 		}
         super(options);
 		this.stencilRects = [];
@@ -43,10 +50,14 @@ class TriMesh3D extends Plot {
 			.style("position","absolute")
 			.style("pointer-events", "none")
 			.style("z-index",2)
+			//.style("top",`${this.plotAreaTop}px`)
+			//.style("left",`${this.plotAreaLeft}px`)
+			//.attr("width", `${this.plotAreaWidth}px`)
+			//.attr("height", `${this.plotAreaHeight}px`);
 			.style("top",`${this.plotAreaTop}px`)
-			.style("left",`${this.plotAreaLeft}px`)
-			.attr("width", `${this.plotAreaWidth}px`)
-			.attr("height", `${this.plotAreaHeight}px`);
+			.style("left",`${this.plotAreaLeft - this.layout.margin.left}px`)
+			.attr("width", `${this.plotAreaWidth + this.layout.margin.left}`)
+			.attr("height", `${this.plotAreaHeight + this.layout.margin.bottom}`);
 
 		if (this.layout.filterId) {
 			this.filterId = this.layout.filterId;
@@ -112,10 +123,11 @@ class TriMesh3D extends Plot {
 		this.updatePlotAreaSize();
 
 		overlay
-			.attr("width", width)
-			.attr("height", height);
+			.attr("width", width+this.layout.margin.left)
+			.attr("height", height+this.layout.margin.bottom);
 
 		this.setLasts();
+		this.addAxes();
 
 		if ( !this.newData ) return;
 
@@ -398,6 +410,7 @@ class TriMesh3D extends Plot {
 					sharedCamera.zoom = this.camera.zoom;
 				}
 				this.light.position.copy( this.camera.position );
+				this.addAxes();
 				boundWebGLUpdate();
 			} ); 
 			controls.enableZoom = true; 
@@ -536,6 +549,7 @@ class TriMesh3D extends Plot {
 		
 		if(this.newData) {
 			this.webGLUpdate(); // ensures a webGL render after waiting for new data
+			this.addAxes();
 		}
 
 		this.newData = false;
@@ -982,6 +996,67 @@ class TriMesh3D extends Plot {
 		this.update();
 	}
 		
+	addAxes() {
+		if (!this.twoD) return;
+		if (!this.layout.showXAxis && !this.layout.showYAxis) return;
+		// get current visible range using raycasting intersecting background
+		const raycaster = new THREE.Raycaster();
+		const pointer = new THREE.Vector2();
+		const planeNormal = new THREE.Vector3(1, 0, 0);
+		const plane = new THREE.Plane(planeNormal);
+		pointer.x = -1;
+		pointer.y = -1;
+		raycaster.setFromCamera( pointer, this.camera );
+		const intersectBottomLeft = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+		pointer.x = 1;
+		pointer.y = 1;
+		raycaster.setFromCamera( pointer, this.camera );
+		const intersectTopRight = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+		const xRangeVisible = [intersectBottomLeft.y, intersectTopRight.y];
+		const yRangeVisible = [intersectBottomLeft.z, intersectTopRight.z];
+
+		const xScale = d3.scaleLinear().domain(xRangeVisible).range([0, this.plotAreaWidth]);
+		const yScale = d3.scaleLinear().domain(yRangeVisible).range([this.plotAreaHeight, 0]);
+
+		const overlay = d3.select(`#${this.id}`).select(".svg-overlay");
+		const standOff = 2;
+		if (this.layout.showXAxis) {
+			const xAxis = d3.axisBottom(xScale);
+			if (this.layout.xTickNumber) {
+				xAxis.ticks(this.layout.xTickNumber);
+			}
+			const gX = overlay.select(".x-axis");
+			if (gX.empty()) {
+				overlay.append("g")
+					.attr("class","x-axis")
+					.attr("transform",`translate(${this.layout.margin.left},${this.plotAreaHeight+standOff})`)
+					.call(xAxis);
+			} else {
+				gX.attr("transform",`translate(${this.layout.margin.left},${this.plotAreaHeight+standOff})`)
+				.call(xAxis);
+			}
+		}
+
+		if (this.layout.showYAxis) {
+			const yAxis = d3.axisLeft(yScale);
+			if (this.layout.yTickNumber) {
+				yAxis.ticks(this.layout.yTickNumber);
+			}
+			const gY = overlay.select(".y-axis");
+			if (gY.empty()) {
+				overlay.append("g")
+					.attr("class","y-axis")
+					.attr("transform",`translate(${this.layout.margin.left-standOff},0)`)
+					.call(yAxis);
+			} else {
+				gY.attr("transform",`translate(${this.layout.margin.left-standOff},0)`)
+					.call(yAxis);
+			}
+		}
+
+
+
+	}
 
 
 
