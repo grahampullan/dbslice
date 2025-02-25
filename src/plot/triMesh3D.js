@@ -128,7 +128,7 @@ class TriMesh3D extends Plot {
 			this.initCuts();
 			this.makeQuadTrees();
 		}
-		
+
 		let vScale;
         if (layout.vScale === undefined) {
         	vScale = [0,1];
@@ -365,7 +365,7 @@ class TriMesh3D extends Plot {
 				} else {
 					camera = new THREE.OrthographicCamera( -yDiff/2, yDiff/2, zDiff/2, -zDiff/2, 0.0001, 100000.);
 				}
-				camera.position.x = xMid + 1000*rMax;
+				camera.position.x = xMid + 5*rMax;
 				camera.position.y = yMid;
 				camera.position.z = zMid;
 			}
