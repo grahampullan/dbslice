@@ -796,23 +796,19 @@ class LineSeries extends Plot {
                 this.xScale = d3.scaleLinear();
                 this.xScale0 = d3.scaleLinear();
             }
-
-            this.xScale.range( [0, this.plotAreaWidth] )
-                .domain( this.xRange );
-
-            this.xScale0.range( [0, this.plotAreaWidth] )
-                .domain( this.xRange );
+            this.xScale.domain( this.xRange );
+            this.xScale0.domain( this.xRange );
         }
+        this.xScale.range( [0, this.plotAreaWidth] );
+        this.xScale0.range( [0, this.plotAreaWidth] );
 
         if (!this.yScale || !this.layout.yRange) {
-            this.yScale = d3.scaleLinear()
-                .range( [this.plotAreaHeight, 0] )
-                .domain( this.yRange );
-
-            this.yScale0 = d3.scaleLinear()
-                .range( [this.plotAreaHeight, 0] )
-                .domain( this.yRange );
+            this.yScale = d3.scaleLinear().domain( this.yRange );
+            this.yScale0 = d3.scaleLinear().domain( this.yRange );
         }
+        this.yScale.range( [this.plotAreaHeight, 0] );
+        this.yScale0.range( [this.plotAreaHeight, 0] );
+
     }
 
     handleDimensionChange() {
