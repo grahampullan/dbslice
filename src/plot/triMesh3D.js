@@ -269,6 +269,9 @@ class TriMesh3D extends Plot {
 		this.mid = {x:xMid, y:yMid, z:zMid};
 		this.rMax = rMax;
 		this.radMax = Math.sqrt(yMax**2 + zMax**2);
+		this.xRange = xRange;
+		this.yRange = yRange;
+		this.zRange = zRange;
 
 		if (xRange[1]-xRange[0]==0.) {
 			this.twoD=true;
@@ -991,7 +994,17 @@ class TriMesh3D extends Plot {
 				overlay.append("g")
 					.attr("class","x-axis")
 					.attr("transform",`translate(${this.layout.margin.left},${this.plotAreaHeight+standOff})`)
-					.call(xAxis);
+					.style("pointer-events","bounding-box")
+					.call(xAxis)
+					.call(d3.zoom().on("zoom", (event) => {
+						const transform = event.transform;
+						let yDiff = this.yRange[1] - this.yRange[0]; 
+						this.camera.left = -1./transform.k * yDiff/2;
+						this.camera.right = 1./transform.k * yDiff/2;
+						this.camera.updateProjectionMatrix();
+						this.webGLUpdate();
+						this.addAxes();
+					}));	
 			} else {
 				gX.attr("transform",`translate(${this.layout.margin.left},${this.plotAreaHeight+standOff})`)
 				.call(xAxis);
@@ -1008,7 +1021,17 @@ class TriMesh3D extends Plot {
 				overlay.append("g")
 					.attr("class","y-axis")
 					.attr("transform",`translate(${this.layout.margin.left-standOff},0)`)
-					.call(yAxis);
+					.style("pointer-events","bounding-box")
+					.call(yAxis)
+					.call(d3.zoom().on("zoom", (event) => {
+						const transform = event.transform;
+						let zDiff = this.zRange[1] - this.zRange[0]; 
+						this.camera.top = 1./transform.k * zDiff/2;
+						this.camera.bottom = -1./transform.k * zDiff/2;
+						this.camera.updateProjectionMatrix();
+						this.webGLUpdate();
+						this.addAxes();
+					}));	
 			} else {
 				gY.attr("transform",`translate(${this.layout.margin.left-standOff},0)`)
 					.call(yAxis);
