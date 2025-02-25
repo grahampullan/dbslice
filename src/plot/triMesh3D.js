@@ -15,7 +15,7 @@ class TriMesh3D extends Plot {
     constructor(options) {
 		if (!options) { options = {} }
 		options.layout = options.layout || {};
-		options.layout.margin = options.layout.margin || {top:0, right:0, bottom:0, left:0};
+		options.layout.margin = options.layout.margin || {top:20, right:0, bottom:0, left:0};
 		if (options.layout.twoDSameScale == undefined) {
 			options.layout.twoDSameScale = true;
 		}
@@ -24,6 +24,9 @@ class TriMesh3D extends Plot {
 		}
 		if (options.layout.showYAxis) {
 			options.layout.margin.left += 35;
+		}
+		if (options.layout.showColorBar) {
+			options.layout.margin.right += 50;
 		}
         super(options);
 		this.stencilRects = [];
@@ -49,14 +52,9 @@ class TriMesh3D extends Plot {
 			.attr("class","svg-overlay")
 			.style("position","absolute")
 			.style("pointer-events", "none")
-			.style("z-index",2)
-			//.style("top",`${this.plotAreaTop}px`)
-			//.style("left",`${this.plotAreaLeft}px`)
-			//.attr("width", `${this.plotAreaWidth}px`)
-			//.attr("height", `${this.plotAreaHeight}px`);
 			.style("top",`${this.plotAreaTop}px`)
 			.style("left",`${this.plotAreaLeft - this.layout.margin.left}px`)
-			.attr("width", `${this.plotAreaWidth + this.layout.margin.left}`)
+			.attr("width", `${this.plotAreaWidth + this.layout.margin.left + this.layout.margin.right}`)
 			.attr("height", `${this.plotAreaHeight + this.layout.margin.bottom}`);
 
 		if (this.layout.filterId) {
@@ -123,11 +121,12 @@ class TriMesh3D extends Plot {
 		this.updatePlotAreaSize();
 
 		overlay
-			.attr("width", width+this.layout.margin.left)
+			.attr("width", width+this.layout.margin.left+this.layout.margin.right)
 			.attr("height", height+this.layout.margin.bottom);
 
 		this.setLasts();
 		this.addAxes();
+		this.addColorBar();
 
 		if ( !this.newData ) return;
 
@@ -150,6 +149,7 @@ class TriMesh3D extends Plot {
 		this.vScale = vScale;
 
 		const color = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
+		this.colorScale = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
         color.domain( [0,1] );
 
 		const textureWidth = 256;
@@ -211,46 +211,6 @@ class TriMesh3D extends Plot {
 			iStep = 0
 		}
 
-		if (layout.colorBar) {
-			const colorBarMargin = { "left" : width - 60, "top" : 24};
-			const colorBarHeight = parseInt(height/3);
-			const cscale = d3.scaleLinear()
-				.domain( vScale )
-				.range( [colorBarHeight, 0]);
-			let colorBarArea = overlay.select(".color-bar");
-			if ( colorBarArea.empty() ) {
-				colorBarArea = overlay.append("g")
-					.attr("class", "color-bar")
-					.attr("transform", `translate( ${colorBarMargin.left} , ${colorBarMargin.top} )`);
-				const colorBarScale = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
-				colorBarScale.domain( [0, colorBarHeight]);
-				const scaleBars = colorBarArea.selectAll(".scale-bar")
-					.data(d3.range(colorBarHeight), function(d) { return d; })
-					.enter().append("rect")
-						.attr("class", "scale-bar")
-						.attr("x", 0 )
-						.attr("y", (d, i) => colorBarHeight - i )
-						.attr("height", 1)
-						.attr("width", 16)
-						.style("fill", d => colorBarScale(d) );
-			}
-
-			colorBarArea.attr("transform", `translate( ${colorBarMargin.left} , ${colorBarMargin.top} )`);
-
-			const cAxis = d3.axisRight( cscale );
-			if ( layout.cBarTickNumber !== undefined ) { cAxis.ticks(layout.cBarTickNumber); }
-			if ( layout.cBarTickFormat !== undefined ) { cAxis.tickFormat(d3.format(layout.cBarTickFormat)); }
-			let gC = colorBarArea.select(".axis-c");
-			if ( gC.empty() ) {
-				gC = colorBarArea.append("g")
-					.attr( "class", "axis-c")
-					.attr("transform", "translate(18,0)")
-					.call( cAxis );
-			} else {
-				gC.call( cAxis );
-			}
-
-		}
 
 		// Initialise threejs scene
 		if (!this.scene) {
@@ -550,6 +510,7 @@ class TriMesh3D extends Plot {
 		if(this.newData) {
 			this.webGLUpdate(); // ensures a webGL render after waiting for new data
 			this.addAxes();
+			this.addColorBar();
 		}
 
 		this.newData = false;
@@ -1053,11 +1014,56 @@ class TriMesh3D extends Plot {
 					.call(yAxis);
 			}
 		}
-
-
-
 	}
 
+	addColorBar() {
+		if (!this.layout.showColorBar || !this.colorScale) return;
+		const overlay = d3.select(`#${this.id}`).select(".svg-overlay");
+
+		const scaleHeight = this.plotAreaHeight/2;
+		const colorScale = this.colorScale;
+		colorScale.domain( [0, scaleHeight]);
+
+		let scaleArea = overlay.select(".scale-area");
+		if (scaleArea.empty()) {
+			scaleArea = overlay.append("g")
+				.attr("class","scale-area")
+		}
+		scaleArea
+			.attr("transform",`translate(${this.plotAreaWidth+this.layout.margin.left+5},${this.layout.margin.top})`);
+		
+		scaleArea.selectAll(".scale-bar").remove();
+		
+		const scaleBars = scaleArea.selectAll(".scale-bar")
+			.data(d3.range(scaleHeight))
+			.enter().append("rect")
+				.attr("class", "scale-bar")
+				.attr("x", 0 )
+				.attr("y", function(d, i) { return scaleHeight - i; })
+				.attr("height", 1)
+				.attr("width", 15)
+				.style("stroke", "none")
+				.style("fill", function(d, i ) { return colorScale(d); })
+		
+		const cScale = d3.scaleLinear()
+			.domain( this.vScale )
+			.range( [scaleHeight, 0]);
+		
+		const cAxis = d3.axisRight( cScale ).ticks(4);
+		
+		const gC = scaleArea.select(".c-axis");
+
+		if (gC.empty()) {
+			scaleArea.append("g")
+				.attr("class","c-axis")
+				.attr("transform",`translate(15,1)`)
+				.call(cAxis);
+		} else {
+			gC.attr("transform",`translate(15,1)`)
+				.call(cAxis);
+		}
+
+	}
 
 
 }
