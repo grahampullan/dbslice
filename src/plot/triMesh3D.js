@@ -15,7 +15,7 @@ class TriMesh3D extends Plot {
     constructor(options) {
 		if (!options) { options = {} }
 		options.layout = options.layout || {};
-		options.layout.margin = options.layout.margin || {top:20, right:0, bottom:0, left:0};
+		options.layout.margin = options.layout.margin || {top:2, right:0, bottom:0, left:0};
 		if (options.layout.twoDSameScale == undefined) {
 			options.layout.twoDSameScale = true;
 		}
