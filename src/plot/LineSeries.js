@@ -708,40 +708,14 @@ class LineSeries extends Plot {
 
     addCutLines() {
         if ( !this.cuts.length ) return;
-        const plotArea = d3.select(`#${this.id}`).select(".plot-area");
-        const boundCutLineDragStart = cutLineDragStart.bind(this);
-        const boundCutLineDragged = cutLineDragged.bind(this);
-        const boundCutLineDragEnd = cutLineDragEnd.bind(this);
-        this.cuts.forEach( cut => {
-            if ( cut.lineAdded ) return;
-            const dimensionName = cut.dimensionName;
-            let cutLine = plotArea.select(`#${dimensionName}-cut-line`);
-            if ( cutLine.empty() ) {
-                cutLine = plotArea.append("path")
-                    .attr("class","cut-line")
-                    .attr("id", `${dimensionName}-cut-line`)
-                    .attr("fill", "none")
-                    .attr("stroke", "#d0d5db")
-                    .attr("stroke-width", 3)
-                    .style("opacity",0.9)
-                    .attr("d", "")
-                    .attr("clip-path", `url(#${this.id}-clip)`)
-                    .call(d3.drag()
-                        .on("start", (event) => boundCutLineDragStart(event, dimensionName))
-                        .on("drag", (event) => boundCutLineDragged(event, dimensionName))
-                        .on("end", (event) => boundCutLineDragEnd(event, dimensionName)));   
-                this.setCutLinePosition(dimensionName);
-            }
-            cut.lineAdded = true;
-        });
 
-        function cutLineDragStart(event,dimensionName) {
+        const cutLineDragStart = (event,dimensionName) => {
             const cut = this.cuts.find( d => d.dimensionName == dimensionName );
             cut.brushing = true;
             this.setCutLinePosition(dimensionName);
         }
 
-        function cutLineDragged(event,dimensionName) {
+        const cutLineDragged = (event,dimensionName) => {
             const cut = this.cuts.find( d => d.dimensionName == dimensionName );
             const margin = 3;
             const dx = Math.abs(this.xScale.invert(margin) - this.xScale.invert(0));
@@ -760,13 +734,39 @@ class LineSeries extends Plot {
             this.setCutLinePosition(dimensionName);
         }
 
-        function cutLineDragEnd(event,dimensionName) {
+        const cutLineDragEnd = (event,dimensionName) => {
             const cut = this.cuts.find( d => d.dimensionName == dimensionName );
             cut.brushing = false;
             const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
             requestSetDimension.state = { name:dimensionName, dimensionState:{value:cut.value, brushing:cut.brushing }};
             this.setCutLinePosition(dimensionName);
         }
+
+        const plotArea = d3.select(`#${this.id}`).select(".plot-area");
+        this.cuts.forEach( cut => {
+            if ( cut.lineAdded ) return;
+            const dimensionName = cut.dimensionName;
+            let cutLine = plotArea.select(`#${dimensionName}-cut-line`);
+            if ( cutLine.empty() ) {
+                cutLine = plotArea.append("path")
+                    .attr("class","cut-line")
+                    .attr("id", `${dimensionName}-cut-line`)
+                    .attr("fill", "none")
+                    .attr("stroke", "#d0d5db")
+                    .attr("stroke-width", 3)
+                    .style("opacity",0.9)
+                    .attr("d", "")
+                    .attr("clip-path", `url(#${this.id}-clip)`)
+                    .call(d3.drag()
+                        .on("start", (event) => cutLineDragStart(event, dimensionName))
+                        .on("drag", (event) => cutLineDragged(event, dimensionName))
+                        .on("end", (event) => cutLineDragEnd(event, dimensionName)));   
+                this.setCutLinePosition(dimensionName);
+            }
+            cut.lineAdded = true;
+        });
+
+        
     }
 
     setCutLinePosition(dimensionName) {

@@ -8,7 +8,6 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Plot } from './Plot.js';
 import { makeQuadTree, getLine } from './cutQuadTrees.js';
-import { point } from 'leaflet';
 
 class TriMesh3D extends Plot {
 
@@ -102,16 +101,8 @@ class TriMesh3D extends Plot {
 		const timeSync = layout.timeSync;
 		const plotGroupId = this.ancestorIds[this.ancestorIds.length-1];
 		const sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
-		const pointer = this.pointer;
 
 		const boundUpdateSurfaces = updateSurfaces.bind(this);
-		const boundRenderScene = this.renderScene.bind(this);
-		const boundGetCutLine = this.getCutLine.bind(this);
-		const boundWebGLUpdate = this.webGLUpdate.bind(this);
-		const boundCheckOnCutLine = checkOnCutLine.bind(this);
-		const boundCutLineDragged = cutLineDragged.bind(this);
-		const boundCutLineDragEnd = cutLineDragEnd.bind(this);
-		const boundUpdatePointerPosition = updatePointerPosition.bind(this);
 
 		let iStep = 0;
 		
@@ -140,6 +131,9 @@ class TriMesh3D extends Plot {
 			this.makeQuadTrees();
 		}
 
+		//
+		// values range and colour scale
+		//
 		let vScale;
         if (layout.vScale === undefined) {
         	vScale = [0,1];
@@ -171,6 +165,10 @@ class TriMesh3D extends Plot {
 		tex.colorSpace = THREE.SRGBColorSpace;
 		tex.needsUpdate = true;
 
+		//
+		// this is deprecated way of handling multipe time steps
+		// should be converted to a dimension change handler
+		//
 		if ( nSteps > 1 ){
 			let timeSlider = plotArea.select(".time-slider");
             if ( timeSlider.empty() ) {
@@ -202,8 +200,6 @@ class TriMesh3D extends Plot {
 				timeSlider.attr("max", nSteps-1);
 			}
 		}
-
-
 
 		if (this.watchedTime !== undefined) {
 			iStep = this.watchedTime.iStep;
@@ -239,16 +235,14 @@ class TriMesh3D extends Plot {
 			const light = new THREE.DirectionalLight( 0xffffff, 1.0 );
 			this.scene.add( light );
 			this.light = light;
+
+			// materials for surface rendering
+			//const materialCol = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+			this.materialCol = new THREE.MeshLambertMaterial( { color:0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+			this.materialGrey = new THREE.MeshLambertMaterial( { color: 0xaaaaaa, side: THREE.DoubleSide, wireframe:false } );
 		}
 
-
-
-
-		// materials for surface rendering
-		//const materialCol = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-		const materialCol = new THREE.MeshLambertMaterial( { color:0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-		const materialGrey = new THREE.MeshLambertMaterial( { color: 0xaaaaaa, side: THREE.DoubleSide, wireframe:false } );
-
+		
 		// get ranges
 		const xRanges = offsets[iStep].map(d => d.xRange);
 		const yRanges = offsets[iStep].map(d => d.yRange);
@@ -277,7 +271,6 @@ class TriMesh3D extends Plot {
 			this.twoD=true;
 		}
 
-		
 		//
 		// add all surfaces to scene
 		//
@@ -301,14 +294,14 @@ class TriMesh3D extends Plot {
 			let material;
 			if ( surfFlags !== undefined ) {
 				if ( surfFlags[iSurf] == -1 ) {
-					material = materialGrey;
+					material = this.materialGrey;
 				} else {
-					material = materialCol;
+					material = this.materialCol;
 					material.transparent = true;
 					material.opacity = surfFlags[iSurf];
 				} 
 			} else {
-				material = materialCol;
+				material = this.materialCol;
 			}
 			material.stencilWrite = true;
         	material.stencilRef = 1;
@@ -374,85 +367,20 @@ class TriMesh3D extends Plot {
 				}
 				this.light.position.copy( this.camera.position );
 				this.addAxes();
-				boundWebGLUpdate();
+				this.webGLUpdate();
 			} ); 
 			controls.enableZoom = true; 
 			this.controls = controls;
 		}
 	
-
 		this.addCutLines(); // add cut lines to scene
-		// add cut line interactions
-		if (this.cuts.length > 0 && !this.cutInteractionAdded) { 
-			const cutLineDrag = d3.drag()
-				.on("drag", boundCutLineDragged)
-				.on("end", boundCutLineDragEnd);
-			plotArea.call(cutLineDrag);
-			plotArea.node().addEventListener("pointerdown", boundCheckOnCutLine, true);
-			this.cutInteractionAdded = true;
-		}
 
 		if (!this.renderObserverId) {
-			this.renderObserverId = requestWebGLRender.subscribeWithData({observer:boundRenderScene, data:{boxId:this.boxId}});
+			this.renderObserverId = requestWebGLRender.subscribeWithData({observer:this.renderScene.bind(this), data:{boxId:this.boxId}});
 			this.subscriptions.push({observable:requestWebGLRender, id:this.renderObserverId});
 		}
 		
-		function checkOnCutLine(event) {
-			boundUpdatePointerPosition(event);
-			const raycaster = this.raycaster;
-			raycaster.setFromCamera( this.pointer, this.camera );
-			this.cuts.forEach( cut => {
-				const intersects = raycaster.intersectObject( cut.line );
-				if (intersects.length > 0) {
-					cut.lineDragging = true;
-					cut.line.material.color.set(0x42d4f5);
-					this.cutLineDragging = true;
-					this.controls.enabled = false;
-					this.webGLUpdate();
-				}
-			});
-		}
-
-		function cutLineDragged(event) {
-			if (this.cutLineDragging) {
-				const cut = this.cuts.find( cut => cut.lineDragging );
-				boundUpdatePointerPosition(event.sourceEvent);
-				const raycaster = this.raycaster;
-				raycaster.setFromCamera( this.pointer, this.camera );
-				const planeNormal = new THREE.Vector3(1, 0, 0);
-				const plane = new THREE.Plane(planeNormal);
-				const planeIntersect = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
-				if (planeIntersect) {
-					cut.point = planeIntersect;
-					cut.brushing = true;
-					this.setCutValue(cut.dimensionName);
-					boundGetCutLine(cut.dimensionName);
-				}
-			}
-		}
-
-		function cutLineDragEnd() {
-			if (this.cutLineDragging) {
-				const cut = this.cuts.find( cut => cut.lineDragging );
-				cut.line.material.color.set(0xd0d5db);
-				cut.lineDragging = false;
-				this.cutLineDragging = false;
-				cut.brushing = false;
-				this.setCutValue(cut.dimensionName);
-			}				
-			this.controls.enabled = true;
-		}
-
-		
-		function updatePointerPosition(event) {
-			const plotArea = d3.select(`#${this.id}`).select(".plot-area");
-			const rect = plotArea.node().getBoundingClientRect();
-			const width = rect.width;
-			const height = rect.height;
-			pointer.x = ( event.clientX - rect.left ) / width * 2 - 1;
-			pointer.y = - ( event.clientY - rect.top ) / height * 2 + 1;
-		}
-
+		// needs updating to handle dimension change
 		function timeStepSliderChange() {
 			iStep = this.value;
 			//if ( layout.xCut) {
@@ -470,6 +398,7 @@ class TriMesh3D extends Plot {
 			//}
 		}
 
+		// needs updating to handle dimension change
 		function updateSurfaces(iStep) {
 			const meshUuids = this.meshUuids;
 			const surfFlags = this.layout.surfFlags;
@@ -490,12 +419,12 @@ class TriMesh3D extends Plot {
 				let material;
 				if ( surfFlags !== undefined ) {
 					if ( surfFlags[iSurf] == -1 ) {
-						material = materialGrey;
+						material = this.materialGrey;
 					} else {
-						material = materialCol;
+						material = this.materialCol;
 					} 
 				} else {
-					material = materialCol;
+					material = this.materialCol;
 				}
 				material.stencilWrite = true;
         		material.stencilRef = 1;
@@ -712,7 +641,7 @@ class TriMesh3D extends Plot {
 			container.style("outline-width","0px");
  		} else {
 			container.style("outline-width","0px")
-			highlightItemIds.forEach( function (itemId) {
+			highlightItemIds.forEach( (itemId) => {
 				if ( itemId == thisItemId ) {
                     container
                         .style("outline-style","solid")
@@ -720,7 +649,7 @@ class TriMesh3D extends Plot {
                         .style("outline-width","4px")
                         .style("outline-offset","0px");
                     box.raise();
-					boundWebGLUpdate();
+					this.webGLUpdate();
 				}
             });
         }
@@ -952,7 +881,75 @@ class TriMesh3D extends Plot {
 			cut.lineAdded = true;
 			this.getCutLine(cut.dimensionName);
 			this.scene.add( line );
+
+			
 		});
+
+
+
+		// add cut line interactions
+		const updatePointerPosition = (event) => {
+			const plotArea = d3.select(`#${this.id}`).select(".plot-area");
+			const rect = plotArea.node().getBoundingClientRect();
+			const width = rect.width;
+			const height = rect.height;
+			this.pointer.x = ( event.clientX - rect.left ) / width * 2 - 1;
+			this.pointer.y = - ( event.clientY - rect.top ) / height * 2 + 1;
+		}
+
+		const checkOnCutLine = (event) => {
+			updatePointerPosition(event);
+			this.raycaster.setFromCamera( this.pointer, this.camera );
+			this.cuts.forEach( cut => {
+				const intersects = this.raycaster.intersectObject( cut.line );
+				if (intersects.length > 0) {
+					cut.lineDragging = true;
+					cut.line.material.color.set(0x42d4f5);
+					this.cutLineDragging = true;
+					this.controls.enabled = false;
+					this.webGLUpdate();
+				}
+			});
+		}
+
+		const cutLineDragged = (event) => {
+			if (this.cutLineDragging) {
+				const cut = this.cuts.find( cut => cut.lineDragging );
+				updatePointerPosition(event.sourceEvent);
+				this.raycaster.setFromCamera( this.pointer, this.camera );
+				const planeNormal = new THREE.Vector3(1, 0, 0);
+				const plane = new THREE.Plane(planeNormal);
+				const planeIntersect = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+				if (planeIntersect) {
+					cut.point = planeIntersect;
+					cut.brushing = true;
+					this.setCutValue(cut.dimensionName);
+					this.getCutLine(cut.dimensionName);
+				}
+			}
+		}
+
+		const cutLineDragEnd = () => {
+			if (this.cutLineDragging) {
+				const cut = this.cuts.find( cut => cut.lineDragging );
+				cut.line.material.color.set(0xd0d5db);
+				cut.lineDragging = false;
+				this.cutLineDragging = false;
+				cut.brushing = false;
+				this.setCutValue(cut.dimensionName);
+			}				
+			this.controls.enabled = true;
+		}
+
+		const plotArea = d3.select(`#${this.id}`).select(".plot-area");
+		const cutLineDrag = d3.drag()
+			.on("drag", cutLineDragged)
+			.on("end", cutLineDragEnd);
+		plotArea.call(cutLineDrag);
+		plotArea.node().addEventListener("pointerdown", checkOnCutLine, true);
+		this.cutInteractionAdded = true;
+		
+
 	}
 
 	handleDimensionChange() {
