@@ -10,6 +10,7 @@ class PlotGroup extends Plot {
 		if (!options) { options={} }
 		super(options);
         this.ctrl = options.ctrl || null;
+        this.componentType = options.componentType || "PlotGroup";
     }
 
     make() {

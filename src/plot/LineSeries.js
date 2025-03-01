@@ -12,6 +12,7 @@ class LineSeries extends Plot {
         options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
         super(options);
+        this.componentType = "LineSeries";
     }
 
     make() {

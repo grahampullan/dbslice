@@ -49,6 +49,11 @@ class Board extends bbBoard {
     }
 
     boardClick() {
+        console.log("board click");
+        if (this.boxes.length > 0) {
+            console.log(this.boxes[0].toJson());
+            console.log(this.boxes[0].boxes[0].toJson());
+        }
         if (!this.plotGroupDrop) {
             this.plotGroupModal();
         } else {

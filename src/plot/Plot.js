@@ -20,11 +20,14 @@ class Plot extends Component {
         this.layout = options.layout || {};
         this.layout.icons = this.layout.icons || [];
         this.layout.margin = this.layout.margin || {top: 0, right: 0, bottom: 0, left: 0};
+        this.layout.marginAdd = {top: 0, right: 0, bottom: 0, left: 0};
         this.data = options.data || {};
         this.fetchData = options.fetchData || null;
         this.headerOffset = 0;
         this.newData = true;
         this.fetchDataNow = true;
+        this.dataToJson = false;
+        this.componentType = null;
         this.icons = [];
         this.subscriptions = [];
         this.setCommonIcons();
@@ -49,19 +52,21 @@ class Plot extends Component {
     }
 
     get plotAreaWidth() {
-        return this.width - this.layout.margin.left - this.layout.margin.right;
+        return this.width - this.layout.margin.left - this.layout.margin.right
+            - this.layout.marginAdd.left - this.layout.marginAdd.right;
     }
 
     get plotAreaHeight() {
-        return this.height - this.layout.margin.top - this.layout.margin.bottom - this.headerOffset;
+        return this.height - this.layout.margin.top - this.layout.margin.bottom - this.headerOffset
+            - this.layout.marginAdd.top - this.layout.marginAdd.bottom;
     }
 
     get plotAreaLeft() {
-        return this.layout.margin.left;
+        return this.layout.margin.left + this.layout.marginAdd.left;
     }
 
     get plotAreaTop() {
-        return this.layout.margin.top + this.headerOffset;
+        return this.layout.margin.top + this.headerOffset + this.layout.marginAdd.top;
     }
 
     get plotAreaId() {
@@ -534,6 +539,22 @@ class Plot extends Component {
             sdists : []
         };
         return cut;
+    }
+
+    toJson() {
+        let dataForJson;
+        if (this.dataToJson) {
+            dataForJson = this.data;
+        } else {
+            dataForJson = null;
+        }
+        const json = {
+            layout : this.layout,
+            data : dataForJson,
+            fetchData : this.fetchData,
+            type : this.componentType
+        };
+        return json;
     }
     
 }

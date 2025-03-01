@@ -18,16 +18,17 @@ class TriMesh3D extends Plot {
 		if (options.layout.twoDSameScale == undefined) {
 			options.layout.twoDSameScale = true;
 		}
-		if (options.layout.showXAxis) {
-			options.layout.margin.bottom += 20;
-		}
-		if (options.layout.showYAxis) {
-			options.layout.margin.left += 35;
-		}
-		if (options.layout.showColorBar) {
-			options.layout.margin.right += 50;
-		}
         super(options);
+		if (this.layout.showXAxis) {
+			this.layout.marginAdd.bottom += 20;
+		}
+		if (this.layout.showYAxis) {
+			this.layout.marginAdd.left += 35;
+		}
+		if (this.layout.showColorBar) {
+			this.layout.marginAdd.right += 50;
+		}
+		this.componentType = "TriMesh3D";
 		this.stencilRects = [];
 		this.meshUuids = [];
     }
