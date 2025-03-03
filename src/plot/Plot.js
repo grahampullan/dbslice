@@ -20,11 +20,14 @@ class Plot extends Component {
         this.layout = options.layout || {};
         this.layout.icons = this.layout.icons || [];
         this.layout.margin = this.layout.margin || {top: 0, right: 0, bottom: 0, left: 0};
+        this.marginAdd = {top: 0, right: 0, bottom: 0, left: 0};
         this.data = options.data || {};
         this.fetchData = options.fetchData || null;
         this.headerOffset = 0;
         this.newData = true;
         this.fetchDataNow = true;
+        this.dataToJson = false;
+        this.componentType = null;
         this.icons = [];
         this.subscriptions = [];
         this.setCommonIcons();
@@ -49,19 +52,30 @@ class Plot extends Component {
     }
 
     get plotAreaWidth() {
-        return this.width - this.layout.margin.left - this.layout.margin.right;
+        return this.width - this.layout.margin.left - this.layout.margin.right
+            - this.marginAdd.left - this.marginAdd.right;
     }
 
     get plotAreaHeight() {
-        return this.height - this.layout.margin.top - this.layout.margin.bottom - this.headerOffset;
+        return this.height - this.layout.margin.top - this.layout.margin.bottom - this.headerOffset
+            - this.marginAdd.top - this.marginAdd.bottom;
     }
 
     get plotAreaLeft() {
-        return this.layout.margin.left;
+        return this.layout.margin.left + this.marginAdd.left;
     }
 
     get plotAreaTop() {
-        return this.layout.margin.top + this.headerOffset;
+        return this.layout.margin.top + this.headerOffset + this.marginAdd.top;
+    }
+
+    get marginTotal() {
+        return {
+            top: this.layout.margin.top + this.marginAdd.top,
+            right: this.layout.margin.right + this.marginAdd.right,
+            bottom: this.layout.margin.bottom + this.marginAdd.bottom,
+            left: this.layout.margin.left + this.marginAdd.left
+        };
     }
 
     get plotAreaId() {
@@ -534,6 +548,23 @@ class Plot extends Component {
             sdists : []
         };
         return cut;
+    }
+
+    toJson() {
+        let dataForJson;
+        if (this.dataToJson) {
+            dataForJson = this.data;
+        } else {
+            dataForJson = null;
+        }
+        const json = {
+            layout : this.layout,
+            data : dataForJson,
+            fetchData : this.fetchData || null,
+            type : this.componentType,
+            ctrl : this.ctrl || null,
+        };
+        return json;
     }
     
 }

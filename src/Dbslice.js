@@ -47,6 +47,7 @@ export { MetaDataScatter } from './plot/MetaDataScatter.js';
 export { MetaDataHistogram } from './plot/MetaDataHistogram.js';
 export { MetaDataBarChart } from './plot/MetaDataBarChart.js';
 export { MetaDataRankCorrBarChart } from './plot/MetaDataRankCorrBarChart.js';
+//export { createBoardFromJson } from './core/dbsliceControl.js';
 
 
 
