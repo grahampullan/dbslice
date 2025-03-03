@@ -20,7 +20,7 @@ class Plot extends Component {
         this.layout = options.layout || {};
         this.layout.icons = this.layout.icons || [];
         this.layout.margin = this.layout.margin || {top: 0, right: 0, bottom: 0, left: 0};
-        this.layout.marginAdd = {top: 0, right: 0, bottom: 0, left: 0};
+        this.marginAdd = {top: 0, right: 0, bottom: 0, left: 0};
         this.data = options.data || {};
         this.fetchData = options.fetchData || null;
         this.headerOffset = 0;
@@ -53,20 +53,29 @@ class Plot extends Component {
 
     get plotAreaWidth() {
         return this.width - this.layout.margin.left - this.layout.margin.right
-            - this.layout.marginAdd.left - this.layout.marginAdd.right;
+            - this.marginAdd.left - this.marginAdd.right;
     }
 
     get plotAreaHeight() {
         return this.height - this.layout.margin.top - this.layout.margin.bottom - this.headerOffset
-            - this.layout.marginAdd.top - this.layout.marginAdd.bottom;
+            - this.marginAdd.top - this.marginAdd.bottom;
     }
 
     get plotAreaLeft() {
-        return this.layout.margin.left + this.layout.marginAdd.left;
+        return this.layout.margin.left + this.marginAdd.left;
     }
 
     get plotAreaTop() {
-        return this.layout.margin.top + this.headerOffset + this.layout.marginAdd.top;
+        return this.layout.margin.top + this.headerOffset + this.marginAdd.top;
+    }
+
+    get marginTotal() {
+        return {
+            top: this.layout.margin.top + this.marginAdd.top,
+            right: this.layout.margin.right + this.marginAdd.right,
+            bottom: this.layout.margin.bottom + this.marginAdd.bottom,
+            left: this.layout.margin.left + this.marginAdd.left
+        };
     }
 
     get plotAreaId() {
@@ -551,8 +560,9 @@ class Plot extends Component {
         const json = {
             layout : this.layout,
             data : dataForJson,
-            fetchData : this.fetchData,
-            type : this.componentType
+            fetchData : this.fetchData || null,
+            type : this.componentType,
+            ctrl : this.ctrl || null,
         };
         return json;
     }

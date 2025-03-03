@@ -20,13 +20,13 @@ class TriMesh3D extends Plot {
 		}
         super(options);
 		if (this.layout.showXAxis) {
-			this.layout.marginAdd.bottom += 20;
+			this.marginAdd.bottom += 20;
 		}
 		if (this.layout.showYAxis) {
-			this.layout.marginAdd.left += 35;
+			this.marginAdd.left += 35;
 		}
 		if (this.layout.showColorBar) {
-			this.layout.marginAdd.right += 50;
+			this.marginAdd.right += 50;
 		}
 		this.componentType = "TriMesh3D";
 		this.stencilRects = [];
@@ -53,9 +53,9 @@ class TriMesh3D extends Plot {
 			.style("position","absolute")
 			.style("pointer-events", "none")
 			.style("top",`${this.plotAreaTop}px`)
-			.style("left",`${this.plotAreaLeft - this.layout.margin.left}px`)
-			.attr("width", `${this.plotAreaWidth + this.layout.margin.left + this.layout.margin.right}`)
-			.attr("height", `${this.plotAreaHeight + this.layout.margin.bottom}`);
+			.style("left",`${this.plotAreaLeft - this.marginTotal.left}px`)
+			.attr("width", `${this.plotAreaWidth + this.marginTotal.left + this.marginTotal.right}`)
+			.attr("height", `${this.plotAreaHeight + this.marginTotal.bottom}`);
 
 		if (this.layout.filterId) {
 			this.filterId = this.layout.filterId;
@@ -113,8 +113,8 @@ class TriMesh3D extends Plot {
 		this.updatePlotAreaSize();
 
 		overlay
-			.attr("width", width+this.layout.margin.left+this.layout.margin.right)
-			.attr("height", height+this.layout.margin.bottom);
+			.attr("width", width + this.marginTotal.left + this.marginTotal.right)
+			.attr("height", height + this.marginTotal.bottom);
 
 		this.setLasts();
 		this.addAxes();
@@ -991,7 +991,7 @@ class TriMesh3D extends Plot {
 			if (gX.empty()) {
 				overlay.append("g")
 					.attr("class","x-axis")
-					.attr("transform",`translate(${this.layout.margin.left},${this.plotAreaHeight+standOff})`)
+					.attr("transform",`translate(${this.marginTotal.left},${this.plotAreaHeight+standOff})`)
 					.style("pointer-events","bounding-box")
 					.call(xAxis)
 					.call(d3.zoom().on("zoom", (event) => {
@@ -1004,7 +1004,7 @@ class TriMesh3D extends Plot {
 						this.addAxes();
 					}));	
 			} else {
-				gX.attr("transform",`translate(${this.layout.margin.left},${this.plotAreaHeight+standOff})`)
+				gX.attr("transform",`translate(${this.marginTotal.left},${this.plotAreaHeight+standOff})`)
 				.call(xAxis);
 			}
 		}
@@ -1018,7 +1018,7 @@ class TriMesh3D extends Plot {
 			if (gY.empty()) {
 				overlay.append("g")
 					.attr("class","y-axis")
-					.attr("transform",`translate(${this.layout.margin.left-standOff},0)`)
+					.attr("transform",`translate(${this.marginTotal.left-standOff},0)`)
 					.style("pointer-events","bounding-box")
 					.call(yAxis)
 					.call(d3.zoom().on("zoom", (event) => {
@@ -1031,7 +1031,7 @@ class TriMesh3D extends Plot {
 						this.addAxes();
 					}));	
 			} else {
-				gY.attr("transform",`translate(${this.layout.margin.left-standOff},0)`)
+				gY.attr("transform",`translate(${this.marginTotal.left-standOff},0)`)
 					.call(yAxis);
 			}
 		}
@@ -1051,7 +1051,7 @@ class TriMesh3D extends Plot {
 				.attr("class","scale-area")
 		}
 		scaleArea
-			.attr("transform",`translate(${this.plotAreaWidth+this.layout.margin.left+5},${this.layout.margin.top})`);
+			.attr("transform",`translate(${this.plotAreaWidth+this.layout.margin.left+this.layout.marginAdd.left+5},${this.layout.margin.top})`);
 		
 		scaleArea.selectAll(".scale-bar").remove();
 		

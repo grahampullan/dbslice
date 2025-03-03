@@ -1,5 +1,8 @@
 import { Context as bbContext } from 'board-box';
 import { Observable } from 'board-box';
+import { getComponentFromType } from '../plot/getComponentFromType.js';
+import { Box } from './Box.js';
+import { Board } from './Board.js';
 import * as d3 from 'd3v7';
 import * as THREE from 'three';
 
@@ -109,6 +112,48 @@ class Context extends bbContext {
         }
     }
 
+    addBoardFromJson(boardJson) {
+        const createBoxFromJson = (boxJson) => { 
+            const position = boxJson.position;
+            const options = boxJson.options;
+            const comp = boxJson.component;
+            const layout = comp.layout;
+            const data = comp.data;
+            const fetchData = comp.fetchData;
+            const type = comp.type;
+            const ctrl = comp.ctrl;
+            const componentClass = getComponentFromType(type);
+            const component = new componentClass({layout, data, fetchData, type, ctrl});
+            const box = new Box({...position, ...options, component});
+            return box;
+        }
+
+        const addBoxesToBox = (parentBox, boxesJson) => {
+            boxesJson.forEach( boxJson => {
+                const box = createBoxFromJson(boxJson);
+                parentBox.addBox(box);
+                if (boxJson.boxes.length > 0) {
+                    addBoxesToBox(box, boxJson.boxes);
+                }
+            });
+        }
+
+        const board = new Board(boardJson.position);
+        board.showPlotGroupModalOnStart = false;
+        this.addBoard(board);
+
+        boardJson.boxes.forEach( boxJson => {
+            const box = createBoxFromJson(boxJson);
+            board.addBox(box);
+            if (boxJson.boxes.length > 0) {
+                addBoxesToBox(box, boxJson.boxes);
+            }
+        });
+            
+        console.log(board);
+        return board;
+
+    }
 }
 
 export { Context };
