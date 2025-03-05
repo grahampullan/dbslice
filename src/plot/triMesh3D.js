@@ -976,6 +976,8 @@ class TriMesh3D extends Plot {
 		const intersectTopRight = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
 		const xRangeVisible = [intersectBottomLeft.y, intersectTopRight.y];
 		const yRangeVisible = [intersectBottomLeft.z, intersectTopRight.z];
+		this.xRangeVisible = xRangeVisible;
+		this.yRangeVisible = yRangeVisible;
 
 		const xScale = d3.scaleLinear().domain(xRangeVisible).range([0, this.plotAreaWidth]);
 		const yScale = d3.scaleLinear().domain(yRangeVisible).range([this.plotAreaHeight, 0]);
