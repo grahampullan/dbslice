@@ -411,7 +411,16 @@ class LineSeries extends Plot {
             gX = plotArea.append("g")
                 .attr( "transform", `translate(0,${height})` )
                 .attr( "class", "axis-x")
-                .call( xAxis );
+                .style("pointer-events","bounding-box")
+                .call( xAxis )
+                .call( d3.zoom().on("zoom", (event) => {
+                    xScale.domain(event.transform.rescaleX(xScale0).domain());
+                    gX.call(xAxis);
+                    plotArea.selectAll(".line").attr( "d", d => line( d.data ) );
+                    plotArea.selectAll(".area").attr( "d", d => area( d.data ) );
+                    plotArea.selectAll(".mean-line").attr( "d", d => line( d.data ) );
+                    this.cuts.forEach( cut => this.setCutLinePosition(cut.dimensionName) );
+                }));
             gX.append("text")
                 .attr("class","x-axis-text")
                 .attr("fill", "#000")
@@ -429,7 +438,17 @@ class LineSeries extends Plot {
         if ( gY.empty() ) {
             gY = plotArea.append("g")
                 .attr( "class", "axis-y")
-                .call( yAxis );
+                .style("pointer-events","bounding-box")
+                .call( yAxis )
+                .call( d3.zoom().on("zoom", (event) => {
+                    yScale.domain(event.transform.rescaleY(yScale0).domain());
+                    gY.call(yAxis);
+                    plotArea.selectAll(".line").attr( "d", d => line( d.data ) );
+                    plotArea.selectAll(".area").attr( "d", d => area( d.data ) );
+                    plotArea.selectAll(".mean-line").attr( "d", d => line( d.data ) );
+                    this.cuts.forEach( cut => this.setCutLinePosition(cut.dimensionName) );
+                })); 
+
             gY.append("text")
                     .attr("fill", "#000")
                     .attr("transform", "rotate(-90)")
