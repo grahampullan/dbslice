@@ -2,6 +2,8 @@ import { Board as bbBoard, Observable } from 'board-box';
 import { PlotGroup } from '../plot/PlotGroup.js';
 import { Box } from './Box.js';
 import * as d3 from 'd3v7';
+import { icon } from '@fortawesome/fontawesome-svg-core';
+import { faDownload  } from '@fortawesome/free-solid-svg-icons';
 //import cloneDeep from 'lodash/cloneDeep';
 
 class Board extends bbBoard {
@@ -12,6 +14,11 @@ class Board extends bbBoard {
         requestWebGLRender.subscribe(this.webGLRenderOrderUpdate.bind(this));
         const requestSetTrafficLightColor = new Observable({flag:false, state:"green"});
         requestSetTrafficLightColor.subscribe( this.setTrafficLightColor.bind(this) );
+        if (options.downloadIcon === undefined) {
+            this.downloadIcon = true;
+        } else {
+            this.downloadIcon = options.downloadIcon;
+        }
         this.sharedState = {...this.sharedState, requestWebGLRender, requestSetTrafficLightColor}; 
         this.fetchCount = 0;
     }
@@ -30,12 +37,48 @@ class Board extends bbBoard {
                 .attr("class", "modal-content")
                 .attr("id", `${this.id}-modal-content`);
         boardDiv.on("click", boundBoardClick);
-        boardDiv.append("svg")
+        const boardTopRightContainer = boardDiv.append("div")
+            .attr("class", "board-top-right-container")
+            .style("position", "absolute")
+            .style("top", "3px")
+            .style("right", "3px")
+            .style("display", "flex")
+            .style("align-items", "center")
+            .style("pointer-events", "auto")
+            .style("border", "1px solid lightgrey")
+            .style("border-radius", "4px")
+            .style("background-color", "white")
+            .style("padding", "2px");
+        const boardIconsContainer = boardTopRightContainer.append("div")
+            .attr("class", "board-icons-container plot-icons");
+        const boardTafficLightContainer = boardTopRightContainer.append("div")
+            .attr("class", "board-traffic-light-container plot-icons")
+            .style("width", "20px")
+            .style("height", "20px");
+
+        if (this.downloadIcon) {
+            boardIconsContainer.append("div")
+                .attr("class", "plot-icon")
+                .style("display", "flex")
+                .style("justify-content", "center")
+                .style("align-items", "center")
+                .style("border-radius", "4px")
+                .style("background-color", "lightgrey" )
+                .style("width", "20px")
+                .style("height", "20px")
+                .html(icon(faDownload).html)
+                .on("click", (event) => {
+                    event.stopPropagation();
+                    this.downloadJson();
+                });
+        }
+
+        boardTafficLightContainer.append("svg")
+            .style("display", "flex")
+            .style("justify-content", "center")
+            .style("align-items", "center")
             .attr("width", 20)
             .attr("height", 20)
-            .style("position", "absolute")
-            .style("top", "0")
-            .style("right", "0")
             .append("circle")
                 .attr("class", "board-traffic-light")
                 .attr("cx", 10)
