@@ -2,6 +2,7 @@ import { Plot } from './Plot.js';
 import { Box } from '../core/Box.js';
 import { TriMesh3D } from './TriMesh3D.js';
 import { Observable } from 'board-box';
+import { getComponentFromType } from './getComponentFromType.js';
 import * as d3 from 'd3v7'
 
 class PlotGroup extends Plot {
@@ -81,7 +82,8 @@ class PlotGroup extends Plot {
             }
             plotFetchData.url = url;
             const plotOptions = {itemId, fetchData:plotFetchData, layout:plotLayout};
-            const plot = new TriMesh3D(plotOptions);
+            const componentClass = getComponentFromType(ctrl.type);
+            const plot = new componentClass(plotOptions);
             const box = new Box({x:0, y:0, width:ctrl.layout.width, height:ctrl.layout.height, component: plot });
             boxesToAdd.push(box);
         });
