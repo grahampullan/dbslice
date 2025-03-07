@@ -113,6 +113,7 @@ class Context extends bbContext {
     }
 
     addBoardFromJson(boardJson) {
+        /*
         const createBoxFromJson = (boxJson) => { 
             const position = boxJson.position;
             const options = boxJson.options;
@@ -126,7 +127,7 @@ class Context extends bbContext {
             const component = new componentClass({layout, data, fetchData, type, ctrl});
             const box = new Box({...position, ...options, component});
             return box;
-        }
+        }*/
 
         const addBoxesToBox = (parentBox, boxesJson) => {
             boxesJson.forEach( boxJson => {
@@ -154,6 +155,22 @@ class Context extends bbContext {
         return board;
 
     }
+   
 }
 
-export { Context };
+function createBoxFromJson(boxJson) { 
+    const position = boxJson.position || {x:0, y:0, width:250, height:250};
+    const options = boxJson.options || {};
+    const comp = boxJson.component;
+    const layout = comp.layout || {};
+    const data = comp.data || null;
+    const fetchData = comp.fetchData || null;
+    const type = comp.type;
+    const ctrl = comp.ctrl || null;
+    const componentClass = getComponentFromType(type);
+    const component = new componentClass({layout, data, fetchData, type, ctrl});
+    const box = new Box({...position, ...options, component});
+    return box;
+}
+
+export { Context, createBoxFromJson };

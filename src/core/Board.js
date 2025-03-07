@@ -4,6 +4,7 @@ import { Box } from './Box.js';
 import * as d3 from 'd3v7';
 import { icon } from '@fortawesome/fontawesome-svg-core';
 import { faDownload  } from '@fortawesome/free-solid-svg-icons';
+import { createBoxFromJson } from './Context.js';
 //import cloneDeep from 'lodash/cloneDeep';
 
 class Board extends bbBoard {
@@ -153,7 +154,7 @@ class Board extends bbBoard {
     makePlotGroupDetailed() {
         this.detailedContainer = true;
         const dataset = this.sharedStateByAncestorId["context"].datasets[0];
-        const boxesToAdd = [...dataset.availablePlots];                 
+        const boxesToAdd = dataset.availablePlots.map( plotJson => createBoxFromJson(plotJson) );              
         const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:0, autoLayout:true, component: new PlotGroup({layout:{title:"Detail plots", icons:["filter"]}})});
         this.sharedState.requestUpdateBoxes.state = {boxesToAdd:[plotGroupBox]};
         const plotGroupBoxId = plotGroupBox.id;
