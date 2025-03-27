@@ -3,6 +3,7 @@ import { lineSeriesFromLines } from './lineSeriesFromLines.js';
 import { lineSeriesFromCsv } from './lineSeriesFromCsv.js';
 import { lineSeriesFromTimeSnapshotCsv } from './lineSeriesFromTimeSnapshotCsv.js'
 import { lineSeriesFromDerivedData } from './lineSeriesFromDerivedData.js'; 
+import { triMeshFromComponents } from './triMeshFromComponents.js';
 
 function getDataFilterFunc(dataFilterType) {
 
@@ -12,7 +13,8 @@ function getDataFilterFunc(dataFilterType) {
         'lineSeriesFromLines'           : lineSeriesFromLines,
         'lineSeriesFromCsv'             : lineSeriesFromCsv,
         'lineSeriesFromTimeSnapshotCsv' : lineSeriesFromTimeSnapshotCsv,
-        'lineSeriesFromDerivedData'     : lineSeriesFromDerivedData
+        'lineSeriesFromDerivedData'     : lineSeriesFromDerivedData,
+        'triMeshFromComponents'         : triMeshFromComponents
         
     };
     
