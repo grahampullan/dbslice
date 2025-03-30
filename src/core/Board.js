@@ -75,11 +75,6 @@ class Board extends bbBoard {
         }
 
         boardTafficLightContainer.append("svg")
-            .style("display", "flex")
-            .style("justify-content", "center")
-            .style("align-items", "center")
-            .attr("width", 20)
-            .attr("height", 20)
             .append("circle")
                 .attr("class", "board-traffic-light")
                 .attr("cx", 10)

@@ -1053,7 +1053,7 @@ class TriMesh3D extends Plot {
 				.attr("class","scale-area")
 		}
 		scaleArea
-			.attr("transform",`translate(${this.plotAreaWidth+this.layout.margin.left+this.layout.marginAdd.left+5},${this.layout.margin.top})`);
+			.attr("transform",`translate(${this.plotAreaWidth+this.layout.margin.left+this.marginAdd.left+5},${this.layout.margin.top+10})`);
 		
 		scaleArea.selectAll(".scale-bar").remove();
 		
