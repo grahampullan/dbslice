@@ -256,7 +256,6 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
         indx.forEach( (i, j) => {
             url = url.replace(`\${indx${j}}`, i);
         });
-
         let itemPromise = fetch(url).then(function( response ) {
 
             if ( fetchData.csv === undefined && fetchData.text === undefined && fetchData.buffer === undefined ) {
