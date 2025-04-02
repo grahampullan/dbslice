@@ -51,7 +51,12 @@ const cfD3Buttons = {
         const cfData = dbsliceData.session.cfData;
         const property = this.data.property;
         const dimId = this.dimId;
-        const buttonNames = cfData.categoricalUniqueValues[ property ];
+        const dim = cfData.categoricalDims[ dimId ];
+        const group = dim.group();
+        const buttonData = group.all();
+        buttonData.sort( (a,b) => a.key.localeCompare(b.key) );
+
+        //const buttonNames = cfData.categoricalUniqueValues[ property ];
 
         let colour;
 
@@ -72,7 +77,7 @@ const cfD3Buttons = {
             }
                 
         }
-        colour.domain( buttonNames );
+        colour.domain( buttonData.map( d => d.key ) );
 
         let numCols = this.layout.numCols;
         if ( numCols === undefined ) {
@@ -84,20 +89,22 @@ const cfD3Buttons = {
         buttonContainer.style("width", `${width}px`)
 
         const buttons = buttonContainer.selectAll(".grid-button")
-            .data( buttonNames );
+            .data( buttonData );
 
         buttons.enter()
             .append("button")
             .attr("class", "grid-button")
             .style("width", buttonWidth) 
-            .style("background-color", d => {let col=d3.rgb(colour( d )); col.opacity=0.8; return col;})
+            .style("background-color", d => {let col=d3.rgb(colour( d.key )); col.opacity=0.8; return col;})
             .on( "mouseover", ( event, d ) => {
-                let col=d3.rgb(colour( d )).brighter(0.50);
+                if (d.value === 0) return;
+                let col=d3.rgb(colour( d.key )).brighter(0.50);
                 col.opacity=0.8;
                 d3.select(event.target).style("background-color", col);
             })
             .on( "mouseout", ( event, d ) => {
-                let col=d3.rgb(colour( d ));
+                if (d.value === 0) return;
+                let col=d3.rgb(colour( d.key ));
                 col.opacity=0.8;
                 d3.select(event.target).style("background-color", col);
             })
@@ -105,28 +112,29 @@ const cfD3Buttons = {
             .style("border","none")
             .style("font-size", "1.0em")
             .style("margin", "2px")
-            .text( d => d ) 
+            .text( d => d.key ) 
             .style("white-space", "nowrap") 
             .style("overflow", "hidden") 
             .style("text-overflow", "ellipsis")
             .style("cursor", "pointer")
+            .attr("disabled", d => d.value === 0 ? true : null) 
             //.style("transition", "0.4s ease")
             .style( "opacity", ( d ) => {
                 if ( cfData.filterSelected[ dimId ] === undefined || cfData.filterSelected[ dimId ].length === 0 ) {
                     return 1.;
                 } else {
-                    return cfData.filterSelected[ dimId ].indexOf( d ) === -1 ? 0.2 : 1.;
+                    return cfData.filterSelected[ dimId ].indexOf( d.key ) === -1 ? 0.4 : 1.;
                 }
             })
             .on( "click", ( event, d ) => {
                 if ( cfData.filterSelected[ dimId ] === undefined ) {
                      cfData.filterSelected[ dimId ] = [];
                 }
-                if ( cfData.filterSelected[ dimId ].indexOf( d ) !== -1 ) {
-                    let ind = cfData.filterSelected[ dimId ].indexOf( d );
+                if ( cfData.filterSelected[ dimId ].indexOf( d.key ) !== -1 ) {
+                    let ind = cfData.filterSelected[ dimId ].indexOf( d.key );
                     cfData.filterSelected[ dimId ].splice( ind, 1 );
                 } else {
-                    cfData.filterSelected[ dimId ].push( d );
+                    cfData.filterSelected[ dimId ].push( d.key );
                 }
                 cfUpdateFilters(cfData);
                 dbsliceData.allowAutoFetch = true;
@@ -135,11 +143,18 @@ const cfD3Buttons = {
             });
             
         buttons
+            .attr("disabled", d => d.value === 0 ? true : null) 
+            .style("cursor",  d => d.value === 0 ? "not-allowed" : "pointer")
+            .style("background-color", d => {
+                let col = d3.rgb(colour( d.key )); 
+                col.opacity=0.8; 
+                if (d.value === 0) col = "lightgrey";
+                return col;})
             .style( "opacity", ( d ) => {
                 if ( cfData.filterSelected[ dimId ] === undefined || cfData.filterSelected[ dimId ].length === 0 ) {
                     return 1;
                 } else {
-                    return cfData.filterSelected[ dimId ].indexOf( d ) === -1 ? 0.2 : 1;
+                    return cfData.filterSelected[ dimId ].indexOf( d.key ) === -1 ? 0.4 : 1;
                 }
             });
         
