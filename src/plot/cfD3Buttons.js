@@ -19,7 +19,8 @@ const cfD3Buttons = {
         const background = container.append("div")
             .attr("class","button-background")
             .style("width", `${container.node().offsetWidth}px`)
-            .style("height", `${this.layout.height}px`);
+            .style("height", `${this.layout.height}px`)
+            .style("overflow-y", "auto");
         const div = background.append("div")
             .attr("class","button-container")
             .attr("id", `button-container-${this._prid}-${this._id}`)
@@ -49,14 +50,11 @@ const cfD3Buttons = {
         const height = layout.height - margin.top - margin.bottom;
 
         const cfData = dbsliceData.session.cfData;
-        const property = this.data.property;
         const dimId = this.dimId;
         const dim = cfData.categoricalDims[ dimId ];
         const group = dim.group();
         const buttonData = group.all();
         buttonData.sort( (a,b) => a.key.localeCompare(b.key) );
-
-        //const buttonNames = cfData.categoricalUniqueValues[ property ];
 
         let colour;
 
