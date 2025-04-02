@@ -20,7 +20,7 @@ class TriMesh3D extends Plot {
 		}
         super(options);
 		if (this.layout.showXAxis) {
-			this.marginAdd.bottom += 20;
+			this.marginAdd.bottom += 32;
 		}
 		if (this.layout.showYAxis) {
 			this.marginAdd.left += 35;
@@ -989,9 +989,9 @@ class TriMesh3D extends Plot {
 			if (this.layout.xTickNumber) {
 				xAxis.ticks(this.layout.xTickNumber);
 			}
-			const gX = overlay.select(".x-axis");
+			let gX = overlay.select(".x-axis");
 			if (gX.empty()) {
-				overlay.append("g")
+				gX = overlay.append("g")
 					.attr("class","x-axis")
 					.attr("transform",`translate(${this.marginTotal.left},${this.plotAreaHeight+standOff})`)
 					.style("pointer-events","bounding-box")
@@ -1004,10 +1004,18 @@ class TriMesh3D extends Plot {
 						this.camera.updateProjectionMatrix();
 						this.webGLUpdate();
 						this.addAxes();
-					}));	
+					}));
+				gX.append("text")
+					.attr("class","x-axis-text")
+					.attr("fill", "#000")
+					.attr("x", this.plotAreaWidth)
+					.attr("y", this.marginTotal.bottom-5)
+					.attr("text-anchor", "end")
+					.text(this.layout.xAxisLabel);	
 			} else {
 				gX.attr("transform",`translate(${this.marginTotal.left},${this.plotAreaHeight+standOff})`)
 				.call(xAxis);
+				gX.select(".x-axis-text").attr("x", this.plotAreaWidth);
 			}
 		}
 
@@ -1016,9 +1024,9 @@ class TriMesh3D extends Plot {
 			if (this.layout.yTickNumber) {
 				yAxis.ticks(this.layout.yTickNumber);
 			}
-			const gY = overlay.select(".y-axis");
+			let gY = overlay.select(".y-axis");
 			if (gY.empty()) {
-				overlay.append("g")
+				gY = overlay.append("g")
 					.attr("class","y-axis")
 					.attr("transform",`translate(${this.marginTotal.left-standOff},0)`)
 					.style("pointer-events","bounding-box")
@@ -1031,7 +1039,14 @@ class TriMesh3D extends Plot {
 						this.camera.updateProjectionMatrix();
 						this.webGLUpdate();
 						this.addAxes();
-					}));	
+					}));
+				gY.append("text")
+                    .attr("fill", "#000")
+                    .attr("transform", "rotate(-90)")
+                    .attr("x", 0)
+                    .attr("y", -this.marginTotal.left + 15)
+                    .attr("text-anchor", "end")
+                    .text(this.layout.yAxisLabel);	
 			} else {
 				gY.attr("transform",`translate(${this.marginTotal.left-standOff},0)`)
 					.call(yAxis);
