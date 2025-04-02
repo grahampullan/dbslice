@@ -7,7 +7,7 @@ const cfD3Buttons = {
 
     make : function() {
 
-        const marginDefault = {top: 20, right: 20, bottom: 20, left: 20};
+        const marginDefault = {top: 10, right: 10, bottom: 10, left: 10};
         const margin = ( this.layout.margin === undefined ) ? marginDefault  : this.layout.margin;
 
         const container = d3.select(`#${this.elementId}`);
