@@ -207,15 +207,15 @@ class GLTFViewer extends Plot {
 				camera = new THREE.PerspectiveCamera( 75, width/height,0.001 , 1000. );
 				camera.position.set( this.mid.x + this.rMax, this.mid.y, this.mid.z);
 			} else {
+				let xDiff = this.size.x;
 				let yDiff = this.size.y;
-				let zDiff = this.size.z;
-				let maxDiff = Math.max(yDiff, zDiff);
+				let maxDiff = Math.max(xDiff, yDiff);
 				if (this.layout.twoDSameScale) {
-					camera = new THREE.OrthographicCamera( -maxDiff, maxDiff, maxDiff, -maxDiff, 0.0001, 100000.);
+					camera = new THREE.OrthographicCamera( -maxDiff/2, maxDiff/2, maxDiff/2, -maxDiff/2, 0.0001, 100000.);
 				} else {
-					camera = new THREE.OrthographicCamera( -yDiff/2, yDiff/2, zDiff/2, -zDiff/2, 0.0001, 100000.);
+					camera = new THREE.OrthographicCamera( -xDiff/2, xDiff/2, yDiff/2, -yDiff/2, 0.0001, 100000.);
 				}
-				camera.position.set( this.mid.x + 5*this.rMax, this.mid.y, this.mid.z);
+				camera.position.set( this.mid.x, this.mid.y, this.mid.z + 5*this.rMax);
 			}
 			
 			camera.up.set(0,0,1);
@@ -727,7 +727,7 @@ class GLTFViewer extends Plot {
 		// get current visible range using raycasting intersecting background
 		const raycaster = new THREE.Raycaster();
 		const pointer = new THREE.Vector2();
-		const planeNormal = new THREE.Vector3(1, 0, 0);
+		const planeNormal = new THREE.Vector3(0, 0, 1);
 		const plane = new THREE.Plane(planeNormal);
 		pointer.x = -1;
 		pointer.y = -1;
@@ -737,8 +737,8 @@ class GLTFViewer extends Plot {
 		pointer.y = 1;
 		raycaster.setFromCamera( pointer, this.camera );
 		const intersectTopRight = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
-		const xRangeVisible = [intersectBottomLeft.y, intersectTopRight.y];
-		const yRangeVisible = [intersectBottomLeft.z, intersectTopRight.z];
+		const xRangeVisible = [intersectBottomLeft.x, intersectTopRight.x];
+		const yRangeVisible = [intersectBottomLeft.y, intersectTopRight.y];
 		this.xRangeVisible = xRangeVisible;
 		this.yRangeVisible = yRangeVisible;
 
@@ -761,9 +761,9 @@ class GLTFViewer extends Plot {
 					.call(xAxis)
 					.call(d3.zoom().on("zoom", (event) => {
 						const transform = event.transform;
-						let yDiff = this.yRange[1] - this.yRange[0]; 
-						this.camera.left = -1./transform.k * yDiff/2;
-						this.camera.right = 1./transform.k * yDiff/2;
+						let xDiff = this.size.x;
+						this.camera.left = -1./transform.k * xDiff/2;
+						this.camera.right = 1./transform.k * xDiff/2;
 						this.camera.updateProjectionMatrix();
 						this.webGLUpdate();
 						this.addAxes();
@@ -796,9 +796,9 @@ class GLTFViewer extends Plot {
 					.call(yAxis)
 					.call(d3.zoom().on("zoom", (event) => {
 						const transform = event.transform;
-						let zDiff = this.zRange[1] - this.zRange[0]; 
-						this.camera.top = 1./transform.k * zDiff/2;
-						this.camera.bottom = -1./transform.k * zDiff/2;
+						let yDiff = this.size.y;
+						this.camera.top = 1./transform.k * yDiff/2;
+						this.camera.bottom = -1./transform.k * yDiff/2;
 						this.camera.updateProjectionMatrix();
 						this.webGLUpdate();
 						this.addAxes();
@@ -923,6 +923,9 @@ class GLTFViewer extends Plot {
 			this.boundingBox.getSize(this.size);
 			this.rMax = Math.max(this.size.x, this.size.y, this.size.z);
 			this.radMax = Math.sqrt(this.size.y**2 + this.size.z**2);
+			if (this.size.z == 0) {
+				this.twoD = true;
+			}
 
 			return true;
 		} catch (error) {
