@@ -1,5 +1,6 @@
 import { PlotGroup } from './PlotGroup.js';
 import { TriMesh3D } from './TriMesh3D.js';
+import { GLTFViewer } from './GLTFViewer.js';
 import { LineSeries } from './LineSeries.js';
 import { DimensionSliders } from './DimensionSliders.js';
 import { MetaDataBarChart } from './MetaDataBarChart.js';
@@ -13,6 +14,7 @@ function getComponentFromType(type) {
     const lookup = {
         'PlotGroup'                : PlotGroup ,
         'TriMesh3D'                : TriMesh3D ,
+        'GLTFViewer'               : GLTFViewer ,
         'LineSeries'               : LineSeries ,
         'DimensionSliders'         : DimensionSliders ,
         'MetaDataBarChart'         : MetaDataBarChart ,
