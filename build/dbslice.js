@@ -182402,7 +182402,21 @@ class LineSeriesGL extends Plot {
                 .attr("transform", `translate(${this.marginTotal.left},${this.plotAreaHeight + standOff})`)
                 .attr("class", "axis-x")
                 .style("pointer-events", "bounding-box")
-                .call(xAxis)
+                .call(xAxis);
+
+            // Make tick elements non-interactive
+            gX.selectAll(".tick")
+                .style("pointer-events", "none");
+
+            // Specifically target tick text to override default text cursor
+            gX.selectAll(".tick text")
+                .style("cursor", "default")
+                .style("user-select", "none");
+
+            // Set hand cursor for the axis group
+            gX.style("cursor", "grab");
+
+            gX
                 .call(zoom$2().on("zoom", (event) => {
                     const transform = event.transform;
                     // Use original data range as reference for zoom (like TriMesh3D)
@@ -182447,7 +182461,21 @@ class LineSeriesGL extends Plot {
                 .attr("transform", `translate(${this.marginTotal.left - standOff},0)`)
                 .attr("class", "axis-y")
                 .style("pointer-events", "bounding-box")
-                .call(yAxis)
+                .call(yAxis);
+
+            // Make tick elements non-interactive
+            gY.selectAll(".tick")
+                .style("pointer-events", "none");
+
+            // Specifically target tick text to override default text cursor
+            gY.selectAll(".tick text")
+                .style("cursor", "default")
+                .style("user-select", "none");
+
+            // Set hand cursor for the axis group
+            gY.style("cursor", "grab");
+
+            gY
                 .call(zoom$2().on("zoom", (event) => {
                     const transform = event.transform;
                     // Use original data range as reference for zoom (like TriMesh3D)
