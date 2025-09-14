@@ -2,6 +2,7 @@ import { PlotGroup } from './PlotGroup.js';
 import { TriMesh3D } from './TriMesh3D.js';
 import { GLTFViewer } from './GLTFViewer.js';
 import { LineSeries } from './LineSeries.js';
+import { LineSeriesGL } from './LineSeriesGL.js';
 import { DimensionSliders } from './DimensionSliders.js';
 import { MetaDataBarChart } from './MetaDataBarChart.js';
 import { MetaDataRankCorrBarChart } from './MetaDataRankCorrBarChart.js';
@@ -16,6 +17,7 @@ function getComponentFromType(type) {
         'TriMesh3D'                : TriMesh3D ,
         'GLTFViewer'               : GLTFViewer ,
         'LineSeries'               : LineSeries ,
+        'LineSeriesGL'             : LineSeriesGL ,
         'DimensionSliders'         : DimensionSliders ,
         'MetaDataBarChart'         : MetaDataBarChart ,
         'MetaDataRankCorrBarChart' : MetaDataRankCorrBarChart ,

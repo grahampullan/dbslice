@@ -62,7 +62,7 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
     
             if (dataFilterFunc !== undefined ) {
     
-                data = dataFilterFunc( responseJson, fetchData.dataFilterConfig ); 
+                data = dataFilterFunc( responseJson, null, fetchData.dataFilterConfig ); 
     
             } else {
     
@@ -221,7 +221,7 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
     
         if (dataFilterFunc !== undefined ) {
     
-            data = dataFilterFunc( derivedDataStore.data, fetchData.dataFilterConfig ); 
+            data = dataFilterFunc( derivedDataStore.data, null, fetchData.dataFilterConfig ); 
     
         } else {
     

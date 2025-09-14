@@ -20227,8 +20227,8 @@ function zoom$1() {
 
 // threejs.org/license
 const REVISION$1 = '124';
-const MOUSE = { LEFT: 0, MIDDLE: 1, RIGHT: 2, ROTATE: 0, DOLLY: 1, PAN: 2 };
-const TOUCH = { ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 };
+const MOUSE$1 = { LEFT: 0, MIDDLE: 1, RIGHT: 2, ROTATE: 0, DOLLY: 1, PAN: 2 };
+const TOUCH$1 = { ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 };
 const CullFaceNone$1 = 0;
 const CullFaceBack$1 = 1;
 const CullFaceFront$1 = 2;
@@ -46951,7 +46951,7 @@ LineBasicMaterial$1.prototype.copy = function ( source ) {
 const _start$2 = new Vector3$1();
 const _end$2 = new Vector3$1();
 const _inverseMatrix$1$1 = new Matrix4$1();
-const _ray$1$1 = new Ray$1();
+const _ray$1$2 = new Ray$1();
 const _sphere$2$1 = new Sphere$1();
 
 function Line$1( geometry = new BufferGeometry$1(), material = new LineBasicMaterial$1() ) {
@@ -47054,7 +47054,7 @@ Line$1.prototype = Object.assign( Object.create( Object3D$1.prototype ), {
 		//
 
 		_inverseMatrix$1$1.copy( matrixWorld ).invert();
-		_ray$1$1.copy( raycaster.ray ).applyMatrix4( _inverseMatrix$1$1 );
+		_ray$1$2.copy( raycaster.ray ).applyMatrix4( _inverseMatrix$1$1 );
 
 		const localThreshold = threshold / ( ( this.scale.x + this.scale.y + this.scale.z ) / 3 );
 		const localThresholdSq = localThreshold * localThreshold;
@@ -47083,7 +47083,7 @@ Line$1.prototype = Object.assign( Object.create( Object3D$1.prototype ), {
 					vStart.fromBufferAttribute( positionAttribute, a );
 					vEnd.fromBufferAttribute( positionAttribute, b );
 
-					const distSq = _ray$1$1.distanceSqToSegment( vStart, vEnd, interRay, interSegment );
+					const distSq = _ray$1$2.distanceSqToSegment( vStart, vEnd, interRay, interSegment );
 
 					if ( distSq > localThresholdSq ) continue;
 
@@ -47115,7 +47115,7 @@ Line$1.prototype = Object.assign( Object.create( Object3D$1.prototype ), {
 					vStart.fromBufferAttribute( positionAttribute, i );
 					vEnd.fromBufferAttribute( positionAttribute, i + 1 );
 
-					const distSq = _ray$1$1.distanceSqToSegment( vStart, vEnd, interRay, interSegment );
+					const distSq = _ray$1$2.distanceSqToSegment( vStart, vEnd, interRay, interSegment );
 
 					if ( distSq > localThresholdSq ) continue;
 
@@ -47149,7 +47149,7 @@ Line$1.prototype = Object.assign( Object.create( Object3D$1.prototype ), {
 
 			for ( let i = 0; i < nbVertices - 1; i += step ) {
 
-				const distSq = _ray$1$1.distanceSqToSegment( vertices[ i ], vertices[ i + 1 ], interRay, interSegment );
+				const distSq = _ray$1$2.distanceSqToSegment( vertices[ i ], vertices[ i + 1 ], interRay, interSegment );
 
 				if ( distSq > localThresholdSq ) continue;
 
@@ -62573,7 +62573,7 @@ Object.assign( Raycaster$1.prototype, {
  * The azimuthal angle (theta) is measured from the positive z-axis.
  */
 
-class Spherical {
+let Spherical$1 = class Spherical {
 
 	constructor( radius = 1, phi = 0, theta = 0 ) {
 
@@ -62647,7 +62647,7 @@ class Spherical {
 
 	}
 
-}
+};
 
 const _vector$8$1 = /*@__PURE__*/ new Vector2$1();
 
@@ -64993,7 +64993,11 @@ function lineSeriesFromCsv( rawData , items, config ) {
 
     const series = [];
 
-    rawData.forEach( function( dataText, index ) { 
+    // Ensure rawData is an array (handle single item case)
+    const rawDataArray = Array.isArray(rawData) ? rawData : [rawData];
+    const itemsArray = items ? (Array.isArray(items) ? items : [items]) : null;
+
+    rawDataArray.forEach( function( dataText, index ) { 
 
         let dataTextLines = dataText.split("\n");
 
@@ -65036,8 +65040,8 @@ function lineSeriesFromCsv( rawData , items, config ) {
 
         let line = data.map( d => ({x: +d[config.xProperty], y: +d[config.yProperty] }));
 
-        let itemId = items[index];
-        let label = config.itemLabels[index];
+        let itemId = itemsArray ? itemsArray[index] : index;
+        let label = config.itemLabels ? config.itemLabels[index] : "line";
         let seriesNow = { label : label , data : line, itemId };
 
         if ( config.cProperty != undefined ) {
@@ -65103,7 +65107,7 @@ function lineSeriesFromTimeSnapshotCsv( dataText , config ) {
     return { series : series };
 }
 
-function lineSeriesFromDerivedData( derivedData, config ) {
+function lineSeriesFromDerivedData( derivedData, dummyItems, config ) {
 
     const series = [];
 
@@ -65240,7 +65244,7 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
     
             if (dataFilterFunc !== undefined ) {
     
-                data = dataFilterFunc( responseJson, fetchData.dataFilterConfig ); 
+                data = dataFilterFunc( responseJson, null, fetchData.dataFilterConfig ); 
     
             } else {
     
@@ -65399,7 +65403,7 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
     
         if (dataFilterFunc !== undefined ) {
     
-            data = dataFilterFunc( derivedDataStore.data, fetchData.dataFilterConfig ); 
+            data = dataFilterFunc( derivedDataStore.data, null, fetchData.dataFilterConfig ); 
     
         } else {
     
@@ -115811,6 +115815,9 @@ const d3Scatter = {
  * SPDX-License-Identifier: MIT
  */
 const REVISION = '170';
+
+const MOUSE = { LEFT: 0, MIDDLE: 1, RIGHT: 2, ROTATE: 0, DOLLY: 1, PAN: 2 };
+const TOUCH = { ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 };
 const CullFaceNone = 0;
 const CullFaceBack = 1;
 const CullFaceFront = 2;
@@ -148467,7 +148474,7 @@ const _vStart = /*@__PURE__*/ new Vector3();
 const _vEnd = /*@__PURE__*/ new Vector3();
 
 const _inverseMatrix$1 = /*@__PURE__*/ new Matrix4();
-const _ray$1 = /*@__PURE__*/ new Ray();
+const _ray$1$1 = /*@__PURE__*/ new Ray();
 const _sphere$1 = /*@__PURE__*/ new Sphere();
 
 const _intersectPointOnRay = /*@__PURE__*/ new Vector3();
@@ -148554,7 +148561,7 @@ class Line extends Object3D {
 		//
 
 		_inverseMatrix$1.copy( matrixWorld ).invert();
-		_ray$1.copy( raycaster.ray ).applyMatrix4( _inverseMatrix$1 );
+		_ray$1$1.copy( raycaster.ray ).applyMatrix4( _inverseMatrix$1 );
 
 		const localThreshold = threshold / ( ( this.scale.x + this.scale.y + this.scale.z ) / 3 );
 		const localThresholdSq = localThreshold * localThreshold;
@@ -148575,7 +148582,7 @@ class Line extends Object3D {
 				const a = index.getX( i );
 				const b = index.getX( i + 1 );
 
-				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, a, b );
+				const intersect = checkIntersection( this, raycaster, _ray$1$1, localThresholdSq, a, b );
 
 				if ( intersect ) {
 
@@ -148590,7 +148597,7 @@ class Line extends Object3D {
 				const a = index.getX( end - 1 );
 				const b = index.getX( start );
 
-				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, a, b );
+				const intersect = checkIntersection( this, raycaster, _ray$1$1, localThresholdSq, a, b );
 
 				if ( intersect ) {
 
@@ -148607,7 +148614,7 @@ class Line extends Object3D {
 
 			for ( let i = start, l = end - 1; i < l; i += step ) {
 
-				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, i, i + 1 );
+				const intersect = checkIntersection( this, raycaster, _ray$1$1, localThresholdSq, i, i + 1 );
 
 				if ( intersect ) {
 
@@ -148619,7 +148626,7 @@ class Line extends Object3D {
 
 			if ( this.isLineLoop ) {
 
-				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, end - 1, start );
+				const intersect = checkIntersection( this, raycaster, _ray$1$1, localThresholdSq, end - 1, start );
 
 				if ( intersect ) {
 
@@ -153487,6 +153494,88 @@ function intersect( object, raycaster, intersects, recursive ) {
 
 }
 
+/**
+ * Ref: https://en.wikipedia.org/wiki/Spherical_coordinate_system
+ *
+ * phi (the polar angle) is measured from the positive y-axis. The positive y-axis is up.
+ * theta (the azimuthal angle) is measured from the positive z-axis.
+ */
+class Spherical {
+
+	constructor( radius = 1, phi = 0, theta = 0 ) {
+
+		this.radius = radius;
+		this.phi = phi; // polar angle
+		this.theta = theta; // azimuthal angle
+
+		return this;
+
+	}
+
+	set( radius, phi, theta ) {
+
+		this.radius = radius;
+		this.phi = phi;
+		this.theta = theta;
+
+		return this;
+
+	}
+
+	copy( other ) {
+
+		this.radius = other.radius;
+		this.phi = other.phi;
+		this.theta = other.theta;
+
+		return this;
+
+	}
+
+	// restrict phi to be between EPS and PI-EPS
+	makeSafe() {
+
+		const EPS = 0.000001;
+		this.phi = Math.max( EPS, Math.min( Math.PI - EPS, this.phi ) );
+
+		return this;
+
+	}
+
+	setFromVector3( v ) {
+
+		return this.setFromCartesianCoords( v.x, v.y, v.z );
+
+	}
+
+	setFromCartesianCoords( x, y, z ) {
+
+		this.radius = Math.sqrt( x * x + y * y + z * z );
+
+		if ( this.radius === 0 ) {
+
+			this.theta = 0;
+			this.phi = 0;
+
+		} else {
+
+			this.theta = Math.atan2( x, z );
+			this.phi = Math.acos( clamp( y / this.radius, - 1, 1 ) );
+
+		}
+
+		return this;
+
+	}
+
+	clone() {
+
+		return new this.constructor().copy( this );
+
+	}
+
+}
+
 const _startP = /*@__PURE__*/ new Vector3();
 const _startEnd = /*@__PURE__*/ new Vector3();
 
@@ -153598,6 +153687,35 @@ class Line3 {
 
 }
 
+class Controls extends EventDispatcher {
+
+	constructor( object, domElement = null ) {
+
+		super();
+
+		this.object = object;
+		this.domElement = domElement;
+
+		this.enabled = true;
+
+		this.state = - 1;
+
+		this.keys = {};
+		this.mouseButtons = { LEFT: null, MIDDLE: null, RIGHT: null };
+		this.touches = { ONE: null, TWO: null };
+
+	}
+
+	connect() {}
+
+	disconnect() {}
+
+	dispose() {}
+
+	update( /* delta */ ) {}
+
+}
+
 if ( typeof __THREE_DEVTOOLS__ !== 'undefined' ) {
 
 	__THREE_DEVTOOLS__.dispatchEvent( new CustomEvent( 'register', { detail: {
@@ -153627,7 +153745,7 @@ if ( typeof window !== 'undefined' ) {
 //    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
 //    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
 
-var OrbitControls = function ( object, domElement ) {
+var OrbitControls$1 = function ( object, domElement ) {
 
 	if ( domElement === undefined ) console.warn( 'THREE.OrbitControls: The second parameter "domElement" is now mandatory.' );
 	if ( domElement === document ) console.error( 'THREE.OrbitControls: "document" should not be used as the target "domElement". Please use "renderer.domElement" instead.' );
@@ -153691,10 +153809,10 @@ var OrbitControls = function ( object, domElement ) {
 	this.keys = { LEFT: 37, UP: 38, RIGHT: 39, BOTTOM: 40 };
 
 	// Mouse buttons
-	this.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
+	this.mouseButtons = { LEFT: MOUSE$1.ROTATE, MIDDLE: MOUSE$1.DOLLY, RIGHT: MOUSE$1.PAN };
 
 	// Touch fingers
-	this.touches = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN };
+	this.touches = { ONE: TOUCH$1.ROTATE, TWO: TOUCH$1.DOLLY_PAN };
 
 	// for reset
 	this.target0 = this.target.clone();
@@ -153928,8 +154046,8 @@ var OrbitControls = function ( object, domElement ) {
 	var EPS = 0.000001;
 
 	// current position in spherical coordinates
-	var spherical = new Spherical();
-	var sphericalDelta = new Spherical();
+	var spherical = new Spherical$1();
+	var sphericalDelta = new Spherical$1();
 
 	var scale = 1;
 	var panOffset = new Vector3$1();
@@ -154460,7 +154578,7 @@ var OrbitControls = function ( object, domElement ) {
 
 		switch ( mouseAction ) {
 
-			case MOUSE.DOLLY:
+			case MOUSE$1.DOLLY:
 
 				if ( scope.enableZoom === false ) return;
 
@@ -154470,7 +154588,7 @@ var OrbitControls = function ( object, domElement ) {
 
 				break;
 
-			case MOUSE.ROTATE:
+			case MOUSE$1.ROTATE:
 
 				if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
 
@@ -154492,7 +154610,7 @@ var OrbitControls = function ( object, domElement ) {
 
 				break;
 
-			case MOUSE.PAN:
+			case MOUSE$1.PAN:
 
 				if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
 
@@ -154615,7 +154733,7 @@ var OrbitControls = function ( object, domElement ) {
 
 				switch ( scope.touches.ONE ) {
 
-					case TOUCH.ROTATE:
+					case TOUCH$1.ROTATE:
 
 						if ( scope.enableRotate === false ) return;
 
@@ -154625,7 +154743,7 @@ var OrbitControls = function ( object, domElement ) {
 
 						break;
 
-					case TOUCH.PAN:
+					case TOUCH$1.PAN:
 
 						if ( scope.enablePan === false ) return;
 
@@ -154647,7 +154765,7 @@ var OrbitControls = function ( object, domElement ) {
 
 				switch ( scope.touches.TWO ) {
 
-					case TOUCH.DOLLY_PAN:
+					case TOUCH$1.DOLLY_PAN:
 
 						if ( scope.enableZoom === false && scope.enablePan === false ) return;
 
@@ -154657,7 +154775,7 @@ var OrbitControls = function ( object, domElement ) {
 
 						break;
 
-					case TOUCH.DOLLY_ROTATE:
+					case TOUCH$1.DOLLY_ROTATE:
 
 						if ( scope.enableZoom === false && scope.enableRotate === false ) return;
 
@@ -154783,8 +154901,8 @@ var OrbitControls = function ( object, domElement ) {
 
 };
 
-OrbitControls.prototype = Object.create( EventDispatcher$1.prototype );
-OrbitControls.prototype.constructor = OrbitControls;
+OrbitControls$1.prototype = Object.create( EventDispatcher$1.prototype );
+OrbitControls$1.prototype.constructor = OrbitControls$1;
 
 
 // This set of controls performs orbiting, dollying (zooming), and panning.
@@ -154797,15 +154915,15 @@ OrbitControls.prototype.constructor = OrbitControls;
 
 var MapControls = function ( object, domElement ) {
 
-	OrbitControls.call( this, object, domElement );
+	OrbitControls$1.call( this, object, domElement );
 
 	this.screenSpacePanning = false; // pan orthogonal to world-space direction camera.up
 
-	this.mouseButtons.LEFT = MOUSE.PAN;
-	this.mouseButtons.RIGHT = MOUSE.ROTATE;
+	this.mouseButtons.LEFT = MOUSE$1.PAN;
+	this.mouseButtons.RIGHT = MOUSE$1.ROTATE;
 
-	this.touches.ONE = TOUCH.PAN;
-	this.touches.TWO = TOUCH.DOLLY_ROTATE;
+	this.touches.ONE = TOUCH$1.PAN;
+	this.touches.TWO = TOUCH$1.DOLLY_ROTATE;
 
 };
 
@@ -155165,7 +155283,7 @@ const threeTriMesh = {
 
 		// Add controls 
 		if (!this.controls) {
-			const controls = new OrbitControls( camera, renderer.domElement );
+			const controls = new OrbitControls$1( camera, renderer.domElement );
 			controls.target.set( xMid, yMid, zMid );
 			controls.enabled = true;
 			controls.update();
@@ -161353,7 +161471,7 @@ const threeSurf3d = {
 
 
 		// Add controls 
-		const controls = new OrbitControls( camera, renderer.domElement );
+		const controls = new OrbitControls$1( camera, renderer.domElement );
 		const plotRowIndex = dbsliceData$1.session.plotRows.findIndex( e => e._id == this._prid );
 		const plotIndex = dbsliceData$1.session.plotRows[plotRowIndex].plots.findIndex( e => e._id == this._id );
 		controls.addEventListener( 'change', function(){
@@ -172110,7 +172228,7 @@ const _box = new Box3();
 const _sphere = new Sphere();
 const _clipToWorldVector = new Vector4();
 
-let _ray, _lineWidth;
+let _ray$1, _lineWidth;
 
 // Returns the margin required to expand by in world space given the distance from the camera,
 // line width, resolution, and camera projection
@@ -172148,7 +172266,7 @@ function raycastWorldUnits( lineSegments, intersects ) {
 		const pointOnLine = new Vector3();
 		const point = new Vector3();
 
-		_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
+		_ray$1.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
 		const isInside = point.distanceTo( pointOnLine ) < _lineWidth * 0.5;
 
 		if ( isInside ) {
@@ -172156,7 +172274,7 @@ function raycastWorldUnits( lineSegments, intersects ) {
 			intersects.push( {
 				point,
 				pointOnLine,
-				distance: _ray.origin.distanceTo( point ),
+				distance: _ray$1.origin.distanceTo( point ),
 				object: lineSegments,
 				face: null,
 				faceIndex: i,
@@ -172189,7 +172307,7 @@ function raycastScreenSpace( lineSegments, camera, intersects ) {
 	// pick a point 1 unit out along the ray to avoid the ray origin
 	// sitting at the camera origin which will cause "w" to be 0 when
 	// applying the projection matrix.
-	_ray.at( 1, _ssOrigin );
+	_ray$1.at( 1, _ssOrigin );
 
 	// ndc space [ - 1.0, 1.0 ]
 	_ssOrigin.w = 1;
@@ -172284,12 +172402,12 @@ function raycastScreenSpace( lineSegments, camera, intersects ) {
 			const pointOnLine = new Vector3();
 			const point = new Vector3();
 
-			_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
+			_ray$1.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
 
 			intersects.push( {
 				point: point,
 				pointOnLine: pointOnLine,
-				distance: _ray.origin.distanceTo( point ),
+				distance: _ray$1.origin.distanceTo( point ),
 				object: lineSegments,
 				face: null,
 				faceIndex: i,
@@ -172357,7 +172475,7 @@ class LineSegments2 extends Mesh {
 
 		const threshold = ( raycaster.params.Line2 !== undefined ) ? raycaster.params.Line2.threshold || 0 : 0;
 
-		_ray = raycaster.ray;
+		_ray$1 = raycaster.ray;
 
 		const matrixWorld = this.matrixWorld;
 		const geometry = this.geometry;
@@ -172382,14 +172500,14 @@ class LineSegments2 extends Mesh {
 
 		} else {
 
-			const distanceToSphere = Math.max( camera.near, _sphere.distanceToPoint( _ray.origin ) );
+			const distanceToSphere = Math.max( camera.near, _sphere.distanceToPoint( _ray$1.origin ) );
 			sphereMargin = getWorldSpaceHalfWidth( camera, distanceToSphere, material.resolution );
 
 		}
 
 		_sphere.radius += sphereMargin;
 
-		if ( _ray.intersectsSphere( _sphere ) === false ) {
+		if ( _ray$1.intersectsSphere( _sphere ) === false ) {
 
 			return;
 
@@ -172412,14 +172530,14 @@ class LineSegments2 extends Mesh {
 
 		} else {
 
-			const distanceToBox = Math.max( camera.near, _box.distanceToPoint( _ray.origin ) );
+			const distanceToBox = Math.max( camera.near, _box.distanceToPoint( _ray$1.origin ) );
 			boxMargin = getWorldSpaceHalfWidth( camera, distanceToBox, material.resolution );
 
 		}
 
 		_box.expandByScalar( boxMargin );
 
-		if ( _ray.intersectsBox( _box ) === false ) {
+		if ( _ray$1.intersectsBox( _box ) === false ) {
 
 			return;
 
@@ -172983,7 +173101,7 @@ class TriMesh3D extends Plot {
 		// add controls
 		//
 		if (!this.controls) {
-			const controls = new OrbitControls( camera, plotArea.node() );
+			const controls = new OrbitControls$1( camera, plotArea.node() );
 			controls.target.set( xMid, yMid, zMid );
 			controls.enabled = true;
 			controls.update();
@@ -178722,7 +178840,7 @@ class GLTFViewer extends Plot {
 		// add controls
 		//
 		if (!this.controls) {
-			const controls = new OrbitControls( camera, plotArea.node() );
+			const controls = new OrbitControls$1( camera, plotArea.node() );
 			controls.target.set( this.mid.x, this.mid.y, this.mid.z );
 			controls.enabled = true;
 			controls.update();
@@ -180260,6 +180378,2165 @@ class LineSeries extends Plot {
 
 }
 
+// OrbitControls performs orbiting, dollying (zooming), and panning.
+// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
+//
+//    Orbit - left mouse / touch: one-finger move
+//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
+//    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
+
+const _changeEvent = { type: 'change' };
+const _startEvent = { type: 'start' };
+const _endEvent = { type: 'end' };
+const _ray = new Ray();
+const _plane = new Plane();
+const _TILT_LIMIT = Math.cos( 70 * MathUtils.DEG2RAD );
+
+const _v = new Vector3();
+const _twoPI = 2 * Math.PI;
+
+const _STATE = {
+	NONE: - 1,
+	ROTATE: 0,
+	DOLLY: 1,
+	PAN: 2,
+	TOUCH_ROTATE: 3,
+	TOUCH_PAN: 4,
+	TOUCH_DOLLY_PAN: 5,
+	TOUCH_DOLLY_ROTATE: 6
+};
+const _EPS = 0.000001;
+
+class OrbitControls extends Controls {
+
+	constructor( object, domElement = null ) {
+
+		super( object, domElement );
+
+		this.state = _STATE.NONE;
+
+		// Set to false to disable this control
+		this.enabled = true;
+
+		// "target" sets the location of focus, where the object orbits around
+		this.target = new Vector3();
+
+		// Sets the 3D cursor (similar to Blender), from which the maxTargetRadius takes effect
+		this.cursor = new Vector3();
+
+		// How far you can dolly in and out ( PerspectiveCamera only )
+		this.minDistance = 0;
+		this.maxDistance = Infinity;
+
+		// How far you can zoom in and out ( OrthographicCamera only )
+		this.minZoom = 0;
+		this.maxZoom = Infinity;
+
+		// Limit camera target within a spherical area around the cursor
+		this.minTargetRadius = 0;
+		this.maxTargetRadius = Infinity;
+
+		// How far you can orbit vertically, upper and lower limits.
+		// Range is 0 to Math.PI radians.
+		this.minPolarAngle = 0; // radians
+		this.maxPolarAngle = Math.PI; // radians
+
+		// How far you can orbit horizontally, upper and lower limits.
+		// If set, the interval [ min, max ] must be a sub-interval of [ - 2 PI, 2 PI ], with ( max - min < 2 PI )
+		this.minAzimuthAngle = - Infinity; // radians
+		this.maxAzimuthAngle = Infinity; // radians
+
+		// Set to true to enable damping (inertia)
+		// If damping is enabled, you must call controls.update() in your animation loop
+		this.enableDamping = false;
+		this.dampingFactor = 0.05;
+
+		// This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
+		// Set to false to disable zooming
+		this.enableZoom = true;
+		this.zoomSpeed = 1.0;
+
+		// Set to false to disable rotating
+		this.enableRotate = true;
+		this.rotateSpeed = 1.0;
+
+		// Set to false to disable panning
+		this.enablePan = true;
+		this.panSpeed = 1.0;
+		this.screenSpacePanning = true; // if false, pan orthogonal to world-space direction camera.up
+		this.keyPanSpeed = 7.0;	// pixels moved per arrow key push
+		this.zoomToCursor = false;
+
+		// Set to true to automatically rotate around the target
+		// If auto-rotate is enabled, you must call controls.update() in your animation loop
+		this.autoRotate = false;
+		this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
+
+		// The four arrow keys
+		this.keys = { LEFT: 'ArrowLeft', UP: 'ArrowUp', RIGHT: 'ArrowRight', BOTTOM: 'ArrowDown' };
+
+		// Mouse buttons
+		this.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
+
+		// Touch fingers
+		this.touches = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN };
+
+		// for reset
+		this.target0 = this.target.clone();
+		this.position0 = this.object.position.clone();
+		this.zoom0 = this.object.zoom;
+
+		// the target DOM element for key events
+		this._domElementKeyEvents = null;
+
+		// internals
+
+		this._lastPosition = new Vector3();
+		this._lastQuaternion = new Quaternion();
+		this._lastTargetPosition = new Vector3();
+
+		// so camera.up is the orbit axis
+		this._quat = new Quaternion().setFromUnitVectors( object.up, new Vector3( 0, 1, 0 ) );
+		this._quatInverse = this._quat.clone().invert();
+
+		// current position in spherical coordinates
+		this._spherical = new Spherical();
+		this._sphericalDelta = new Spherical();
+
+		this._scale = 1;
+		this._panOffset = new Vector3();
+
+		this._rotateStart = new Vector2();
+		this._rotateEnd = new Vector2();
+		this._rotateDelta = new Vector2();
+
+		this._panStart = new Vector2();
+		this._panEnd = new Vector2();
+		this._panDelta = new Vector2();
+
+		this._dollyStart = new Vector2();
+		this._dollyEnd = new Vector2();
+		this._dollyDelta = new Vector2();
+
+		this._dollyDirection = new Vector3();
+		this._mouse = new Vector2();
+		this._performCursorZoom = false;
+
+		this._pointers = [];
+		this._pointerPositions = {};
+
+		this._controlActive = false;
+
+		// event listeners
+
+		this._onPointerMove = onPointerMove.bind( this );
+		this._onPointerDown = onPointerDown.bind( this );
+		this._onPointerUp = onPointerUp.bind( this );
+		this._onContextMenu = onContextMenu.bind( this );
+		this._onMouseWheel = onMouseWheel.bind( this );
+		this._onKeyDown = onKeyDown.bind( this );
+
+		this._onTouchStart = onTouchStart.bind( this );
+		this._onTouchMove = onTouchMove.bind( this );
+
+		this._onMouseDown = onMouseDown.bind( this );
+		this._onMouseMove = onMouseMove.bind( this );
+
+		this._interceptControlDown = interceptControlDown.bind( this );
+		this._interceptControlUp = interceptControlUp.bind( this );
+
+		//
+
+		if ( this.domElement !== null ) {
+
+			this.connect();
+
+		}
+
+		this.update();
+
+	}
+
+	connect() {
+
+		this.domElement.addEventListener( 'pointerdown', this._onPointerDown );
+		this.domElement.addEventListener( 'pointercancel', this._onPointerUp );
+
+		this.domElement.addEventListener( 'contextmenu', this._onContextMenu );
+		this.domElement.addEventListener( 'wheel', this._onMouseWheel, { passive: false } );
+
+		const document = this.domElement.getRootNode(); // offscreen canvas compatibility
+		document.addEventListener( 'keydown', this._interceptControlDown, { passive: true, capture: true } );
+
+		this.domElement.style.touchAction = 'none'; // disable touch scroll
+
+	}
+
+	disconnect() {
+
+		this.domElement.removeEventListener( 'pointerdown', this._onPointerDown );
+		this.domElement.removeEventListener( 'pointermove', this._onPointerMove );
+		this.domElement.removeEventListener( 'pointerup', this._onPointerUp );
+		this.domElement.removeEventListener( 'pointercancel', this._onPointerUp );
+
+		this.domElement.removeEventListener( 'wheel', this._onMouseWheel );
+		this.domElement.removeEventListener( 'contextmenu', this._onContextMenu );
+
+		this.stopListenToKeyEvents();
+
+		const document = this.domElement.getRootNode(); // offscreen canvas compatibility
+		document.removeEventListener( 'keydown', this._interceptControlDown, { capture: true } );
+
+		this.domElement.style.touchAction = 'auto';
+
+	}
+
+	dispose() {
+
+		this.disconnect();
+
+	}
+
+	getPolarAngle() {
+
+		return this._spherical.phi;
+
+	}
+
+	getAzimuthalAngle() {
+
+		return this._spherical.theta;
+
+	}
+
+	getDistance() {
+
+		return this.object.position.distanceTo( this.target );
+
+	}
+
+	listenToKeyEvents( domElement ) {
+
+		domElement.addEventListener( 'keydown', this._onKeyDown );
+		this._domElementKeyEvents = domElement;
+
+	}
+
+	stopListenToKeyEvents() {
+
+		if ( this._domElementKeyEvents !== null ) {
+
+			this._domElementKeyEvents.removeEventListener( 'keydown', this._onKeyDown );
+			this._domElementKeyEvents = null;
+
+		}
+
+	}
+
+	saveState() {
+
+		this.target0.copy( this.target );
+		this.position0.copy( this.object.position );
+		this.zoom0 = this.object.zoom;
+
+	}
+
+	reset() {
+
+		this.target.copy( this.target0 );
+		this.object.position.copy( this.position0 );
+		this.object.zoom = this.zoom0;
+
+		this.object.updateProjectionMatrix();
+		this.dispatchEvent( _changeEvent );
+
+		this.update();
+
+		this.state = _STATE.NONE;
+
+	}
+
+	update( deltaTime = null ) {
+
+		const position = this.object.position;
+
+		_v.copy( position ).sub( this.target );
+
+		// rotate offset to "y-axis-is-up" space
+		_v.applyQuaternion( this._quat );
+
+		// angle from z-axis around y-axis
+		this._spherical.setFromVector3( _v );
+
+		if ( this.autoRotate && this.state === _STATE.NONE ) {
+
+			this._rotateLeft( this._getAutoRotationAngle( deltaTime ) );
+
+		}
+
+		if ( this.enableDamping ) {
+
+			this._spherical.theta += this._sphericalDelta.theta * this.dampingFactor;
+			this._spherical.phi += this._sphericalDelta.phi * this.dampingFactor;
+
+		} else {
+
+			this._spherical.theta += this._sphericalDelta.theta;
+			this._spherical.phi += this._sphericalDelta.phi;
+
+		}
+
+		// restrict theta to be between desired limits
+
+		let min = this.minAzimuthAngle;
+		let max = this.maxAzimuthAngle;
+
+		if ( isFinite( min ) && isFinite( max ) ) {
+
+			if ( min < - Math.PI ) min += _twoPI; else if ( min > Math.PI ) min -= _twoPI;
+
+			if ( max < - Math.PI ) max += _twoPI; else if ( max > Math.PI ) max -= _twoPI;
+
+			if ( min <= max ) {
+
+				this._spherical.theta = Math.max( min, Math.min( max, this._spherical.theta ) );
+
+			} else {
+
+				this._spherical.theta = ( this._spherical.theta > ( min + max ) / 2 ) ?
+					Math.max( min, this._spherical.theta ) :
+					Math.min( max, this._spherical.theta );
+
+			}
+
+		}
+
+		// restrict phi to be between desired limits
+		this._spherical.phi = Math.max( this.minPolarAngle, Math.min( this.maxPolarAngle, this._spherical.phi ) );
+
+		this._spherical.makeSafe();
+
+
+		// move target to panned location
+
+		if ( this.enableDamping === true ) {
+
+			this.target.addScaledVector( this._panOffset, this.dampingFactor );
+
+		} else {
+
+			this.target.add( this._panOffset );
+
+		}
+
+		// Limit the target distance from the cursor to create a sphere around the center of interest
+		this.target.sub( this.cursor );
+		this.target.clampLength( this.minTargetRadius, this.maxTargetRadius );
+		this.target.add( this.cursor );
+
+		let zoomChanged = false;
+		// adjust the camera position based on zoom only if we're not zooming to the cursor or if it's an ortho camera
+		// we adjust zoom later in these cases
+		if ( this.zoomToCursor && this._performCursorZoom || this.object.isOrthographicCamera ) {
+
+			this._spherical.radius = this._clampDistance( this._spherical.radius );
+
+		} else {
+
+			const prevRadius = this._spherical.radius;
+			this._spherical.radius = this._clampDistance( this._spherical.radius * this._scale );
+			zoomChanged = prevRadius != this._spherical.radius;
+
+		}
+
+		_v.setFromSpherical( this._spherical );
+
+		// rotate offset back to "camera-up-vector-is-up" space
+		_v.applyQuaternion( this._quatInverse );
+
+		position.copy( this.target ).add( _v );
+
+		this.object.lookAt( this.target );
+
+		if ( this.enableDamping === true ) {
+
+			this._sphericalDelta.theta *= ( 1 - this.dampingFactor );
+			this._sphericalDelta.phi *= ( 1 - this.dampingFactor );
+
+			this._panOffset.multiplyScalar( 1 - this.dampingFactor );
+
+		} else {
+
+			this._sphericalDelta.set( 0, 0, 0 );
+
+			this._panOffset.set( 0, 0, 0 );
+
+		}
+
+		// adjust camera position
+		if ( this.zoomToCursor && this._performCursorZoom ) {
+
+			let newRadius = null;
+			if ( this.object.isPerspectiveCamera ) {
+
+				// move the camera down the pointer ray
+				// this method avoids floating point error
+				const prevRadius = _v.length();
+				newRadius = this._clampDistance( prevRadius * this._scale );
+
+				const radiusDelta = prevRadius - newRadius;
+				this.object.position.addScaledVector( this._dollyDirection, radiusDelta );
+				this.object.updateMatrixWorld();
+
+				zoomChanged = !! radiusDelta;
+
+			} else if ( this.object.isOrthographicCamera ) {
+
+				// adjust the ortho camera position based on zoom changes
+				const mouseBefore = new Vector3( this._mouse.x, this._mouse.y, 0 );
+				mouseBefore.unproject( this.object );
+
+				const prevZoom = this.object.zoom;
+				this.object.zoom = Math.max( this.minZoom, Math.min( this.maxZoom, this.object.zoom / this._scale ) );
+				this.object.updateProjectionMatrix();
+
+				zoomChanged = prevZoom !== this.object.zoom;
+
+				const mouseAfter = new Vector3( this._mouse.x, this._mouse.y, 0 );
+				mouseAfter.unproject( this.object );
+
+				this.object.position.sub( mouseAfter ).add( mouseBefore );
+				this.object.updateMatrixWorld();
+
+				newRadius = _v.length();
+
+			} else {
+
+				console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - zoom to cursor disabled.' );
+				this.zoomToCursor = false;
+
+			}
+
+			// handle the placement of the target
+			if ( newRadius !== null ) {
+
+				if ( this.screenSpacePanning ) {
+
+					// position the orbit target in front of the new camera position
+					this.target.set( 0, 0, - 1 )
+						.transformDirection( this.object.matrix )
+						.multiplyScalar( newRadius )
+						.add( this.object.position );
+
+				} else {
+
+					// get the ray and translation plane to compute target
+					_ray.origin.copy( this.object.position );
+					_ray.direction.set( 0, 0, - 1 ).transformDirection( this.object.matrix );
+
+					// if the camera is 20 degrees above the horizon then don't adjust the focus target to avoid
+					// extremely large values
+					if ( Math.abs( this.object.up.dot( _ray.direction ) ) < _TILT_LIMIT ) {
+
+						this.object.lookAt( this.target );
+
+					} else {
+
+						_plane.setFromNormalAndCoplanarPoint( this.object.up, this.target );
+						_ray.intersectPlane( _plane, this.target );
+
+					}
+
+				}
+
+			}
+
+		} else if ( this.object.isOrthographicCamera ) {
+
+			const prevZoom = this.object.zoom;
+			this.object.zoom = Math.max( this.minZoom, Math.min( this.maxZoom, this.object.zoom / this._scale ) );
+
+			if ( prevZoom !== this.object.zoom ) {
+
+				this.object.updateProjectionMatrix();
+				zoomChanged = true;
+
+			}
+
+		}
+
+		this._scale = 1;
+		this._performCursorZoom = false;
+
+		// update condition is:
+		// min(camera displacement, camera rotation in radians)^2 > EPS
+		// using small-angle approximation cos(x/2) = 1 - x^2 / 8
+
+		if ( zoomChanged ||
+			this._lastPosition.distanceToSquared( this.object.position ) > _EPS ||
+			8 * ( 1 - this._lastQuaternion.dot( this.object.quaternion ) ) > _EPS ||
+			this._lastTargetPosition.distanceToSquared( this.target ) > _EPS ) {
+
+			this.dispatchEvent( _changeEvent );
+
+			this._lastPosition.copy( this.object.position );
+			this._lastQuaternion.copy( this.object.quaternion );
+			this._lastTargetPosition.copy( this.target );
+
+			return true;
+
+		}
+
+		return false;
+
+	}
+
+	_getAutoRotationAngle( deltaTime ) {
+
+		if ( deltaTime !== null ) {
+
+			return ( _twoPI / 60 * this.autoRotateSpeed ) * deltaTime;
+
+		} else {
+
+			return _twoPI / 60 / 60 * this.autoRotateSpeed;
+
+		}
+
+	}
+
+	_getZoomScale( delta ) {
+
+		const normalizedDelta = Math.abs( delta * 0.01 );
+		return Math.pow( 0.95, this.zoomSpeed * normalizedDelta );
+
+	}
+
+	_rotateLeft( angle ) {
+
+		this._sphericalDelta.theta -= angle;
+
+	}
+
+	_rotateUp( angle ) {
+
+		this._sphericalDelta.phi -= angle;
+
+	}
+
+	_panLeft( distance, objectMatrix ) {
+
+		_v.setFromMatrixColumn( objectMatrix, 0 ); // get X column of objectMatrix
+		_v.multiplyScalar( - distance );
+
+		this._panOffset.add( _v );
+
+	}
+
+	_panUp( distance, objectMatrix ) {
+
+		if ( this.screenSpacePanning === true ) {
+
+			_v.setFromMatrixColumn( objectMatrix, 1 );
+
+		} else {
+
+			_v.setFromMatrixColumn( objectMatrix, 0 );
+			_v.crossVectors( this.object.up, _v );
+
+		}
+
+		_v.multiplyScalar( distance );
+
+		this._panOffset.add( _v );
+
+	}
+
+	// deltaX and deltaY are in pixels; right and down are positive
+	_pan( deltaX, deltaY ) {
+
+		const element = this.domElement;
+
+		if ( this.object.isPerspectiveCamera ) {
+
+			// perspective
+			const position = this.object.position;
+			_v.copy( position ).sub( this.target );
+			let targetDistance = _v.length();
+
+			// half of the fov is center to top of screen
+			targetDistance *= Math.tan( ( this.object.fov / 2 ) * Math.PI / 180.0 );
+
+			// we use only clientHeight here so aspect ratio does not distort speed
+			this._panLeft( 2 * deltaX * targetDistance / element.clientHeight, this.object.matrix );
+			this._panUp( 2 * deltaY * targetDistance / element.clientHeight, this.object.matrix );
+
+		} else if ( this.object.isOrthographicCamera ) {
+
+			// orthographic
+			this._panLeft( deltaX * ( this.object.right - this.object.left ) / this.object.zoom / element.clientWidth, this.object.matrix );
+			this._panUp( deltaY * ( this.object.top - this.object.bottom ) / this.object.zoom / element.clientHeight, this.object.matrix );
+
+		} else {
+
+			// camera neither orthographic nor perspective
+			console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.' );
+			this.enablePan = false;
+
+		}
+
+	}
+
+	_dollyOut( dollyScale ) {
+
+		if ( this.object.isPerspectiveCamera || this.object.isOrthographicCamera ) {
+
+			this._scale /= dollyScale;
+
+		} else {
+
+			console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
+			this.enableZoom = false;
+
+		}
+
+	}
+
+	_dollyIn( dollyScale ) {
+
+		if ( this.object.isPerspectiveCamera || this.object.isOrthographicCamera ) {
+
+			this._scale *= dollyScale;
+
+		} else {
+
+			console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
+			this.enableZoom = false;
+
+		}
+
+	}
+
+	_updateZoomParameters( x, y ) {
+
+		if ( ! this.zoomToCursor ) {
+
+			return;
+
+		}
+
+		this._performCursorZoom = true;
+
+		const rect = this.domElement.getBoundingClientRect();
+		const dx = x - rect.left;
+		const dy = y - rect.top;
+		const w = rect.width;
+		const h = rect.height;
+
+		this._mouse.x = ( dx / w ) * 2 - 1;
+		this._mouse.y = - ( dy / h ) * 2 + 1;
+
+		this._dollyDirection.set( this._mouse.x, this._mouse.y, 1 ).unproject( this.object ).sub( this.object.position ).normalize();
+
+	}
+
+	_clampDistance( dist ) {
+
+		return Math.max( this.minDistance, Math.min( this.maxDistance, dist ) );
+
+	}
+
+	//
+	// event callbacks - update the object state
+	//
+
+	_handleMouseDownRotate( event ) {
+
+		this._rotateStart.set( event.clientX, event.clientY );
+
+	}
+
+	_handleMouseDownDolly( event ) {
+
+		this._updateZoomParameters( event.clientX, event.clientX );
+		this._dollyStart.set( event.clientX, event.clientY );
+
+	}
+
+	_handleMouseDownPan( event ) {
+
+		this._panStart.set( event.clientX, event.clientY );
+
+	}
+
+	_handleMouseMoveRotate( event ) {
+
+		this._rotateEnd.set( event.clientX, event.clientY );
+
+		this._rotateDelta.subVectors( this._rotateEnd, this._rotateStart ).multiplyScalar( this.rotateSpeed );
+
+		const element = this.domElement;
+
+		this._rotateLeft( _twoPI * this._rotateDelta.x / element.clientHeight ); // yes, height
+
+		this._rotateUp( _twoPI * this._rotateDelta.y / element.clientHeight );
+
+		this._rotateStart.copy( this._rotateEnd );
+
+		this.update();
+
+	}
+
+	_handleMouseMoveDolly( event ) {
+
+		this._dollyEnd.set( event.clientX, event.clientY );
+
+		this._dollyDelta.subVectors( this._dollyEnd, this._dollyStart );
+
+		if ( this._dollyDelta.y > 0 ) {
+
+			this._dollyOut( this._getZoomScale( this._dollyDelta.y ) );
+
+		} else if ( this._dollyDelta.y < 0 ) {
+
+			this._dollyIn( this._getZoomScale( this._dollyDelta.y ) );
+
+		}
+
+		this._dollyStart.copy( this._dollyEnd );
+
+		this.update();
+
+	}
+
+	_handleMouseMovePan( event ) {
+
+		this._panEnd.set( event.clientX, event.clientY );
+
+		this._panDelta.subVectors( this._panEnd, this._panStart ).multiplyScalar( this.panSpeed );
+
+		this._pan( this._panDelta.x, this._panDelta.y );
+
+		this._panStart.copy( this._panEnd );
+
+		this.update();
+
+	}
+
+	_handleMouseWheel( event ) {
+
+		this._updateZoomParameters( event.clientX, event.clientY );
+
+		if ( event.deltaY < 0 ) {
+
+			this._dollyIn( this._getZoomScale( event.deltaY ) );
+
+		} else if ( event.deltaY > 0 ) {
+
+			this._dollyOut( this._getZoomScale( event.deltaY ) );
+
+		}
+
+		this.update();
+
+	}
+
+	_handleKeyDown( event ) {
+
+		let needsUpdate = false;
+
+		switch ( event.code ) {
+
+			case this.keys.UP:
+
+				if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+					this._rotateUp( _twoPI * this.rotateSpeed / this.domElement.clientHeight );
+
+				} else {
+
+					this._pan( 0, this.keyPanSpeed );
+
+				}
+
+				needsUpdate = true;
+				break;
+
+			case this.keys.BOTTOM:
+
+				if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+					this._rotateUp( - _twoPI * this.rotateSpeed / this.domElement.clientHeight );
+
+				} else {
+
+					this._pan( 0, - this.keyPanSpeed );
+
+				}
+
+				needsUpdate = true;
+				break;
+
+			case this.keys.LEFT:
+
+				if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+					this._rotateLeft( _twoPI * this.rotateSpeed / this.domElement.clientHeight );
+
+				} else {
+
+					this._pan( this.keyPanSpeed, 0 );
+
+				}
+
+				needsUpdate = true;
+				break;
+
+			case this.keys.RIGHT:
+
+				if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+					this._rotateLeft( - _twoPI * this.rotateSpeed / this.domElement.clientHeight );
+
+				} else {
+
+					this._pan( - this.keyPanSpeed, 0 );
+
+				}
+
+				needsUpdate = true;
+				break;
+
+		}
+
+		if ( needsUpdate ) {
+
+			// prevent the browser from scrolling on cursor keys
+			event.preventDefault();
+
+			this.update();
+
+		}
+
+
+	}
+
+	_handleTouchStartRotate( event ) {
+
+		if ( this._pointers.length === 1 ) {
+
+			this._rotateStart.set( event.pageX, event.pageY );
+
+		} else {
+
+			const position = this._getSecondPointerPosition( event );
+
+			const x = 0.5 * ( event.pageX + position.x );
+			const y = 0.5 * ( event.pageY + position.y );
+
+			this._rotateStart.set( x, y );
+
+		}
+
+	}
+
+	_handleTouchStartPan( event ) {
+
+		if ( this._pointers.length === 1 ) {
+
+			this._panStart.set( event.pageX, event.pageY );
+
+		} else {
+
+			const position = this._getSecondPointerPosition( event );
+
+			const x = 0.5 * ( event.pageX + position.x );
+			const y = 0.5 * ( event.pageY + position.y );
+
+			this._panStart.set( x, y );
+
+		}
+
+	}
+
+	_handleTouchStartDolly( event ) {
+
+		const position = this._getSecondPointerPosition( event );
+
+		const dx = event.pageX - position.x;
+		const dy = event.pageY - position.y;
+
+		const distance = Math.sqrt( dx * dx + dy * dy );
+
+		this._dollyStart.set( 0, distance );
+
+	}
+
+	_handleTouchStartDollyPan( event ) {
+
+		if ( this.enableZoom ) this._handleTouchStartDolly( event );
+
+		if ( this.enablePan ) this._handleTouchStartPan( event );
+
+	}
+
+	_handleTouchStartDollyRotate( event ) {
+
+		if ( this.enableZoom ) this._handleTouchStartDolly( event );
+
+		if ( this.enableRotate ) this._handleTouchStartRotate( event );
+
+	}
+
+	_handleTouchMoveRotate( event ) {
+
+		if ( this._pointers.length == 1 ) {
+
+			this._rotateEnd.set( event.pageX, event.pageY );
+
+		} else {
+
+			const position = this._getSecondPointerPosition( event );
+
+			const x = 0.5 * ( event.pageX + position.x );
+			const y = 0.5 * ( event.pageY + position.y );
+
+			this._rotateEnd.set( x, y );
+
+		}
+
+		this._rotateDelta.subVectors( this._rotateEnd, this._rotateStart ).multiplyScalar( this.rotateSpeed );
+
+		const element = this.domElement;
+
+		this._rotateLeft( _twoPI * this._rotateDelta.x / element.clientHeight ); // yes, height
+
+		this._rotateUp( _twoPI * this._rotateDelta.y / element.clientHeight );
+
+		this._rotateStart.copy( this._rotateEnd );
+
+	}
+
+	_handleTouchMovePan( event ) {
+
+		if ( this._pointers.length === 1 ) {
+
+			this._panEnd.set( event.pageX, event.pageY );
+
+		} else {
+
+			const position = this._getSecondPointerPosition( event );
+
+			const x = 0.5 * ( event.pageX + position.x );
+			const y = 0.5 * ( event.pageY + position.y );
+
+			this._panEnd.set( x, y );
+
+		}
+
+		this._panDelta.subVectors( this._panEnd, this._panStart ).multiplyScalar( this.panSpeed );
+
+		this._pan( this._panDelta.x, this._panDelta.y );
+
+		this._panStart.copy( this._panEnd );
+
+	}
+
+	_handleTouchMoveDolly( event ) {
+
+		const position = this._getSecondPointerPosition( event );
+
+		const dx = event.pageX - position.x;
+		const dy = event.pageY - position.y;
+
+		const distance = Math.sqrt( dx * dx + dy * dy );
+
+		this._dollyEnd.set( 0, distance );
+
+		this._dollyDelta.set( 0, Math.pow( this._dollyEnd.y / this._dollyStart.y, this.zoomSpeed ) );
+
+		this._dollyOut( this._dollyDelta.y );
+
+		this._dollyStart.copy( this._dollyEnd );
+
+		const centerX = ( event.pageX + position.x ) * 0.5;
+		const centerY = ( event.pageY + position.y ) * 0.5;
+
+		this._updateZoomParameters( centerX, centerY );
+
+	}
+
+	_handleTouchMoveDollyPan( event ) {
+
+		if ( this.enableZoom ) this._handleTouchMoveDolly( event );
+
+		if ( this.enablePan ) this._handleTouchMovePan( event );
+
+	}
+
+	_handleTouchMoveDollyRotate( event ) {
+
+		if ( this.enableZoom ) this._handleTouchMoveDolly( event );
+
+		if ( this.enableRotate ) this._handleTouchMoveRotate( event );
+
+	}
+
+	// pointers
+
+	_addPointer( event ) {
+
+		this._pointers.push( event.pointerId );
+
+	}
+
+	_removePointer( event ) {
+
+		delete this._pointerPositions[ event.pointerId ];
+
+		for ( let i = 0; i < this._pointers.length; i ++ ) {
+
+			if ( this._pointers[ i ] == event.pointerId ) {
+
+				this._pointers.splice( i, 1 );
+				return;
+
+			}
+
+		}
+
+	}
+
+	_isTrackingPointer( event ) {
+
+		for ( let i = 0; i < this._pointers.length; i ++ ) {
+
+			if ( this._pointers[ i ] == event.pointerId ) return true;
+
+		}
+
+		return false;
+
+	}
+
+	_trackPointer( event ) {
+
+		let position = this._pointerPositions[ event.pointerId ];
+
+		if ( position === undefined ) {
+
+			position = new Vector2();
+			this._pointerPositions[ event.pointerId ] = position;
+
+		}
+
+		position.set( event.pageX, event.pageY );
+
+	}
+
+	_getSecondPointerPosition( event ) {
+
+		const pointerId = ( event.pointerId === this._pointers[ 0 ] ) ? this._pointers[ 1 ] : this._pointers[ 0 ];
+
+		return this._pointerPositions[ pointerId ];
+
+	}
+
+	//
+
+	_customWheelEvent( event ) {
+
+		const mode = event.deltaMode;
+
+		// minimal wheel event altered to meet delta-zoom demand
+		const newEvent = {
+			clientX: event.clientX,
+			clientY: event.clientY,
+			deltaY: event.deltaY,
+		};
+
+		switch ( mode ) {
+
+			case 1: // LINE_MODE
+				newEvent.deltaY *= 16;
+				break;
+
+			case 2: // PAGE_MODE
+				newEvent.deltaY *= 100;
+				break;
+
+		}
+
+		// detect if event was triggered by pinching
+		if ( event.ctrlKey && ! this._controlActive ) {
+
+			newEvent.deltaY *= 10;
+
+		}
+
+		return newEvent;
+
+	}
+
+}
+
+function onPointerDown( event ) {
+
+	if ( this.enabled === false ) return;
+
+	if ( this._pointers.length === 0 ) {
+
+		this.domElement.setPointerCapture( event.pointerId );
+
+		this.domElement.addEventListener( 'pointermove', this._onPointerMove );
+		this.domElement.addEventListener( 'pointerup', this._onPointerUp );
+
+	}
+
+	//
+
+	if ( this._isTrackingPointer( event ) ) return;
+
+	//
+
+	this._addPointer( event );
+
+	if ( event.pointerType === 'touch' ) {
+
+		this._onTouchStart( event );
+
+	} else {
+
+		this._onMouseDown( event );
+
+	}
+
+}
+
+function onPointerMove( event ) {
+
+	if ( this.enabled === false ) return;
+
+	if ( event.pointerType === 'touch' ) {
+
+		this._onTouchMove( event );
+
+	} else {
+
+		this._onMouseMove( event );
+
+	}
+
+}
+
+function onPointerUp( event ) {
+
+	this._removePointer( event );
+
+	switch ( this._pointers.length ) {
+
+		case 0:
+
+			this.domElement.releasePointerCapture( event.pointerId );
+
+			this.domElement.removeEventListener( 'pointermove', this._onPointerMove );
+			this.domElement.removeEventListener( 'pointerup', this._onPointerUp );
+
+			this.dispatchEvent( _endEvent );
+
+			this.state = _STATE.NONE;
+
+			break;
+
+		case 1:
+
+			const pointerId = this._pointers[ 0 ];
+			const position = this._pointerPositions[ pointerId ];
+
+			// minimal placeholder event - allows state correction on pointer-up
+			this._onTouchStart( { pointerId: pointerId, pageX: position.x, pageY: position.y } );
+
+			break;
+
+	}
+
+}
+
+function onMouseDown( event ) {
+
+	let mouseAction;
+
+	switch ( event.button ) {
+
+		case 0:
+
+			mouseAction = this.mouseButtons.LEFT;
+			break;
+
+		case 1:
+
+			mouseAction = this.mouseButtons.MIDDLE;
+			break;
+
+		case 2:
+
+			mouseAction = this.mouseButtons.RIGHT;
+			break;
+
+		default:
+
+			mouseAction = - 1;
+
+	}
+
+	switch ( mouseAction ) {
+
+		case MOUSE.DOLLY:
+
+			if ( this.enableZoom === false ) return;
+
+			this._handleMouseDownDolly( event );
+
+			this.state = _STATE.DOLLY;
+
+			break;
+
+		case MOUSE.ROTATE:
+
+			if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+				if ( this.enablePan === false ) return;
+
+				this._handleMouseDownPan( event );
+
+				this.state = _STATE.PAN;
+
+			} else {
+
+				if ( this.enableRotate === false ) return;
+
+				this._handleMouseDownRotate( event );
+
+				this.state = _STATE.ROTATE;
+
+			}
+
+			break;
+
+		case MOUSE.PAN:
+
+			if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+				if ( this.enableRotate === false ) return;
+
+				this._handleMouseDownRotate( event );
+
+				this.state = _STATE.ROTATE;
+
+			} else {
+
+				if ( this.enablePan === false ) return;
+
+				this._handleMouseDownPan( event );
+
+				this.state = _STATE.PAN;
+
+			}
+
+			break;
+
+		default:
+
+			this.state = _STATE.NONE;
+
+	}
+
+	if ( this.state !== _STATE.NONE ) {
+
+		this.dispatchEvent( _startEvent );
+
+	}
+
+}
+
+function onMouseMove( event ) {
+
+	switch ( this.state ) {
+
+		case _STATE.ROTATE:
+
+			if ( this.enableRotate === false ) return;
+
+			this._handleMouseMoveRotate( event );
+
+			break;
+
+		case _STATE.DOLLY:
+
+			if ( this.enableZoom === false ) return;
+
+			this._handleMouseMoveDolly( event );
+
+			break;
+
+		case _STATE.PAN:
+
+			if ( this.enablePan === false ) return;
+
+			this._handleMouseMovePan( event );
+
+			break;
+
+	}
+
+}
+
+function onMouseWheel( event ) {
+
+	if ( this.enabled === false || this.enableZoom === false || this.state !== _STATE.NONE ) return;
+
+	event.preventDefault();
+
+	this.dispatchEvent( _startEvent );
+
+	this._handleMouseWheel( this._customWheelEvent( event ) );
+
+	this.dispatchEvent( _endEvent );
+
+}
+
+function onKeyDown( event ) {
+
+	if ( this.enabled === false || this.enablePan === false ) return;
+
+	this._handleKeyDown( event );
+
+}
+
+function onTouchStart( event ) {
+
+	this._trackPointer( event );
+
+	switch ( this._pointers.length ) {
+
+		case 1:
+
+			switch ( this.touches.ONE ) {
+
+				case TOUCH.ROTATE:
+
+					if ( this.enableRotate === false ) return;
+
+					this._handleTouchStartRotate( event );
+
+					this.state = _STATE.TOUCH_ROTATE;
+
+					break;
+
+				case TOUCH.PAN:
+
+					if ( this.enablePan === false ) return;
+
+					this._handleTouchStartPan( event );
+
+					this.state = _STATE.TOUCH_PAN;
+
+					break;
+
+				default:
+
+					this.state = _STATE.NONE;
+
+			}
+
+			break;
+
+		case 2:
+
+			switch ( this.touches.TWO ) {
+
+				case TOUCH.DOLLY_PAN:
+
+					if ( this.enableZoom === false && this.enablePan === false ) return;
+
+					this._handleTouchStartDollyPan( event );
+
+					this.state = _STATE.TOUCH_DOLLY_PAN;
+
+					break;
+
+				case TOUCH.DOLLY_ROTATE:
+
+					if ( this.enableZoom === false && this.enableRotate === false ) return;
+
+					this._handleTouchStartDollyRotate( event );
+
+					this.state = _STATE.TOUCH_DOLLY_ROTATE;
+
+					break;
+
+				default:
+
+					this.state = _STATE.NONE;
+
+			}
+
+			break;
+
+		default:
+
+			this.state = _STATE.NONE;
+
+	}
+
+	if ( this.state !== _STATE.NONE ) {
+
+		this.dispatchEvent( _startEvent );
+
+	}
+
+}
+
+function onTouchMove( event ) {
+
+	this._trackPointer( event );
+
+	switch ( this.state ) {
+
+		case _STATE.TOUCH_ROTATE:
+
+			if ( this.enableRotate === false ) return;
+
+			this._handleTouchMoveRotate( event );
+
+			this.update();
+
+			break;
+
+		case _STATE.TOUCH_PAN:
+
+			if ( this.enablePan === false ) return;
+
+			this._handleTouchMovePan( event );
+
+			this.update();
+
+			break;
+
+		case _STATE.TOUCH_DOLLY_PAN:
+
+			if ( this.enableZoom === false && this.enablePan === false ) return;
+
+			this._handleTouchMoveDollyPan( event );
+
+			this.update();
+
+			break;
+
+		case _STATE.TOUCH_DOLLY_ROTATE:
+
+			if ( this.enableZoom === false && this.enableRotate === false ) return;
+
+			this._handleTouchMoveDollyRotate( event );
+
+			this.update();
+
+			break;
+
+		default:
+
+			this.state = _STATE.NONE;
+
+	}
+
+}
+
+function onContextMenu( event ) {
+
+	if ( this.enabled === false ) return;
+
+	event.preventDefault();
+
+}
+
+function interceptControlDown( event ) {
+
+	if ( event.key === 'Control' ) {
+
+		this._controlActive = true;
+
+		const document = this.domElement.getRootNode(); // offscreen canvas compatibility
+
+		document.addEventListener( 'keyup', this._interceptControlUp, { passive: true, capture: true } );
+
+	}
+
+}
+
+function interceptControlUp( event ) {
+
+	if ( event.key === 'Control' ) {
+
+		this._controlActive = false;
+
+		const document = this.domElement.getRootNode(); // offscreen canvas compatibility
+
+		document.removeEventListener( 'keyup', this._interceptControlUp, { passive: true, capture: true } );
+
+	}
+
+}
+
+class LineSeriesGL extends Plot {
+
+    constructor(options) {
+        if (!options) { options = {}; }
+        options.layout = options.layout || {};
+        options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
+        super(options);
+        this.componentType = "LineSeriesGL";
+        this.lineUuids = [];
+        this.stencilRects = [];
+    }
+
+    make() {
+        this.updateHeader();
+        this.addPlotAreaDiv();
+        this.setLasts();
+
+        const container = select$4(`#${this.id}`);
+        select$4(`#${this.plotAreaId}`);
+
+        if (this.layout.highlightItems) {
+            this.filterId = this.layout.filterId;
+            const filter = this.sharedStateByAncestorId["context"].filters.find(f => f.id == this.filterId);
+            const obsId = filter.highlightItemIds.subscribe(this.highlightItems.bind(this));
+            this.subscriptions.push({observable: filter.highlightItemIds, id: obsId});
+        }
+
+        if (this.fetchData) {
+            if (this.fetchData.urlTemplate) {
+                this.filterId = this.fetchData.filterId;
+                const filter = this.sharedStateByAncestorId["context"].filters.find(f => f.id == this.filterId);
+                const obsId = filter.itemIdsInFilter.subscribe(this.handleFilterChange.bind(this));
+                this.subscriptions.push({observable: filter.itemIdsInFilter, id: obsId});
+                this.datasetId = this.fetchData.datasetId;
+                const dataset = this.sharedStateByAncestorId["context"].datasets.find(d => d.id == this.datasetId);
+                if (this.fetchData.getItemIdsFromFilter) {
+                    this.fetchData.itemIds = filter.itemIdsInFilter.state.itemIds;
+                }
+                if (this.fetchData.dataFilterConfig) {
+                    const config = this.fetchData.dataFilterConfig;
+                    config.itemLabels = this.fetchData.itemIds.map(id => dataset.data.find(i => i.itemId == id).label);
+                    if (config.cProperty) {
+                        config.cPropertyValues = this.fetchData.itemIds.map(id => dataset.data.find(i => i.itemId == id)[config.cProperty]);
+                    }
+                }
+            }
+
+            if (this.fetchData.derivedDataName) {
+                const derivedData = this.sharedStateByAncestorId["context"].derivedData;
+                let derivedDataStore = derivedData.find(d => d.name == this.fetchData.derivedDataName);
+                if (!derivedDataStore) {
+                    this.sharedStateByAncestorId["context"].requestCreateDerivedDataStore.state = {name: this.fetchData.derivedDataName};
+                    derivedDataStore = derivedData.find(d => d.name == this.fetchData.derivedDataName);
+                }
+                const obsId = derivedDataStore.newData.subscribe(this.handleDerivedDataChange.bind(this));
+                this.subscriptions.push({observable: derivedDataStore.newData, id: obsId});
+            }
+
+            if (this.fetchData.getUrlFromDimensions) {
+                const requestCreateDimension = this.sharedStateByAncestorId["context"].requestCreateDimension;
+                const dimensions = this.sharedStateByAncestorId["context"].dimensions;
+                const dimensionNames = this.fetchData.getUrlFromDimensions.dimensionNames;
+
+                dimensionNames.forEach(dimName => {
+                    requestCreateDimension.state = {name: dimName, value: null};
+                    const dimension = dimensions.find(d => d.name == dimName);
+                    const obsId = dimension.subscribe(this.handleDimensionChange.bind(this));
+                    this.subscriptions.push({observable: dimension, id: obsId});
+                });
+            }
+        }
+
+        container.append("svg")
+            .attr("class", "svg-overlay")
+            .style("position", "absolute")
+            .style("pointer-events", "none")
+            .style("top", `${this.plotAreaTop}px`)
+            .style("left", `${this.plotAreaLeft - this.marginTotal.left}px`)
+            .attr("width", `${this.plotAreaWidth + this.marginTotal.left + this.marginTotal.right}`)
+            .attr("height", `${this.plotAreaHeight + this.marginTotal.bottom}`);
+
+        container.append("div")
+            .attr("class", "tool-tip")
+            .style("opacity", 0);
+
+        this.renderer = this.sharedStateByAncestorId["context"].renderer;
+        this.update();
+    }
+
+    async update() {
+        if (this.fetchingData) return;
+        await this.getData();
+
+        if (!this.data || this.data.series.length == 0) return;
+        if (!this.newData && !this.checkResize) return;
+
+        const container = select$4(`#${this.id}`);
+        const overlay = container.select(".svg-overlay");
+        const layout = this.layout;
+        const width = this.plotAreaWidth;
+        const height = this.plotAreaHeight;
+        layout.margin;
+        const timeSync = layout.timeSync;
+        const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
+        if (layout.highlightItems) {
+            const filter = this.sharedStateByAncestorId["context"].filters.find(f => f.id == this.filterId);
+            filter.highlightItemIds;
+        }
+
+        const colour = (layout.colourMap === undefined) ? ordinal$1(Tableau10) : ordinal$1(layout.colourMap);
+        if (layout.cSet !== undefined) {
+            if (Array.isArray(layout.cSet)) {
+                colour.domain(layout.cSet);
+            } else {
+                const filter = this.sharedStateByAncestorId["context"].filters.find(f => f.id == this.filterId);
+                colour.domain(filter.categoricalUniqueValues[layout.cSet]);
+            }
+        }
+
+        this.updateHeader();
+        this.updatePlotAreaSize();
+
+        overlay
+            .attr("width", width + this.marginTotal.left + this.marginTotal.right)
+            .attr("height", height + this.marginTotal.bottom);
+
+        const nSeries = this.data.series.length;
+
+        if (timeSync) {
+            let timeSlider = container.select(".time-slider");
+            if (timeSlider.empty()) {
+                container.insert("input", ":first-child")
+                    .attr("class", "form-range time-slider")
+                    .attr("type", "range")
+                    .attr("min", 0)
+                    .attr("value", 0)
+                    .attr("max", nSeries - 1)
+                    .attr("step", 1)
+                    .on("input", timeStepSliderChange);
+
+                let handler = {
+                    set: function(target, key, valueset) {
+                        target[key] = valueset;
+                        if (key = 'iStep') {
+                            container.select(".time-slider").node().value = valueset;
+                        }
+                        return true;
+                    }
+                };
+                let watchedTime = new Proxy({iStep: 0}, handler);
+                this.watchedTime = watchedTime;
+            }
+        }
+
+        this.setRanges();
+        this.setScales();
+
+        // Calculate data center and ranges (like TriMesh3D)
+        const xMin = this.xRange[0];
+        const xMax = this.xRange[1];
+        const yMin = this.yRange[0];
+        const yMax = this.yRange[1];
+        const xMid = (xMin + xMax) / 2;
+        const yMid = (yMin + yMax) / 2;
+        const xDiff = xMax - xMin;
+        const yDiff = yMax - yMin;
+
+        if (!this.scene) {
+            this.scene = new Scene();
+
+            // Make background much larger to ensure visibility
+            const bgSize = Math.max(xDiff, yDiff) * 2;
+            const backgroundGeometry = new PlaneGeometry(bgSize, bgSize);
+            const backgroundColour = this.layout.backgroundColour || 0xefefef;
+            const backgroundMaterial = new MeshBasicMaterial({color: backgroundColour});
+            backgroundMaterial.depthWrite = false;
+            // Temporarily disable stencil for debugging
+            // backgroundMaterial.stencilWrite = true;
+            // backgroundMaterial.stencilRef = 1;
+            // backgroundMaterial.stencilFunc = THREE.NotEqualStencilFunc;
+            const background = new Mesh(backgroundGeometry, backgroundMaterial);
+            // Temporarily disable clip space shader to see if background shows
+            // background.material.onBeforeCompile = function(shader) {
+            //     shader.vertexShader = shader.vertexShader.replace(`#include <project_vertex>`,
+            //         `gl_Position = vec4( position , 1.0 );`);
+            // }
+            background.position.set(xMid, yMid, -1); // Position in world space behind data
+            background.renderOrder = 9;
+            this.scene.add(background);
+            this.background = background;
+        }
+        const rMax = Math.sqrt(xDiff**2 + yDiff**2);
+
+        this.xMid = xMid;
+        this.yMid = yMid;
+        this.rMax = rMax;
+        this.xRange = [xMin, xMax];
+        this.yRange = [yMin, yMax];
+
+        if (!this.camera) {
+            // Use TriMesh3D's symmetric bounds approach for 2D
+            this.camera = new OrthographicCamera(
+                -xDiff/2, xDiff/2,     // left, right (X range, symmetric)
+                yDiff/2, -yDiff/2,     // top, bottom (Y range, symmetric, flipped)
+                0.0001, 1e9
+            );
+            // Position camera at a reasonable distance relative to data scale
+            const cameraZ = Math.max(xDiff, yDiff); // 2x the largest data dimension
+            this.camera.position.set(xMid, yMid, cameraZ);
+            this.camera.lookAt(xMid, yMid, 0);
+            this.camera.up.set(0, 1, 0); // Y-up for 2D plots
+        }
+
+        // Initialize background to correct size
+        this.updateBackground();
+
+        this.lineUuids.forEach(uuid => {
+            const oldLine = this.scene.getObjectByProperty('uuid', uuid);
+            if (oldLine) {
+                oldLine.geometry.dispose();
+                oldLine.material.dispose();
+                this.scene.remove(oldLine);
+            }
+        });
+        this.lineUuids = [];
+
+        this.data.series.forEach(series => {
+            if (!series.data || series.data.length < 2) return;
+
+            const positions = [];
+            series.data.forEach(point => {
+                const x = point.x;  // Use actual data coordinates
+                const y = point.y;  // Use actual data coordinates
+                positions.push(x, y, 0);
+            });
+
+            const lineGeometry = new LineGeometry();
+            lineGeometry.setPositions(positions);
+
+            const lineMaterial = new LineMaterial({
+                color: (series.cKey !== undefined) ? colour(series.cKey) : 0x6495ed,
+                linewidth: 1,
+                resolution: new Vector2(width, height)
+            });
+            lineMaterial.stencilWrite = true;
+            lineMaterial.stencilRef = 1;
+            lineMaterial.stencilFunc = NotEqualStencilFunc;
+
+            const line = new Line2(lineGeometry, lineMaterial);
+            line.computeLineDistances();
+            line.renderOrder = 10;
+            line.userData = {
+                seriesData: series,
+                colour: colour
+            };
+
+            this.lineUuids.push(line.uuid);
+            this.scene.add(line);
+        });
+
+        this.addAxes();
+        //this.addOrbitControls();
+
+        if (!this.renderObserverId) {
+            this.renderObserverId = requestWebGLRender.subscribeWithData({
+                observer: this.renderScene.bind(this),
+                data: {boxId: this.boxId}
+            });
+            this.subscriptions.push({observable: requestWebGLRender, id: this.renderObserverId});
+        }
+
+        function timeStepSliderChange() {
+            let iStep = this.value;
+            if (timeSync) {
+                let plots = dbsliceData.session.plotRows[plotRowIndex].plots;
+                plots.forEach((plot) => {
+                    if (plot.watchedTime !== undefined) {
+                        plot.watchedTime.iStep = iStep;
+                    }
+                });
+            }
+        }
+
+        if (this.newData) {
+            this.webGLUpdate();
+        }
+
+        this.webGLUpdate();
+
+        this.newData = false;
+    }
+
+    renderScene() {
+        if (!this.scene) return;
+        const renderer = this.renderer;
+        const container = select$4(`#${this.id}`);
+        const plotArea = container.select(".plot-area");
+
+        renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
+        let plotRect = plotArea.node().getBoundingClientRect();
+        let rect = {left: plotRect.left, right: plotRect.right, top: plotRect.top, bottom: plotRect.bottom};
+
+        const ancestorIds = this.ancestorIds.filter(d => (d !== "context" && d.includes("box")));
+        for (let ancestorId of ancestorIds) {
+            const plotGroup = select$4(`#${ancestorId}-component-plot-area`);
+            let plotGroupRect = plotGroup.node().getBoundingClientRect();
+            if (rect.right < plotGroupRect.left) return;
+            if (rect.left > plotGroupRect.right) return;
+            if (rect.bottom < plotGroupRect.top) return;
+            if (rect.top > plotGroupRect.bottom) return;
+            if (rect.left < plotGroupRect.left && rect.right > plotGroupRect.left) {
+                rect.left = plotGroupRect.left + 2;
+            }
+            if (rect.right > plotGroupRect.right && rect.left < plotGroupRect.right) {
+                rect.right = plotGroupRect.right - 2;
+            }
+            if (rect.top < plotGroupRect.top && rect.bottom > plotGroupRect.top) {
+                rect.top = plotGroupRect.top + 2;
+            }
+            if (rect.bottom > plotGroupRect.bottom && rect.top < plotRect.bottom) {
+                rect.bottom = plotGroupRect.bottom - 2;
+            }
+        }
+
+        // set stencil rectangles
+        const overlappingDivsClipSpace = this.getOverlappingBoxesInClipSpace(plotRect);
+        this.stencilRects.forEach(uuid => {
+            const oldRect = this.scene.getObjectByProperty('uuid', uuid);
+            if (oldRect) {
+                oldRect.geometry.dispose();
+                oldRect.material.dispose();
+                this.scene.remove(oldRect);
+            }
+        });
+        this.stencilRects = [];
+
+        overlappingDivsClipSpace.forEach(d => {
+            const margin = {left: 0.00, right: 0.02, top: 0.00, bottom: 0.02};
+            const rectangleBufferGeometryForMesh = new BufferGeometry();
+            const vertTopLeftClip = new Vector3(d.left - margin.left, d.top + margin.top, 0.5);
+            const vertTopRightClip = new Vector3(d.right + margin.right, d.top + margin.top, 0.5);
+            const vertBottomLeftClip = new Vector3(d.left - margin.left, d.bottom - margin.bottom, 0.5);
+            const vertBottomRightClip = new Vector3(d.right + margin.right, d.bottom - margin.bottom, 0.5);
+            const vertTopLeftWorld = vertTopLeftClip.unproject(this.camera);
+            const vertTopRightWorld = vertTopRightClip.unproject(this.camera);
+            const vertBottomLeftWorld = vertBottomLeftClip.unproject(this.camera);
+            const vertBottomRightWorld = vertBottomRightClip.unproject(this.camera);
+
+            const vertices = new Float32Array([
+                vertTopLeftWorld.x, vertTopLeftWorld.y, vertTopLeftWorld.z,
+                vertTopRightWorld.x, vertTopRightWorld.y, vertTopRightWorld.z,
+                vertBottomRightWorld.x, vertBottomRightWorld.y, vertBottomRightWorld.z,
+                vertBottomLeftWorld.x, vertBottomLeftWorld.y, vertBottomLeftWorld.z
+            ]);
+            const indices = new Uint32Array([0, 2, 1, 0, 3, 2]);
+            rectangleBufferGeometryForMesh.setAttribute('position', new BufferAttribute(vertices, 3));
+            rectangleBufferGeometryForMesh.setIndex(new BufferAttribute(indices, 1));
+
+            const rectangleMaterial = new MeshBasicMaterial({color: "red", wireframe: false});
+            if (this.layout.showStencilRects) {
+                rectangleMaterial.colorWrite = true;
+            } else {
+                rectangleMaterial.colorWrite = false;
+            }
+            rectangleMaterial.depthWrite = false;
+            rectangleMaterial.depthTest = false;
+            rectangleMaterial.stencilWrite = true;
+            rectangleMaterial.stencilRef = 1;
+            rectangleMaterial.stencilFunc = AlwaysStencilFunc;
+            rectangleMaterial.stencilZPass = ReplaceStencilOp;
+            const rectangle = new Mesh(rectangleBufferGeometryForMesh, rectangleMaterial);
+            rectangle.renderOrder = 0;
+
+            this.stencilRects.push(rectangle.uuid);
+            this.scene.add(rectangle);
+        });
+
+        const scissorLeft = Math.floor(rect.left);
+        const scissorBottom = Math.floor(renderer.domElement.clientHeight - rect.bottom);
+        const scissorWidth = Math.floor(rect.right - rect.left);
+        const scissorHeight = Math.floor(rect.bottom - rect.top);
+
+        const viewLeft = Math.floor(plotRect.left);
+        const viewBottom = Math.floor(renderer.domElement.clientHeight - plotRect.bottom);
+        const viewWidth = Math.floor(plotRect.right - plotRect.left);
+        const viewHeight = Math.floor(plotRect.bottom - plotRect.top);
+
+        renderer.setScissorTest(true);
+        renderer.setViewport(viewLeft, viewBottom, viewWidth, viewHeight);
+        renderer.setScissor(scissorLeft, scissorBottom, scissorWidth, scissorHeight);
+        renderer.clear(true, true, false);
+        renderer.render(this.scene, this.camera);
+        renderer.setScissorTest(false);
+    }
+
+    normalizeX(x) {
+        return 2 * (x - this.xRange[0]) / (this.xRange[1] - this.xRange[0]) - 1;
+    }
+
+    normalizeY(y) {
+        return 2 * (y - this.yRange[0]) / (this.yRange[1] - this.yRange[0]) - 1;
+    }
+
+    setRanges() {
+        let xMin, xMax, yMin, yMax;
+        if (!this.layout.segmentedLine) {
+            xMin = min$4(this.data.series, d => min$4(d.data, d => d.x));
+            xMax = max$4(this.data.series, d => max$4(d.data, d => d.x));
+            yMin = min$4(this.data.series, d => min$4(d.data, d => d.y));
+            yMax = max$4(this.data.series, d => max$4(d.data, d => d.y));
+        } else {
+            xMin = min$4(this.data.series, d => min$4(d.data, d => d[0][0]));
+            xMax = max$4(this.data.series, d => max$4(d.data, d => d[0][0]));
+            yMin = min$4(this.data.series, d => min$4(d.data, d => d[0][1]));
+            yMax = max$4(this.data.series, d => max$4(d.data, d => d[0][1]));
+        }
+
+        this.xDataRange = [xMin, xMax];
+        this.yDataRange = [yMin, yMax];
+
+        let xDiff = xMax - xMin;
+        xMin -= 0.05 * xDiff;
+        xMax += 0.05 * xDiff;
+        let yDiff = yMax - yMin;
+        yMin -= 0.05 * yDiff;
+        yMax += 0.05 * yDiff;
+
+        this.xRange = this.layout.xRange || [xMin, xMax];
+        this.yRange = this.layout.yRange || [yMin, yMax];
+    }
+
+    setScales() {
+        if (this.layout.xscale == "time") {
+            this.xScale = time();
+            this.xScale0 = time();
+        } else {
+            this.xScale = linear$2();
+            this.xScale0 = linear$2();
+        }
+
+        this.yScale = linear$2();
+        this.yScale0 = linear$2();
+
+        // For display scales, use the data ranges (not camera bounds)
+        this.xScale.domain(this.xRange).range([0, this.plotAreaWidth]);
+        this.yScale.domain(this.yRange).range([this.plotAreaHeight, 0]);
+
+        // Keep reference scales for zoom calculations (original data ranges)
+        this.xScale0.domain(this.xDataRange).range([0, this.plotAreaWidth]);
+        this.yScale0.domain(this.yDataRange).range([this.plotAreaHeight, 0]);
+    }
+
+    addAxes() {
+        const overlay = select$4(`#${this.id}`).select(".svg-overlay");
+        const layout = this.layout;
+        const standOff = 2;
+
+        const xAxis = axisBottom$1(this.xScale);
+        if (layout.xTickNumber !== undefined) {
+            xAxis.ticks(layout.xTickNumber);
+        }
+        if (layout.xTickFormat !== undefined) {
+            xAxis.tickFormat(format$1(layout.xTickFormat));
+        }
+
+        const yAxis = axisLeft$1(this.yScale);
+        if (layout.yTickNumber !== undefined) {
+            yAxis.ticks(layout.yTickNumber);
+        }
+        if (layout.yTickFormat !== undefined) {
+            yAxis.tickFormat(format$1(layout.yTickFormat));
+        }
+
+        let gX = overlay.select(".axis-x");
+        if (gX.empty()) {
+            gX = overlay.append("g")
+                .attr("transform", `translate(${this.marginTotal.left},${this.plotAreaHeight + standOff})`)
+                .attr("class", "axis-x")
+                .call(xAxis);
+            gX.append("text")
+                .attr("class", "x-axis-text")
+                .attr("fill", "#000")
+                .attr("x", this.plotAreaWidth)
+                .attr("y", this.marginTotal.bottom - 5)
+                .attr("text-anchor", "end")
+                .text(layout.xAxisLabel);
+        } else {
+            gX.attr("transform", `translate(${this.marginTotal.left},${this.plotAreaHeight + standOff})`)
+                .call(xAxis);
+            gX.select(".x-axis-text").attr("x", this.plotAreaWidth);
+        }
+
+        let gY = overlay.select(".axis-y");
+        if (gY.empty()) {
+            gY = overlay.append("g")
+                .attr("transform", `translate(${this.marginTotal.left - standOff},0)`)
+                .attr("class", "axis-y")
+                .call(yAxis);
+            gY.append("text")
+                .attr("fill", "#000")
+                .attr("transform", "rotate(-90)")
+                .attr("x", 0)
+                .attr("y", -this.marginTotal.left + 15)
+                .attr("text-anchor", "end")
+                .text(layout.yAxisLabel);
+        } else {
+            gY.attr("transform", `translate(${this.marginTotal.left - standOff},0)`)
+                .call(yAxis);
+        }
+    }
+
+    updateAxesFromCamera() {
+        // Update scales to match camera bounds
+        this.xScale.domain([this.camera.left, this.camera.right]);
+        this.yScale.domain([this.camera.bottom, this.camera.top]);
+
+        // Update background to fill camera view
+        this.updateBackground();
+
+        // Re-render axes
+        const overlay = select$4(`#${this.id}`).select(".svg-overlay");
+        const layout = this.layout;
+
+        const xAxis = axisBottom$1(this.xScale);
+        if (layout.xTickNumber !== undefined) {
+            xAxis.ticks(layout.xTickNumber);
+        }
+        if (layout.xTickFormat !== undefined) {
+            xAxis.tickFormat(format$1(layout.xTickFormat));
+        }
+
+        const yAxis = axisLeft$1(this.yScale);
+        if (layout.yTickNumber !== undefined) {
+            yAxis.ticks(layout.yTickNumber);
+        }
+        if (layout.yTickFormat !== undefined) {
+            yAxis.tickFormat(format$1(layout.yTickFormat));
+        }
+
+        overlay.select(".axis-x").call(xAxis);
+        overlay.select(".axis-y").call(yAxis);
+    }
+
+    updateBackground() {
+        // Background is fixed to clip space like TriMesh3D - no need to update
+        // The shader modification makes it cover the entire view regardless of camera position
+    }
+
+
+    addOrbitControls() {
+        if (this.controls) return;
+
+        const container = select$4(`#${this.id}`);
+        const plotArea = container.select(".plot-area");
+
+        // Setup OrbitControls exactly like TriMesh3D
+        this.controls = new OrbitControls(this.camera, plotArea.node());
+        this.controls.target.set(this.xMid, this.yMid, 0); // Target data center like TriMesh3D
+        this.controls.enabled = true;
+        this.controls.update();
+        this.controls.enableRotate = false; // Disable rotation for 2D
+        this.controls.addEventListener('change', () => {
+            this.handleOrbitChange();
+        });
+    }
+
+    handleOrbitChange() {
+        // For now, just trigger a WebGL render without updating axes
+        this.webGLUpdate();
+    }
+
+    highlightItems() {
+        const filter = this.sharedStateByAncestorId["context"].filters.find(f => f.id == this.filterId);
+        const highlightItemIds = filter.highlightItemIds.state.itemIds;
+        const colour = (this.layout.colourMap === undefined) ? ordinal$1(Tableau10) : ordinal$1(this.layout.colourMap);
+
+        if (this.layout.cSet !== undefined) {
+            if (Array.isArray(this.layout.cSet)) {
+                colour.domain(this.layout.cSet);
+            } else {
+                colour.domain(filter.categoricalUniqueValues[this.layout.cSet]);
+            }
+        }
+
+        this.scene.children.forEach(object => {
+            if (object.userData.seriesData) {
+                if (highlightItemIds === undefined || highlightItemIds.length == 0) {
+                    object.material.color.set((object.userData.seriesData.cKey !== undefined) ? colour(object.userData.seriesData.cKey) : 0x6495ed);
+                    object.material.linewidth = 3;
+                } else {
+                    object.material.color.set(0xd3d3d3);
+                    object.material.linewidth = 3;
+                    highlightItemIds.forEach(function(itemId) {
+                        if (object.userData.seriesData.itemId == itemId) {
+                            object.material.color.set((object.userData.seriesData.cKey !== undefined) ? colour(object.userData.seriesData.cKey) : 0x6495ed);
+                            object.material.linewidth = 6;
+                        }
+                    });
+                }
+                object.material.needsUpdate = true;
+            }
+        });
+        this.webGLUpdate();
+    }
+
+    handleFilterChange(data) {
+        if (data.brushing) return;
+        if (this.fetchData.getItemIdsFromFilter && !data.noFilter) {
+            this.fetchData.itemIds = data.itemIds;
+        }
+        if (!this.fetchData.getItemIdsFromFilter && data.noFilter) {
+            this.fetchData.itemIds = data.itemIds;
+        }
+        this.fetchDataNow = true;
+        if (this.fetchData.dataFilterConfig) {
+            const config = this.fetchData.dataFilterConfig;
+            const dataset = this.sharedStateByAncestorId["context"].datasets.find(d => d.id == this.datasetId);
+            config.itemLabels = this.fetchData.itemIds.map(id => dataset.data.find(i => i.itemId == id).label);
+            if (config.cProperty) {
+                config.cPropertyValues = this.fetchData.itemIds.map(id => dataset.data.find(i => i.itemId == id)[config.cProperty]);
+            }
+        }
+        this.update();
+    }
+
+    async handleDerivedDataChange() {
+        this.fetchDataNow = true;
+        await this.update();
+        this.fetchDataNow = true;
+        this.update();
+    }
+
+    handleDimensionChange() {
+        this.fetchDataNow = true;
+        this.update();
+    }
+
+    remove() {
+        this.removeSubscriptions();
+        this.lineUuids.forEach(uuid => {
+            const oldLine = this.scene.getObjectByProperty('uuid', uuid);
+            if (oldLine) {
+                oldLine.geometry.dispose();
+                oldLine.material.dispose();
+                this.scene.remove(oldLine);
+            }
+        });
+    }
+}
+
 class DimensionSliders extends Plot {
 
     constructor(options) {
@@ -180420,6 +182697,7 @@ function getComponentFromType(type) {
         'TriMesh3D'                : TriMesh3D ,
         'GLTFViewer'               : GLTFViewer ,
         'LineSeries'               : LineSeries ,
+        'LineSeriesGL'             : LineSeriesGL ,
         'DimensionSliders'         : DimensionSliders ,
         'MetaDataBarChart'         : MetaDataBarChart ,
         'MetaDataRankCorrBarChart' : MetaDataRankCorrBarChart ,
@@ -181109,4 +183387,4 @@ class Dataset {
 
 }
 
-export { Board, Box, Context, Dataset, Filter, LineSeries, MetaDataBarChart, MetaDataHistogram, MetaDataRankCorrBarChart, MetaDataScatter, Plot, PlotGroup, TriMesh3D, cfAddPlot, cfD3BarChart, cfD3Histogram, cfD3RankCorrBar, cfD3ResSurfScatter, cfD3Scatter, cfInit, cfLeafletMapWithMarkers, cfUpdateFilters, cfWglCorrMat, cfWglScatter, d3ContourStruct2d, d3CutLine, d3LineSeries, d3Scatter, dbsliceData$1 as dbsliceData, getDataFilterFunc, getFilteredTaskIds, getFilteredTaskLabels, getPlotFunc, makeNewPlot, makePlotsFromPlotRowCtrl, makeSessionHeader, refreshTasksInPlotRows, render, start$1 as start, threeMeshFromStruct, threeSurf3d, threeTriMesh, triMesh2dRender, triMesh2dRenderXBar, update, updatePlot };
+export { Board, Box, Context, Dataset, Filter, LineSeries, LineSeriesGL, MetaDataBarChart, MetaDataHistogram, MetaDataRankCorrBarChart, MetaDataScatter, Plot, PlotGroup, TriMesh3D, cfAddPlot, cfD3BarChart, cfD3Histogram, cfD3RankCorrBar, cfD3ResSurfScatter, cfD3Scatter, cfInit, cfLeafletMapWithMarkers, cfUpdateFilters, cfWglCorrMat, cfWglScatter, d3ContourStruct2d, d3CutLine, d3LineSeries, d3Scatter, dbsliceData$1 as dbsliceData, getDataFilterFunc, getFilteredTaskIds, getFilteredTaskLabels, getPlotFunc, makeNewPlot, makePlotsFromPlotRowCtrl, makeSessionHeader, refreshTasksInPlotRows, render, start$1 as start, threeMeshFromStruct, threeSurf3d, threeTriMesh, triMesh2dRender, triMesh2dRenderXBar, update, updatePlot };
