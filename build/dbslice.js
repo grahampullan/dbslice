@@ -181897,6 +181897,8 @@ class LineSeriesGL extends Plot {
         this.componentType = "LineSeriesGL";
         this.lineUuids = [];
         this.stencilRects = [];
+        this.cuts = [];
+        this.cutLineMeshes = [];
     }
 
     make() {
@@ -182100,9 +182102,6 @@ class LineSeriesGL extends Plot {
             this.camera.up.set(0, 1, 0); // Y-up for 2D plots
         }
 
-        // Initialize background to correct size
-        this.updateBackground();
-
         this.lineUuids.forEach(uuid => {
             const oldLine = this.scene.getObjectByProperty('uuid', uuid);
             if (oldLine) {
@@ -182147,8 +182146,17 @@ class LineSeriesGL extends Plot {
             this.scene.add(line);
         });
 
+        // Build quadtree for efficient point selection
+        this.buildQuadtree();
+
+        // Initialize cut lines from layout configuration
+        this.initCuts();
+
         this.addAxes();
         this.addOrbitControls();
+
+        // Add cut lines after controls are set up
+        this.addCutLines();
 
         if (!this.renderObserverId) {
             this.renderObserverId = requestWebGLRender.subscribeWithData({
@@ -182515,12 +182523,6 @@ class LineSeriesGL extends Plot {
     }
 
 
-    updateBackground() {
-        // Background is fixed to clip space like TriMesh3D - no need to update
-        // The shader modification makes it cover the entire view regardless of camera position
-    }
-
-
     addOrbitControls() {
         if (this.controls) return;
 
@@ -182545,26 +182547,178 @@ class LineSeriesGL extends Plot {
         this.raycaster = new Raycaster();
         this.pointer = new Vector2();
 
-        // Add debugging to understand what events are being received
-        plotArea.node().addEventListener('mousedown', (event) => {
-            console.log("mousedown", event.button);
-        });
-        plotArea.node().addEventListener('pointerdown', (event) => {
-            console.log("pointerdown", event.pointerType, event.button);
-        });
-        plotArea.node().addEventListener('touchstart', (event) => {
-            console.log("touchstart", event.touches.length);
-        });
-
         // Only stop wheel events to prevent parent div zoom conflicts
         plotArea.node().addEventListener('wheel', (event) => {
             event.stopPropagation();
         }, {passive: false});
+
+        // Add point selection and cut line interaction functionality
+        plotArea.node().addEventListener('click', (event) => {
+            this.handlePointSelection(event);
+        });
+
+        // Add cut line interactions exactly like triMesh3D
+        this.cutLineDragging = false;
+
+        const updatePointerPosition = (event) => {
+            const rect = plotArea.node().getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            this.pointer.x = (event.clientX - rect.left) / width * 2 - 1;
+            this.pointer.y = -((event.clientY - rect.top) / height) * 2 + 1;
+        };
+
+        const checkOnCutLine = (event) => {
+            updatePointerPosition(event);
+            this.raycaster.setFromCamera(this.pointer, this.camera);
+
+            // Get world position for proximity-based detection (wider hit area)
+            const planeNormal = new Vector3(0, 0, 1);
+            const plane = new Plane(planeNormal, 0);
+            const worldPos = this.raycaster.ray.intersectPlane(plane, new Vector3());
+
+            if (!worldPos) return;
+
+            this.cuts.forEach(cut => {
+                // Use proximity-based detection for wider hit area (like getCutLineAtPosition)
+                let distance, threshold;
+                const xRange = Math.abs(this.camera.right - this.camera.left);
+                const yRange = Math.abs(this.camera.top - this.camera.bottom);
+
+                if (cut.type == "x") {
+                    // For vertical cut lines, use perpendicular (x-direction) threshold
+                    distance = Math.abs(worldPos.x - cut.value);
+                    threshold = xRange * 0.05; // 5% of x range for easier hitting
+                } else if (cut.type == "y") {
+                    // For horizontal cut lines, use perpendicular (y-direction) threshold
+                    distance = Math.abs(worldPos.y - cut.value);
+                    threshold = yRange * 0.05; // 5% of y range for easier hitting
+                }
+
+                if (distance <= threshold) {
+                    cut.lineDragging = true;
+                    cut.line.material.color.set(0x42d4f5);
+                    this.cutLineDragging = true;
+                    this.controls.enabled = false;
+                    this.webGLUpdate();
+                }
+            });
+        };
+
+        const cutLineDragged = (event) => {
+            if (this.cutLineDragging) {
+                const cut = this.cuts.find(cut => cut.lineDragging);
+                if (!cut) return;
+
+                updatePointerPosition(event.sourceEvent);
+                this.raycaster.setFromCamera(this.pointer, this.camera);
+
+                // Intersect with data plane at z=0 (different from triMesh3D's x-plane)
+                const planeNormal = new Vector3(0, 0, 1);
+                const plane = new Plane(planeNormal, 0);
+                const planeIntersect = this.raycaster.ray.intersectPlane(plane, new Vector3());
+
+                if (planeIntersect) {
+                    cut.point = planeIntersect; // Store point like triMesh3D
+                    cut.brushing = true;
+                    this.setCutValue(cut.dimensionName); // Use triMesh3D's method
+                    this.setCutLinePosition(cut.dimensionName);
+                    this.webGLUpdate();
+                }
+            }
+        };
+
+        const cutLineDragEnd = () => {
+            if (this.cutLineDragging) {
+                const cut = this.cuts.find(cut => cut.lineDragging);
+                cut.line.material.color.set(0xd0d5db);
+                cut.lineDragging = false;
+                this.cutLineDragging = false;
+                cut.brushing = false;
+                this.setCutValue(cut.dimensionName); // Final update like triMesh3D
+                this.webGLUpdate(); // Need to render the color change
+            }
+            this.controls.enabled = true;
+        };
+
+        // Use triMesh3D's exact pattern: separate drag and pointerdown handlers
+        const cutLineDrag = drag$2()
+            .on("drag", cutLineDragged)
+            .on("end", cutLineDragEnd);
+        plotArea.call(cutLineDrag);
+        plotArea.node().addEventListener("pointerdown", checkOnCutLine, true);
+    }
+
+    buildQuadtree() {
+        // Create quadtree for efficient point selection
+        this.quadtree = quadtree$1()
+            .x(d => d.x)
+            .y(d => d.y);
+
+        // Add all points from all series to quadtree
+        this.data.series.forEach((series, seriesIndex) => {
+            series.data.forEach((point, pointIndex) => {
+                this.quadtree.add({
+                    x: point.x,
+                    y: point.y,
+                    seriesIndex: seriesIndex,
+                    pointIndex: pointIndex,
+                    seriesData: series,
+                    pointData: point
+                });
+            });
+        });
+    }
+
+    handlePointSelection(event) {
+        if (!this.quadtree) return;
+
+        // Get mouse coordinates relative to plot area
+        const rect = event.target.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        // Convert screen coordinates to normalized device coordinates
+        const pointer = new Vector2();
+        pointer.x = (mouseX / rect.width) * 2 - 1;
+        pointer.y = -(mouseY / rect.height) * 2 + 1;
+
+        // Use raycaster to get world coordinates
+        this.raycaster.setFromCamera(pointer, this.camera);
+        const plane = new Plane(new Vector3(0, 0, 1), 0);
+        const intersectPoint = this.raycaster.ray.intersectPlane(plane, new Vector3());
+
+        if (!intersectPoint) return;
+
+        // Find closest point using quadtree
+        const closestPoint = this.quadtree.find(intersectPoint.x, intersectPoint.y);
+
+        if (closestPoint) {
+            // Calculate distance to ensure it's reasonably close
+            const distance = Math.sqrt(
+                Math.pow(closestPoint.x - intersectPoint.x, 2) +
+                Math.pow(closestPoint.y - intersectPoint.y, 2)
+            );
+
+            // Calculate threshold based on both X and Y camera ranges
+            const xRange = Math.abs(this.camera.right - this.camera.left);
+            const yRange = Math.abs(this.camera.top - this.camera.bottom);
+            const threshold = Math.max(xRange, yRange) * 0.02; // 2% of smaller visible range
+
+            if (distance <= threshold) {
+                console.log('Selected point:', {
+                    coordinates: { x: closestPoint.x, y: closestPoint.y },
+                    seriesIndex: closestPoint.seriesIndex,
+                    pointIndex: closestPoint.pointIndex,
+                    seriesLabel: closestPoint.seriesData.label || `Series ${closestPoint.seriesIndex}`,
+                    distance: distance.toFixed(6)
+                });
+            }
+        }
     }
 
     handleOrbitChange() {
         // Add basic debugging to confirm OrbitControls is working
-        console.log("OrbitControls change detected");
         this.addAxes();
         this.webGLUpdate();
     }
@@ -182635,6 +182789,181 @@ class LineSeriesGL extends Plot {
         this.update();
     }
 
+    initCuts() {
+        if (!this.layout.cuts?.length) return;
+        const requestCreateDimension = this.sharedStateByAncestorId["context"].requestCreateDimension;
+        this.layout.cuts.forEach(cut => {
+            if (this.cuts.map(d => d.dimensionName).includes(cut.dimensionName)) {
+                return;
+            }
+            const cutToAdd = this.makeCutObject(cut);
+            let avgValue;
+            if (cut.type == "x") {
+                avgValue = mean$1(this.xDataRange);
+            } else if (cut.type == "y") {
+                avgValue = mean$1(this.yDataRange);
+            }
+            const dimensionName = cut.dimensionName;
+            requestCreateDimension.state = { name: dimensionName, value: avgValue };
+            const dimensions = this.sharedStateByAncestorId["context"].dimensions;
+            const dimension = dimensions.find(d => d.name == dimensionName);
+            const dimValue = dimension.state.value;
+            cutToAdd.value = dimValue;
+            cutToAdd.dimensionObserverId = dimension.subscribe((data) => {
+                const cut = this.cuts.find(d => d.dimensionName == dimensionName);
+                cut.value = data.value;
+                this.setCutLinePosition(dimensionName);
+            });
+            this.subscriptions.push({ observable: dimension, id: cutToAdd.dimensionObserverId });
+            this.cuts.push(cutToAdd);
+        });
+    }
+
+    makeCutObject(cut) {
+        return {
+            dimensionName: cut.dimensionName,
+            type: cut.type,
+            value: null,
+            brushing: false,
+            lineAdded: false,
+            line: null
+        };
+    }
+
+    addCutLines() {
+        if (!this.cuts.length) return;
+
+        this.cuts.forEach(cut => {
+            if (cut.lineAdded) return;
+            const dimensionName = cut.dimensionName;
+
+            // Create Three.js line geometry for cut line
+            let positions;
+            if (cut.type == "x") {
+                // Vertical line spanning Y range
+                positions = [cut.value, this.yRange[0], 0, cut.value, this.yRange[1], 0];
+            } else if (cut.type == "y") {
+                // Horizontal line spanning X range
+                positions = [this.xRange[0], cut.value, 0, this.xRange[1], cut.value, 0];
+            }
+
+            const lineGeometry = new LineGeometry();
+            lineGeometry.setPositions(positions);
+            lineGeometry.computeBoundingSphere(); // Essential for raycasting!
+
+            const lineMaterial = new LineMaterial({
+                color: cut.brushing ? 0x42d4f5 : 0xd0d5db, // Cyan when dragging, gray otherwise
+                linewidth: 3,
+                resolution: new Vector2(this.plotAreaWidth, this.plotAreaHeight)
+            });
+            lineMaterial.stencilWrite = true;
+            lineMaterial.stencilRef = 1;
+            lineMaterial.stencilFunc = NotEqualStencilFunc;
+            lineMaterial.depthTest = false; // Like triMesh3D
+
+            const cutLine = new Line2(lineGeometry, lineMaterial);
+            cutLine.computeLineDistances();
+            cutLine.renderOrder = 15; // Render above data lines but below UI
+            cutLine.userData = {
+                cutDimensionName: dimensionName,
+                isCutLine: true
+            };
+
+            cut.line = cutLine;
+            cut.lineAdded = true;
+            this.cutLineMeshes.push(cutLine.uuid);
+            this.scene.add(cutLine);
+        });
+    }
+
+    setCutValue(dimensionName) {
+        const cut = this.cuts.find(d => d.dimensionName == dimensionName);
+        if (cut.type == "x") {
+            cut.value = cut.point.x; // Extract from intersect point like triMesh3D
+        } else if (cut.type == "y") {
+            cut.value = cut.point.y;
+        }
+
+        // Update dimension state like triMesh3D
+        const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
+        requestSetDimension.state = { name: dimensionName, dimensionState: { value: cut.value, brushing: cut.brushing } };
+    }
+
+    setCutLinePosition(dimensionName) {
+        const cut = this.cuts.find(d => d.dimensionName == dimensionName);
+        if (!cut || !cut.line) return;
+
+        // Update line geometry positions based on current value
+        let positions;
+        if (cut.type == "x") {
+            // Vertical line spanning visible Y range
+            const yMin = this.yRange[0];
+            const yMax = this.yRange[1];
+            positions = [cut.value, yMin, 0, cut.value, yMax, 0];
+        } else if (cut.type == "y") {
+            // Horizontal line spanning visible X range
+            const xMin = this.xRange[0];
+            const xMax = this.xRange[1];
+            positions = [xMin, cut.value, 0, xMax, cut.value, 0];
+        }
+
+        // Update geometry
+        cut.line.geometry.setPositions(positions);
+        cut.line.computeLineDistances();
+
+        // Update material color based on brushing state
+        cut.line.material.color.set(cut.brushing ? 0x42d4f5 : 0xd0d5db);
+        cut.line.material.needsUpdate = true;
+    }
+
+    getCutLineAtPosition(event) {
+        // Use raycaster to check if we hit a cut line
+        const intersectPoint = this.getWorldPositionFromEvent(event);
+        if (!intersectPoint || !this.cuts.length) return null;
+
+        // Check each cut line for proximity
+        for (let cut of this.cuts) {
+            if (!cut.line) continue;
+
+            let distance, threshold;
+            const xRange = Math.abs(this.camera.right - this.camera.left);
+            const yRange = Math.abs(this.camera.top - this.camera.bottom);
+
+            if (cut.type == "x") {
+                // For vertical cut lines, use perpendicular (x-direction) threshold
+                distance = Math.abs(intersectPoint.x - cut.value);
+                threshold = xRange * 0.02; // 2% of x range
+            } else if (cut.type == "y") {
+                // For horizontal cut lines, use perpendicular (y-direction) threshold
+                distance = Math.abs(intersectPoint.y - cut.value);
+                threshold = yRange * 0.02; // 2% of y range
+            }
+
+            if (distance <= threshold) {
+                return { dimensionName: cut.dimensionName };
+            }
+        }
+
+        return null;
+    }
+
+    getWorldPositionFromEvent(event) {
+        // Convert mouse event to world coordinates (shared with point selection)
+        const rect = event.target.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        // Convert screen coordinates to normalized device coordinates
+        const pointer = new Vector2();
+        pointer.x = (mouseX / rect.width) * 2 - 1;
+        pointer.y = -(mouseY / rect.height) * 2 + 1;
+
+        // Use raycaster to get world coordinates
+        this.raycaster.setFromCamera(pointer, this.camera);
+        const plane = new Plane(new Vector3(0, 0, 1), 0);
+        return this.raycaster.ray.intersectPlane(plane, new Vector3());
+    }
+
     remove() {
         this.removeSubscriptions();
         this.lineUuids.forEach(uuid => {
@@ -182643,6 +182972,16 @@ class LineSeriesGL extends Plot {
                 oldLine.geometry.dispose();
                 oldLine.material.dispose();
                 this.scene.remove(oldLine);
+            }
+        });
+
+        // Clean up cut line meshes
+        this.cutLineMeshes.forEach(uuid => {
+            const oldCutLine = this.scene.getObjectByProperty('uuid', uuid);
+            if (oldCutLine) {
+                oldCutLine.geometry.dispose();
+                oldCutLine.material.dispose();
+                this.scene.remove(oldCutLine);
             }
         });
     }
