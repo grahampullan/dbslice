@@ -182148,7 +182148,7 @@ class LineSeriesGL extends Plot {
         });
 
         this.addAxes();
-        //this.addOrbitControls();
+        this.addOrbitControls();
 
         if (!this.renderObserverId) {
             this.renderObserverId = requestWebGLRender.subscribeWithData({
@@ -182344,7 +182344,43 @@ class LineSeriesGL extends Plot {
         const layout = this.layout;
         const standOff = 2;
 
-        const xAxis = axisBottom$1(this.xScale);
+        // Use raycaster to determine current visible range (like TriMesh3D)
+        if (!this.raycaster || !this.camera) {
+            // Use full range as fallback
+            this.xScale.domain(this.xRange).range([0, this.plotAreaWidth]);
+            this.yScale.domain(this.yRange).range([this.plotAreaHeight, 0]);
+        } else {
+            // Get current visible range using raycasting intersecting a plane at z=0 (like TriMesh3D)
+            const planeNormal = new Vector3(0, 0, 1); // Plane normal pointing towards camera
+            const plane = new Plane(planeNormal, 0); // Plane at z=0
+
+            // Bottom-left corner of viewport
+            this.pointer.x = -1;
+            this.pointer.y = -1;
+            this.raycaster.setFromCamera(this.pointer, this.camera);
+            const intersectBottomLeft = this.raycaster.ray.intersectPlane(plane, new Vector3());
+
+            // Top-right corner of viewport
+            this.pointer.x = 1;
+            this.pointer.y = 1;
+            this.raycaster.setFromCamera(this.pointer, this.camera);
+            const intersectTopRight = this.raycaster.ray.intersectPlane(plane, new Vector3());
+
+            if (intersectBottomLeft && intersectTopRight) {
+                const xRangeVisible = [intersectBottomLeft.x, intersectTopRight.x];
+                const yRangeVisible = [intersectBottomLeft.y, intersectTopRight.y];
+
+                // Update scales to match visible range
+                this.xScale.domain(xRangeVisible).range([0, this.plotAreaWidth]);
+                this.yScale.domain(yRangeVisible).range([this.plotAreaHeight, 0]);
+            }
+        }
+
+        // Create axes from current scales
+        const xScale = this.xScale;
+        const yScale = this.yScale;
+
+        const xAxis = axisBottom$1(xScale);
         if (layout.xTickNumber !== undefined) {
             xAxis.ticks(layout.xTickNumber);
         }
@@ -182352,7 +182388,7 @@ class LineSeriesGL extends Plot {
             xAxis.tickFormat(format$1(layout.xTickFormat));
         }
 
-        const yAxis = axisLeft$1(this.yScale);
+        const yAxis = axisLeft$1(yScale);
         if (layout.yTickNumber !== undefined) {
             yAxis.ticks(layout.yTickNumber);
         }
@@ -182365,13 +182401,39 @@ class LineSeriesGL extends Plot {
             gX = overlay.append("g")
                 .attr("transform", `translate(${this.marginTotal.left},${this.plotAreaHeight + standOff})`)
                 .attr("class", "axis-x")
-                .call(xAxis);
+                .style("pointer-events", "bounding-box")
+                .call(xAxis)
+                .call(zoom$2().on("zoom", (event) => {
+                    const transform = event.transform;
+                    // Use original data range as reference for zoom (like TriMesh3D)
+                    let xDiff = this.xRange[1] - this.xRange[0];
+
+                    // Handle zoom (scale)
+                    const scaledRange = xDiff / transform.k;
+                    this.camera.left = -scaledRange/2;
+                    this.camera.right = scaledRange/2;
+
+                    // Handle pan (translation) - scale by current zoom level
+                    const currentCameraRange = this.camera.right - this.camera.left;
+                    const panScale = currentCameraRange / this.plotAreaWidth;
+                    const panOffset = -transform.x * panScale;
+                    this.camera.position.x = this.xMid + panOffset;
+
+                    // Update OrbitControls target
+                    this.controls.target.x = this.camera.position.x;
+
+                    this.camera.updateProjectionMatrix();
+                    this.webGLUpdate();
+                    this.addAxes();
+                }));
             gX.append("text")
                 .attr("class", "x-axis-text")
                 .attr("fill", "#000")
                 .attr("x", this.plotAreaWidth)
                 .attr("y", this.marginTotal.bottom - 5)
                 .attr("text-anchor", "end")
+                .style("pointer-events", "none")
+                .style("user-select", "none")
                 .text(layout.xAxisLabel);
         } else {
             gX.attr("transform", `translate(${this.marginTotal.left},${this.plotAreaHeight + standOff})`)
@@ -182384,13 +182446,39 @@ class LineSeriesGL extends Plot {
             gY = overlay.append("g")
                 .attr("transform", `translate(${this.marginTotal.left - standOff},0)`)
                 .attr("class", "axis-y")
-                .call(yAxis);
+                .style("pointer-events", "bounding-box")
+                .call(yAxis)
+                .call(zoom$2().on("zoom", (event) => {
+                    const transform = event.transform;
+                    // Use original data range as reference for zoom (like TriMesh3D)
+                    let yDiff = this.yRange[1] - this.yRange[0];
+
+                    // Handle zoom (scale)
+                    const scaledRange = yDiff / transform.k;
+                    this.camera.top = scaledRange/2;
+                    this.camera.bottom = -scaledRange/2;
+
+                    // Handle pan (translation) - scale by current zoom level
+                    const currentCameraRange = this.camera.top - this.camera.bottom;
+                    const panScale = currentCameraRange / this.plotAreaHeight;
+                    const panOffset = transform.y * panScale; // Positive Y is up in world space
+                    this.camera.position.y = this.yMid + panOffset;
+
+                    // Update OrbitControls target
+                    this.controls.target.y = this.camera.position.y;
+
+                    this.camera.updateProjectionMatrix();
+                    this.webGLUpdate();
+                    this.addAxes();
+                }));
             gY.append("text")
                 .attr("fill", "#000")
                 .attr("transform", "rotate(-90)")
                 .attr("x", 0)
                 .attr("y", -this.marginTotal.left + 15)
                 .attr("text-anchor", "end")
+                .style("pointer-events", "none")
+                .style("user-select", "none")
                 .text(layout.yAxisLabel);
         } else {
             gY.attr("transform", `translate(${this.marginTotal.left - standOff},0)`)
@@ -182398,37 +182486,6 @@ class LineSeriesGL extends Plot {
         }
     }
 
-    updateAxesFromCamera() {
-        // Update scales to match camera bounds
-        this.xScale.domain([this.camera.left, this.camera.right]);
-        this.yScale.domain([this.camera.bottom, this.camera.top]);
-
-        // Update background to fill camera view
-        this.updateBackground();
-
-        // Re-render axes
-        const overlay = select$4(`#${this.id}`).select(".svg-overlay");
-        const layout = this.layout;
-
-        const xAxis = axisBottom$1(this.xScale);
-        if (layout.xTickNumber !== undefined) {
-            xAxis.ticks(layout.xTickNumber);
-        }
-        if (layout.xTickFormat !== undefined) {
-            xAxis.tickFormat(format$1(layout.xTickFormat));
-        }
-
-        const yAxis = axisLeft$1(this.yScale);
-        if (layout.yTickNumber !== undefined) {
-            yAxis.ticks(layout.yTickNumber);
-        }
-        if (layout.yTickFormat !== undefined) {
-            yAxis.tickFormat(format$1(layout.yTickFormat));
-        }
-
-        overlay.select(".axis-x").call(xAxis);
-        overlay.select(".axis-y").call(yAxis);
-    }
 
     updateBackground() {
         // Background is fixed to clip space like TriMesh3D - no need to update
@@ -182442,19 +182499,45 @@ class LineSeriesGL extends Plot {
         const container = select$4(`#${this.id}`);
         const plotArea = container.select(".plot-area");
 
-        // Setup OrbitControls exactly like TriMesh3D
+        // OrbitControls setup with trackpad/touch support
         this.controls = new OrbitControls(this.camera, plotArea.node());
-        this.controls.target.set(this.xMid, this.yMid, 0); // Target data center like TriMesh3D
-        this.controls.enabled = true;
-        this.controls.update();
-        this.controls.enableRotate = false; // Disable rotation for 2D
+        this.controls.target.set(this.xMid, this.yMid, 0);
+        this.controls.enableRotate = false;
+        this.controls.enableZoom = true;
+        this.controls.enablePan = true;
+        this.controls.zoomSpeed = 3.0;
+
+
         this.controls.addEventListener('change', () => {
             this.handleOrbitChange();
         });
+        this.controls.update();
+
+        // Initialize raycaster for reading camera view bounds (like TriMesh3D)
+        this.raycaster = new Raycaster();
+        this.pointer = new Vector2();
+
+        // Add debugging to understand what events are being received
+        plotArea.node().addEventListener('mousedown', (event) => {
+            console.log("mousedown", event.button);
+        });
+        plotArea.node().addEventListener('pointerdown', (event) => {
+            console.log("pointerdown", event.pointerType, event.button);
+        });
+        plotArea.node().addEventListener('touchstart', (event) => {
+            console.log("touchstart", event.touches.length);
+        });
+
+        // Only stop wheel events to prevent parent div zoom conflicts
+        plotArea.node().addEventListener('wheel', (event) => {
+            event.stopPropagation();
+        }, {passive: false});
     }
 
     handleOrbitChange() {
-        // For now, just trigger a WebGL render without updating axes
+        // Add basic debugging to confirm OrbitControls is working
+        console.log("OrbitControls change detected");
+        this.addAxes();
         this.webGLUpdate();
     }
 
