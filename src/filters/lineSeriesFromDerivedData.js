@@ -1,4 +1,4 @@
-function lineSeriesFromDerivedData( derivedData, config ) {
+function lineSeriesFromDerivedData( derivedData, dummyItems, config ) {
 
     const series = [];
 

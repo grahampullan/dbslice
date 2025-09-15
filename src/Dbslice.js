@@ -43,6 +43,7 @@ export { Dataset } from './core/Dataset.js';
 export { Filter } from './core/Filter.js';
 export { TriMesh3D } from './plot/TriMesh3D.js';
 export { LineSeries } from './plot/LineSeries.js';
+export { LineSeriesGL } from './plot/LineSeriesGL.js';
 export { MetaDataScatter } from './plot/MetaDataScatter.js';
 export { MetaDataHistogram } from './plot/MetaDataHistogram.js';
 export { MetaDataBarChart } from './plot/MetaDataBarChart.js';

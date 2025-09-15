@@ -5,7 +5,11 @@ function lineSeriesFromCsv( rawData , items, config ) {
 
     const series = [];
 
-    rawData.forEach( function( dataText, index ) { 
+    // Ensure rawData is an array (handle single item case)
+    const rawDataArray = Array.isArray(rawData) ? rawData : [rawData];
+    const itemsArray = items ? (Array.isArray(items) ? items : [items]) : null;
+
+    rawDataArray.forEach( function( dataText, index ) { 
 
         let dataTextLines = dataText.split("\n");
 
@@ -48,8 +52,8 @@ function lineSeriesFromCsv( rawData , items, config ) {
 
         let line = data.map( d => ({x: +d[config.xProperty], y: +d[config.yProperty] }));
 
-        let itemId = items[index];
-        let label = config.itemLabels[index];
+        let itemId = itemsArray ? itemsArray[index] : index;
+        let label = config.itemLabels ? config.itemLabels[index] : "line";
         let seriesNow = { label : label , data : line, itemId };
 
         if ( config.cProperty != undefined ) {
