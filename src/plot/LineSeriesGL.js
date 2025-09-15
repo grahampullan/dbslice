@@ -319,6 +319,14 @@ class LineSeriesGL extends Plot {
         }
 
         if (this.newData) {
+            // When new data arrives, recenter camera and controls on the new data
+            if (this.camera && this.controls) {
+                this.camera.position.x = this.xMid;
+                this.camera.position.y = this.yMid;
+                this.controls.target.set(this.xMid, this.yMid, 0);
+                this.camera.updateProjectionMatrix();
+                this.updateCutLines(); // Update cut lines to span new visible range after recentering
+            }
             this.webGLUpdate();
         }
 
