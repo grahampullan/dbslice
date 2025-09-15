@@ -182059,23 +182059,35 @@ class LineSeriesGL extends Plot {
         if (!this.scene) {
             this.scene = new Scene();
 
-            // Make background much larger to ensure visibility
-            const bgSize = Math.max(xDiff, yDiff) * 2;
-            const backgroundGeometry = new PlaneGeometry(bgSize, bgSize);
+            const backgroundGeometry = new PlaneGeometry(2, 2);
             const backgroundColour = this.layout.backgroundColour || 0xefefef;
-            const backgroundMaterial = new MeshBasicMaterial({color: backgroundColour});
+            const backgroundMaterial = new MeshBasicMaterial({
+                color: backgroundColour,
+                transparent: false,
+                opacity: 1.0
+            });
+
+            // Test stencil, never modify it
+            backgroundMaterial.stencilWrite = true;   // enables the test in three.js
+            backgroundMaterial.stencilRef   = 1;
+            backgroundMaterial.stencilFunc  = NotEqualStencilFunc;
+            backgroundMaterial.stencilFail  = KeepStencilOp;
+            backgroundMaterial.stencilZFail = KeepStencilOp;
+            backgroundMaterial.stencilZPass = KeepStencilOp;
+
+            // Background shouldn’t touch depth
             backgroundMaterial.depthWrite = false;
-            // Temporarily disable stencil for debugging
-            // backgroundMaterial.stencilWrite = true;
-            // backgroundMaterial.stencilRef = 1;
-            // backgroundMaterial.stencilFunc = THREE.NotEqualStencilFunc;
+            backgroundMaterial.depthTest  = false;
+
             const background = new Mesh(backgroundGeometry, backgroundMaterial);
-            // Temporarily disable clip space shader to see if background shows
-            // background.material.onBeforeCompile = function(shader) {
-            //     shader.vertexShader = shader.vertexShader.replace(`#include <project_vertex>`,
-            //         `gl_Position = vec4( position , 1.0 );`);
-            // }
-            background.position.set(xMid, yMid, -1); // Position in world space behind data
+            background.material.onBeforeCompile = function(shader) {
+                shader.vertexShader = shader.vertexShader.replace(
+                    `#include <project_vertex>`,
+                    `gl_Position = vec4(position, 1.0);`
+                );
+            };
+            background.frustumCulled = false;
+            background.material.needsUpdate = true;
             background.renderOrder = 9;
             this.scene.add(background);
             this.background = background;
@@ -182285,7 +182297,7 @@ class LineSeriesGL extends Plot {
         renderer.setScissorTest(true);
         renderer.setViewport(viewLeft, viewBottom, viewWidth, viewHeight);
         renderer.setScissor(scissorLeft, scissorBottom, scissorWidth, scissorHeight);
-        renderer.clear(true, true, false);
+        renderer.clear(true, true, true);
         renderer.render(this.scene, this.camera);
         renderer.setScissorTest(false);
     }
