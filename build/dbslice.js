@@ -172896,24 +172896,39 @@ class TriMesh3D extends Plot {
 		this.colorScale = ( layout.colourMap === undefined ) ? sequential$1( t => interpolateSpectral(1-t)  ) : sequential$1( layout.colourMap );
         color.domain( [0,1] );
 
-		const textureWidth = 256;
-		const textureHeight = 4;
-		const texData = new Uint8Array(4*textureWidth*textureHeight);
-  		let k=0;
-  		for (let j=0; j<textureHeight; j++) {
-    		for (let i=0; i<textureWidth; i++) {
-				let t = i/textureWidth;
-      			let col = rgb$3(color(t));
-      			texData[k] = col.r;
-      			texData[k+1] = col.g;
-      			texData[k+2] = col.b;
-      			texData[k+3] = 255;
-      			k += 4;
-    		}
-  		}
-  		const tex = new DataTexture( texData, textureWidth, textureHeight,  RGBAFormat, UnsignedByteType, UVMapping);
-		tex.colorSpace = SRGBColorSpace;
-		tex.needsUpdate = true;
+
+		
+		const textureWidth  = 512;
+		const textureHeight = 1;  // <-- 1D LUT is safest
+		const texData = new Uint8Array(4 * textureWidth * textureHeight);
+
+		let k = 0;
+		for (let i = 0; i < textureWidth; i++) {
+  			const t = i / (textureWidth - 1); // include both ends exactly
+  			const col = rgb$3(color(t));
+  			texData[k++] = col.r;
+  			texData[k++] = col.g;
+  			texData[k++] = col.b;
+  			texData[k++] = 255;
+		}
+
+		const tex = new DataTexture(
+  			texData,
+  			textureWidth,
+  			textureHeight,
+  			RGBAFormat,
+  			UnsignedByteType
+		);
+
+		tex.colorSpace       = SRGBColorSpace;	
+		tex.generateMipmaps  = false;                     // <- no mip levels
+		tex.minFilter        = NearestFilter;       // <- no averaging on minify
+		tex.magFilter        = NearestFilter;       // (or Linear if you prefer)
+		tex.wrapS            = ClampToEdgeWrapping;
+		tex.wrapT            = ClampToEdgeWrapping;
+		tex.anisotropy       = 1;                         // not useful for 1D LUT
+		tex.needsUpdate      = true;
+
 
 		//
 		// this is deprecated way of handling multipe time steps
@@ -172987,8 +173002,11 @@ class TriMesh3D extends Plot {
 			this.light = light;
 
 			// materials for surface rendering
-			//const materialCol = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-			this.materialCol = new MeshLambertMaterial( { color:0xffffff, side: DoubleSide, wireframe:false, map: tex} );
+			this.materialCol = new MeshBasicMaterial( { color: 0xffffff, side: DoubleSide, wireframe:false, map:tex} );
+			//this.materialCol = new THREE.MeshLambertMaterial( { color:0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+			this.materialCol.toneMapped = false; // keep exact palette
+		
+
 			this.materialGrey = new MeshLambertMaterial( { color: 0xaaaaaa, side: DoubleSide, wireframe:false } );
 		}
 
@@ -173648,9 +173666,42 @@ class TriMesh3D extends Plot {
 		const checkOnCutLine = (event) => {
 			updatePointerPosition(event);
 			this.raycaster.setFromCamera( this.pointer, this.camera );
+
+			// Get world position for proximity-based detection (wider hit area)
+			const planeNormal = new Vector3(1, 0, 0);
+			const plane = new Plane(planeNormal);
+			const worldPos = this.raycaster.ray.intersectPlane(plane, new Vector3());
+
+			if (!worldPos) return;
+
 			this.cuts.forEach( cut => {
-				const intersects = this.raycaster.intersectObject( cut.line );
-				if (intersects.length > 0) {
+				// Use proximity-based detection for wider hit area (like LineSeriesGL)
+				let distance, threshold;
+				const yRange = Math.abs(this.camera.top - this.camera.bottom);
+				const zRange = Math.abs(this.camera.right - this.camera.left);
+
+				if (cut.type == "x") {
+					// For x-cut lines (horizontal in y-z plane), use perpendicular (y-direction) threshold
+					distance = Math.abs(worldPos.y - cut.value);
+					threshold = yRange * 0.05; // 5% of y range for easier hitting
+				} else if (cut.type == "y") {
+					// For y-cut lines (horizontal in x-z plane), use perpendicular (z-direction) threshold
+					distance = Math.abs(worldPos.z - cut.value);
+					threshold = zRange * 0.05; // 5% of z range for easier hitting
+				} else if (cut.type == "r" || cut.type == "theta") {
+					// For cylindrical cuts, use a combination threshold
+					const radialDist = Math.sqrt(worldPos.y**2 + worldPos.z**2);
+					if (cut.type == "r") {
+						distance = Math.abs(radialDist - cut.value);
+						threshold = Math.max(yRange, zRange) * 0.05;
+					} else { // theta
+						const angle = Math.atan2(worldPos.z, worldPos.y);
+						distance = Math.abs(angle - cut.value);
+						threshold = 0.1; // Fixed angular threshold in radians
+					}
+				}
+
+				if (distance <= threshold) {
 					cut.lineDragging = true;
 					cut.line.material.color.set(0x42d4f5);
 					this.cutLineDragging = true;
@@ -173742,23 +173793,52 @@ class TriMesh3D extends Plot {
 					.attr("class","x-axis")
 					.attr("transform",`translate(${this.marginTotal.left},${this.plotAreaHeight+standOff})`)
 					.style("pointer-events","bounding-box")
-					.call(xAxis)
-					.call(zoom$2().on("zoom", (event) => {
-						const transform = event.transform;
-						let yDiff = this.yRange[1] - this.yRange[0]; 
-						this.camera.left = -1./transform.k * yDiff/2;
-						this.camera.right = 1./transform.k * yDiff/2;
-						this.camera.updateProjectionMatrix();
-						this.webGLUpdate();
-						this.addAxes();
-					}));
+					.call(xAxis);
+
+				// Make tick elements non-interactive (like LineSeriesGL)
+				gX.selectAll(".tick")
+					.style("pointer-events", "none");
+
+				// Specifically target tick text to override default text cursor
+				gX.selectAll(".tick text")
+					.style("cursor", "default")
+					.style("user-select", "none");
+
+				// Set hand cursor for the axis group
+				gX.style("cursor", "grab");
+
+				gX.call(zoom$2().on("zoom", (event) => {
+					const transform = event.transform;
+					// Use original data range as reference for zoom (like LineSeriesGL)
+					let yDiff = this.yRange[1] - this.yRange[0];
+
+					// Handle zoom (scale) - update camera bounds
+					const scaledRange = yDiff / transform.k;
+					this.camera.left = -scaledRange/2;
+					this.camera.right = scaledRange/2;
+
+					// Handle pan (translation) - scale by current zoom level
+					const currentCameraRange = this.camera.right - this.camera.left;
+					const panScale = currentCameraRange / this.plotAreaWidth;
+					const panOffset = -transform.x * panScale;
+					this.camera.position.y = this.mid.y + panOffset;
+
+					// Update OrbitControls target
+					this.controls.target.y = this.camera.position.y;
+
+					this.camera.updateProjectionMatrix();
+					this.webGLUpdate();
+					this.addAxes();
+				}));
 				gX.append("text")
 					.attr("class","x-axis-text")
 					.attr("fill", "#000")
 					.attr("x", this.plotAreaWidth)
 					.attr("y", this.marginTotal.bottom-5)
 					.attr("text-anchor", "end")
-					.text(this.layout.xAxisLabel);	
+					.style("pointer-events", "none")
+					.style("user-select", "none")
+					.text(this.layout.xAxisLabel);
 			} else {
 				gX.attr("transform",`translate(${this.marginTotal.left},${this.plotAreaHeight+standOff})`)
 				.call(xAxis);
@@ -173777,23 +173857,52 @@ class TriMesh3D extends Plot {
 					.attr("class","y-axis")
 					.attr("transform",`translate(${this.marginTotal.left-standOff},0)`)
 					.style("pointer-events","bounding-box")
-					.call(yAxis)
-					.call(zoom$2().on("zoom", (event) => {
-						const transform = event.transform;
-						let zDiff = this.zRange[1] - this.zRange[0]; 
-						this.camera.top = 1./transform.k * zDiff/2;
-						this.camera.bottom = -1./transform.k * zDiff/2;
-						this.camera.updateProjectionMatrix();
-						this.webGLUpdate();
-						this.addAxes();
-					}));
+					.call(yAxis);
+
+				// Make tick elements non-interactive (like LineSeriesGL)
+				gY.selectAll(".tick")
+					.style("pointer-events", "none");
+
+				// Specifically target tick text to override default text cursor
+				gY.selectAll(".tick text")
+					.style("cursor", "default")
+					.style("user-select", "none");
+
+				// Set hand cursor for the axis group
+				gY.style("cursor", "grab");
+
+				gY.call(zoom$2().on("zoom", (event) => {
+					const transform = event.transform;
+					// Use original data range as reference for zoom (like LineSeriesGL)
+					let zDiff = this.zRange[1] - this.zRange[0];
+
+					// Handle zoom (scale) - update camera bounds
+					const scaledRange = zDiff / transform.k;
+					this.camera.top = scaledRange/2;
+					this.camera.bottom = -scaledRange/2;
+
+					// Handle pan (translation) - scale by current zoom level
+					const currentCameraRange = this.camera.top - this.camera.bottom;
+					const panScale = currentCameraRange / this.plotAreaHeight;
+					const panOffset = transform.y * panScale; // Positive Y is up in world space
+					this.camera.position.z = this.mid.z + panOffset;
+
+					// Update OrbitControls target
+					this.controls.target.z = this.camera.position.z;
+
+					this.camera.updateProjectionMatrix();
+					this.webGLUpdate();
+					this.addAxes();
+				}));
 				gY.append("text")
                     .attr("fill", "#000")
                     .attr("transform", "rotate(-90)")
                     .attr("x", 0)
                     .attr("y", -this.marginTotal.left + 15)
                     .attr("text-anchor", "end")
-                    .text(this.layout.yAxisLabel);	
+					.style("pointer-events", "none")
+					.style("user-select", "none")
+                    .text(this.layout.yAxisLabel);
 			} else {
 				gY.attr("transform",`translate(${this.marginTotal.left-standOff},0)`)
 					.call(yAxis);
