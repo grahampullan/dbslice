@@ -585,6 +585,7 @@ class LineSeriesGL extends Plot {
                     this.controls.target.x = this.camera.position.x;
 
                     this.camera.updateProjectionMatrix();
+                    this.updateCutLines(); // Update cut lines to span new visible range
                     this.webGLUpdate();
                     this.addAxes();
                 }));
@@ -644,6 +645,7 @@ class LineSeriesGL extends Plot {
                     this.controls.target.y = this.camera.position.y;
 
                     this.camera.updateProjectionMatrix();
+                    this.updateCutLines(); // Update cut lines to span new visible range
                     this.webGLUpdate();
                     this.addAxes();
                 }));
@@ -858,7 +860,8 @@ class LineSeriesGL extends Plot {
     }
 
     handleOrbitChange() {
-        // Add basic debugging to confirm OrbitControls is working
+        // Update cut lines to span new visible range after OrbitControls zoom/pan
+        this.updateCutLines();
         this.addAxes();
         this.webGLUpdate();
     }
@@ -1033,18 +1036,32 @@ class LineSeriesGL extends Plot {
         const cut = this.cuts.find(d => d.dimensionName == dimensionName);
         if (!cut || !cut.line) return;
 
-        // Update line geometry positions based on current value
+        // Get current visible range from camera bounds (updated during zoom/pan)
+        const planeNormal = new THREE.Vector3(0, 0, 1);
+        const plane = new THREE.Plane(planeNormal, 0);
+
+        // Bottom-left corner of viewport
+        this.pointer.x = -1;
+        this.pointer.y = -1;
+        this.raycaster.setFromCamera(this.pointer, this.camera);
+        const intersectBottomLeft = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+
+        // Top-right corner of viewport
+        this.pointer.x = 1;
+        this.pointer.y = 1;
+        this.raycaster.setFromCamera(this.pointer, this.camera);
+        const intersectTopRight = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+
+        if (!intersectBottomLeft || !intersectTopRight) return;
+
+        // Update line geometry positions based on current visible range
         let positions;
         if (cut.type == "x") {
-            // Vertical line spanning visible Y range
-            const yMin = this.yRange[0];
-            const yMax = this.yRange[1];
-            positions = [cut.value, yMin, 0, cut.value, yMax, 0];
+            // Vertical line spanning current visible Y range
+            positions = [cut.value, intersectBottomLeft.y, 0, cut.value, intersectTopRight.y, 0];
         } else if (cut.type == "y") {
-            // Horizontal line spanning visible X range
-            const xMin = this.xRange[0];
-            const xMax = this.xRange[1];
-            positions = [xMin, cut.value, 0, xMax, cut.value, 0];
+            // Horizontal line spanning current visible X range
+            positions = [intersectBottomLeft.x, cut.value, 0, intersectTopRight.x, cut.value, 0];
         }
 
         // Update geometry
@@ -1054,6 +1071,13 @@ class LineSeriesGL extends Plot {
         // Update material color based on brushing state
         cut.line.material.color.set(cut.brushing ? 0x42d4f5 : 0xd0d5db);
         cut.line.material.needsUpdate = true;
+    }
+
+    updateCutLines() {
+        // Update all cut lines to span the new visible range after zoom/pan
+        this.cuts.forEach(cut => {
+            this.setCutLinePosition(cut.dimensionName);
+        });
     }
 
     getCutLineAtPosition(event) {

@@ -385,6 +385,7 @@ class TriMesh3D extends Plot {
 					sharedCamera.zoom = this.camera.zoom;
 				}
 				this.light.position.copy( this.camera.position );
+				this.updateCutLines(); // Update cut lines to span new visible range after OrbitControls zoom/pan
 				this.addAxes();
 				this.webGLUpdate();
 			} ); 
@@ -615,21 +616,75 @@ class TriMesh3D extends Plot {
 		cut.line.geometry.setPositions( this.getCutLinePositionsFromCutValue(dimensionName) );
 	}
 
+	updateCutLines() {
+		// Update all cut lines to span the new visible range after zoom/pan
+		this.cuts.forEach(cut => {
+			this.setCutLinePosition(cut.dimensionName);
+		});
+	}
+
 	getCutLinePositionsFromCutValue(dimensionName) {
 		const cut = this.cuts.find( d => d.dimensionName == dimensionName );
 		const mid = this.mid;
-		const rMax = this.rMax;
+
+		// Get current visible range from camera bounds (updated during zoom/pan)
+		let visibleBounds;
+		if (this.raycaster && this.camera && this.pointer) {
+			const planeNormal = new THREE.Vector3(1, 0, 0); // X-plane for triMesh3D
+			const plane = new THREE.Plane(planeNormal, 0);
+
+			// Bottom-left corner of viewport
+			this.pointer.x = -1;
+			this.pointer.y = -1;
+			this.raycaster.setFromCamera(this.pointer, this.camera);
+			const intersectBottomLeft = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+
+			// Top-right corner of viewport
+			this.pointer.x = 1;
+			this.pointer.y = 1;
+			this.raycaster.setFromCamera(this.pointer, this.camera);
+			const intersectTopRight = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+
+			if (intersectBottomLeft && intersectTopRight) {
+				visibleBounds = {
+					yMin: intersectBottomLeft.y,
+					yMax: intersectTopRight.y,
+					zMin: intersectBottomLeft.z,
+					zMax: intersectTopRight.z
+				};
+			}
+		}
+
+		// Fallback to original bounds if raycasting fails
+		if (!visibleBounds) {
+			const rMax = this.rMax;
+			visibleBounds = {
+				yMin: mid.y - rMax,
+				yMax: mid.y + rMax,
+				zMin: mid.z - rMax,
+				zMax: mid.z + rMax
+			};
+		}
+
 		if ( cut.type == "x" ) {
-			return [mid.x+2*rMax,cut.value,mid.z-rMax,mid.x+2*rMax,cut.value,mid.z+rMax];
+			// Horizontal line in y-z plane spanning current visible bounds
+			return [mid.x+2*this.rMax, cut.value, visibleBounds.zMin, mid.x+2*this.rMax, cut.value, visibleBounds.zMax];
 		} else if ( cut.type == "y") {
-			return [mid.x+2*rMax,mid.y-rMax,cut.value,mid.x+2*rMax,mid.y+rMax,cut.value];
+			// Horizontal line in x-z plane spanning current visible bounds
+			return [mid.x+2*this.rMax, visibleBounds.yMin, cut.value, mid.x+2*this.rMax, visibleBounds.yMax, cut.value];
 		} else if ( cut.type == "r" ) {
+			// Cylindrical cut - scale radius to visible bounds
 			const npts = 360;
 			const theta = Array.from({length:npts}, (d,i) => 2*Math.PI*i/(npts-1));
-			const positions = theta.map(t => ([mid.x+2*rMax, cut.value*Math.sin(t), cut.value*Math.cos(t)]));
+			const positions = theta.map(t => ([mid.x+2*this.rMax, cut.value*Math.sin(t), cut.value*Math.cos(t)]));
 			return positions.flat();
 		} else if ( cut.type == "theta" ) {
-			return [mid.x+2*rMax,0,0,mid.x+2*rMax,this.radMax*Math.cos(cut.value),this.radMax*Math.sin(cut.value)];
+			// Angular cut - extend to edge of visible bounds
+			const visibleRadius = Math.max(
+				Math.sqrt(visibleBounds.yMax**2 + visibleBounds.zMax**2),
+				Math.sqrt(visibleBounds.yMin**2 + visibleBounds.zMin**2)
+			);
+			return [mid.x+2*this.rMax, 0, 0, mid.x+2*this.rMax, visibleRadius*Math.cos(cut.value), visibleRadius*Math.sin(cut.value)];
 		}
 
 	}
@@ -1080,6 +1135,7 @@ class TriMesh3D extends Plot {
 					this.controls.target.y = this.camera.position.y;
 
 					this.camera.updateProjectionMatrix();
+					this.updateCutLines(); // Update cut lines to span new visible range
 					this.webGLUpdate();
 					this.addAxes();
 				}));
@@ -1144,6 +1200,7 @@ class TriMesh3D extends Plot {
 					this.controls.target.z = this.camera.position.z;
 
 					this.camera.updateProjectionMatrix();
+					this.updateCutLines(); // Update cut lines to span new visible range
 					this.webGLUpdate();
 					this.addAxes();
 				}));
