@@ -183038,7 +183038,7 @@ class LineSeriesGL extends Plot {
 
             const lineGeometry = new LineGeometry();
             lineGeometry.setPositions(positions);
-            lineGeometry.computeBoundingSphere(); // Essential for raycasting!
+            //lineGeometry.computeBoundingSphere(); // Essential for raycasting!
 
             const lineMaterial = new LineMaterial({
                 color: cut.brushing ? 0x42d4f5 : 0xd0d5db, // Cyan when dragging, gray otherwise
