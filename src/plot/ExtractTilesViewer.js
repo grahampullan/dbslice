@@ -88,9 +88,18 @@ class ExtractTilesViewer extends Plot {
                 scene: this.scene,
                 camera: this.camera,
                 renderer: this.renderer,
-                onSceneChanged: () => this.webGLUpdate()
+                onSceneChanged: () => this.webGLUpdate(),
+                options: this.layout.tileOptions || {}
+            });
+        } else {
+            this.tileManager.updateSceneRefs({
+                scene: this.scene,
+                camera: this.camera,
+                renderer: this.renderer
             });
         }
+
+        this.tileManager.setOptions(this.layout.tileOptions || {});
 
         if (this.newData && this.tileManager) {
             const manifest = this.data?.manifest || this.data;
@@ -265,7 +274,7 @@ class ExtractTilesViewer extends Plot {
             this.controls.dispose();
         }
         if (this.tileManager) {
-            this.tileManager.clear();
+            this.tileManager.dispose();
         }
         this.scene = null;
         this.camera = null;
@@ -274,7 +283,7 @@ class ExtractTilesViewer extends Plot {
 }
 
 class TileManager {
-    constructor({scene, camera, renderer, onSceneChanged}) {
+    constructor({scene, camera, renderer, onSceneChanged, options = {}}) {
         this.scene = scene;
         this.camera = camera;
         this.renderer = renderer;
@@ -282,20 +291,314 @@ class TileManager {
         this.loader = new GLTFLoader();
         this.manifest = null;
         this.version = 0;
+        this.tiles = new Map();
+        this.byId = new Map();
+        this.rootTileIds = new Set();
+        this.queue = [];
+        this.inflight = 0;
+        this.requestPriority = new Map();
+        this.frustum = new THREE.Frustum();
+        this.projScreenMatrix = new THREE.Matrix4();
+        this._queueSeq = 0;
+        this.options = {
+            sseRefine: 25,
+            sseCoarsen: 12.5,
+            maxConcurrent: 4,
+            maxActiveTiles: 400,
+            wireframe: false,
+            showBoundingBoxes: false,
+            simpleShading: false,
+            ...options
+        };
+        this._tickLock = false;
+        this._tickPending = false;
+    }
+
+    updateSceneRefs({scene, camera, renderer}) {
+        this.scene = scene || this.scene;
+        this.camera = camera || this.camera;
+        this.renderer = renderer || this.renderer;
+    }
+
+    setOptions(opts = {}) {
+        this.options = {
+            ...this.options,
+            ...opts
+        };
+        if (this.options.sseCoarsen === undefined) {
+            this.options.sseCoarsen = this.options.sseRefine * 0.5;
+        }
     }
 
     async loadManifest(manifest, version) {
         this.version = version;
+        this._resetTiles();
         this.manifest = manifest;
-        // Future implementation: process manifest tiles and kick off streaming loads.
+        this.byId.clear();
+        this.rootTileIds.clear();
+        if (!manifest || !Array.isArray(manifest.tiles)) {
+            console.warn('TileManager: manifest missing tiles array');
+            return;
+        }
+        manifest.tiles.forEach(tile => {
+            this.byId.set(tile.tileId, tile);
+            if (tile.parent == null || tile.z === 0) {
+                this.rootTileIds.add(tile.tileId);
+            }
+        });
+        if (this.rootTileIds.size === 0 && manifest.tiles.length) {
+            this.rootTileIds.add(manifest.tiles[0].tileId);
+        }
     }
 
     tick() {
-        // Placeholder for visibility / streaming logic.
+        if (!this.manifest) {
+            return;
+        }
+        if (this._tickLock) {
+            this._tickPending = true;
+            return;
+        }
+        this._tickLock = true;
+        this._runTickLoop();
     }
 
-    clear() {
+    async _runTickLoop() {
+        try {
+            do {
+                this._tickPending = false;
+                await this._tickOnce();
+            } while (this._tickPending);
+        } catch (err) {
+            console.error('TileManager tick error', err);
+        } finally {
+            this._tickLock = false;
+        }
+    }
+
+    async _tickOnce() {
+        if (!this.scene || !this.camera || !this.renderer) {
+            return;
+        }
+        this._updateFrustum();
+        const desiredTiles = this._selectTiles();
+        this._syncTiles(desiredTiles);
+        await this._processQueue();
+    }
+
+    _updateFrustum() {
+        this.camera.updateMatrixWorld();
+        this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+        this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
+    }
+
+    _selectTiles() {
+        const want = new Set();
+        const stack = [];
+        const visited = new Set();
+        if (this.rootTileIds.size) {
+            this.rootTileIds.forEach(id => stack.push(id));
+        }
+        while (stack.length) {
+            const id = stack.pop();
+            if (visited.has(id)) continue;
+            visited.add(id);
+            const meta = this.byId.get(id);
+            if (!meta) continue;
+            const visible = this._visible(meta);
+            if (!visible) {
+                continue;
+            }
+            const sse = this._sse(meta);
+            this.requestPriority.set(id, sse);
+            const canRefine = Array.isArray(meta.children) && meta.children.length > 0;
+            const shouldRefine = canRefine && sse > this.options.sseRefine;
+            if (shouldRefine) {
+                meta.children.forEach(childId => stack.push(childId));
+                if (!this._allChildrenLoaded(meta)) {
+                    want.add(id);
+                }
+            } else {
+                want.add(id);
+                if (canRefine && sse > this.options.sseCoarsen) {
+                    meta.children.forEach(childId => stack.push(childId));
+                }
+            }
+        }
+        if (want.size > this.options.maxActiveTiles) {
+            const ordered = Array.from(want).sort((a, b) => {
+                return (this.requestPriority.get(b) || 0) - (this.requestPriority.get(a) || 0);
+            });
+            want.clear();
+            ordered.slice(0, this.options.maxActiveTiles).forEach(id => want.add(id));
+        }
+        if (want.size === 0 && this.rootTileIds.size) {
+            this.rootTileIds.forEach(id => want.add(id));
+        }
+        return want;
+    }
+
+    _syncTiles(wantSet) {
+        const toRemove = [];
+        this.tiles.forEach((value, tileId) => {
+            if (!wantSet.has(tileId)) {
+                toRemove.push(tileId);
+            }
+        });
+        toRemove.forEach(tileId => this._unloadTile(tileId));
+        wantSet.forEach(tileId => {
+            if (!this.tiles.has(tileId)) {
+                this._enqueue(tileId);
+            }
+        });
+    }
+
+    async _processQueue() {
+        if (!this.queue.length) return;
+        const loads = [];
+        while (this.queue.length && this.inflight < this.options.maxConcurrent) {
+            if ((this.tiles.size + this.inflight) >= this.options.maxActiveTiles) {
+                break;
+            }
+            const next = this.queue.shift();
+            loads.push(this._loadTile(next.id));
+        }
+        if (loads.length) {
+            await Promise.all(loads);
+        }
+    }
+
+    _enqueue(tileId) {
+        if (this.queue.find(entry => entry.id === tileId)) {
+            return;
+        }
+        const priority = this.requestPriority.get(tileId) || 0;
+        this.queue.push({id: tileId, priority, seq: this._queueSeq++});
+        this.queue.sort((a, b) => {
+            if (b.priority !== a.priority) {
+                return b.priority - a.priority;
+            }
+            return a.seq - b.seq;
+        });
+    }
+
+    async _loadTile(tileId) {
+        const meta = this.byId.get(tileId);
+        if (!meta || !meta.url) {
+            return;
+        }
+        const versionAtStart = this.version;
+        this.inflight++;
+        try {
+            const gltf = await this.loader.loadAsync(meta.url);
+            if (versionAtStart !== this.version) {
+                this._disposeGltf(gltf);
+                return;
+            }
+            const obj = gltf.scene || new THREE.Group();
+            obj.userData.tileId = tileId;
+            this.scene.add(obj);
+            this.tiles.set(tileId, {object3d: obj, meta});
+            if (this.onSceneChanged) {
+                this.onSceneChanged();
+            }
+        } catch (err) {
+            console.error(`Failed to load tile ${tileId}`, err);
+        } finally {
+            this.inflight--;
+        }
+    }
+
+    _disposeGltf(gltf) {
+        if (!gltf) return;
+        const nodes = [];
+        if (gltf.scene) nodes.push(gltf.scene);
+        while (nodes.length) {
+            const node = nodes.pop();
+            if (node.isMesh) {
+                node.geometry?.dispose();
+                if (Array.isArray(node.material)) {
+                    node.material.forEach(mat => mat?.dispose?.());
+                } else {
+                    node.material?.dispose?.();
+                }
+            }
+            node.children?.forEach(child => nodes.push(child));
+        }
+    }
+
+    _unloadTile(tileId, notify = true) {
+        const rec = this.tiles.get(tileId);
+        if (!rec) return;
+        this.scene.remove(rec.object3d);
+        rec.object3d.traverse(obj => {
+            if (obj.isMesh) {
+                obj.geometry?.dispose();
+                if (Array.isArray(obj.material)) {
+                    obj.material.forEach(mat => mat?.dispose?.());
+                } else {
+                    obj.material?.dispose?.();
+                }
+            }
+        });
+        this.tiles.delete(tileId);
+        this.requestPriority.delete(tileId);
+        if (notify && this.onSceneChanged) {
+            this.onSceneChanged();
+        }
+    }
+
+    _visible(meta) {
+        if (!meta?.aabbWorld) {
+            return true;
+        }
+        const min = new THREE.Vector3(...meta.aabbWorld[0]);
+        const max = new THREE.Vector3(...meta.aabbWorld[1]);
+        const box = new THREE.Box3(min, max);
+        return this.frustum.intersectsBox(box);
+    }
+
+    _allChildrenLoaded(meta) {
+        if (!Array.isArray(meta.children) || meta.children.length === 0) {
+            return true;
+        }
+        return meta.children.every(id => this.tiles.has(id));
+    }
+
+    _sse(meta) {
+        const min = meta.aabbWorld?.[0];
+        const max = meta.aabbWorld?.[1];
+        if (!min || !max) {
+            return meta.geometricError || 0;
+        }
+        const center = new THREE.Vector3().fromArray(min)
+            .add(new THREE.Vector3().fromArray(max))
+            .multiplyScalar(0.5);
+        const dist = center.distanceTo(this.camera.position) + 1e-6;
+        const ge = meta.geometricError || 0.01;
+        const h = this.renderer.domElement.clientHeight || 1;
+        const fov = this.camera.fov * Math.PI / 180;
+        return (ge / (dist * Math.tan(fov / 2))) * h;
+    }
+
+    _resetTiles() {
+        this.queue.length = 0;
+        this.requestPriority.clear();
+        const ids = Array.from(this.tiles.keys());
+        ids.forEach(tileId => this._unloadTile(tileId, false));
+        this.tiles.clear();
+        if (ids.length && this.onSceneChanged) {
+            this.onSceneChanged();
+        }
+    }
+
+    dispose() {
+        this._resetTiles();
         this.manifest = null;
+        this.byId.clear();
+        this.rootTileIds.clear();
+        this.queue.length = 0;
+        this.version++;
     }
 }
 
