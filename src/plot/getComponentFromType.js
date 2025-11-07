@@ -8,7 +8,7 @@ import { MetaDataBarChart } from './MetaDataBarChart.js';
 import { MetaDataRankCorrBarChart } from './MetaDataRankCorrBarChart.js';
 import { MetaDataScatter } from './MetaDataScatter.js';
 import { MetaDataHistogram } from './MetaDataHistogram.js';
-
+import { ExtractTilesViewer } from './ExtractTilesViewer.js';
 
 function getComponentFromType(type) {
 
@@ -22,7 +22,8 @@ function getComponentFromType(type) {
         'MetaDataBarChart'         : MetaDataBarChart ,
         'MetaDataRankCorrBarChart' : MetaDataRankCorrBarChart ,
         'MetaDataScatter'          : MetaDataScatter ,
-        'MetaDataHistogram'        : MetaDataHistogram 
+        'MetaDataHistogram'        : MetaDataHistogram ,
+        'ExtractTilesViewer'       : ExtractTilesViewer 
     };
 
     return lookup[type];
