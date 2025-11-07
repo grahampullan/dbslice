@@ -183350,6 +183350,636 @@ class DimensionSliders extends Plot {
     }
 }
 
+class ExtractTilesViewer extends Plot {
+
+    constructor(options) {
+        if (!options) { options = {}; }
+        options.layout = options.layout || {};
+        options.layout.margin = options.layout.margin || {top: 5, right: 5, bottom: 5, left: 5};
+        super(options);
+        this.componentType = 'ExtractTilesViewer';
+        this.scene = null;
+        this.camera = null;
+        this.controls = null;
+        this.tileManager = null;
+        this.stencilRects = [];
+        this.renderObserverId = null;
+        this.manifestVersion = 0;
+    }
+
+    make() {
+        this.updateHeader();
+        this.addPlotAreaDiv();
+        this.setLasts();
+
+        const container = select$4(`#${this.id}`);
+        container.select('.svg-overlay').remove();
+
+        const overlay = container.append('svg')
+            .attr('class', 'svg-overlay')
+            .style('position', 'absolute')
+            .style('pointer-events', 'none')
+            .style('top', `${this.plotAreaTop}px`)
+            .style('left', `${this.plotAreaLeft - this.marginTotal.left}px`)
+            .attr('width', `${this.plotAreaWidth + this.marginTotal.left + this.marginTotal.right}`)
+            .attr('height', `${this.plotAreaHeight + this.marginTotal.bottom}`);
+
+        overlay.append('g').attr('class', 'axes-container');
+        overlay.append('g').attr('class', 'colorbar-container');
+
+        if (this.fetchData?.getUrlFromDimensions) {
+            const requestCreateDimension = this.sharedStateByAncestorId['context'].requestCreateDimension;
+            const dimensions = this.sharedStateByAncestorId['context'].dimensions;
+            const dimensionNames = this.fetchData.getUrlFromDimensions.dimensionNames;
+
+            dimensionNames.forEach(dimName => {
+                requestCreateDimension.state = {name: dimName, value: null};
+                const dimension = dimensions.find(d => d.name == dimName);
+                const obsId = dimension.subscribe(this.handleDimensionChange.bind(this));
+                this.subscriptions.push({observable: dimension, id: obsId});
+            });
+        }
+
+        this.renderer = this.sharedStateByAncestorId['context'].renderer;
+        this.ensureScene();
+
+        const plotArea = select$4(`#${this.plotAreaId}`);
+        this.ensureCamera(this.plotAreaWidth, this.plotAreaHeight);
+        this.ensureControls(plotArea.node());
+        this.setupRenderSubscription();
+        this.update();
+    }
+
+    async update() {
+        if (this.fetchingData) return;
+        await this.getData();
+        if (this.data === undefined) return;
+
+        const container = select$4(`#${this.id}`);
+        const overlay = container.select('.svg-overlay');
+        if (overlay.empty()) return;
+
+        this.updateHeader();
+        this.updatePlotAreaSize();
+        overlay
+            .style('top', `${this.plotAreaTop}px`)
+            .style('left', `${this.plotAreaLeft - this.marginTotal.left}px`)
+            .attr('width', `${this.plotAreaWidth + this.marginTotal.left + this.marginTotal.right}`)
+            .attr('height', `${this.plotAreaHeight + this.marginTotal.bottom}`);
+
+        this.ensureCamera(this.plotAreaWidth, this.plotAreaHeight);
+
+        if (!this.tileManager) {
+            this.tileManager = new TileManager({
+                scene: this.scene,
+                camera: this.camera,
+                renderer: this.renderer,
+                onSceneChanged: () => this.webGLUpdate(),
+                options: this.layout.tileOptions || {}
+            });
+        } else {
+            this.tileManager.updateSceneRefs({
+                scene: this.scene,
+                camera: this.camera,
+                renderer: this.renderer
+            });
+        }
+
+        this.tileManager.setOptions(this.layout.tileOptions || {});
+
+        if (this.newData && this.tileManager) {
+            const manifest = this.data?.manifest || this.data;
+            const version = ++this.manifestVersion;
+            await this.tileManager.loadManifest(manifest, version);
+            this.tileManager.tick();
+            this.webGLUpdate();
+            this.newData = false;
+        }
+
+        this.setLasts();
+    }
+
+    ensureScene() {
+        if (this.scene) return;
+        this.scene = new Scene();
+        const ambient = new AmbientLight(0xffffff, 0.4);
+        const directional = new DirectionalLight(0xffffff, 0.8);
+        directional.position.set(1, 1, 1);
+        this.scene.add(ambient);
+        this.scene.add(directional);
+        this.light = directional;
+    }
+
+    ensureCamera(width, height) {
+        if (!width || !height) return;
+        if (!this.camera) {
+            this.camera = new PerspectiveCamera(60, width / height, 0.1, 5000);
+            this.camera.position.set(0, 0, 10);
+        }
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        if (this.light) {
+            this.light.position.copy(this.camera.position);
+        }
+    }
+
+    ensureControls(domNode) {
+        if (this.controls || !domNode) return;
+        // inside ensureControls(domNode), before creating OrbitControls:
+        domNode.style.touchAction = 'none';
+        domNode.style.msTouchAction = 'none';
+        
+        domNode.addEventListener('pointerdown', (e) => {
+            e.preventDefault();   // stops mouse-compat events (mousedown/mouseup/click)
+            e.stopPropagation();
+        }, { passive: false });
+
+        ['pointermove','pointerup','pointercancel','contextmenu'].forEach(type => {
+            domNode.addEventListener(type, (e) => e.stopPropagation(), { passive: true });
+        });
+
+        // wheel needs non-passive preventDefault to block parent zoom
+        domNode.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, { passive: false });
+
+
+        this.controls = new OrbitControls(this.camera, domNode);
+        this.controls.enableDamping = false;
+        this.controls.addEventListener('change', () => {
+            if (this.tileManager) {
+                this.tileManager.tick();
+            }
+            this.webGLUpdate();
+        });
+    }
+
+    setupRenderSubscription() {
+        if (this.renderObserverId) return;
+        const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
+        this.renderObserverId = requestWebGLRender.subscribeWithData({
+            observer: this.renderScene.bind(this),
+            data: {boxId: this.boxId}
+        });
+        this.subscriptions.push({observable: requestWebGLRender, id: this.renderObserverId});
+    }
+
+    renderScene() {
+        if (!this.scene || !this.camera) return;
+        const renderer = this.renderer;
+        const container = select$4(`#${this.id}`);
+        const plotArea = container.select('.plot-area');
+        if (plotArea.empty()) return;
+
+        renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
+        const plotRect = plotArea.node().getBoundingClientRect();
+        const rect = {left: plotRect.left, right: plotRect.right, top: plotRect.top, bottom: plotRect.bottom};
+
+        const ancestorIds = this.ancestorIds.filter(d => d !== 'context' && d.includes('box'));
+        for (let ancestorId of ancestorIds) {
+            const plotGroup = select$4(`#${ancestorId}-component-plot-area`);
+            if (plotGroup.empty()) continue;
+            const plotGroupRect = plotGroup.node().getBoundingClientRect();
+            if (rect.right < plotGroupRect.left || rect.left > plotGroupRect.right ||
+                rect.bottom < plotGroupRect.top || rect.top > plotGroupRect.bottom) {
+                return;
+            }
+            if (rect.left < plotGroupRect.left && rect.right > plotGroupRect.left) {
+                rect.left = plotGroupRect.left + 2;
+            }
+            if (rect.right > plotGroupRect.right && rect.left < plotGroupRect.right) {
+                rect.right = plotGroupRect.right - 2;
+            }
+            if (rect.top < plotGroupRect.top && rect.bottom > plotGroupRect.top) {
+                rect.top = plotGroupRect.top + 2;
+            }
+            if (rect.bottom > plotGroupRect.bottom && rect.top < plotGroupRect.bottom) {
+                rect.bottom = plotGroupRect.bottom - 2;
+            }
+        }
+
+        const overlappingDivsClipSpace = this.getOverlappingBoxesInClipSpace(plotRect);
+        this.stencilRects.forEach(uuid => {
+            const oldRect = this.scene.getObjectByProperty('uuid', uuid);
+            if (oldRect) {
+                oldRect.geometry.dispose();
+                oldRect.material.dispose();
+                this.scene.remove(oldRect);
+            }
+        });
+        this.stencilRects = [];
+
+        overlappingDivsClipSpace.forEach(d => {
+            const margin = {left: 0.00, right: 0.02, top: 0.00, bottom: 0.02};
+            const rectangleBufferGeometryForMesh = new BufferGeometry();
+            const vertTopLeftClip = new Vector3(d.left - margin.left, d.top + margin.top, 0.5);
+            const vertTopRightClip = new Vector3(d.right + margin.right, d.top + margin.top, 0.5);
+            const vertBottomLeftClip = new Vector3(d.left - margin.left, d.bottom - margin.bottom, 0.5);
+            const vertBottomRightClip = new Vector3(d.right + margin.right, d.bottom - margin.bottom, 0.5);
+            const vertTopLeftWorld = vertTopLeftClip.unproject(this.camera);
+            const vertTopRightWorld = vertTopRightClip.unproject(this.camera);
+            const vertBottomLeftWorld = vertBottomLeftClip.unproject(this.camera);
+            const vertBottomRightWorld = vertBottomRightClip.unproject(this.camera);
+
+            const vertices = new Float32Array([
+                vertTopLeftWorld.x, vertTopLeftWorld.y, vertTopLeftWorld.z,
+                vertTopRightWorld.x, vertTopRightWorld.y, vertTopRightWorld.z,
+                vertBottomRightWorld.x, vertBottomRightWorld.y, vertBottomRightWorld.z,
+                vertBottomLeftWorld.x, vertBottomLeftWorld.y, vertBottomLeftWorld.z
+            ]);
+            const indices = new Uint32Array([0, 2, 1, 0, 3, 2]);
+            rectangleBufferGeometryForMesh.setAttribute('position', new BufferAttribute(vertices, 3));
+            rectangleBufferGeometryForMesh.setIndex(new BufferAttribute(indices, 1));
+
+            const rectangleMaterial = new MeshBasicMaterial({color: 'red', wireframe: false});
+            if (this.layout.showStencilRects) {
+                rectangleMaterial.colorWrite = true;
+            } else {
+                rectangleMaterial.colorWrite = false;
+            }
+            rectangleMaterial.depthWrite = false;
+            rectangleMaterial.depthTest = false;
+            rectangleMaterial.stencilWrite = true;
+            rectangleMaterial.stencilRef = 1;
+            rectangleMaterial.stencilFunc = AlwaysStencilFunc;
+            rectangleMaterial.stencilZPass = ReplaceStencilOp;
+            const rectangle = new Mesh(rectangleBufferGeometryForMesh, rectangleMaterial);
+            rectangle.renderOrder = 0;
+
+            this.stencilRects.push(rectangle.uuid);
+            this.scene.add(rectangle);
+        });
+
+        const scissorLeft = Math.floor(rect.left);
+        const scissorBottom = Math.floor(renderer.domElement.clientHeight - rect.bottom);
+        const scissorWidth = Math.floor(rect.right - rect.left);
+        const scissorHeight = Math.floor(rect.bottom - rect.top);
+
+        const viewLeft = Math.floor(plotRect.left);
+        const viewBottom = Math.floor(renderer.domElement.clientHeight - plotRect.bottom);
+        const viewWidth = Math.floor(plotRect.right - plotRect.left);
+        const viewHeight = Math.floor(plotRect.bottom - plotRect.top);
+
+        renderer.setScissorTest(true);
+        renderer.setViewport(viewLeft, viewBottom, viewWidth, viewHeight);
+        renderer.setScissor(scissorLeft, scissorBottom, scissorWidth, scissorHeight);
+        renderer.setClearColor(0xe0e0e0);
+        renderer.clear(true, true, true);
+        renderer.render(this.scene, this.camera);
+        renderer.setScissorTest(false);
+    }
+
+    handleDimensionChange() {
+        this.fetchDataNow = true;
+        this.update();
+    }
+
+    remove() {
+        this.removeSubscriptions();
+        if (this.controls) {
+            this.controls.dispose();
+        }
+        if (this.tileManager) {
+            this.tileManager.dispose();
+        }
+        this.scene = null;
+        this.camera = null;
+        this.tileManager = null;
+    }
+}
+
+class TileManager {
+    constructor({scene, camera, renderer, onSceneChanged, options = {}}) {
+        this.scene = scene;
+        this.camera = camera;
+        this.renderer = renderer;
+        this.onSceneChanged = onSceneChanged;
+        this.loader = new GLTFLoader();
+        this.manifest = null;
+        this.version = 0;
+        this.tiles = new Map();
+        this.byId = new Map();
+        this.rootTileIds = new Set();
+        this.queue = [];
+        this.inflight = 0;
+        this.requestPriority = new Map();
+        this.frustum = new Frustum();
+        this.projScreenMatrix = new Matrix4();
+        this._queueSeq = 0;
+        this.options = {
+            sseRefine: 25,
+            sseCoarsen: 12.5,
+            maxConcurrent: 4,
+            maxActiveTiles: 400,
+            wireframe: false,
+            showBoundingBoxes: false,
+            simpleShading: false,
+            ...options
+        };
+        this._tickLock = false;
+        this._tickPending = false;
+    }
+
+    updateSceneRefs({scene, camera, renderer}) {
+        this.scene = scene || this.scene;
+        this.camera = camera || this.camera;
+        this.renderer = renderer || this.renderer;
+    }
+
+    setOptions(opts = {}) {
+        this.options = {
+            ...this.options,
+            ...opts
+        };
+        if (this.options.sseCoarsen === undefined) {
+            this.options.sseCoarsen = this.options.sseRefine * 0.5;
+        }
+    }
+
+    async loadManifest(manifest, version) {
+        this.version = version;
+        this._resetTiles();
+        this.manifest = manifest;
+        this.byId.clear();
+        this.rootTileIds.clear();
+        if (!manifest || !Array.isArray(manifest.tiles)) {
+            console.warn('TileManager: manifest missing tiles array');
+            return;
+        }
+        manifest.tiles.forEach(tile => {
+            this.byId.set(tile.tileId, tile);
+            if (tile.parent == null || tile.z === 0) {
+                this.rootTileIds.add(tile.tileId);
+            }
+        });
+        if (this.rootTileIds.size === 0 && manifest.tiles.length) {
+            this.rootTileIds.add(manifest.tiles[0].tileId);
+        }
+    }
+
+    tick() {
+        if (!this.manifest) {
+            return;
+        }
+        if (this._tickLock) {
+            this._tickPending = true;
+            return;
+        }
+        this._tickLock = true;
+        this._runTickLoop();
+    }
+
+    async _runTickLoop() {
+        try {
+            do {
+                this._tickPending = false;
+                await this._tickOnce();
+            } while (this._tickPending);
+        } catch (err) {
+            console.error('TileManager tick error', err);
+        } finally {
+            this._tickLock = false;
+        }
+    }
+
+    async _tickOnce() {
+        if (!this.scene || !this.camera || !this.renderer) {
+            return;
+        }
+        this._updateFrustum();
+        const desiredTiles = this._selectTiles();
+        this._syncTiles(desiredTiles);
+        await this._processQueue();
+    }
+
+    _updateFrustum() {
+        this.camera.updateMatrixWorld();
+        this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+        this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
+    }
+
+    _selectTiles() {
+        const want = new Set();
+        const stack = [];
+        const visited = new Set();
+        if (this.rootTileIds.size) {
+            this.rootTileIds.forEach(id => stack.push(id));
+        }
+        while (stack.length) {
+            const id = stack.pop();
+            if (visited.has(id)) continue;
+            visited.add(id);
+            const meta = this.byId.get(id);
+            if (!meta) continue;
+            const visible = this._visible(meta);
+            if (!visible) {
+                continue;
+            }
+            const sse = this._sse(meta);
+            this.requestPriority.set(id, sse);
+            const canRefine = Array.isArray(meta.children) && meta.children.length > 0;
+            const shouldRefine = canRefine && sse > this.options.sseRefine;
+            if (shouldRefine) {
+                meta.children.forEach(childId => stack.push(childId));
+                if (!this._allChildrenLoaded(meta)) {
+                    want.add(id);
+                }
+            } else {
+                want.add(id);
+                if (canRefine && sse > this.options.sseCoarsen) {
+                    meta.children.forEach(childId => stack.push(childId));
+                }
+            }
+        }
+        if (want.size > this.options.maxActiveTiles) {
+            const ordered = Array.from(want).sort((a, b) => {
+                return (this.requestPriority.get(b) || 0) - (this.requestPriority.get(a) || 0);
+            });
+            want.clear();
+            ordered.slice(0, this.options.maxActiveTiles).forEach(id => want.add(id));
+        }
+        if (want.size === 0 && this.rootTileIds.size) {
+            this.rootTileIds.forEach(id => want.add(id));
+        }
+        return want;
+    }
+
+    _syncTiles(wantSet) {
+        const toRemove = [];
+        this.tiles.forEach((value, tileId) => {
+            if (!wantSet.has(tileId)) {
+                toRemove.push(tileId);
+            }
+        });
+        toRemove.forEach(tileId => this._unloadTile(tileId));
+        wantSet.forEach(tileId => {
+            if (!this.tiles.has(tileId)) {
+                this._enqueue(tileId);
+            }
+        });
+    }
+
+    async _processQueue() {
+        if (!this.queue.length) return;
+        const loads = [];
+        while (this.queue.length && this.inflight < this.options.maxConcurrent) {
+            if ((this.tiles.size + this.inflight) >= this.options.maxActiveTiles) {
+                break;
+            }
+            const next = this.queue.shift();
+            loads.push(this._loadTile(next.id));
+        }
+        if (loads.length) {
+            await Promise.all(loads);
+        }
+    }
+
+    _enqueue(tileId) {
+        if (this.queue.find(entry => entry.id === tileId)) {
+            return;
+        }
+        const priority = this.requestPriority.get(tileId) || 0;
+        this.queue.push({id: tileId, priority, seq: this._queueSeq++});
+        this.queue.sort((a, b) => {
+            if (b.priority !== a.priority) {
+                return b.priority - a.priority;
+            }
+            return a.seq - b.seq;
+        });
+    }
+
+    async _loadTile(tileId) {
+        const meta = this.byId.get(tileId);
+        if (!meta || !meta.url) {
+            return;
+        }
+        const versionAtStart = this.version;
+        this.inflight++;
+        try {
+            const gltf = await this.loader.loadAsync(meta.url);
+            if (versionAtStart !== this.version) {
+                this._disposeGltf(gltf);
+                return;
+            }
+            const obj = gltf.scene || new Group();
+            obj.traverse(node => {
+                if (node.isMesh && node.material) {
+                    const materials = Array.isArray(node.material) ? node.material : [node.material];
+                    materials.forEach(mat => {
+                        if (mat) {
+                            mat.side = DoubleSide;
+                            mat.needsUpdate = true;
+                        }
+                    });
+                }
+            });
+            obj.userData.tileId = tileId;
+            this.scene.add(obj);
+            this.tiles.set(tileId, {object3d: obj, meta});
+            if (this.onSceneChanged) {
+                this.onSceneChanged();
+            }
+        } catch (err) {
+            console.error(`Failed to load tile ${tileId}`, err);
+        } finally {
+            this.inflight--;
+        }
+    }
+
+    _disposeGltf(gltf) {
+        if (!gltf) return;
+        const nodes = [];
+        if (gltf.scene) nodes.push(gltf.scene);
+        while (nodes.length) {
+            const node = nodes.pop();
+            if (node.isMesh) {
+                node.geometry?.dispose();
+                if (Array.isArray(node.material)) {
+                    node.material.forEach(mat => mat?.dispose?.());
+                } else {
+                    node.material?.dispose?.();
+                }
+            }
+            node.children?.forEach(child => nodes.push(child));
+        }
+    }
+
+    _unloadTile(tileId, notify = true) {
+        const rec = this.tiles.get(tileId);
+        if (!rec) return;
+        this.scene.remove(rec.object3d);
+        rec.object3d.traverse(obj => {
+            if (obj.isMesh) {
+                obj.geometry?.dispose();
+                if (Array.isArray(obj.material)) {
+                    obj.material.forEach(mat => mat?.dispose?.());
+                } else {
+                    obj.material?.dispose?.();
+                }
+            }
+        });
+        this.tiles.delete(tileId);
+        this.requestPriority.delete(tileId);
+        if (notify && this.onSceneChanged) {
+            this.onSceneChanged();
+        }
+    }
+
+    _visible(meta) {
+        if (!meta?.aabbWorld) {
+            return true;
+        }
+        const min = new Vector3(...meta.aabbWorld[0]);
+        const max = new Vector3(...meta.aabbWorld[1]);
+        const box = new Box3(min, max);
+        return this.frustum.intersectsBox(box);
+    }
+
+    _allChildrenLoaded(meta) {
+        if (!Array.isArray(meta.children) || meta.children.length === 0) {
+            return true;
+        }
+        return meta.children.every(id => this.tiles.has(id));
+    }
+
+    _sse(meta) {
+        const min = meta.aabbWorld?.[0];
+        const max = meta.aabbWorld?.[1];
+        if (!min || !max) {
+            return meta.geometricError || 0;
+        }
+        const center = new Vector3().fromArray(min)
+            .add(new Vector3().fromArray(max))
+            .multiplyScalar(0.5);
+        const dist = center.distanceTo(this.camera.position) + 1e-6;
+        const ge = meta.geometricError || 0.01;
+        const h = this.renderer.domElement.clientHeight || 1;
+        const fov = this.camera.fov * Math.PI / 180;
+        return (ge / (dist * Math.tan(fov / 2))) * h;
+    }
+
+    _resetTiles() {
+        this.queue.length = 0;
+        this.requestPriority.clear();
+        const ids = Array.from(this.tiles.keys());
+        ids.forEach(tileId => this._unloadTile(tileId, false));
+        this.tiles.clear();
+        if (ids.length && this.onSceneChanged) {
+            this.onSceneChanged();
+        }
+    }
+
+    dispose() {
+        this._resetTiles();
+        this.manifest = null;
+        this.byId.clear();
+        this.rootTileIds.clear();
+        this.queue.length = 0;
+        this.version++;
+    }
+}
+
 function getComponentFromType(type) {
 
     const lookup = {
@@ -183362,7 +183992,8 @@ function getComponentFromType(type) {
         'MetaDataBarChart'         : MetaDataBarChart ,
         'MetaDataRankCorrBarChart' : MetaDataRankCorrBarChart ,
         'MetaDataScatter'          : MetaDataScatter ,
-        'MetaDataHistogram'        : MetaDataHistogram 
+        'MetaDataHistogram'        : MetaDataHistogram ,
+        'ExtractTilesViewer'       : ExtractTilesViewer 
     };
 
     return lookup[type];

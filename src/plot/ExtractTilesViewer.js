@@ -139,8 +139,28 @@ class ExtractTilesViewer extends Plot {
 
     ensureControls(domNode) {
         if (this.controls || !domNode) return;
+        // inside ensureControls(domNode), before creating OrbitControls:
+        domNode.style.touchAction = 'none';
+        domNode.style.msTouchAction = 'none';
+        
+        domNode.addEventListener('pointerdown', (e) => {
+            e.preventDefault();   // stops mouse-compat events (mousedown/mouseup/click)
+            e.stopPropagation();
+        }, { passive: false });
+
+        ['pointermove','pointerup','pointercancel','contextmenu'].forEach(type => {
+            domNode.addEventListener(type, (e) => e.stopPropagation(), { passive: true });
+        });
+
+        // wheel needs non-passive preventDefault to block parent zoom
+        domNode.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, { passive: false });
+
+
         this.controls = new OrbitControls(this.camera, domNode);
-        this.controls.enableDamping = true;
+        this.controls.enableDamping = false;
         this.controls.addEventListener('change', () => {
             if (this.tileManager) {
                 this.tileManager.tick();
@@ -258,6 +278,7 @@ class ExtractTilesViewer extends Plot {
         renderer.setScissorTest(true);
         renderer.setViewport(viewLeft, viewBottom, viewWidth, viewHeight);
         renderer.setScissor(scissorLeft, scissorBottom, scissorWidth, scissorHeight);
+        renderer.setClearColor(0xe0e0e0);
         renderer.clear(true, true, true);
         renderer.render(this.scene, this.camera);
         renderer.setScissorTest(false);
@@ -496,6 +517,17 @@ class TileManager {
                 return;
             }
             const obj = gltf.scene || new THREE.Group();
+            obj.traverse(node => {
+                if (node.isMesh && node.material) {
+                    const materials = Array.isArray(node.material) ? node.material : [node.material];
+                    materials.forEach(mat => {
+                        if (mat) {
+                            mat.side = THREE.DoubleSide;
+                            mat.needsUpdate = true;
+                        }
+                    });
+                }
+            });
             obj.userData.tileId = tileId;
             this.scene.add(obj);
             this.tiles.set(tileId, {object3d: obj, meta});
