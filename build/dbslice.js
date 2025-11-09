@@ -183365,7 +183365,6 @@ class ExtractTilesViewer extends Plot {
         this.stencilRects = [];
         this.renderObserverId = null;
         this.manifestVersion = 0;
-        this.cameraSync = Boolean(this.layout.cameraSync);
         this.cameraSync = this.layout.cameraSync || false;
     }
 
@@ -183406,7 +183405,6 @@ class ExtractTilesViewer extends Plot {
         this.ensureScene();
 
         const plotArea = select$4(`#${this.plotAreaId}`);
-        //this.guardPlotArea(plotArea.node());
         this.ensureCamera(this.plotAreaWidth, this.plotAreaHeight);
         this.initCameraSyncState();
         this.ensureControls(plotArea.node());
@@ -183520,22 +183518,6 @@ class ExtractTilesViewer extends Plot {
             }
             this.webGLUpdate();
         });
-    }
-
-    guardPlotArea(domNode) {
-        if (!domNode || domNode.__extractTilesGuarded) return;
-        const stopPointerDown = (event) => {
-            event.stopPropagation();
-        };
-        const stopWheel = (event) => {
-            event.stopPropagation();
-            if (event.cancelable) {
-                event.preventDefault();
-            }
-        };
-        domNode.addEventListener('pointerdown', stopPointerDown, {capture: true});
-        domNode.addEventListener('wheel', stopWheel, {capture: true, passive: false});
-        domNode.__extractTilesGuarded = true;
     }
 
     initCameraSyncState() {

@@ -19,7 +19,6 @@ class ExtractTilesViewer extends Plot {
         this.stencilRects = [];
         this.renderObserverId = null;
         this.manifestVersion = 0;
-        this.cameraSync = Boolean(this.layout.cameraSync);
         this.cameraSync = this.layout.cameraSync || false;
     }
 
