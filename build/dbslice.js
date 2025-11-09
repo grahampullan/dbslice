@@ -183365,6 +183365,8 @@ class ExtractTilesViewer extends Plot {
         this.stencilRects = [];
         this.renderObserverId = null;
         this.manifestVersion = 0;
+        this.cameraSync = Boolean(this.layout.cameraSync);
+        this.cameraSync = this.layout.cameraSync || false;
     }
 
     make() {
@@ -183404,7 +183406,9 @@ class ExtractTilesViewer extends Plot {
         this.ensureScene();
 
         const plotArea = select$4(`#${this.plotAreaId}`);
+        //this.guardPlotArea(plotArea.node());
         this.ensureCamera(this.plotAreaWidth, this.plotAreaHeight);
+        this.initCameraSyncState();
         this.ensureControls(plotArea.node());
         this.setupRenderSubscription();
         this.update();
@@ -183450,7 +183454,8 @@ class ExtractTilesViewer extends Plot {
         if (this.newData && this.tileManager) {
             const manifest = this.data?.manifest || this.data;
             const version = ++this.manifestVersion;
-            await this.tileManager.loadManifest(manifest, version);
+            const manifestUrl = this.fetchData?.url || this.fetchData?.getUrlFromDimensions?.lastUrl || null;
+            await this.tileManager.loadManifest(manifest, version, manifestUrl);
             this.tileManager.tick();
             this.webGLUpdate();
             this.newData = false;
@@ -183504,15 +183509,59 @@ class ExtractTilesViewer extends Plot {
             e.stopPropagation();
         }, { passive: false });
 
-
         this.controls = new OrbitControls(this.camera, domNode);
         this.controls.enableDamping = false;
         this.controls.addEventListener('change', () => {
+            if (this.cameraSync) {
+                this.publishSharedCameraState();
+            }
             if (this.tileManager) {
                 this.tileManager.tick();
             }
             this.webGLUpdate();
         });
+    }
+
+    guardPlotArea(domNode) {
+        if (!domNode || domNode.__extractTilesGuarded) return;
+        const stopPointerDown = (event) => {
+            event.stopPropagation();
+        };
+        const stopWheel = (event) => {
+            event.stopPropagation();
+            if (event.cancelable) {
+                event.preventDefault();
+            }
+        };
+        domNode.addEventListener('pointerdown', stopPointerDown, {capture: true});
+        domNode.addEventListener('wheel', stopWheel, {capture: true, passive: false});
+        domNode.__extractTilesGuarded = true;
+    }
+
+    initCameraSyncState() {
+        if (!this.cameraSync) return;
+        const plotGroupId = this.ancestorIds[this.ancestorIds.length - 1];
+        let sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
+        if (!sharedCamera) {
+            sharedCamera = {position: null, rotation: null, zoom: 1};
+            this.sharedStateByAncestorId[plotGroupId].sharedCamera = sharedCamera;
+        }
+        this.sharedCameraState = sharedCamera;
+        if (sharedCamera.position) {
+            this.camera.position.copy(sharedCamera.position);
+            this.camera.rotation.copy(sharedCamera.rotation);
+            this.camera.zoom = sharedCamera.zoom || 1;
+            this.camera.updateProjectionMatrix();
+        } else {
+            this.publishSharedCameraState();
+        }
+    }
+
+    publishSharedCameraState() {
+        if (!this.cameraSync || !this.sharedCameraState) return;
+        this.sharedCameraState.position = this.camera.position.clone();
+        this.sharedCameraState.rotation = this.camera.rotation.clone();
+        this.sharedCameraState.zoom = this.camera.zoom;
     }
 
     setupRenderSubscription() {
@@ -183624,6 +183673,12 @@ class ExtractTilesViewer extends Plot {
         renderer.setScissorTest(true);
         renderer.setViewport(viewLeft, viewBottom, viewWidth, viewHeight);
         renderer.setScissor(scissorLeft, scissorBottom, scissorWidth, scissorHeight);
+        if (this.cameraSync && this.sharedCameraState?.position) {
+            this.camera.position.copy(this.sharedCameraState.position);
+            this.camera.rotation.copy(this.sharedCameraState.rotation);
+            this.camera.zoom = this.sharedCameraState.zoom || 1;
+            this.camera.updateProjectionMatrix();
+        }
         renderer.setClearColor(0xe0e0e0);
         renderer.clear(true, true, true);
         renderer.render(this.scene, this.camera);
@@ -183646,6 +183701,43 @@ class ExtractTilesViewer extends Plot {
         this.scene = null;
         this.camera = null;
         this.tileManager = null;
+    }
+}
+
+function deduceTileBaseUrl(manifestUrl, manifest) {
+    if (!manifestUrl) return null;
+    try {
+        const absoluteManifestUrl = new URL(manifestUrl, window.location.href);
+        if (manifest && typeof manifest.tilesBasePath === 'string' && manifest.tilesBasePath.length) {
+            return new URL(manifest.tilesBasePath, absoluteManifestUrl).href;
+        }
+        const manifestDirUrl = new URL('./', absoluteManifestUrl);
+        return manifestDirUrl.href;
+    } catch (err) {
+        console.warn('Failed to deduce tile base URL', manifestUrl, err);
+        return null;
+    }
+}
+
+function resolveTileUrl(rawUrl, tileBaseUrl) {
+    if (!rawUrl) return null;
+    if (/^https?:\/\//i.test(rawUrl)) {
+        return rawUrl;
+    }
+    if (rawUrl.startsWith('//')) {
+        return `${window.location.protocol}${rawUrl}`;
+    }
+    if (rawUrl.startsWith('/')) {
+        return rawUrl;
+    }
+    if (!tileBaseUrl) {
+        return rawUrl;
+    }
+    try {
+        return new URL(rawUrl, tileBaseUrl).href;
+    } catch (err) {
+        console.warn('Failed to resolve tile URL', rawUrl, tileBaseUrl, err);
+        return rawUrl;
     }
 }
 
@@ -183697,10 +183789,12 @@ class TileManager {
         }
     }
 
-    async loadManifest(manifest, version) {
+    async loadManifest(manifest, version, manifestUrl) {
         this.version = version;
         this._resetTiles();
         this.manifest = manifest;
+        this.manifestUrl = manifestUrl;
+        this.tileBaseUrl = deduceTileBaseUrl(manifestUrl, manifest);
         this.byId.clear();
         this.rootTileIds.clear();
         if (!manifest || !Array.isArray(manifest.tiles)) {
@@ -183857,7 +183951,8 @@ class TileManager {
         const versionAtStart = this.version;
         this.inflight++;
         try {
-            const gltf = await this.loader.loadAsync(meta.url);
+            const tileUrl = resolveTileUrl(meta.url, this.tileBaseUrl);
+            const gltf = await this.loader.loadAsync(tileUrl);
             if (versionAtStart !== this.version) {
                 this._disposeGltf(gltf);
                 return;
