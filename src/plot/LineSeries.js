@@ -106,6 +106,7 @@ class LineSeries extends Plot {
         const xAxisMean = layout.xAxisMean;
         const yAxisMean = layout.yAxisMean;
         const margin = layout.margin;
+        const enableTips = layout.enableTips !== false;
 
         
         
@@ -262,8 +263,8 @@ class LineSeries extends Plot {
                             .style( "fill", "none" )
                             .style( "stroke-width", "2.5px" )
                             .attr( "clip-path", `url(#${clipId})` )
-                            .on( "mouseover", tipOn )
-                            .on( "mouseout", tipOff );
+                            .on( "mouseover", enableTips ? tipOn : null )
+                            .on( "mouseout", enableTips ? tipOff : null );
             } );
 
             allSeries.each( function() {
@@ -375,8 +376,8 @@ class LineSeries extends Plot {
                         .style("fill","none")
                         .attr( "clip-path", `url(#${clipId})` )
                         .attr("d", d => line(d.data))
-                        .on( "mouseover", tipOnMeanLine )
-                        .on( "mouseout", tipOffMeanLine );
+                        .on( "mouseover", enableTips ? tipOnMeanLine : null )
+                        .on( "mouseout", enableTips ? tipOffMeanLine : null );
             } );
 
             meanLines.each( function() {
