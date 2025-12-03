@@ -153807,6 +153807,66 @@ class Line3 {
 
 }
 
+class AxesHelper extends LineSegments {
+
+	constructor( size = 1 ) {
+
+		const vertices = [
+			0, 0, 0,	size, 0, 0,
+			0, 0, 0,	0, size, 0,
+			0, 0, 0,	0, 0, size
+		];
+
+		const colors = [
+			1, 0, 0,	1, 0.6, 0,
+			0, 1, 0,	0.6, 1, 0,
+			0, 0, 1,	0, 0.6, 1
+		];
+
+		const geometry = new BufferGeometry();
+		geometry.setAttribute( 'position', new Float32BufferAttribute( vertices, 3 ) );
+		geometry.setAttribute( 'color', new Float32BufferAttribute( colors, 3 ) );
+
+		const material = new LineBasicMaterial( { vertexColors: true, toneMapped: false } );
+
+		super( geometry, material );
+
+		this.type = 'AxesHelper';
+
+	}
+
+	setColors( xAxisColor, yAxisColor, zAxisColor ) {
+
+		const color = new Color$1();
+		const array = this.geometry.attributes.color.array;
+
+		color.set( xAxisColor );
+		color.toArray( array, 0 );
+		color.toArray( array, 3 );
+
+		color.set( yAxisColor );
+		color.toArray( array, 6 );
+		color.toArray( array, 9 );
+
+		color.set( zAxisColor );
+		color.toArray( array, 12 );
+		color.toArray( array, 15 );
+
+		this.geometry.attributes.color.needsUpdate = true;
+
+		return this;
+
+	}
+
+	dispose() {
+
+		this.geometry.dispose();
+		this.material.dispose();
+
+	}
+
+}
+
 class Controls extends EventDispatcher {
 
 	constructor( object, domElement = null ) {
@@ -183487,6 +183547,8 @@ class ExtractTilesViewer extends Plot {
         this.manifestVersion = 0;
         this.cameraSync = this.layout.cameraSync || false;
         this.cameraLight = null;
+        this.cameraDimConfig = this.layout.setCameraFromDimensions || null;
+        this.cameraDimSubs = [];
     }
 
     make() {
@@ -183528,6 +183590,7 @@ class ExtractTilesViewer extends Plot {
         const plotArea = select$4(`#${this.plotAreaId}`);
         this.ensureCamera(this.plotAreaWidth, this.plotAreaHeight);
         this.initCameraSyncState();
+        this.initCameraDimensionBindings();
         this.ensureControls(plotArea.node());
         this.setupRenderSubscription();
         this.update();
@@ -183590,6 +183653,8 @@ class ExtractTilesViewer extends Plot {
         this.scene.background = new Color$1(0xe0e0e0);
         const ambient = new AmbientLight(0xffffff, 0.35);
         this.scene.add(ambient);
+        this.axesHelper = new AxesHelper(5);
+        this.scene.add(this.axesHelper);
     }
 
     ensureCamera(width, height) {
@@ -183792,9 +183857,146 @@ class ExtractTilesViewer extends Plot {
         this.update();
     }
 
+    initCameraDimensionBindings() {
+        if (!this.cameraDimConfig) return;
+        const cfg = this.cameraDimConfig;
+        const dims = this.sharedStateByAncestorId['context']?.dimensions || [];
+        const requestCreateDimension = this.sharedStateByAncestorId['context']?.requestCreateDimension;
+        const names = new Set();
+        ['position', 'target', 'up'].forEach(key => {
+            const block = cfg[key];
+            if (!block) return;
+            Object.values(block).forEach(n => { if (typeof n === 'string') names.add(n); });
+        });
+        ['zoom', 'fov'].forEach(key => {
+            const n = cfg[key];
+            if (typeof n === 'string') names.add(n);
+        });
+        names.forEach(name => {
+            if (requestCreateDimension) {
+                requestCreateDimension.state = {name, value: null};
+            }
+            const dim = dims.find(d => d.name === name);
+            if (!dim) return;
+            const id = dim.subscribe(this.applyCameraDimensions.bind(this));
+            this.subscriptions.push({observable: dim, id});
+        });
+        this.applyCameraDimensions();
+    }
+
+    applyCameraDimensions() {
+        if (!this.camera || !this.cameraDimConfig) return;
+        const cfg = this.cameraDimConfig;
+        const dims = this.sharedStateByAncestorId['context']?.dimensions || [];
+        const getVal = (name) => {
+            const dim = dims.find(d => d.name === name);
+            return dim ? dim.state.value : undefined;
+        };
+        const applyBlock = (block, targetVec) => {
+            if (!block) return;
+            if ('thetaZ' in block) {
+                const r = getVal(block.r);
+                const theta = getVal(block.thetaZ);
+                const radius = Number.isFinite(r) ? r : Math.hypot(targetVec.x, targetVec.y);
+                if (Number.isFinite(radius) && Number.isFinite(theta)) {
+                    targetVec.x = Math.cos(theta) * radius;
+                    targetVec.y = Math.sin(theta) * radius;
+                }
+                const z = getVal(block.z);
+                if (Number.isFinite(z)) {
+                    targetVec.z = z;
+                }
+            } else if ('thetaX' in block) {
+                const r = getVal(block.r);
+                const theta = getVal(block.thetaX);
+                const radius = Number.isFinite(r) ? r : Math.hypot(targetVec.y, targetVec.z);
+                if (Number.isFinite(radius) && Number.isFinite(theta)) {
+                    targetVec.y = Math.cos(theta) * radius;
+                    targetVec.z = Math.sin(theta) * radius;
+                }
+                const x = getVal(block.x);
+                if (Number.isFinite(x)) {
+                    targetVec.x = x;
+                }
+            } else {
+                const xv = getVal(block.x);
+                const yv = getVal(block.y);
+                const zv = getVal(block.z);
+                if (Number.isFinite(xv)) targetVec.x = xv;
+                if (Number.isFinite(yv)) targetVec.y = yv;
+                if (Number.isFinite(zv)) targetVec.z = zv;
+            }
+        };
+        const pos = this.camera.position.clone();
+        const tgt = this.controls ? this.controls.target.clone() : null;
+        applyBlock(cfg.position, pos);
+        applyBlock(cfg.target, tgt || pos);
+        if (!cfg.target && cfg.position?.thetaX && tgt) {
+            const r = Math.hypot(tgt.y, tgt.z);
+            const theta = getVal(cfg.position.thetaX);
+            if (Number.isFinite(r) && Number.isFinite(theta)) {
+                tgt.y = Math.cos(theta) * r;
+                tgt.z = Math.sin(theta) * r;
+            }
+        } else if (!cfg.target && cfg.position?.thetaZ && tgt) {
+            const r = Math.hypot(tgt.x, tgt.y);
+            const theta = getVal(cfg.position.thetaZ);
+            if (Number.isFinite(r) && Number.isFinite(theta)) {
+                tgt.x = Math.cos(theta) * r;
+                tgt.y = Math.sin(theta) * r;
+            }
+        }
+        if (cfg.up) {
+            const ux = getVal(cfg.up.x);
+            const uy = getVal(cfg.up.y);
+            const uz = getVal(cfg.up.z);
+            if (Number.isFinite(ux)) this.camera.up.x = ux;
+            if (Number.isFinite(uy)) this.camera.up.y = uy;
+            if (Number.isFinite(uz)) this.camera.up.z = uz;
+        }
+        if (!cfg.up && tgt) {
+            const view = tgt.clone().sub(pos);
+            if (cfg.position?.thetaX) {
+                const upVec = new Vector3(1, 0, 0).cross(view).normalize();
+                if (upVec.lengthSq() > 1e-12) {
+                    this.camera.up.copy(upVec);
+                }
+            } else if (cfg.position?.thetaZ) {
+                const upVec = new Vector3(0, 0, 1).cross(view).normalize();
+                if (upVec.lengthSq() > 1e-12) {
+                    this.camera.up.copy(upVec);
+                }
+            }
+        }
+        this.camera.position.copy(pos);
+        if (tgt && this.controls) {
+            this.controls.target.copy(tgt);
+        }
+        if (typeof cfg.zoom === 'string') {
+            const z = getVal(cfg.zoom);
+            if (Number.isFinite(z)) this.camera.zoom = z;
+        }
+        if (typeof cfg.fov === 'string') {
+            const f = getVal(cfg.fov);
+            if (Number.isFinite(f)) this.camera.fov = f;
+        }
+        this.camera.updateProjectionMatrix();
+        if (this.controls) this.controls.update();
+        if (this.tileManager) this.tileManager.tick();
+        // Diagnostic log (commented out by default)
+        // let thetaLogged = null;
+        // if (cfg.position?.thetaX) {
+        //     thetaLogged = Math.atan2(this.camera.position.z, this.camera.position.y);
+        // } else if (cfg.position?.thetaZ) {
+        //     thetaLogged = Math.atan2(this.camera.position.y, this.camera.position.x);
+        // }
+        // console.log('Camera pos', this.camera.position.x, this.camera.position.y, this.camera.position.z, 'theta', thetaLogged, 'position block', cfg.position, 'target block', cfg.target);
+    }
+
     recenterCamera(manifest) {
         if (!this.camera || !manifest || !Array.isArray(manifest.tiles) || !manifest.tiles.length) return;
         if (this.cameraSync && this.sharedCameraState?.position) return;
+        if (this.cameraDimConfig) return;
         const roots = manifest.tiles.filter(t => t.parent == null && t.aabbWorld);
         const candidates = roots.length ? roots : manifest.tiles;
         const bbox = new Box3();
