@@ -153807,66 +153807,6 @@ class Line3 {
 
 }
 
-class AxesHelper extends LineSegments {
-
-	constructor( size = 1 ) {
-
-		const vertices = [
-			0, 0, 0,	size, 0, 0,
-			0, 0, 0,	0, size, 0,
-			0, 0, 0,	0, 0, size
-		];
-
-		const colors = [
-			1, 0, 0,	1, 0.6, 0,
-			0, 1, 0,	0.6, 1, 0,
-			0, 0, 1,	0, 0.6, 1
-		];
-
-		const geometry = new BufferGeometry();
-		geometry.setAttribute( 'position', new Float32BufferAttribute( vertices, 3 ) );
-		geometry.setAttribute( 'color', new Float32BufferAttribute( colors, 3 ) );
-
-		const material = new LineBasicMaterial( { vertexColors: true, toneMapped: false } );
-
-		super( geometry, material );
-
-		this.type = 'AxesHelper';
-
-	}
-
-	setColors( xAxisColor, yAxisColor, zAxisColor ) {
-
-		const color = new Color$1();
-		const array = this.geometry.attributes.color.array;
-
-		color.set( xAxisColor );
-		color.toArray( array, 0 );
-		color.toArray( array, 3 );
-
-		color.set( yAxisColor );
-		color.toArray( array, 6 );
-		color.toArray( array, 9 );
-
-		color.set( zAxisColor );
-		color.toArray( array, 12 );
-		color.toArray( array, 15 );
-
-		this.geometry.attributes.color.needsUpdate = true;
-
-		return this;
-
-	}
-
-	dispose() {
-
-		this.geometry.dispose();
-		this.material.dispose();
-
-	}
-
-}
-
 class Controls extends EventDispatcher {
 
 	constructor( object, domElement = null ) {
@@ -179992,6 +179932,7 @@ class LineSeries extends Plot {
         const xAxisMean = layout.xAxisMean;
         const yAxisMean = layout.yAxisMean;
         const margin = layout.margin;
+        const enableTips = layout.enableTips !== false;
 
         
         
@@ -180148,8 +180089,8 @@ class LineSeries extends Plot {
                             .style( "fill", "none" )
                             .style( "stroke-width", "2.5px" )
                             .attr( "clip-path", `url(#${clipId})` )
-                            .on( "mouseover", tipOn )
-                            .on( "mouseout", tipOff );
+                            .on( "mouseover", enableTips ? tipOn : null )
+                            .on( "mouseout", enableTips ? tipOff : null );
             } );
 
             allSeries.each( function() {
@@ -180261,8 +180202,8 @@ class LineSeries extends Plot {
                         .style("fill","none")
                         .attr( "clip-path", `url(#${clipId})` )
                         .attr("d", d => line(d.data))
-                        .on( "mouseover", tipOnMeanLine )
-                        .on( "mouseout", tipOffMeanLine );
+                        .on( "mouseover", enableTips ? tipOnMeanLine : null )
+                        .on( "mouseout", enableTips ? tipOffMeanLine : null );
             } );
 
             meanLines.each( function() {
@@ -183653,8 +183594,9 @@ class ExtractTilesViewer extends Plot {
         this.scene.background = new Color$1(0xe0e0e0);
         const ambient = new AmbientLight(0xffffff, 0.35);
         this.scene.add(ambient);
-        this.axesHelper = new AxesHelper(5);
-        this.scene.add(this.axesHelper);
+        // Diagnostic axes helper (enable if needed)
+        // this.axesHelper = new THREE.AxesHelper(5);
+        // this.scene.add(this.axesHelper);
     }
 
     ensureCamera(width, height) {
