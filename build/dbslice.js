@@ -51525,7 +51525,7 @@ MeshPhysicalMaterial$1.prototype.copy = function ( source ) {
  * }
  */
 
-function MeshPhongMaterial( parameters ) {
+function MeshPhongMaterial$1( parameters ) {
 
 	Material$1.call( this );
 
@@ -51580,12 +51580,12 @@ function MeshPhongMaterial( parameters ) {
 
 }
 
-MeshPhongMaterial.prototype = Object.create( Material$1.prototype );
-MeshPhongMaterial.prototype.constructor = MeshPhongMaterial;
+MeshPhongMaterial$1.prototype = Object.create( Material$1.prototype );
+MeshPhongMaterial$1.prototype.constructor = MeshPhongMaterial$1;
 
-MeshPhongMaterial.prototype.isMeshPhongMaterial = true;
+MeshPhongMaterial$1.prototype.isMeshPhongMaterial = true;
 
-MeshPhongMaterial.prototype.copy = function ( source ) {
+MeshPhongMaterial$1.prototype.copy = function ( source ) {
 
 	Material$1.prototype.copy.call( this, source );
 
@@ -52137,7 +52137,7 @@ var Materials = /*#__PURE__*/Object.freeze({
 	PointsMaterial: PointsMaterial$1,
 	MeshPhysicalMaterial: MeshPhysicalMaterial$1,
 	MeshStandardMaterial: MeshStandardMaterial$1,
-	MeshPhongMaterial: MeshPhongMaterial,
+	MeshPhongMaterial: MeshPhongMaterial$1,
 	MeshToonMaterial: MeshToonMaterial,
 	MeshNormalMaterial: MeshNormalMaterial,
 	MeshLambertMaterial: MeshLambertMaterial$1,
@@ -64292,7 +64292,7 @@ Object.defineProperties( Material$1.prototype, {
 
 } );
 
-Object.defineProperties( MeshPhongMaterial.prototype, {
+Object.defineProperties( MeshPhongMaterial$1.prototype, {
 
 	metal: {
 		get: function () {
@@ -149486,6 +149486,126 @@ class MeshPhysicalMaterial extends MeshStandardMaterial {
 
 }
 
+class MeshPhongMaterial extends Material {
+
+	static get type() {
+
+		return 'MeshPhongMaterial';
+
+	}
+
+	constructor( parameters ) {
+
+		super();
+
+		this.isMeshPhongMaterial = true;
+
+		this.color = new Color$1( 0xffffff ); // diffuse
+		this.specular = new Color$1( 0x111111 );
+		this.shininess = 30;
+
+		this.map = null;
+
+		this.lightMap = null;
+		this.lightMapIntensity = 1.0;
+
+		this.aoMap = null;
+		this.aoMapIntensity = 1.0;
+
+		this.emissive = new Color$1( 0x000000 );
+		this.emissiveIntensity = 1.0;
+		this.emissiveMap = null;
+
+		this.bumpMap = null;
+		this.bumpScale = 1;
+
+		this.normalMap = null;
+		this.normalMapType = TangentSpaceNormalMap;
+		this.normalScale = new Vector2( 1, 1 );
+
+		this.displacementMap = null;
+		this.displacementScale = 1;
+		this.displacementBias = 0;
+
+		this.specularMap = null;
+
+		this.alphaMap = null;
+
+		this.envMap = null;
+		this.envMapRotation = new Euler();
+		this.combine = MultiplyOperation;
+		this.reflectivity = 1;
+		this.refractionRatio = 0.98;
+
+		this.wireframe = false;
+		this.wireframeLinewidth = 1;
+		this.wireframeLinecap = 'round';
+		this.wireframeLinejoin = 'round';
+
+		this.flatShading = false;
+
+		this.fog = true;
+
+		this.setValues( parameters );
+
+	}
+
+	copy( source ) {
+
+		super.copy( source );
+
+		this.color.copy( source.color );
+		this.specular.copy( source.specular );
+		this.shininess = source.shininess;
+
+		this.map = source.map;
+
+		this.lightMap = source.lightMap;
+		this.lightMapIntensity = source.lightMapIntensity;
+
+		this.aoMap = source.aoMap;
+		this.aoMapIntensity = source.aoMapIntensity;
+
+		this.emissive.copy( source.emissive );
+		this.emissiveMap = source.emissiveMap;
+		this.emissiveIntensity = source.emissiveIntensity;
+
+		this.bumpMap = source.bumpMap;
+		this.bumpScale = source.bumpScale;
+
+		this.normalMap = source.normalMap;
+		this.normalMapType = source.normalMapType;
+		this.normalScale.copy( source.normalScale );
+
+		this.displacementMap = source.displacementMap;
+		this.displacementScale = source.displacementScale;
+		this.displacementBias = source.displacementBias;
+
+		this.specularMap = source.specularMap;
+
+		this.alphaMap = source.alphaMap;
+
+		this.envMap = source.envMap;
+		this.envMapRotation.copy( source.envMapRotation );
+		this.combine = source.combine;
+		this.reflectivity = source.reflectivity;
+		this.refractionRatio = source.refractionRatio;
+
+		this.wireframe = source.wireframe;
+		this.wireframeLinewidth = source.wireframeLinewidth;
+		this.wireframeLinecap = source.wireframeLinecap;
+		this.wireframeLinejoin = source.wireframeLinejoin;
+
+		this.flatShading = source.flatShading;
+
+		this.fog = source.fog;
+
+		return this;
+
+	}
+
+}
+
 class MeshLambertMaterial extends Material {
 
 	static get type() {
@@ -161421,7 +161541,7 @@ const threeSurf3d = {
 		geometry.computeVertexNormals();
     
 		// Use MeshPhongMaterial for a reflective surface
-		const material = new MeshPhongMaterial( {
+		const material = new MeshPhongMaterial$1( {
     		side: DoubleSide$1,
     		color: 0xffffff,
     		vertexColors: VertexColors,
@@ -183366,6 +183486,7 @@ class ExtractTilesViewer extends Plot {
         this.renderObserverId = null;
         this.manifestVersion = 0;
         this.cameraSync = this.layout.cameraSync || false;
+        this.cameraLight = null;
     }
 
     make() {
@@ -183454,6 +183575,7 @@ class ExtractTilesViewer extends Plot {
             const version = ++this.manifestVersion;
             const manifestUrl = this.fetchData?.url || this.fetchData?.getUrlFromDimensions?.lastUrl || null;
             await this.tileManager.loadManifest(manifest, version, manifestUrl);
+            this.recenterCamera(manifest);
             this.tileManager.tick();
             this.webGLUpdate();
             this.newData = false;
@@ -183465,25 +183587,23 @@ class ExtractTilesViewer extends Plot {
     ensureScene() {
         if (this.scene) return;
         this.scene = new Scene();
-        const ambient = new AmbientLight(0xffffff, 0.4);
-        const directional = new DirectionalLight(0xffffff, 0.8);
-        directional.position.set(1, 1, 1);
+        this.scene.background = new Color$1(0xe0e0e0);
+        const ambient = new AmbientLight(0xffffff, 0.35);
         this.scene.add(ambient);
-        this.scene.add(directional);
-        this.light = directional;
     }
 
     ensureCamera(width, height) {
         if (!width || !height) return;
         if (!this.camera) {
-            this.camera = new PerspectiveCamera(60, width / height, 0.1, 5000);
-            this.camera.position.set(0, 0, 10);
+            this.camera = new PerspectiveCamera(60, width / height, 0.01, 10000);
+            this.camera.position.set(0, 0, 2);
+            this.cameraLight = new DirectionalLight(0xffffff, 1.0);
+            this.cameraLight.position.set(0, 0, 1);
+            this.camera.add(this.cameraLight);
+            this.scene.add(this.camera);
         }
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
-        if (this.light) {
-            this.light.position.copy(this.camera.position);
-        }
     }
 
     ensureControls(domNode) {
@@ -183672,6 +183792,33 @@ class ExtractTilesViewer extends Plot {
         this.update();
     }
 
+    recenterCamera(manifest) {
+        if (!this.camera || !manifest || !Array.isArray(manifest.tiles) || !manifest.tiles.length) return;
+        if (this.cameraSync && this.sharedCameraState?.position) return;
+        const roots = manifest.tiles.filter(t => t.parent == null && t.aabbWorld);
+        const candidates = roots.length ? roots : manifest.tiles;
+        const bbox = new Box3();
+        candidates.forEach(tile => {
+            const lo = tile.aabbWorld?.[0];
+            const hi = tile.aabbWorld?.[1];
+            if (!Array.isArray(lo) || !Array.isArray(hi) || lo.length !== 3 || hi.length !== 3) return;
+            bbox.expandByPoint(new Vector3().fromArray(lo));
+            bbox.expandByPoint(new Vector3().fromArray(hi));
+        });
+        if (!isFinite(bbox.min.x) || !isFinite(bbox.max.x)) return;
+        const center = bbox.getCenter(new Vector3());
+        const size = bbox.getSize(new Vector3());
+        const radius = Math.max(size.length() * 0.5, 0.5);
+        const distance = Math.max(radius * 2.5, 1.0);
+        const direction = new Vector3(0, 0, 1);
+        this.camera.position.copy(center.clone().add(direction.multiplyScalar(distance)));
+        this.camera.lookAt(center);
+        if (this.controls) {
+            this.controls.target.copy(center);
+            this.controls.update();
+        }
+    }
+
     remove() {
         this.removeSubscriptions();
         if (this.controls) {
@@ -183694,6 +183841,14 @@ function deduceTileBaseUrl(manifestUrl, manifest) {
             return new URL(manifest.tilesBasePath, absoluteManifestUrl).href;
         }
         const manifestDirUrl = new URL('./', absoluteManifestUrl);
+        const dirParts = manifestDirUrl.pathname.split('/').filter(Boolean);
+        const manifestIdx = dirParts.indexOf('manifest');
+        if (manifestIdx !== -1) {
+            const swapped = [...dirParts];
+            swapped[manifestIdx] = 'tiles';
+            const path = `/${swapped.join('/')}/`;
+            return new URL(path, absoluteManifestUrl).href;
+        }
         return manifestDirUrl.href;
     } catch (err) {
         console.warn('Failed to deduce tile base URL', manifestUrl, err);
@@ -183741,6 +183896,7 @@ class TileManager {
         this.frustum = new Frustum();
         this.projScreenMatrix = new Matrix4();
         this._queueSeq = 0;
+        this.levelGeMedian = new Map();
         this.options = {
             sseRefine: 25,
             sseCoarsen: 12.5,
@@ -183748,7 +183904,6 @@ class TileManager {
             maxActiveTiles: 400,
             wireframe: false,
             showBoundingBoxes: false,
-            simpleShading: false,
             ...options
         };
         this._tickLock = false;
@@ -183779,6 +183934,7 @@ class TileManager {
         this.tileBaseUrl = deduceTileBaseUrl(manifestUrl, manifest);
         this.byId.clear();
         this.rootTileIds.clear();
+        this.levelGeMedian.clear();
         if (!manifest || !Array.isArray(manifest.tiles)) {
             console.warn('TileManager: manifest missing tiles array');
             return;
@@ -183792,6 +183948,7 @@ class TileManager {
         if (this.rootTileIds.size === 0 && manifest.tiles.length) {
             this.rootTileIds.add(manifest.tiles[0].tileId);
         }
+        this._computeLevelGeStats();
     }
 
     tick() {
@@ -183848,24 +184005,19 @@ class TileManager {
             visited.add(id);
             const meta = this.byId.get(id);
             if (!meta) continue;
-            const visible = this._visible(meta);
-            if (!visible) {
-                continue;
-            }
-            const sse = this._sse(meta);
-            this.requestPriority.set(id, sse);
+            if (!this._visible(meta)) continue;
+            const sseNorm = this._sse(meta);
+            this.requestPriority.set(id, sseNorm);
             const canRefine = Array.isArray(meta.children) && meta.children.length > 0;
-            const shouldRefine = canRefine && sse > this.options.sseRefine;
-            if (shouldRefine) {
+            const refine = canRefine && sseNorm > this.options.sseRefine;
+            sseNorm < this.options.sseCoarsen;
+            if (refine) {
                 meta.children.forEach(childId => stack.push(childId));
                 if (!this._allChildrenLoaded(meta)) {
-                    want.add(id);
+                    want.add(id); // keep parent until children are present
                 }
             } else {
                 want.add(id);
-                if (canRefine && sse > this.options.sseCoarsen) {
-                    meta.children.forEach(childId => stack.push(childId));
-                }
             }
         }
         if (want.size > this.options.maxActiveTiles) {
@@ -183954,6 +184106,8 @@ class TileManager {
             obj.userData.tileId = tileId;
             this.scene.add(obj);
             this.tiles.set(tileId, {object3d: obj, meta});
+            this._applySimpleShading(obj);
+            console.log('ExtractTilesViewer tiles displayed:', this.tiles.size);
             if (this.onSceneChanged) {
                 this.onSceneChanged();
             }
@@ -183982,6 +184136,34 @@ class TileManager {
         }
     }
 
+    _applySimpleShading(root) {
+        if (!root) return;
+        root.traverse(obj => {
+            if (!obj.isMesh || !obj.material) return;
+            const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+            const newMats = materials.map(mat => {
+                if (!mat) return mat;
+                const hasVertexColors = !!mat.vertexColors;
+                const baseColor = mat.color ? mat.color.clone() : new Color$1(0.8, 0.8, 0.8);
+                const specularColor = baseColor.clone().lerp(new Color$1(1, 1, 1), 0.5);
+                const phong = new MeshPhongMaterial({
+                    color: baseColor,
+                    vertexColors: hasVertexColors,
+                    side: DoubleSide,
+                    shininess: 60,
+                    specular: specularColor
+                });
+                mat.dispose?.();
+                return phong;
+            });
+            obj.material = Array.isArray(obj.material) ? newMats : newMats[0];
+            const geom = obj.geometry;
+            if (geom && !geom.attributes?.normal) {
+                geom.computeVertexNormals?.();
+            }
+        });
+    }
+
     _unloadTile(tileId, notify = true) {
         const rec = this.tiles.get(tileId);
         if (!rec) return;
@@ -183998,6 +184180,7 @@ class TileManager {
         });
         this.tiles.delete(tileId);
         this.requestPriority.delete(tileId);
+        console.log('ExtractTilesViewer tiles displayed:', this.tiles.size);
         if (notify && this.onSceneChanged) {
             this.onSceneChanged();
         }
@@ -184020,25 +184203,53 @@ class TileManager {
         return meta.children.every(id => this.tiles.has(id));
     }
 
+    _computeLevelGeStats() {
+        const perLevel = new Map();
+        for (const tile of this.manifest?.tiles || []) {
+            const ge = tile?.geometricError;
+            if (!(typeof ge === 'number') || ge <= 0) continue;
+            if (!perLevel.has(tile.z)) {
+                perLevel.set(tile.z, []);
+            }
+            perLevel.get(tile.z).push(ge);
+        }
+        this.levelGeMedian.clear();
+        for (const [depth, values] of perLevel) {
+            values.sort((a, b) => a - b);
+            const mid = Math.floor(values.length / 2);
+            const median = values.length % 2
+                ? values[mid]
+                : 0.5 * (values[mid - 1] + values[mid]);
+            this.levelGeMedian.set(depth, median || values[mid] || 0);
+        }
+    }
+
     _sse(meta) {
         const min = meta.aabbWorld?.[0];
         const max = meta.aabbWorld?.[1];
-        if (!min || !max) {
-            return meta.geometricError || 0;
+        let raw = meta.geometricError || 0;
+        if (min && max) {
+            const center = new Vector3().fromArray(min)
+                .add(new Vector3().fromArray(max))
+                .multiplyScalar(0.5);
+            const dist = center.distanceTo(this.camera.position) + 1e-6;
+            const ge = meta.geometricError || 0.01;
+            const h = this.renderer.domElement.clientHeight || 1;
+            const fov = this.camera.fov * Math.PI / 180;
+            raw = (ge / (dist * Math.tan(fov / 2))) * h;
         }
-        const center = new Vector3().fromArray(min)
-            .add(new Vector3().fromArray(max))
-            .multiplyScalar(0.5);
-        const dist = center.distanceTo(this.camera.position) + 1e-6;
-        const ge = meta.geometricError || 0.01;
-        const h = this.renderer.domElement.clientHeight || 1;
-        const fov = this.camera.fov * Math.PI / 180;
-        return (ge / (dist * Math.tan(fov / 2))) * h;
+        const median = this.levelGeMedian.get(meta.z);
+        const geVal = meta.geometricError;
+        if (median && typeof geVal === 'number' && geVal > 0) {
+            return raw * (median / Math.max(geVal, 1e-9));
+        }
+        return raw;
     }
 
     _resetTiles() {
         this.queue.length = 0;
         this.requestPriority.clear();
+        this.levelGeMedian.clear();
         const ids = Array.from(this.tiles.keys());
         ids.forEach(tileId => this._unloadTile(tileId, false));
         this.tiles.clear();
