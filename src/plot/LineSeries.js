@@ -99,6 +99,8 @@ class LineSeries extends Plot {
         const highlightItemsFlag = layout.highlightItems;
         const lineWidth = layout.lineWidth || 2.5;
         const panZoomEnabled = layout.panZoom !== false;
+        const cutDefaultColor = layout.cutLineColor || "#d0d5db";
+        this.cutDefaultColor = cutDefaultColor;
         let highlightItemIds;
         if (highlightItemsFlag) {
             const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
@@ -786,7 +788,7 @@ class LineSeries extends Plot {
                     .attr("class","cut-line")
                     .attr("id", `${dimensionName}-cut-line`)
                     .attr("fill", "none")
-                    .attr("stroke", "#d0d5db")
+                    .attr("stroke", this.cutDefaultColor)
                     .attr("stroke-width", 3)
                     .style("opacity",0.9)
                     .attr("d", "")
@@ -817,7 +819,7 @@ class LineSeries extends Plot {
         if (cut.brushing) {
             cutLine.style("stroke", "#42d4f5");
         } else {
-            cutLine.style("stroke", "#d0d5db");
+            cutLine.style("stroke", this.cutDefaultColor || "#d0d5db");
         }
     }   
 
