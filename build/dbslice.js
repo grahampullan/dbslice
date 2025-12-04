@@ -65214,6 +65214,10 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
 
         return itemPromise.then(function( responseJson ) {
 
+            if (responseJson && responseJson.__noUpdate) {
+                return { __noUpdate: true };
+            }
+
             if ( fetchData.csv == true ) {
     
                 responseJson = csvParse( responseJson );
@@ -65420,14 +65424,28 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
         const getUrlFromDimensions = fetchData.getUrlFromDimensions;
         let dimsNotSet = false;
         const indx = getUrlFromDimensions.dimensionNames.map( (dimName, i) => {
-            const offset = getUrlFromDimensions.offsets[i];
-            const multiplier = getUrlFromDimensions.multipliers[i];
+            const offset = (getUrlFromDimensions.offsets && getUrlFromDimensions.offsets[i] !== undefined) ? getUrlFromDimensions.offsets[i] : 0;
+            const multiplier = (getUrlFromDimensions.multipliers && getUrlFromDimensions.multipliers[i] !== undefined) ? getUrlFromDimensions.multipliers[i] : 1;
+            const snap = !!(getUrlFromDimensions.snaps && getUrlFromDimensions.snaps[i]);
+            const step = (getUrlFromDimensions.steps && getUrlFromDimensions.steps[i] !== undefined) ? getUrlFromDimensions.steps[i] : 1;
+            const minVal = (getUrlFromDimensions.min && getUrlFromDimensions.min[i] !== undefined) ? getUrlFromDimensions.min[i] : null;
+            const maxVal = (getUrlFromDimensions.max && getUrlFromDimensions.max[i] !== undefined) ? getUrlFromDimensions.max[i] : null;
             const dim = dimensions.find( d => d.name == dimName );
             const value = dim.state.value;
             if ( value == null || value == undefined ) {
                 dimsNotSet = true;
             }
-            const index = parseInt( (value + offset) * multiplier);
+            let indexVal = (value + offset) * multiplier;
+            if (snap && step) {
+                indexVal = Math.round(indexVal / step) * step;
+            }
+            if (minVal !== null && minVal !== undefined) {
+                indexVal = Math.max(indexVal, minVal);
+            }
+            if (maxVal !== null && maxVal !== undefined) {
+                indexVal = Math.min(indexVal, maxVal);
+            }
+            const index = parseInt(indexVal);
             return index;
         });
         if (dimsNotSet) {
@@ -65438,6 +65456,11 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
         indx.forEach( (i, j) => {
             url = url.replace(`\${indx${j}}`, i);
         });
+        if (getUrlFromDimensions.lastUrl === url) {
+            // No change in resolved URL; skip fetch and signal no update
+            return Promise.resolve({ __noUpdate: true });
+        }
+        getUrlFromDimensions.lastUrl = url;
         let itemPromise = fetch(url).then(function( response ) {
 
             if ( fetchData.csv === undefined && fetchData.text === undefined && fetchData.buffer === undefined ) {
@@ -169931,10 +169954,19 @@ class Plot extends Component {
         this.fetchingData = true;
         requestSetTrafficLightColor.state = "fetching";
         this.data = await fetchPlotData(this.fetchData, derivedData, dimensions);
+        if (this.data && this.data.__noUpdate) {
+            this.data = this.lastData || this.data;
+            this.newData = false;
+            this.fetchingData = false;
+            this.fetchDataNow = false;
+            requestSetTrafficLightColor.state = "fetched";
+            return;
+        }
         this.fetchingData = false;
         this.fetchDataNow = false;
         requestSetTrafficLightColor.state = "fetched";
         this.newData = true;
+        this.lastData = this.data;
     }
 
     removeSubscriptions() {
@@ -179923,6 +179955,10 @@ class LineSeries extends Plot {
         const layout = this.layout;
         const plotArea = container.select(".plot-area");
         const highlightItemsFlag = layout.highlightItems;
+        const lineWidth = layout.lineWidth || 2.5;
+        const panZoomEnabled = layout.panZoom !== false;
+        const cutDefaultColor = layout.cutLineColor || "#d0d5db";
+        this.cutDefaultColor = cutDefaultColor;
         let highlightItemIds;
         if (highlightItemsFlag) {
             const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
@@ -180084,13 +180120,13 @@ class LineSeries extends Plot {
                         .attr( "clip-path", `url(#${clipId})` )
                         .append( "path" )
                             .attr( "class", "line" )
-                            .attr( "d", d => line( d.data ) )
-                            .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )    
-                            .style( "fill", "none" )
-                            .style( "stroke-width", "2.5px" )
-                            .attr( "clip-path", `url(#${clipId})` )
-                            .on( "mouseover", enableTips ? tipOn : null )
-                            .on( "mouseout", enableTips ? tipOff : null );
+                        .attr( "d", d => line( d.data ) )
+                        .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )    
+                        .style( "fill", "none" )
+                        .style( "stroke-width", `${lineWidth}px` )
+                        .attr( "clip-path", `url(#${clipId})` )
+                        .on( "mouseover", enableTips ? tipOn : null )
+                        .on( "mouseout", enableTips ? tipOff : null );
             } );
 
             allSeries.each( function() {
@@ -180198,7 +180234,7 @@ class LineSeries extends Plot {
                     select$4( this ).append("path")
                         .attr("class","mean-line")
                         .style("stroke", d => colour(d.c))
-                        .style("stroke-width", "2.5px")
+                        .style("stroke-width", `${lineWidth}px`)
                         .style("fill","none")
                         .attr( "clip-path", `url(#${clipId})` )
                         .attr("d", d => line(d.data))
@@ -180239,8 +180275,9 @@ class LineSeries extends Plot {
                 .attr( "transform", `translate(0,${height})` )
                 .attr( "class", "axis-x")
                 .style("pointer-events","bounding-box")
-                .call( xAxis )
-                .call( zoom$2().on("zoom", (event) => {
+                .call( xAxis );
+            if (panZoomEnabled) {
+                gX.call( zoom$2().on("zoom", (event) => {
                     xScale.domain(event.transform.rescaleX(xScale0).domain());
                     gX.call(xAxis);
                     plotArea.selectAll(".line").attr( "d", d => line( d.data ) );
@@ -180248,6 +180285,7 @@ class LineSeries extends Plot {
                     plotArea.selectAll(".mean-line").attr( "d", d => line( d.data ) );
                     this.cuts.forEach( cut => this.setCutLinePosition(cut.dimensionName) );
                 }));
+            }
             gX.append("text")
                 .attr("class","x-axis-text")
                 .attr("fill", "#000")
@@ -180259,6 +180297,9 @@ class LineSeries extends Plot {
             gX.attr( "transform", `translate(0,${height})` );
             gX.call( xAxis );
             gX.select(".x-axis-text").attr("x", width);
+            if (!panZoomEnabled) {
+                gX.on(".zoom", null);
+            }
         }
 
         let gY = plotArea.select(".axis-y");
@@ -180266,8 +180307,9 @@ class LineSeries extends Plot {
             gY = plotArea.append("g")
                 .attr( "class", "axis-y")
                 .style("pointer-events","bounding-box")
-                .call( yAxis )
-                .call( zoom$2().on("zoom", (event) => {
+                .call( yAxis );
+            if (panZoomEnabled) {
+                gY.call( zoom$2().on("zoom", (event) => {
                     yScale.domain(event.transform.rescaleY(yScale0).domain());
                     gY.call(yAxis);
                     plotArea.selectAll(".line").attr( "d", d => line( d.data ) );
@@ -180275,6 +180317,7 @@ class LineSeries extends Plot {
                     plotArea.selectAll(".mean-line").attr( "d", d => line( d.data ) );
                     this.cuts.forEach( cut => this.setCutLinePosition(cut.dimensionName) );
                 })); 
+            }
 
             gY.append("text")
                     .attr("fill", "#000")
@@ -180285,6 +180328,9 @@ class LineSeries extends Plot {
                     .text(layout.yAxisLabel);
         } else {
             gY.call( yAxis );
+            if (!panZoomEnabled) {
+                gY.on(".zoom", null);
+            }
         }
 
         // time varying
@@ -180321,6 +180367,7 @@ class LineSeries extends Plot {
 
         // zoom behaviour
         function zoomed(event) {
+            if (!panZoomEnabled) return;
             const t = event.transform;
             xScale.domain(t.rescaleX(xScale0).domain());
             yScale.domain(t.rescaleY(yScale0).domain());
@@ -180599,7 +180646,7 @@ class LineSeries extends Plot {
                     .attr("class","cut-line")
                     .attr("id", `${dimensionName}-cut-line`)
                     .attr("fill", "none")
-                    .attr("stroke", "#d0d5db")
+                    .attr("stroke", this.cutDefaultColor)
                     .attr("stroke-width", 3)
                     .style("opacity",0.9)
                     .attr("d", "")
@@ -180630,7 +180677,7 @@ class LineSeries extends Plot {
         if (cut.brushing) {
             cutLine.style("stroke", "#42d4f5");
         } else {
-            cutLine.style("stroke", "#d0d5db");
+            cutLine.style("stroke", this.cutDefaultColor || "#d0d5db");
         }
     }   
 
@@ -184204,6 +184251,12 @@ class TileManager {
         }
         if (loads.length) {
             await Promise.all(loads);
+            if (this.queue.length && !this._tickPending) {
+                this._tickPending = true;
+                if (!this._tickLock) {
+                    this.tick();
+                }
+            }
         }
     }
 

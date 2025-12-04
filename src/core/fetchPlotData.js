@@ -32,6 +32,10 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
 
         return itemPromise.then(function( responseJson ) {
 
+            if (responseJson && responseJson.__noUpdate) {
+                return { __noUpdate: true };
+            }
+
             if ( fetchData.csv == true ) {
     
                 responseJson = d3.csvParse( responseJson );
@@ -238,14 +242,28 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
         const getUrlFromDimensions = fetchData.getUrlFromDimensions;
         let dimsNotSet = false;
         const indx = getUrlFromDimensions.dimensionNames.map( (dimName, i) => {
-            const offset = getUrlFromDimensions.offsets[i];
-            const multiplier = getUrlFromDimensions.multipliers[i];
+            const offset = (getUrlFromDimensions.offsets && getUrlFromDimensions.offsets[i] !== undefined) ? getUrlFromDimensions.offsets[i] : 0;
+            const multiplier = (getUrlFromDimensions.multipliers && getUrlFromDimensions.multipliers[i] !== undefined) ? getUrlFromDimensions.multipliers[i] : 1;
+            const snap = !!(getUrlFromDimensions.snaps && getUrlFromDimensions.snaps[i]);
+            const step = (getUrlFromDimensions.steps && getUrlFromDimensions.steps[i] !== undefined) ? getUrlFromDimensions.steps[i] : 1;
+            const minVal = (getUrlFromDimensions.min && getUrlFromDimensions.min[i] !== undefined) ? getUrlFromDimensions.min[i] : null;
+            const maxVal = (getUrlFromDimensions.max && getUrlFromDimensions.max[i] !== undefined) ? getUrlFromDimensions.max[i] : null;
             const dim = dimensions.find( d => d.name == dimName );
             const value = dim.state.value;
             if ( value == null || value == undefined ) {
                 dimsNotSet = true;
             }
-            const index = parseInt( (value + offset) * multiplier);
+            let indexVal = (value + offset) * multiplier;
+            if (snap && step) {
+                indexVal = Math.round(indexVal / step) * step;
+            }
+            if (minVal !== null && minVal !== undefined) {
+                indexVal = Math.max(indexVal, minVal);
+            }
+            if (maxVal !== null && maxVal !== undefined) {
+                indexVal = Math.min(indexVal, maxVal);
+            }
+            const index = parseInt(indexVal);
             return index;
         });
         if (dimsNotSet) {
@@ -256,6 +274,11 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
         indx.forEach( (i, j) => {
             url = url.replace(`\${indx${j}}`, i);
         });
+        if (getUrlFromDimensions.lastUrl === url) {
+            // No change in resolved URL; skip fetch and signal no update
+            return Promise.resolve({ __noUpdate: true });
+        }
+        getUrlFromDimensions.lastUrl = url;
         let itemPromise = fetch(url).then(function( response ) {
 
             if ( fetchData.csv === undefined && fetchData.text === undefined && fetchData.buffer === undefined ) {

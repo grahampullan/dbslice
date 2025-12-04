@@ -737,6 +737,12 @@ class TileManager {
         }
         if (loads.length) {
             await Promise.all(loads);
+            if (this.queue.length && !this._tickPending) {
+                this._tickPending = true;
+                if (!this._tickLock) {
+                    this.tick();
+                }
+            }
         }
     }
 
