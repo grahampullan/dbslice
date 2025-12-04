@@ -220,10 +220,19 @@ class Plot extends Component {
         this.fetchingData = true;
         requestSetTrafficLightColor.state = "fetching";
         this.data = await fetchPlotData(this.fetchData, derivedData, dimensions);
+        if (this.data && this.data.__noUpdate) {
+            this.data = this.lastData || this.data;
+            this.newData = false;
+            this.fetchingData = false;
+            this.fetchDataNow = false;
+            requestSetTrafficLightColor.state = "fetched";
+            return;
+        }
         this.fetchingData = false;
         this.fetchDataNow = false;
         requestSetTrafficLightColor.state = "fetched";
         this.newData = true;
+        this.lastData = this.data;
     }
 
     removeSubscriptions() {

@@ -97,6 +97,8 @@ class LineSeries extends Plot {
         const layout = this.layout;
         const plotArea = container.select(".plot-area");
         const highlightItemsFlag = layout.highlightItems;
+        const lineWidth = layout.lineWidth || 2.5;
+        const panZoomEnabled = layout.panZoom !== false;
         let highlightItemIds;
         if (highlightItemsFlag) {
             const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
@@ -258,13 +260,13 @@ class LineSeries extends Plot {
                         .attr( "clip-path", `url(#${clipId})` )
                         .append( "path" )
                             .attr( "class", "line" )
-                            .attr( "d", d => line( d.data ) )
-                            .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )    
-                            .style( "fill", "none" )
-                            .style( "stroke-width", "2.5px" )
-                            .attr( "clip-path", `url(#${clipId})` )
-                            .on( "mouseover", enableTips ? tipOn : null )
-                            .on( "mouseout", enableTips ? tipOff : null );
+                        .attr( "d", d => line( d.data ) )
+                        .style( "stroke", function( d ) { return (d.cKey !== undefined) ? colour(d.cKey) : 'cornflowerblue'; } )    
+                        .style( "fill", "none" )
+                        .style( "stroke-width", `${lineWidth}px` )
+                        .attr( "clip-path", `url(#${clipId})` )
+                        .on( "mouseover", enableTips ? tipOn : null )
+                        .on( "mouseout", enableTips ? tipOff : null );
             } );
 
             allSeries.each( function() {
@@ -372,7 +374,7 @@ class LineSeries extends Plot {
                     d3.select( this ).append("path")
                         .attr("class","mean-line")
                         .style("stroke", d => colour(d.c))
-                        .style("stroke-width", "2.5px")
+                        .style("stroke-width", `${lineWidth}px`)
                         .style("fill","none")
                         .attr( "clip-path", `url(#${clipId})` )
                         .attr("d", d => line(d.data))
@@ -413,8 +415,9 @@ class LineSeries extends Plot {
                 .attr( "transform", `translate(0,${height})` )
                 .attr( "class", "axis-x")
                 .style("pointer-events","bounding-box")
-                .call( xAxis )
-                .call( d3.zoom().on("zoom", (event) => {
+                .call( xAxis );
+            if (panZoomEnabled) {
+                gX.call( d3.zoom().on("zoom", (event) => {
                     xScale.domain(event.transform.rescaleX(xScale0).domain());
                     gX.call(xAxis);
                     plotArea.selectAll(".line").attr( "d", d => line( d.data ) );
@@ -422,6 +425,7 @@ class LineSeries extends Plot {
                     plotArea.selectAll(".mean-line").attr( "d", d => line( d.data ) );
                     this.cuts.forEach( cut => this.setCutLinePosition(cut.dimensionName) );
                 }));
+            }
             gX.append("text")
                 .attr("class","x-axis-text")
                 .attr("fill", "#000")
@@ -433,6 +437,9 @@ class LineSeries extends Plot {
             gX.attr( "transform", `translate(0,${height})` )
             gX.call( xAxis );
             gX.select(".x-axis-text").attr("x", width)
+            if (!panZoomEnabled) {
+                gX.on(".zoom", null);
+            }
         }
 
         let gY = plotArea.select(".axis-y");
@@ -440,8 +447,9 @@ class LineSeries extends Plot {
             gY = plotArea.append("g")
                 .attr( "class", "axis-y")
                 .style("pointer-events","bounding-box")
-                .call( yAxis )
-                .call( d3.zoom().on("zoom", (event) => {
+                .call( yAxis );
+            if (panZoomEnabled) {
+                gY.call( d3.zoom().on("zoom", (event) => {
                     yScale.domain(event.transform.rescaleY(yScale0).domain());
                     gY.call(yAxis);
                     plotArea.selectAll(".line").attr( "d", d => line( d.data ) );
@@ -449,6 +457,7 @@ class LineSeries extends Plot {
                     plotArea.selectAll(".mean-line").attr( "d", d => line( d.data ) );
                     this.cuts.forEach( cut => this.setCutLinePosition(cut.dimensionName) );
                 })); 
+            }
 
             gY.append("text")
                     .attr("fill", "#000")
@@ -459,6 +468,9 @@ class LineSeries extends Plot {
                     .text(layout.yAxisLabel);
         } else {
             gY.call( yAxis );
+            if (!panZoomEnabled) {
+                gY.on(".zoom", null);
+            }
         }
 
         // time varying
@@ -495,6 +507,7 @@ class LineSeries extends Plot {
 
         // zoom behaviour
         function zoomed(event) {
+            if (!panZoomEnabled) return;
             const t = event.transform;
             xScale.domain(t.rescaleX(xScale0).domain());
             yScale.domain(t.rescaleY(yScale0).domain());
