@@ -291,6 +291,9 @@ const threeTriMesh = {
 			const indices = new Uint32Array(buffer, thisSurface.indicesOffset, thisSurface.nTris * 3);
 			const values = new Float32Array(buffer, thisSurface.values[0].offset, thisSurface.nVerts);
 			const uvs = new Float32Array(Array.from(values).map( d => [ (d-vScale[0])/(vScale[1]-vScale[0]),0.5]).flat());
+			console.log(values);
+			console.log(uvs);
+
 
 			const geometry = new THREE.BufferGeometry();
 			geometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );

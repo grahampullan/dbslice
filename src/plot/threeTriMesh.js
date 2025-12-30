@@ -27,6 +27,7 @@ const threeTriMesh = {
 			.on( "mouseout", boundTipOff );
 
 		const renderer = new THREE.WebGLRenderer({logarithmicDepthBuffer: true});
+		renderer.outputColorSpace = THREE.SRGBColorSpace;
 		renderer.setPixelRatio( window.devicePixelRatio );
 		renderer.setSize( width , height );
 		div.node().appendChild( renderer.domElement );
@@ -117,7 +118,7 @@ const threeTriMesh = {
 
 		const textureWidth = 256;
 		const textureHeight = 4;
-		const texData = new Uint8Array(4*textureWidth*textureHeight);
+  		const texData = new Uint8Array(4*textureWidth*textureHeight);
   		let k=0;
   		for (let j=0; j<textureHeight; j++) {
     		for (let i=0; i<textureWidth; i++) {
@@ -130,6 +131,7 @@ const threeTriMesh = {
     		}
   		}
   		const tex = new THREE.DataTexture( texData, textureWidth, textureHeight,  THREE.RGBAFormat, THREE.UnsignedByteType, THREE.UVMapping);
+		tex.colorSpace = THREE.SRGBColorSpace;
   		tex.needsUpdate = true;
 
 		if ( nSteps > 1 ){
@@ -235,8 +237,16 @@ const threeTriMesh = {
 		const scene = new THREE.Scene();
 		scene.background = new THREE.Color( 0xefefef );
 
-		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-		const materialCol = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		//const materialCol = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		//const materialCol = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+		const materialCol = new THREE.MeshPhongMaterial( {
+			color: 0xffffff,
+			side: THREE.DoubleSide,
+			wireframe: false,
+			map: tex,
+			shininess: 60,
+			specular: 0x222222
+		} );
 		const materialGrey = new THREE.MeshLambertMaterial( { color: 0xaaaaaa, side: THREE.DoubleSide, wireframe:false } );
 
 		// look at all surfaces for sizes to set camera and lights
@@ -261,25 +271,31 @@ const threeTriMesh = {
 			this.twoD=true;
 		}
 
-		const light1 = new THREE.PointLight( 0xffffff, 0.8 );
-		light1.position.set( xMid, yMid, zMid + 10*rMax );
-		const light2 = new THREE.PointLight( 0xffffff, 0.8 );
-		light2.position.set( xMid, yMid, zMid - 10*rMax );
-		const light3 = new THREE.PointLight( 0xffffff, 0.8 );
-		light3.position.set( xMid + 10*rMax, yMid, zMid  );
-		const light4 = new THREE.PointLight( 0xffffff, 0.8 );
-		light4.position.set( xMid - 10*rMax, yMid, zMid );
-		const light5 = new THREE.PointLight( 0xffffff, 0.8 );
-		light5.position.set( xMid, yMid + 10*rMax, zMid  );
-		const light6 = new THREE.PointLight( 0xffffff, 0.8 );
-		light6.position.set( xMid, yMid - 10*rMax, zMid );
+		// legacy lights - changed for ambient and camera light
+		//
+		// const light1 = new THREE.PointLight( 0xffffff, 0.8 );
+		// light1.position.set( xMid, yMid, zMid + 1*rMax );
+		// const light2 = new THREE.PointLight( 0xffffff, 0.8 );
+		// light2.position.set( xMid, yMid, zMid - 1*rMax );
+		// const light3 = new THREE.PointLight( 0xffffff, 0.8 );
+		// light3.position.set( xMid + 1*rMax, yMid, zMid  );
+		// const light4 = new THREE.PointLight( 0xffffff, 0.8 );
+		// light4.position.set( xMid - 1*rMax, yMid, zMid );
+		// const light5 = new THREE.PointLight( 0xffffff, 0.8 );
+		// light5.position.set( xMid, yMid + 1*rMax, zMid  );
+		// const light6 = new THREE.PointLight( 0xffffff, 0.8 );
+		// light6.position.set( xMid, yMid - 1*rMax, zMid );
 
-		scene.add( light1 );
-		scene.add( light2 );
-		scene.add( light3 );
-		scene.add( light4 );
-		scene.add( light5 );
-		scene.add( light6 );
+		// scene.add( light1 );
+		// scene.add( light2 );
+		// scene.add( light3 );
+		// scene.add( light4 );
+		// scene.add( light5 );
+		// scene.add( light6 );
+
+		// Ambient fill light for base visibility
+		const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
+		scene.add( ambientLight );
 
 		// add all surfaces to scene
 		this.meshUuids = [];
@@ -315,7 +331,7 @@ const threeTriMesh = {
 			scene.add( mesh );
 		}
 		this.scene = scene;
-	
+		
 		// Define the camera
 		if (!this.camera) {
 			let camera;
@@ -333,12 +349,15 @@ const threeTriMesh = {
 				camera.position.x = xMid + 1000*rMax;
 				camera.position.y = yMid;
 				camera.position.z = zMid;
-			}
-			
+			}	
 			camera.up.set(0,0,1);
+			const cameraLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  			cameraLight.position.set(0, 0, 1);
+  			camera.add(cameraLight);
 			this.camera = camera;
 		}
 		const camera = this.camera;
+		scene.add(camera);
 
 		if (this.watchedCamera !== undefined) {
 			camera.position.copy(this.watchedCamera.position);

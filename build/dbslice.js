@@ -50850,7 +50850,7 @@ var dbslice = (function (exports) {
    * }
    */
 
-  function MeshPhongMaterial( parameters ) {
+  function MeshPhongMaterial$1( parameters ) {
 
   	Material$1.call( this );
 
@@ -50905,12 +50905,12 @@ var dbslice = (function (exports) {
 
   }
 
-  MeshPhongMaterial.prototype = Object.create( Material$1.prototype );
-  MeshPhongMaterial.prototype.constructor = MeshPhongMaterial;
+  MeshPhongMaterial$1.prototype = Object.create( Material$1.prototype );
+  MeshPhongMaterial$1.prototype.constructor = MeshPhongMaterial$1;
 
-  MeshPhongMaterial.prototype.isMeshPhongMaterial = true;
+  MeshPhongMaterial$1.prototype.isMeshPhongMaterial = true;
 
-  MeshPhongMaterial.prototype.copy = function ( source ) {
+  MeshPhongMaterial$1.prototype.copy = function ( source ) {
 
   	Material$1.prototype.copy.call( this, source );
 
@@ -51462,7 +51462,7 @@ var dbslice = (function (exports) {
   	PointsMaterial: PointsMaterial,
   	MeshPhysicalMaterial: MeshPhysicalMaterial,
   	MeshStandardMaterial: MeshStandardMaterial,
-  	MeshPhongMaterial: MeshPhongMaterial,
+  	MeshPhongMaterial: MeshPhongMaterial$1,
   	MeshToonMaterial: MeshToonMaterial,
   	MeshNormalMaterial: MeshNormalMaterial,
   	MeshLambertMaterial: MeshLambertMaterial$1,
@@ -56696,7 +56696,7 @@ var dbslice = (function (exports) {
 
   } );
 
-  function PointLightShadow$1() {
+  function PointLightShadow() {
 
   	LightShadow$1.call( this, new PerspectiveCamera$1( 90, 1, 0.5, 500 ) );
 
@@ -56744,9 +56744,9 @@ var dbslice = (function (exports) {
 
   }
 
-  PointLightShadow$1.prototype = Object.assign( Object.create( LightShadow$1.prototype ), {
+  PointLightShadow.prototype = Object.assign( Object.create( LightShadow$1.prototype ), {
 
-  	constructor: PointLightShadow$1,
+  	constructor: PointLightShadow,
 
   	isPointLightShadow: true,
 
@@ -56776,7 +56776,7 @@ var dbslice = (function (exports) {
 
   } );
 
-  function PointLight$1( color, intensity, distance, decay ) {
+  function PointLight( color, intensity, distance, decay ) {
 
   	Light$1.call( this, color, intensity );
 
@@ -56802,13 +56802,13 @@ var dbslice = (function (exports) {
   	this.distance = ( distance !== undefined ) ? distance : 0;
   	this.decay = ( decay !== undefined ) ? decay : 1;	// for physically correct lights, should be 2.
 
-  	this.shadow = new PointLightShadow$1();
+  	this.shadow = new PointLightShadow();
 
   }
 
-  PointLight$1.prototype = Object.assign( Object.create( Light$1.prototype ), {
+  PointLight.prototype = Object.assign( Object.create( Light$1.prototype ), {
 
-  	constructor: PointLight$1,
+  	constructor: PointLight,
 
   	isPointLight: true,
 
@@ -56962,15 +56962,15 @@ var dbslice = (function (exports) {
 
   } );
 
-  function DirectionalLightShadow() {
+  function DirectionalLightShadow$1() {
 
   	LightShadow$1.call( this, new OrthographicCamera$1( - 5, 5, 5, - 5, 0.5, 500 ) );
 
   }
 
-  DirectionalLightShadow.prototype = Object.assign( Object.create( LightShadow$1.prototype ), {
+  DirectionalLightShadow$1.prototype = Object.assign( Object.create( LightShadow$1.prototype ), {
 
-  	constructor: DirectionalLightShadow,
+  	constructor: DirectionalLightShadow$1,
 
   	isDirectionalLightShadow: true,
 
@@ -56982,7 +56982,7 @@ var dbslice = (function (exports) {
 
   } );
 
-  function DirectionalLight( color, intensity ) {
+  function DirectionalLight$1( color, intensity ) {
 
   	Light$1.call( this, color, intensity );
 
@@ -56993,13 +56993,13 @@ var dbslice = (function (exports) {
 
   	this.target = new Object3D$1();
 
-  	this.shadow = new DirectionalLightShadow();
+  	this.shadow = new DirectionalLightShadow$1();
 
   }
 
-  DirectionalLight.prototype = Object.assign( Object.create( Light$1.prototype ), {
+  DirectionalLight$1.prototype = Object.assign( Object.create( Light$1.prototype ), {
 
-  	constructor: DirectionalLight,
+  	constructor: DirectionalLight$1,
 
   	isDirectionalLight: true,
 
@@ -57017,7 +57017,7 @@ var dbslice = (function (exports) {
 
   } );
 
-  function AmbientLight( color, intensity ) {
+  function AmbientLight$1( color, intensity ) {
 
   	Light$1.call( this, color, intensity );
 
@@ -57025,9 +57025,9 @@ var dbslice = (function (exports) {
 
   }
 
-  AmbientLight.prototype = Object.assign( Object.create( Light$1.prototype ), {
+  AmbientLight$1.prototype = Object.assign( Object.create( Light$1.prototype ), {
 
-  	constructor: AmbientLight,
+  	constructor: AmbientLight$1,
 
   	isAmbientLight: true
 
@@ -63617,7 +63617,7 @@ var dbslice = (function (exports) {
 
   } );
 
-  Object.defineProperties( MeshPhongMaterial.prototype, {
+  Object.defineProperties( MeshPhongMaterial$1.prototype, {
 
   	metal: {
   		get: function () {
@@ -146312,6 +146312,126 @@ void main() {
 
   }
 
+  class MeshPhongMaterial extends Material {
+
+  	static get type() {
+
+  		return 'MeshPhongMaterial';
+
+  	}
+
+  	constructor( parameters ) {
+
+  		super();
+
+  		this.isMeshPhongMaterial = true;
+
+  		this.color = new Color( 0xffffff ); // diffuse
+  		this.specular = new Color( 0x111111 );
+  		this.shininess = 30;
+
+  		this.map = null;
+
+  		this.lightMap = null;
+  		this.lightMapIntensity = 1.0;
+
+  		this.aoMap = null;
+  		this.aoMapIntensity = 1.0;
+
+  		this.emissive = new Color( 0x000000 );
+  		this.emissiveIntensity = 1.0;
+  		this.emissiveMap = null;
+
+  		this.bumpMap = null;
+  		this.bumpScale = 1;
+
+  		this.normalMap = null;
+  		this.normalMapType = TangentSpaceNormalMap;
+  		this.normalScale = new Vector2( 1, 1 );
+
+  		this.displacementMap = null;
+  		this.displacementScale = 1;
+  		this.displacementBias = 0;
+
+  		this.specularMap = null;
+
+  		this.alphaMap = null;
+
+  		this.envMap = null;
+  		this.envMapRotation = new Euler();
+  		this.combine = MultiplyOperation;
+  		this.reflectivity = 1;
+  		this.refractionRatio = 0.98;
+
+  		this.wireframe = false;
+  		this.wireframeLinewidth = 1;
+  		this.wireframeLinecap = 'round';
+  		this.wireframeLinejoin = 'round';
+
+  		this.flatShading = false;
+
+  		this.fog = true;
+
+  		this.setValues( parameters );
+
+  	}
+
+  	copy( source ) {
+
+  		super.copy( source );
+
+  		this.color.copy( source.color );
+  		this.specular.copy( source.specular );
+  		this.shininess = source.shininess;
+
+  		this.map = source.map;
+
+  		this.lightMap = source.lightMap;
+  		this.lightMapIntensity = source.lightMapIntensity;
+
+  		this.aoMap = source.aoMap;
+  		this.aoMapIntensity = source.aoMapIntensity;
+
+  		this.emissive.copy( source.emissive );
+  		this.emissiveMap = source.emissiveMap;
+  		this.emissiveIntensity = source.emissiveIntensity;
+
+  		this.bumpMap = source.bumpMap;
+  		this.bumpScale = source.bumpScale;
+
+  		this.normalMap = source.normalMap;
+  		this.normalMapType = source.normalMapType;
+  		this.normalScale.copy( source.normalScale );
+
+  		this.displacementMap = source.displacementMap;
+  		this.displacementScale = source.displacementScale;
+  		this.displacementBias = source.displacementBias;
+
+  		this.specularMap = source.specularMap;
+
+  		this.alphaMap = source.alphaMap;
+
+  		this.envMap = source.envMap;
+  		this.envMapRotation.copy( source.envMapRotation );
+  		this.combine = source.combine;
+  		this.reflectivity = source.reflectivity;
+  		this.refractionRatio = source.refractionRatio;
+
+  		this.wireframe = source.wireframe;
+  		this.wireframeLinewidth = source.wireframeLinewidth;
+  		this.wireframeLinecap = source.wireframeLinecap;
+  		this.wireframeLinejoin = source.wireframeLinejoin;
+
+  		this.flatShading = source.flatShading;
+
+  		this.fog = source.fog;
+
+  		return this;
+
+  	}
+
+  }
+
   class MeshLambertMaterial extends Material {
 
   	static get type() {
@@ -146628,123 +146748,34 @@ void main() {
 
   }
 
-  const _projScreenMatrix = /*@__PURE__*/ new Matrix4();
-  const _lightPositionWorld = /*@__PURE__*/ new Vector3();
-  const _lookTarget = /*@__PURE__*/ new Vector3();
-
-  class PointLightShadow extends LightShadow {
+  class DirectionalLightShadow extends LightShadow {
 
   	constructor() {
 
-  		super( new PerspectiveCamera( 90, 1, 0.5, 500 ) );
+  		super( new OrthographicCamera( - 5, 5, 5, - 5, 0.5, 500 ) );
 
-  		this.isPointLightShadow = true;
-
-  		this._frameExtents = new Vector2( 4, 2 );
-
-  		this._viewportCount = 6;
-
-  		this._viewports = [
-  			// These viewports map a cube-map onto a 2D texture with the
-  			// following orientation:
-  			//
-  			//  xzXZ
-  			//   y Y
-  			//
-  			// X - Positive x direction
-  			// x - Negative x direction
-  			// Y - Positive y direction
-  			// y - Negative y direction
-  			// Z - Positive z direction
-  			// z - Negative z direction
-
-  			// positive X
-  			new Vector4( 2, 1, 1, 1 ),
-  			// negative X
-  			new Vector4( 0, 1, 1, 1 ),
-  			// positive Z
-  			new Vector4( 3, 1, 1, 1 ),
-  			// negative Z
-  			new Vector4( 1, 1, 1, 1 ),
-  			// positive Y
-  			new Vector4( 3, 0, 1, 1 ),
-  			// negative Y
-  			new Vector4( 1, 0, 1, 1 )
-  		];
-
-  		this._cubeDirections = [
-  			new Vector3( 1, 0, 0 ), new Vector3( - 1, 0, 0 ), new Vector3( 0, 0, 1 ),
-  			new Vector3( 0, 0, - 1 ), new Vector3( 0, 1, 0 ), new Vector3( 0, - 1, 0 )
-  		];
-
-  		this._cubeUps = [
-  			new Vector3( 0, 1, 0 ), new Vector3( 0, 1, 0 ), new Vector3( 0, 1, 0 ),
-  			new Vector3( 0, 1, 0 ), new Vector3( 0, 0, 1 ),	new Vector3( 0, 0, - 1 )
-  		];
-
-  	}
-
-  	updateMatrices( light, viewportIndex = 0 ) {
-
-  		const camera = this.camera;
-  		const shadowMatrix = this.matrix;
-
-  		const far = light.distance || camera.far;
-
-  		if ( far !== camera.far ) {
-
-  			camera.far = far;
-  			camera.updateProjectionMatrix();
-
-  		}
-
-  		_lightPositionWorld.setFromMatrixPosition( light.matrixWorld );
-  		camera.position.copy( _lightPositionWorld );
-
-  		_lookTarget.copy( camera.position );
-  		_lookTarget.add( this._cubeDirections[ viewportIndex ] );
-  		camera.up.copy( this._cubeUps[ viewportIndex ] );
-  		camera.lookAt( _lookTarget );
-  		camera.updateMatrixWorld();
-
-  		shadowMatrix.makeTranslation( - _lightPositionWorld.x, - _lightPositionWorld.y, - _lightPositionWorld.z );
-
-  		_projScreenMatrix.multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse );
-  		this._frustum.setFromProjectionMatrix( _projScreenMatrix );
+  		this.isDirectionalLightShadow = true;
 
   	}
 
   }
 
-  class PointLight extends Light {
+  class DirectionalLight extends Light {
 
-  	constructor( color, intensity, distance = 0, decay = 2 ) {
+  	constructor( color, intensity ) {
 
   		super( color, intensity );
 
-  		this.isPointLight = true;
+  		this.isDirectionalLight = true;
 
-  		this.type = 'PointLight';
+  		this.type = 'DirectionalLight';
 
-  		this.distance = distance;
-  		this.decay = decay;
+  		this.position.copy( Object3D.DEFAULT_UP );
+  		this.updateMatrix();
 
-  		this.shadow = new PointLightShadow();
+  		this.target = new Object3D();
 
-  	}
-
-  	get power() {
-
-  		// compute the light's luminous power (in lumens) from its intensity (in candela)
-  		// for an isotropic light source, luminous power (lm) = 4 π luminous intensity (cd)
-  		return this.intensity * 4 * Math.PI;
-
-  	}
-
-  	set power( power ) {
-
-  		// set the light's intensity (in candela) from the desired luminous power (in lumens)
-  		this.intensity = power / ( 4 * Math.PI );
+  		this.shadow = new DirectionalLightShadow();
 
   	}
 
@@ -146754,16 +146785,28 @@ void main() {
 
   	}
 
-  	copy( source, recursive ) {
+  	copy( source ) {
 
-  		super.copy( source, recursive );
+  		super.copy( source );
 
-  		this.distance = source.distance;
-  		this.decay = source.decay;
-
+  		this.target = source.target.clone();
   		this.shadow = source.shadow.clone();
 
   		return this;
+
+  	}
+
+  }
+
+  class AmbientLight extends Light {
+
+  	constructor( color, intensity ) {
+
+  		super( color, intensity );
+
+  		this.isAmbientLight = true;
+
+  		this.type = 'AmbientLight';
 
   	}
 
@@ -148127,6 +148170,8 @@ void main() {
   			.on( "mouseout", boundTipOff );
 
   		const renderer = new WebGLRenderer({logarithmicDepthBuffer: true});
+  		// Render colors in sRGB space to avoid washed-out colormap
+  		renderer.outputColorSpace = SRGBColorSpace;
   		renderer.setPixelRatio( window.devicePixelRatio );
   		renderer.setSize( width , height );
   		div.node().appendChild( renderer.domElement );
@@ -148217,7 +148262,7 @@ void main() {
 
   		const textureWidth = 256;
   		const textureHeight = 4;
-  		const texData = new Uint8Array(4*textureWidth*textureHeight);
+    		const texData = new Uint8Array(4*textureWidth*textureHeight);
     		let k=0;
     		for (let j=0; j<textureHeight; j++) {
       		for (let i=0; i<textureWidth; i++) {
@@ -148230,6 +148275,7 @@ void main() {
       		}
     		}
     		const tex = new DataTexture( texData, textureWidth, textureHeight,  RGBAFormat, UnsignedByteType, UVMapping);
+  		tex.colorSpace = SRGBColorSpace;
     		tex.needsUpdate = true;
 
   		if ( nSteps > 1 ){
@@ -148335,8 +148381,16 @@ void main() {
   		const scene = new Scene();
   		scene.background = new Color( 0xefefef );
 
-  		//const material = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-  		const materialCol = new MeshLambertMaterial( { color: 0xffffff, side: DoubleSide, wireframe:false, map: tex} );
+  		//const materialCol = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+  		//const materialCol = new THREE.MeshLambertMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
+  		const materialCol = new MeshPhongMaterial( {
+  			color: 0xffffff,
+  			side: DoubleSide,
+  			wireframe: false,
+  			map: tex,
+  			shininess: 60,
+  			specular: 0x222222
+  		} );
   		const materialGrey = new MeshLambertMaterial( { color: 0xaaaaaa, side: DoubleSide, wireframe:false } );
 
   		// look at all surfaces for sizes to set camera and lights
@@ -148357,29 +148411,37 @@ void main() {
   		let zMid = 0.5*( zRange[0] + zRange[1] );
   		let rMax = Math.sqrt((xMax-xMin)**2 + (yMax-yMin)**2 + (zMax-zMin)**2);
 
+  		console.log(xRange, yRange, zRange);
+  		console.log(rMax);
+  		console.log(xMid, yMid, zMid);
+
   		if (xRange[1]-xRange[0]==0.) {
   			this.twoD=true;
   		}
 
-  		const light1 = new PointLight( 0xffffff, 0.8 );
-  		light1.position.set( xMid, yMid, zMid + 10*rMax );
-  		const light2 = new PointLight( 0xffffff, 0.8 );
-  		light2.position.set( xMid, yMid, zMid - 10*rMax );
-  		const light3 = new PointLight( 0xffffff, 0.8 );
-  		light3.position.set( xMid + 10*rMax, yMid, zMid  );
-  		const light4 = new PointLight( 0xffffff, 0.8 );
-  		light4.position.set( xMid - 10*rMax, yMid, zMid );
-  		const light5 = new PointLight( 0xffffff, 0.8 );
-  		light5.position.set( xMid, yMid + 10*rMax, zMid  );
-  		const light6 = new PointLight( 0xffffff, 0.8 );
-  		light6.position.set( xMid, yMid - 10*rMax, zMid );
+  		// const light1 = new THREE.PointLight( 0xffffff, 0.8 );
+  		// light1.position.set( xMid, yMid, zMid + 1*rMax );
+  		// const light2 = new THREE.PointLight( 0xffffff, 0.8 );
+  		// light2.position.set( xMid, yMid, zMid - 1*rMax );
+  		// const light3 = new THREE.PointLight( 0xffffff, 0.8 );
+  		// light3.position.set( xMid + 1*rMax, yMid, zMid  );
+  		// const light4 = new THREE.PointLight( 0xffffff, 0.8 );
+  		// light4.position.set( xMid - 1*rMax, yMid, zMid );
+  		// const light5 = new THREE.PointLight( 0xffffff, 0.8 );
+  		// light5.position.set( xMid, yMid + 1*rMax, zMid  );
+  		// const light6 = new THREE.PointLight( 0xffffff, 0.8 );
+  		// light6.position.set( xMid, yMid - 1*rMax, zMid );
 
-  		scene.add( light1 );
-  		scene.add( light2 );
-  		scene.add( light3 );
-  		scene.add( light4 );
-  		scene.add( light5 );
-  		scene.add( light6 );
+  		// scene.add( light1 );
+  		// scene.add( light2 );
+  		// scene.add( light3 );
+  		// scene.add( light4 );
+  		// scene.add( light5 );
+  		// scene.add( light6 );
+
+  		// Ambient fill light for base visibility
+  		const ambientLight = new AmbientLight(0xffffff, 0.35);
+  		scene.add( ambientLight );
 
   		// add all surfaces to scene
   		this.meshUuids = [];
@@ -148397,6 +148459,7 @@ void main() {
   			geometry.setAttribute( 'uv', new BufferAttribute( uvs, 2 ) );
   			geometry.setIndex(new BufferAttribute(indices, 1));
   			geometry.computeVertexNormals();
+  			console.log(geometry);
 
   			let material;
   			if ( surfFlags !== undefined ) {
@@ -148415,7 +148478,7 @@ void main() {
   			scene.add( mesh );
   		}
   		this.scene = scene;
-  	
+  		
   		// Define the camera
   		if (!this.camera) {
   			let camera;
@@ -148433,12 +148496,15 @@ void main() {
   				camera.position.x = xMid + 1000*rMax;
   				camera.position.y = yMid;
   				camera.position.z = zMid;
-  			}
-  			
+  			}	
   			camera.up.set(0,0,1);
+  			const cameraLight = new DirectionalLight(0xffffff, 1.0);
+    			cameraLight.position.set(0, 0, 1);
+    			camera.add(cameraLight);
   			this.camera = camera;
   		}
   		const camera = this.camera;
+  		scene.add(camera);
 
   		if (this.watchedCamera !== undefined) {
   			camera.position.copy(this.watchedCamera.position);
@@ -154604,7 +154670,7 @@ void main() {
   		geometry.computeVertexNormals();
       
   		// Use MeshPhongMaterial for a reflective surface
-  		const material = new MeshPhongMaterial( {
+  		const material = new MeshPhongMaterial$1( {
       		side: DoubleSide$1,
       		color: 0xffffff,
       		vertexColors: VertexColors,
@@ -154675,16 +154741,16 @@ void main() {
   		} ); 
   		controls.enableZoom = true; 
 
-  		const ambientLight = new AmbientLight( 0xaaaaaa );
+  		const ambientLight = new AmbientLight$1( 0xaaaaaa );
   		scene.add( ambientLight );
 
   		const lights = [];
-  		lights[ 0 ] = new PointLight$1( 0xffffff, 1, 3 );
-  		lights[ 1 ] = new PointLight$1( 0xffffff, 1, 3 );
-  		lights[ 2 ] = new PointLight$1( 0xffffff, 1, 3 );
-  		lights[ 3 ] = new PointLight$1( 0xffffff, 1, 3 );
-  		lights[ 4 ] = new PointLight$1( 0xffffff, 1, 3 );
-  		lights[ 5 ] = new PointLight$1( 0xffffff, 1, 3 );
+  		lights[ 0 ] = new PointLight( 0xffffff, 1, 3 );
+  		lights[ 1 ] = new PointLight( 0xffffff, 1, 3 );
+  		lights[ 2 ] = new PointLight( 0xffffff, 1, 3 );
+  		lights[ 3 ] = new PointLight( 0xffffff, 1, 3 );
+  		lights[ 4 ] = new PointLight( 0xffffff, 1, 3 );
+  		lights[ 5 ] = new PointLight( 0xffffff, 1, 3 );
 
   		lights[ 0 ].position.set( 0, 2, 0 );
   		lights[ 1 ].position.set( 1, 2, 1 );
