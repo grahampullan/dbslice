@@ -13,8 +13,4 @@ export class SvgPlotBase extends PlotV3_1 {
       .attr("class", "tool-tip")
       .style("opacity", 0);
   }
-
-  get plotAreaSel() {
-    return d3.select(`#${this.plotAreaId}`);
-  }
 }

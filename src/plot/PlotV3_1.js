@@ -227,6 +227,10 @@ export class PlotV3_1 extends Component {
       .attr("height", this.plotAreaHeight);
   }
 
+  get plotAreaSel() {
+    return d3.select(`#${this.plotAreaId}`);
+  }
+
   // ---- Subscription helpers ----
   subscribe(observable, handler) {
     if (!observable || !handler) return null;
