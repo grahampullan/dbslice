@@ -1,11 +1,11 @@
-import { Plot } from './Plot.js';
+import { PlotV3_1 } from './PlotV3_1.js';
 import { Box } from '../core/Box.js';
 //import { TriMesh3D } from './TriMesh3D.js';
 import { Observable } from 'board-box';
 import { getComponentFromType } from './getComponentFromType.js';
 import * as d3 from 'd3v7'
 
-class PlotGroup extends Plot {
+class PlotGroup extends PlotV3_1 {
 
     constructor(options) {
 		if (!options) { options={} }
@@ -14,32 +14,34 @@ class PlotGroup extends Plot {
         this.componentType = options.componentType || "PlotGroup";
     }
 
-    make() {
-        
-        this.updateHeader();
+    createPlotArea() {
         this.addPlotAreaDiv();
-        const plotArea = d3.select(`#${this.plotAreaId}`);
+        const plotArea = this.plotAreaSel;
         plotArea
             .style("will-change", "transform")
             .style("overflow", "hidden")
             .style("overflow-y", "auto");
-        const boundHandleScroll = this.handleScroll.bind(this);
-        plotArea.on("scroll", boundHandleScroll);
-        //this.sharedState.scrolling = new Observable({flag: false, state: {}});
-        //this.sharedState.scrolling.subscribe(this.scrollingRenderOrderUpdate.bind(this));
-        this.sharedState.sharedCamera = {position:null, rotation:null, zoom:null};
-        this.sharedState.sharedCutValue = {cutValue:null};
-        this.sharedState.requestCutEvaluate = new Observable({flag: true, state: false});
-        this.setLasts();
-        this.checkForCtrl();
-        this.update();
+        plotArea.on("scroll", this.handleScroll.bind(this));
     }
 
-    update() {
-        this.updateHeader();
+    initBindings() {
+        this.sharedState = {
+            state: {
+                boxes: [],
+                sharedCamera: {position:null, rotation:null, zoom:null}
+            },
+            services: {},
+            events: {
+                boxes: {
+                    update: new Observable({flag: false, state: {boxesToAdd:[], boxesToRemove:[]}})
+                }
+            }
+        };
+        this.checkForCtrl();
+    }
+
+    async doUpdate() {
         this.updatePlotAreaSize();
-        //this.webGLUpdate();
-        
     }
 
     checkForCtrl() {
@@ -49,10 +51,11 @@ class PlotGroup extends Plot {
         if (this.ctrl.fetchData) {
             const fetchData = this.ctrl.fetchData;
             if (fetchData.getItemIdsFromFilter) {
-                fetchData.itemIds =  this.sharedStateByAncestorId["context"].filters.find( f => f.id == fetchData.filterId ).itemIdsInFilter.state.itemIds;
+                const filter = this.contextState.filters.find( f => f.id == fetchData.filterId );
+                fetchData.itemIds = filter?.itemIdsInFilter.state.itemIds;
             }
             if (fetchData.autoFetchOnFilterChange) {
-                this.sharedStateByAncestorId["context"].filters.find( f => f.id == fetchData.filterId ).itemIdsInFilter.subscribe( this.refreshItemIds.bind(this) );
+                this.contextState.filters.find( f => f.id == fetchData.filterId )?.itemIdsInFilter.subscribe( this.refreshItemIds.bind(this) );
             }
             this.refreshItemIds({itemIds:fetchData.itemIds, brushing:false});
         }
@@ -66,7 +69,7 @@ class PlotGroup extends Plot {
         if (fetchData.getItemIdsFromFilter) {
             itemIds = data.itemIds;
         }
-        const currentBoxes = this.sharedState.boxes;
+        const currentBoxes = this.sharedState.state.boxes;
         const currentItemIds = currentBoxes.map( box => box.itemId );
         const itemIdsToAdd = itemIds.filter( itemId => !currentItemIds.includes( itemId ) );
         const itemIdsToRemove = currentItemIds.filter( itemId => !itemIds.includes( itemId ) );
@@ -87,21 +90,11 @@ class PlotGroup extends Plot {
             const box = new Box({x:0, y:0, width:ctrl.layout.width, height:ctrl.layout.height, component: plot });
             boxesToAdd.push(box);
         });
-        this.sharedState.requestUpdateBoxes.state = {boxesToRemove, boxesToAdd};
+        this.sharedState.events.boxes.update.state = {boxesToRemove, boxesToAdd};
     }
 
     handleScroll() {
-        //this.sharedState.scrolling.state = {scrolling:true};
-        this.webGLUpdate();
-    }
-
-    scrollingRenderOrderUpdate() {
-        const plotGroupBox = d3.select(`#${this.boxId}`);
-        const allBoxIdsInDOMOrder = plotGroupBox.selectAll(".board-box").nodes().map( node => node.id );
-        let observers = this.sharedState.scrolling.observers.slice(1);
-        if (observers.length == 0) {return;};
-        const sortedObservers = allBoxIdsInDOMOrder.map( id => observers.find( observer => observer.data.boxId == id ) ).filter(Boolean);
-        this.sharedState.scrolling.observers.splice(1,sortedObservers.length, ...sortedObservers);
+        // no-op placeholder; kept for potential scroll-triggered renders
     }
 
 }
