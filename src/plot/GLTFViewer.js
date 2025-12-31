@@ -95,6 +95,7 @@ export class GLTFViewer extends WebGLPlotBase {
     this.clearModel();
     const gltf = await this.loader.loadAsync(url);
     this.modelRoot = gltf.scene;
+    this.applySimpleShading(this.modelRoot);
     this.scene.add(this.modelRoot);
   }
 
@@ -143,5 +144,33 @@ export class GLTFViewer extends WebGLPlotBase {
     if (shared.rotation) this.camera.rotation.copy(shared.rotation);
     if (shared.zoom) this.camera.zoom = shared.zoom;
     this.camera.updateProjectionMatrix();
+  }
+
+  applySimpleShading(root) {
+    if (!root) return;
+    root.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return;
+      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const newMats = materials.map((mat) => {
+        if (!mat) return mat;
+        const hasVertexColors = !!mat.vertexColors;
+        const baseColor = mat.color ? mat.color.clone() : new THREE.Color(0.8, 0.8, 0.8);
+        const specularColor = baseColor.clone().lerp(new THREE.Color(1, 1, 1), 0.5);
+        const phong = new THREE.MeshPhongMaterial({
+          color: baseColor,
+          vertexColors: hasVertexColors,
+          side: THREE.DoubleSide,
+          shininess: 60,
+          specular: specularColor,
+        });
+        mat.dispose?.();
+        return phong;
+      });
+      obj.material = Array.isArray(obj.material) ? newMats : newMats[0];
+      const geom = obj.geometry;
+      if (geom && !geom.attributes?.normal) {
+        geom.computeVertexNormals?.();
+      }
+    });
   }
 }
