@@ -10,7 +10,6 @@ class Context extends bbContext {
     constructor() {
         super();
         const canvas = d3.select("body").append("canvas");
-        //const canvas = d3.select("body").insert("canvas", ":first-child");
         canvas
             .attr("id", "dbslice-canvas")
             .style("position", "absolute")
@@ -25,28 +24,43 @@ class Context extends bbContext {
         renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight);
         renderer.setScissorTest( true );
         renderer.outputColorSpace = THREE.SRGBColorSpace;
-        this.sharedState.renderer = renderer;
         this.metaData = {datasets:[], filters:[]};
-        this.sharedState.filters = this.metaData.filters;
-        this.sharedState.datasets = this.metaData.datasets;
-        this.sharedState.showFilters = false;
-        this.sharedState.derivedData = [];
-        this.sharedState.dimensions = [];
         const requestCreateFilter = new Observable({flag: false, state: {}});
         requestCreateFilter.subscribe( this.createNewFilter.bind(this) );
-        this.sharedState.requestCreateFilter = requestCreateFilter;
         const requestCreateDerivedDataStore = new Observable({flag: false, state: {}});
         requestCreateDerivedDataStore.subscribe( this.createDerivedDataStore.bind(this) );
-        this.sharedState.requestCreateDerivedDataStore = requestCreateDerivedDataStore;
         const requestSaveToDerivedData = new Observable({flag: false, state: {}});
         requestSaveToDerivedData.subscribe( this.saveToDerivedData.bind(this) );
-        this.sharedState.requestSaveToDerivedData = requestSaveToDerivedData;
         const requestCreateDimension = new Observable({flag: false, state: {}});
         requestCreateDimension.subscribe( this.createDimension.bind(this) );
-        this.sharedState.requestCreateDimension = requestCreateDimension;
         const requestSetDimension = new Observable({flag: false, state: {}});
         requestSetDimension.subscribe( this.setDimension.bind(this) );
-        this.sharedState.requestSetDimension = requestSetDimension;
+
+        this.sharedState = {
+            state: {
+                datasets: this.metaData.datasets,
+                filters: this.metaData.filters,
+                derivedData: [],
+                dimensions: [],
+                showFilters: false,
+            },
+            services: {
+                renderer
+            },
+            events: {
+                filters: {
+                    create: requestCreateFilter
+                },
+                derivedData: {
+                    createStore: requestCreateDerivedDataStore,
+                    save: requestSaveToDerivedData
+                },
+                dimensions: {
+                    create: requestCreateDimension,
+                    set: requestSetDimension
+                }
+            }
+        };
         this.maxDataset = 0;
         this.maxFilter = 0;
     }

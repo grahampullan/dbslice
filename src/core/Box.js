@@ -11,19 +11,32 @@ class Box extends bbBox {
         if (!options) { options={} }
         options.boxesSharedStateKeys = ["boxId", "itemId"];
         super(options);
-        this.sharedState = {...this.sharedState, boxes:[]}// sharedCamera: new Observable({flag: false, state: {}})};
         const requestFetchDataByItemIds = new Observable({flag: false, state: {}});
         requestFetchDataByItemIds.subscribe( this.fetchDataByItemIds.bind(this) );   
-        this.sharedState.requestFetchDataByItemIds = requestFetchDataByItemIds;
         const requestFetchDataByFilter = new Observable({flag: false, state: {}});
         requestFetchDataByFilter.subscribe( this.fetchDataByFilter.bind(this) );
-        this.sharedState.requestFetchDataByFilter = requestFetchDataByFilter;
         const requestAddFilterPlot = new Observable({flag: false, state: {}});
         requestAddFilterPlot.subscribe( this.addFilterPlot.bind(this) );
-        this.sharedState.requestAddFilterPlot = requestAddFilterPlot;
         const requestRemovePlot = new Observable({flag: false, state: {}});
         requestRemovePlot.subscribe( this.removePlot.bind(this));
-        this.sharedState.requestRemovePlot = requestRemovePlot;
+
+        this.sharedState = {
+            ...this.sharedState,
+            state: {
+                boxes: []
+            },
+            services: {},
+            events: {
+                data: {
+                    fetchByItemIds: requestFetchDataByItemIds,
+                    fetchByFilter: requestFetchDataByFilter
+                },
+                plots: {
+                    addFilterPlot: requestAddFilterPlot,
+                    removePlot: requestRemovePlot
+                }
+            }
+        };
 
         this.locationForChildBoxes = options.locationForChildBoxes || "component-plot-area";
     }

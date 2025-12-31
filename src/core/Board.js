@@ -20,7 +20,22 @@ class Board extends bbBoard {
         } else {
             this.downloadIcon = options.downloadIcon;
         }
-        this.sharedState = {...this.sharedState, requestWebGLRender, requestSetTrafficLightColor}; 
+        this.sharedState = {
+            ...this.sharedState,
+            state: {
+                trafficLight: "green"
+            },
+            services: {
+            },
+            events: {
+                webgl: {
+                    render: requestWebGLRender
+                },
+                ui: {
+                    setTrafficLight: requestSetTrafficLightColor
+                }
+            },
+        }; 
         this.fetchCount = 0;
     }
 
