@@ -1,104 +1,60 @@
-import { cfUpdateFilters } from '../core/cfUpdateFilters.js';
-import { refreshTasksInPlotRows } from '../core/refreshTasksInPlotRows.js';
-import { dbsliceData } from '../core/dbsliceData.js';
 import * as d3 from 'd3v7';
-import { Plot } from './Plot.js';
+import { SvgPlotBase } from './SvgPlotBase.js';
 
-class MetaDataHistogram extends Plot {
+class MetaDataHistogram extends SvgPlotBase {
 
     constructor(options) {
         if (!options) { options={} }
         options.layout = options.layout || {};
 		options.layout.margin = options.layout.margin || {top:5, right:20, bottom:30, left:53};
-        options.layout.highlightItems = options.layout.highlightItems || true;
+        options.layout.highlightItems = options.layout.highlightItems ?? true;
         options.layout.xTickNumber = options.layout.xTickNumber || 5;
         super(options);
         this.brushInitialised = false;
+        this.componentType = options.componentType || "MetaDataHistogram";
+        this.filter = null;
+        this.dimId = null;
     }
 
-    make() {
-        const container = d3.select(`#${this.id}`);
-        this.filterId = this.data.filterId;
-        this.currentFilterSetting = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId ).continuousExtents[this.data.property];
-        const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-        const filterObsId = filter.itemIdsInFilter.subscribe( this.handleFilterChange.bind(this) );
-        this.subscriptions.push({observable:filter.itemIdsInFilter, id:filterObsId});
-        if ( this.layout.highlightItems ) {
-            const highlightObsId = filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
-            this.subscriptions.push({observable:filter.highlightItemIds, id:highlightObsId});
+    initBindings() {
+        const filterId = this.data.filterId;
+        this.filter = this.contextState.filters.find(f => f.id === filterId);
+        if (!this.filter) return;
+
+        this.dimId = this.filter.continuousProperties.indexOf(this.data.property);
+
+        const filterObsId = this.filter.itemIdsInFilter.subscribe(this.handleFilterChange.bind(this));
+        this.subscriptions.push({observable: this.filter.itemIdsInFilter, id: filterObsId});
+        if (this.layout.highlightItems && this.filter.highlightItemIds) {
+            const highlightObsId = this.filter.highlightItemIds.subscribe(this.highlightItems.bind(this));
+            this.subscriptions.push({observable: this.filter.highlightItemIds, id: highlightObsId});
         }
-        this.dimId = filter.continuousProperties.indexOf( this.data.property );
-    
-        this.updateHeader(); 
-        this.addPlotAreaSvg();
-        this.setLasts();
-     
-        
-        container.append("div")
-            .attr("class", "tool-tip")
-            .style("opacity", 0);
-
-        this.update();
     }
 
-    update() {
-
-        const container = d3.select(`#${this.id}`);
-        const layout = this.layout;
-        const margin = layout.margin;
-        const plotArea = container.select(".plot-area");
-
-        //this.updateHeader();
-        this.updatePlotAreaSize();
-
+    async doUpdate() {
+        if (!this.filter) return;
+        const plotArea = this.plotAreaSel;
         const width = this.plotAreaWidth;
         const height = this.plotAreaHeight;
+        const layout = this.layout;
+        const margin = layout.margin;
 
-        const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
+        if (width <= 0 || height <= 0) {
+            plotArea.selectAll("*").remove();
+            return;
+        }
+
         const property = this.data.property;
-        const highlightItemsFlag = layout.highlightItems;
-        const highlightItemIds = filter.highlightItemIds;
+        const filter = this.filter;
         const dimId = this.dimId;
-        const dim = filter.continuousDims[ dimId ];
-        const currentFilterSetting = this.currentFilterSetting;
+        const dim = this.filter.continuousDims?.[dimId];
+        const currentFilterSetting = this.filter.continuousExtents?.[property];
+        if (!dim || !currentFilterSetting) return;
 
         let brushInit = false;
         let formatCount = d3.format( ",.0f" );
 
-        /*if ( this.layout.addSelectablePropertyToTitle ) {
-
-            const boundPropertySelectChange = propertySelectChange.bind(this);
-            const plotTitle = d3.select(`#plot-title-text-${this._prid}-${this._id}`);
-            let dropdown = plotTitle.select(".property-dropdown");
-            let selectId = `prop-select-${this._prid}-${this._id}`;
-            let selectableOptions = cfData.continuousProperties;
-            if ( this.layout.selectableProperties !== undefined ) {
-                selectableOptions = this.layout.selectableProperties;
-            }
-            if ( dropdown.empty() ) {
-                let html = 
-                    `<select name="${selectId}" id="${selectId}">
-                        ${selectableOptions.map( prop => `<option value="${prop}" ${prop==property ? `selected`:``}>${prop}</option>`).join('')}
-                    </select>`;
-                plotTitle.html("")
-                    .append("div")
-                        .attr("class","property-dropdown")
-                        .html(html);
-                document.getElementById(selectId).addEventListener("change", boundPropertySelectChange);
-            } 
-
-        } else {
-
-            const plotTitle = d3.select(`#plot-title-text-${this._prid}-${this._id}`);
-            let dropdown = plotTitle.select(".property-dropdown");
-            dropdown.remove();
-            plotTitle.html(this.layout.title);
-
-        }*/
-      
-    
         const items = dim.top( Infinity );
-        //console.log(items);
         let itemExtent = d3.extent( items, d => d[property]);
 
         if (!this.brushInitialised || this.layout.reBin ) {
@@ -127,7 +83,7 @@ class MetaDataHistogram extends Plot {
         xAxis.ticks(this.layout.xTickNumber);
         if ( this.layout.xTickFormat !== undefined ) { xAxis.tickFormat(d3.format(this.layout.xTickFormat)); }
 
-        
+
         let gX = plotArea.select(".x-axis");
         if ( gX.empty() ) {
             gX = plotArea.append( "g" )
@@ -198,27 +154,12 @@ class MetaDataHistogram extends Plot {
             gBrush.call( brush.move, currentFilterSetting.map( x ) );
             brushInit = false;
             this.brushInitialised = true;            
-        }
-
-        if ( this.checkResize ) {
-            this.setLasts();
+        } else {
             brushInit = true;
             gBrush.call(brush);
             gBrush.call( brush.move, currentFilterSetting.map( x ) );
             brushInit = false;
         }
-
-        
-        /*let handle = gBrush.selectAll( ".handle-custom");
-        if ( handle.empty() ) {
-            handle = gBrush.selectAll( ".handle-custom" )
-                .data( [ { type: "w" } , { type: "e" } ] )
-                .enter().append( "path" )
-                    .attr( "class", "handle-custom" )
-                    .attr( "stroke", "#000" )
-                    .attr( "cursor", "ewResize" )
-                    .attr( "d", brushResizePath );
-        }*/
 
         const yAxis = d3.axisLeft( y );
         if ( this.layout.yTickNumber !== undefined ) { yAxis.ticks(this.layout.yTickNumber); }
@@ -306,47 +247,40 @@ class MetaDataHistogram extends Plot {
             }
         }
 
-        
+        if (layout.highlightItems) {
+            this.highlightItems();
+        }
 
     }
 
     highlightItems() {
-
-        const container = d3.select(`#${this.id}`);
-        const plotArea = container.select(".plot-area");
-        const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-        const highlightItemIds = filter.highlightItemIds.state.itemIds;
+        if (!this.filter) return;
+        const plotArea = this.plotAreaSel;
+        const highlightItemIds = this.filter.highlightItemIds?.state?.itemIds;
         const bars = plotArea.selectAll( ".bar" );
         const property = this.data.property;
-        const dim = filter.continuousDims[ this.dimId ];
+        const dim = this.filter.continuousDims?.[ this.dimId ];
 
-        if ( highlightItemIds === undefined || highlightItemIds.length == 0) {
-
+        if (!dim || !highlightItemIds || highlightItemIds.length === 0) {
             bars.style( "stroke-width", "0px" );
-                      
-        } else {
-
-            bars
-                .style( "stroke-width", "0px" )
-                .style( "stroke", "red" ); 
-            highlightItemIds.forEach( (itemId) => {
-                let valueNow = dim.top(Infinity).filter(d => d.itemId==itemId)[0][property];
-                bars.filter( (d,i) => (d.x0 <= valueNow && d.x1 > valueNow) )
-                    .style( "stroke-width", "4px" )
-            });
-
+            return;
         }
 
-    } 
-
-    handleFilterChange(data) {
-        this.update();
+        bars
+            .style( "stroke-width", "0px" )
+            .style( "stroke", "red" ); 
+        highlightItemIds.forEach( (itemId) => {
+            const valueNow = dim.top(Infinity).find(d => d.itemId==itemId)?.[property];
+            if (valueNow === undefined) return;
+            bars.filter( (d) => (d.x0 <= valueNow && d.x1 > valueNow) )
+                .style( "stroke-width", "4px" );
+        });
     }
 
-    remove() {
-		this.removeSubscriptions();
+    handleFilterChange() {
+        this.fetchDataNow = true;
+        this.requestUpdate();
     }
-
 }
 
 
