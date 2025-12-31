@@ -57,8 +57,8 @@ export class PlotV3_1 extends Component {
 
   get plotGroupStateRaw() {
     const ids = (this.ancestorIds ?? []).filter((id) => id !== "context");
-    const outer = ids[0];
-    return outer ? this.sharedStateByAncestorId?.[outer] : null;
+    const nearest = ids.length ? ids[ids.length - 1] : null;
+    return nearest ? this.sharedStateByAncestorId?.[nearest] : null;
   }
   get plotGroupState() {
     return this.plotGroupStateRaw?.state ?? this.plotGroupStateRaw;
@@ -136,9 +136,7 @@ export class PlotV3_1 extends Component {
       await this.getData();
     }
 
-    if (this.fetchData && (!this.data || this.data.__noUpdate)) {
-      return;
-    }
+    if (this.fetchData && !this.data) return;
 
     this.updateHeader();
     this.updatePlotAreaSize();
@@ -164,25 +162,14 @@ export class PlotV3_1 extends Component {
   // ---- Data fetching ----
   async getData() {
     if (!this.fetchData || !this.fetchDataNow) return;
-    const trafficLight =
-      this.boardEvents?.ui?.setTrafficLight ??
-      this.boardStateRaw?.requestSetTrafficLightColor;
+    const trafficLight = this.boardEvents?.ui?.setTrafficLight;
 
     this.fetchingData = true;
     if (trafficLight) trafficLight.state = "fetching";
 
-    const derivedData = this.contextState?.derivedData ?? this.contextRaw?.derivedData;
-    const dimensions = this.contextState?.dimensions ?? this.contextRaw?.dimensions;
+    const derivedData = this.contextState?.derivedData;
+    const dimensions = this.contextState?.dimensions;
     this.data = await fetchPlotData(this.fetchData, derivedData, dimensions);
-
-    if (this.data && this.data.__noUpdate) {
-      this.data = this.lastData || this.data;
-      this.newData = false;
-      this.fetchingData = false;
-      this.fetchDataNow = false;
-      if (trafficLight) trafficLight.state = "fetched";
-      return;
-    }
 
     this.fetchingData = false;
     this.fetchDataNow = false;
