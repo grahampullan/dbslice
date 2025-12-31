@@ -5,6 +5,7 @@ import * as d3 from 'd3v7';
 import { icon } from '@fortawesome/fontawesome-svg-core';
 import { faDownload  } from '@fortawesome/free-solid-svg-icons';
 import { createBoxFromJson } from './Context.js';
+import { Scheduler } from '../plot/Scheduler.js';
 //import cloneDeep from 'lodash/cloneDeep';
 
 class Board extends bbBoard {
@@ -15,6 +16,7 @@ class Board extends bbBoard {
         requestWebGLRender.subscribe(this.webGLRenderOrderUpdate.bind(this));
         const requestSetTrafficLightColor = new Observable({flag:false, state:"green"});
         requestSetTrafficLightColor.subscribe( this.setTrafficLightColor.bind(this) );
+        const scheduler = new Scheduler(requestWebGLRender);
         if (options.downloadIcon === undefined) {
             this.downloadIcon = true;
         } else {
@@ -26,6 +28,7 @@ class Board extends bbBoard {
                 trafficLight: "green"
             },
             services: {
+                scheduler
             },
             events: {
                 webgl: {
@@ -187,14 +190,14 @@ class Board extends bbBoard {
     webGLRenderOrderUpdate() {
         const board = d3.select(`#${this.id}`);
         const allBoxIdsInDOMOrder = board.selectAll(".board-box").nodes().map( node => node.id );
-        let observers = this.sharedState.requestWebGLRender.observers.slice(1);
+        let observers = this.sharedState.events.webgl.render.observers.slice(1);
         if (observers.length == 0) {return;};
         const sortedObservers = allBoxIdsInDOMOrder.map( id => observers.find( observer => observer.data.boxId == id ) ).filter(Boolean);
-        this.sharedState.requestWebGLRender.observers.splice(1, sortedObservers.length, ...sortedObservers);
+        this.sharedState.events.webgl.render.observers.splice(1, sortedObservers.length, ...sortedObservers);
     }
 
     customOnUpdateEnd() {
-        const requestWebGLRender = this.sharedState.requestWebGLRender;
+        const requestWebGLRender = this.sharedState.events.webgl.render;
         requestWebGLRender.state = true;
     }
 
