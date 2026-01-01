@@ -1,1275 +1,634 @@
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { WebGLPlotBase } from "./WebGLPlotBase.js";
+import { interpolateSpectral } from "d3-scale-chromatic";
+import * as d3 from "d3v7";
+import { makeQuadTree, getLine } from "./cutQuadTrees.js";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
-import * as d3 from 'd3v7';
-import { interpolateSpectral } from 'd3-scale-chromatic';
-import * as THREE from 'three';
-import { OrbitControls } from 'three124/examples/jsm/controls/OrbitControls';
-import { Line2 } from 'three/examples/jsm/lines/Line2.js';
-import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { Plot } from './Plot.js';
-import { makeQuadTree, getLine } from './cutQuadTrees.js';
+class TriMesh3D extends WebGLPlotBase {
+  constructor(options = {}) {
+    options.layout ??= {};
+    options.layout.margin ??= { top: 2, right: 0, bottom: 0, left: 0 };
+    options.layout.twoDSameScale ??= true;
+    options.layout.cuts ??= [];
+    options.layout.cutWhileBrushing ??= false;
+    options.layout.filterId ??= null;
+    options.layout.highlightItems ??= false;
+    options.fetchData ??= {};
+    super(options);
+    if (this.layout.showXAxis) this.marginAdd.bottom += 32;
+    if (this.layout.showYAxis) this.marginAdd.left += 35;
+    if (this.layout.showColorBar) this.marginAdd.right += 50;
+    this.componentType = options.componentType || "TriMesh3D";
+    this._activeController = false;
+    this.meshUuids = [];
+    this.offsets = [];
+    this.nSteps = 0;
+    this.nSurfs = 0;
+    this.vScale = [0, 1];
+    this.colorScale = null;
+    this.cuts = [];
+    this.cutLineMeshes = new Map();
+  }
 
-class TriMesh3D extends Plot {
-
-    constructor(options) {
-		if (!options) { options = {} }
-		options.layout = options.layout || {};
-		options.layout.margin = options.layout.margin || {top:2, right:0, bottom:0, left:0};
-		if (options.layout.twoDSameScale == undefined) {
-			options.layout.twoDSameScale = true;
-		}
-        super(options);
-		if (this.layout.showXAxis) {
-			this.marginAdd.bottom += 32;
-		}
-		if (this.layout.showYAxis) {
-			this.marginAdd.left += 35;
-		}
-		if (this.layout.showColorBar) {
-			this.marginAdd.right += 50;
-		}
-		this.componentType = "TriMesh3D";
-		this.stencilRects = [];
-		this.meshUuids = [];
+  initBindings() {
+    const filterId = this.layout.filterId;
+    if (filterId && this.contextState?.filters) {
+      this.filter = this.contextState.filters.find((f) => f.id === filterId);
+      this.filterId = filterId;
+      if (this.filter && this.layout.highlightItems && this.filter.highlightItemIds) {
+        const obsId = this.filter.highlightItemIds.subscribe(this.highlightItems.bind(this));
+        this.subscriptions.push({ observable: this.filter.highlightItemIds, id: obsId });
+      }
     }
 
-	make() {
-		this.updateHeader();
-		this.addPlotAreaDiv();
-		this.setLasts();
+    const requestCreateDimension = this.contextEvents?.dimensions?.create;
+    const dimensions = this.contextState?.dimensions;
+    if (requestCreateDimension && dimensions && Array.isArray(this.layout.cuts)) {
+      this.layout.cuts.forEach((cut) => {
+        const name = cut.dimensionName;
+        if (!name) return;
+        requestCreateDimension.state = { name, value: cut.value ?? null };
+        const dim = dimensions.find((d) => d.name === name);
+        if (dim) {
+          const obsId = dim.subscribe((data) => this.onCutDimensionChange(name, data));
+          this.subscriptions.push({ observable: dim, id: obsId });
+        }
+      });
+    }
+    this.initCuts();
 
-		const container = d3.select(`#${this.id}`);
-		const plotArea = d3.select(`#${this.plotAreaId}`);
-	
-		const boundTipOn = this.tipOn.bind(this);
-		const boundTipOff = this.tipOff.bind(this);
+    // Dimension-driven URL fetching
+    if (this.fetchData?.getUrlFromDimensions) {
+      const dimNames = this.fetchData.getUrlFromDimensions.dimensionNames || [];
+      const requestCreateDimension = this.contextEvents?.dimensions?.create;
+      const dimensions = this.contextState?.dimensions;
+      dimNames.forEach((dimName) => {
+        requestCreateDimension?.(requestCreateDimension.state = { name: dimName, value: null });
+        const dim = dimensions?.find((d) => d.name === dimName);
+        if (dim) {
+          const obsId = dim.subscribe((data) => this.handleDimensionChange(dimName, data));
+          this.subscriptions.push({ observable: dim, id: obsId });
+        }
+      });
+    }
+  }
 
-		plotArea
-			.on( "mouseover", boundTipOn)
-			.on( "mouseout", boundTipOff );
- 
-		const overlay = container.append("svg")
-			.attr("class","svg-overlay")
-			.style("position","absolute")
-			.style("pointer-events", "none")
-			.style("top",`${this.plotAreaTop}px`)
-			.style("left",`${this.plotAreaLeft - this.marginTotal.left}px`)
-			.attr("width", `${this.plotAreaWidth + this.marginTotal.left + this.marginTotal.right}`)
-			.attr("height", `${this.plotAreaHeight + this.marginTotal.bottom}`);
+  ensureScene() {
+    if (this.scene) return;
+    super.ensureScene();
+    this.scene.background = new THREE.Color(0xe0e0e0);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+    this.scene.add(ambient);
+  }
 
-		if (this.layout.filterId) {
-			this.filterId = this.layout.filterId;
-			const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-			if ( this.layout.highlightItems ) {
-				const obsId = filter.highlightItemIds.subscribe( this.highlightItems.bind(this) );
-				this.subscriptions.push({observable:filter.highlightItemIds, id:obsId});
-			}
-		}
+  ensureCamera() {
+    if (this.camera) return;
+    const aspect = Math.max(1e-6, this.plotAreaWidth / Math.max(1, this.plotAreaHeight));
+    const cam = new THREE.PerspectiveCamera(60, aspect, 0.01, 10000);
+    cam.position.set(0, 0, 2);
+    this.camera = cam;
+    this.cameraLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    this.cameraLight.position.set(0, 0, 1);
+    this.camera.add(this.cameraLight);
+    this.scene.add(this.camera);
+  }
 
-		if (this.fetchData.getUrlFromDimensions) {
-			const requestCreateDimension = this.sharedStateByAncestorId["context"].requestCreateDimension;
-			const dimensions = this.sharedStateByAncestorId["context"].dimensions;
-			const dimensionNames = this.fetchData.getUrlFromDimensions.dimensionNames;
+  ensureControls() {
+    if (this.controls) return;
+    const dom = this.contextServices.renderer?.domElement;
+    if (!dom) return;
+    this.controls = new OrbitControls(this.camera, dom);
+    this.controls.enableDamping = true;
+    this.controls.addEventListener("start", () => { this._activeController = true; });
+    this.controls.addEventListener("end", () => { this._activeController = false; });
+    this.controls.addEventListener("change", () => {
+      if (this._activeController && this.layout.cameraSync) {
+        this.publishSharedCameraState();
+      }
+      this.boardServices.scheduler?.markDirty?.();
+    });
+  }
 
-			dimensionNames.forEach( dimName => {
-				requestCreateDimension.state = {name:dimName, value:null };
-				const dimension = dimensions.find( d => d.name == dimName ); 
-				const obsId = dimension.subscribe( this.handleDimensionChange.bind(this) );
-				this.subscriptions.push({observable:dimension, id:obsId});
-			});
-		}
+  async updateSceneFromData() {
+    if (this.camera?.isPerspectiveCamera) {
+      const aspect = Math.max(1e-6, this.plotAreaWidth / Math.max(1, this.plotAreaHeight));
+      if (Math.abs(this.camera.aspect - aspect) > 1e-6) {
+        this.camera.aspect = aspect;
+        this.camera.updateProjectionMatrix();
+      }
+    }
 
-		this.renderer = this.sharedStateByAncestorId["context"].renderer;
-		this.cuts = [];
-		this.raycaster = new THREE.Raycaster();
-		this.pointer = new THREE.Vector2();
-		this.vScale = [0,1];
-		this.update();
-	}
+    if (this.layout.cameraSync && !this._activeController) {
+      this.applySharedCameraState();
+    }
 
-	async update() {
-		if (this.fetchingData) return;
-		await this.getData();
-		if (this.data === undefined) return;
+    if (this.plotAreaWidth <= 0 || this.plotAreaHeight <= 0) {
+      this.clearMeshes();
+      this.cutLineMeshes.forEach((_, name) => this.removeCutLineMesh(name));
+      return;
+    }
 
-		const container = d3.select(`#${this.id}`);
-		const overlay = container.select(".svg-overlay");
-		const plotArea = container.select(".plot-area");
-		const width = this.plotAreaWidth;
-		const height = this.plotAreaHeight;
-		const layout = this.layout;
-		const cameraSync = layout.cameraSync;
-		const timeSync = layout.timeSync;
-		const plotGroupId = this.ancestorIds[this.ancestorIds.length-1];
-		const sharedCamera = this.sharedStateByAncestorId[plotGroupId].sharedCamera;
+    if (!this.data) return;
+    this.getOffsets();
+    if (!this.offsets.length) return;
 
-		const boundUpdateSurfaces = updateSurfaces.bind(this);
+    this.prepareColorScale();
+    this.clearMeshes();
+    this.buildMeshesForStep(0);
 
-		let iStep = 0;
-		
-		const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
-	
-		this.updateHeader();
-		this.updatePlotAreaSize();
+    this.cuts.forEach((cut) => {
+      this.setZp(cut);
+      this.makeQuadTrees(cut);
+      this.updateCutLines(cut.dimensionName);
+    });
 
-		overlay
-			.attr("width", width + this.marginTotal.left + this.marginTotal.right)
-			.attr("height", height + this.marginTotal.bottom);
+    this.addAxes();
+    this.addColorBar();
 
-		this.setLasts();
-		this.addAxes();
-		this.addColorBar();
+    this.controls?.update();
+    this.boardServices.scheduler?.markDirty?.();
+  }
 
-		if ( !this.newData ) return;
+  prepareColorScale() {
+    const layout = this.layout;
+    const vScale = layout.vScale ?? [0, 1];
+    this.vScale = vScale;
+    const color = layout.colourMap
+      ? d3.scaleSequential(layout.colourMap)
+      : d3.scaleSequential((t) => interpolateSpectral(1 - t));
+    color.domain([0, 1]);
+    this.colorScale = color;
+    const textureWidth = 512;
+    const textureHeight = 1;
+    const texData = new Uint8Array(4 * textureWidth * textureHeight);
+    let k = 0;
+    for (let i = 0; i < textureWidth; i++) {
+      const t = i / (textureWidth - 1);
+      const col = d3.rgb(color(t));
+      texData[k++] = col.r;
+      texData[k++] = col.g;
+      texData[k++] = col.b;
+      texData[k++] = 255;
+    }
+    this.textureLUT = new THREE.DataTexture(
+      texData,
+      textureWidth,
+      textureHeight,
+      THREE.RGBAFormat,
+      THREE.UnsignedByteType
+    );
+    this.textureLUT.colorSpace = THREE.SRGBColorSpace;
+    this.textureLUT.generateMipmaps = false;
+    this.textureLUT.minFilter = THREE.NearestFilter;
+    this.textureLUT.magFilter = THREE.NearestFilter;
+    this.textureLUT.wrapS = THREE.ClampToEdgeWrapping;
+    this.textureLUT.wrapT = THREE.ClampToEdgeWrapping;
+    this.textureLUT.anisotropy = 1;
+    this.textureLUT.needsUpdate = true;
+  }
 
-		this.getOffsets();
-		const offsets = this.offsets;
-		const nSteps = this.nSteps;
-		const nSurfs = this.nSurfs;
+  buildMeshesForStep(iStep) {
+    if (!this.offsets?.length) return;
+    for (let iSurf = 0; iSurf < (this.nSurfs || 0); iSurf++) {
+      const surf = this.getSurface(iStep, iSurf);
+      if (!surf) continue;
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.BufferAttribute(surf.vertices, 3));
+      geom.setAttribute("uv", new THREE.BufferAttribute(surf.uvs, 2));
+      geom.setIndex(new THREE.BufferAttribute(surf.indices, 1));
+      geom.computeVertexNormals();
+      const material = new THREE.MeshPhongMaterial({
+        color: 0xffffff,
+        side: THREE.DoubleSide,
+        wireframe: false,
+        map: this.textureLUT,
+        shininess: 60,
+        specular: new THREE.Color(0xffffff),
+        stencilWrite: true,
+        stencilRef: 1,
+        stencilFunc: THREE.NotEqualStencilFunc,
+      });
+      const mesh = new THREE.Mesh(geom, material);
+      mesh.renderOrder = 1;
+      this.meshUuids.push(mesh.uuid);
+      this.scene.add(mesh);
+    }
+  }
 
-		if (layout.cuts?.length > 0) {
-			this.initCuts();
-			this.makeQuadTrees();
-		}
-
-		//
-		// values range and colour scale
-		//
-		let vScale;
-        if (layout.vScale === undefined) {
-        	vScale = [0,1];
+  getOffsets() {
+    const buffer = this.data;
+    if (!buffer) return;
+    let ii = 0;
+    const nSteps = new Int32Array(buffer, ii, 1)[0];
+    this.nSteps = nSteps;
+    ii += 4;
+    const nSurfs = new Int32Array(buffer, ii, 1)[0];
+    this.nSurfs = nSurfs;
+    ii += 4;
+    const offsets = [];
+    for (let iStep = 0; iStep < nSteps; iStep++) {
+      const surfaces = [];
+      for (let iSurf = 0; iSurf < nSurfs; iSurf++) {
+        const surfNameBytes = new Int8Array(buffer, ii, 96);
+        ii += 96;
+        const surfName = String.fromCharCode(...surfNameBytes).trim().split("\u0000")[0];
+        const ints = new Int32Array(buffer, ii, 3);
+        ii += 12;
+        let nVerts = ints[0];
+        let nTris = ints[1];
+        const nValues = ints[2];
+        const floats = new Float32Array(buffer, ii, 7);
+        ii += 28;
+        const rMax = floats[0];
+        const xRange = floats.slice(1, 3);
+        const yRange = floats.slice(3, 5);
+        const zRange = floats.slice(5, 7);
+        let verticesOffset;
+        let indicesOffset;
+        if (nVerts > 0 && nTris === 0 && iStep > 0) {
+          verticesOffset = offsets[0][iSurf].verticesOffset;
+          indicesOffset = offsets[0][iSurf].indicesOffset;
+          nTris = offsets[0][iSurf].nTris;
         } else {
-        	vScale = layout.vScale;
+          verticesOffset = ii;
+          ii += nVerts * 3 * 4;
+          indicesOffset = ii;
+          ii += nTris * 3 * 4;
         }
-		this.vScale = vScale;
-
-		const color = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
-		this.colorScale = ( layout.colourMap === undefined ) ? d3.scaleSequential( t => interpolateSpectral(1-t)  ) : d3.scaleSequential( layout.colourMap );
-        color.domain( [0,1] );
-
-
-		
-		const textureWidth  = 512;
-		const textureHeight = 1;  // <-- 1D LUT is safest
-		const texData = new Uint8Array(4 * textureWidth * textureHeight);
-
-		let k = 0;
-		for (let i = 0; i < textureWidth; i++) {
-  			const t = i / (textureWidth - 1); // include both ends exactly
-  			const col = d3.rgb(color(t));
-  			texData[k++] = col.r;
-  			texData[k++] = col.g;
-  			texData[k++] = col.b;
-  			texData[k++] = 255;
-		}
-
-		const tex = new THREE.DataTexture(
-  			texData,
-  			textureWidth,
-  			textureHeight,
-  			THREE.RGBAFormat,
-  			THREE.UnsignedByteType
-		);
-
-		tex.colorSpace       = THREE.SRGBColorSpace;	
-		tex.generateMipmaps  = false;                     // <- no mip levels
-		tex.minFilter        = THREE.NearestFilter;       // <- no averaging on minify
-		tex.magFilter        = THREE.NearestFilter;       // (or Linear if you prefer)
-		tex.wrapS            = THREE.ClampToEdgeWrapping;
-		tex.wrapT            = THREE.ClampToEdgeWrapping;
-		tex.anisotropy       = 1;                         // not useful for 1D LUT
-		tex.needsUpdate      = true;
-
-
-		//
-		// this is deprecated way of handling multipe time steps
-		// should be converted to a dimension change handler
-		//
-		if ( nSteps > 1 ){
-			let timeSlider = plotArea.select(".time-slider");
-            if ( timeSlider.empty() ) {
-				plotArea.append("input")
-					.attr("class", "form-range time-slider")
-					.style("position","absolute")
-					.style("top","0px")
-					.style("left","0px")
-					.attr("type","range")
-					.attr("min",0)
-					.attr("value",0)
-					.attr("max",nSteps-1)
-					.attr("step",1)
-					.on( "input", timeStepSliderChange );
-
-				let handler = {
-					set: function(target, key, valueset) {
-						target[key] = valueset;
-						if (key = 'iStep') {
-							plotArea.select(".time-slider").node().value = valueset;
-							boundUpdateSurfaces(valueset);
-						}
-						return true;
-					}
-				};
-				let watchedTime = new Proxy({iStep:0}, handler);
-				this.watchedTime = watchedTime;
-			} else {
-				timeSlider.attr("max", nSteps-1);
-			}
-		}
-
-		if (this.watchedTime !== undefined) {
-			iStep = this.watchedTime.iStep;
-		} else {
-			iStep = 0
-		}
-
-
-		// Initialise threejs scene
-		if (!this.scene) {
-			this.scene = new THREE.Scene();
-
-			// add background
-			const backgroundGeometry = new THREE.PlaneGeometry(2, 2);
-			const backgroundColour = this.layout.backgroundColour || 0xefefef;
-        	const backgroundMaterial = new THREE.MeshBasicMaterial({color: backgroundColour});
-        	backgroundMaterial.depthWrite = false;
-        	backgroundMaterial.stencilWrite = true;
-        	backgroundMaterial.stencilRef = 1;
-        	backgroundMaterial.stencilFunc = THREE.NotEqualStencilFunc;
-        	const background = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
-        	background.material.onBeforeCompile = function( shader ){
-            	shader.vertexShader = shader.vertexShader.replace( `#include <project_vertex>` , 
-                	`gl_Position = vec4( position , 1.0 );`);
-        	}
-        	background.renderOrder = 9;
-        	this.scene.add(background);
-			this.background = background;
-
-			// add lights
-			const ambientLight = new THREE.AmbientLight( 0xffffff, 1.0 );	
-			this.scene.add( ambientLight );
-			const light = new THREE.DirectionalLight( 0xffffff, 1.0 );
-			this.scene.add( light );
-			this.light = light;
-
-			// materials for surface rendering
-			this.materialCol = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, wireframe:false, map:tex} );
-			//this.materialCol = new THREE.MeshLambertMaterial( { color:0xffffff, side: THREE.DoubleSide, wireframe:false, map: tex} );
-			this.materialCol.toneMapped = false; // keep exact palette
-		
-
-			this.materialGrey = new THREE.MeshLambertMaterial( { color: 0xaaaaaa, side: THREE.DoubleSide, wireframe:false } );
-		}
-
-		
-		// get ranges
-		const xRanges = offsets[iStep].map(d => d.xRange);
-		const yRanges = offsets[iStep].map(d => d.yRange);
-		const zRanges = offsets[iStep].map(d => d.zRange);
-		const xMin = Math.min(...xRanges.map(d => d[0]));
-		const xMax = Math.max(...xRanges.map(d => d[1]));
-		const yMin = Math.min(...yRanges.map(d => d[0]));
-		const yMax = Math.max(...yRanges.map(d => d[1]));
-		const zMin = Math.min(...zRanges.map(d => d[0]));
-		const zMax = Math.max(...zRanges.map(d => d[1]));
-		let xRange = [xMin, xMax];
-		let yRange = [yMin, yMax];
-		let zRange = [zMin, zMax];
-		let xMid = 0.5*( xRange[0] + xRange[1] );
-		let yMid = 0.5*( yRange[0] + yRange[1] );
-		let zMid = 0.5*( zRange[0] + zRange[1] );
-		let rMax = Math.sqrt((xMax-xMin)**2 + (yMax-yMin)**2 + (zMax-zMin)**2);
-		this.mid = {x:xMid, y:yMid, z:zMid};
-		this.rMax = rMax;
-		this.radMax = Math.sqrt(yMax**2 + zMax**2);
-		this.xRange = xRange;
-		this.yRange = yRange;
-		this.zRange = zRange;
-
-		if (xRange[1]-xRange[0]==0.) {
-			this.twoD=true;
-		}
-
-		//
-		// add all surfaces to scene
-		//
-		this.meshUuids.forEach( uuid => { // remove old surface meshes from scene
-			const oldMesh = this.scene.getObjectByProperty('uuid',uuid);
-			oldMesh.geometry.dispose();
-			oldMesh.material.dispose();
-			this.scene.remove(oldMesh);
-		});
-		this.meshUuids=[];
-
-		const surfFlags = this.layout.surfFlags;
-		for (let iSurf = 0; iSurf < nSurfs; iSurf++) {
-			const surf = this.getSurface(0, iSurf);
-			const geometry = new THREE.BufferGeometry();
-			geometry.setAttribute( 'position', new THREE.BufferAttribute( surf.vertices, 3 ) );
-			geometry.setAttribute( 'uv', new THREE.BufferAttribute( surf.uvs, 2 ) );
-			geometry.setIndex(new THREE.BufferAttribute( surf.indices, 1));
-			geometry.computeVertexNormals();
-
-			let material;
-			if ( surfFlags !== undefined ) {
-				if ( surfFlags[iSurf] == -1 ) {
-					material = this.materialGrey;
-				} else {
-					material = this.materialCol;
-					material.transparent = true;
-					material.opacity = surfFlags[iSurf];
-				} 
-			} else {
-				material = this.materialCol;
-			}
-			material.stencilWrite = true;
-        	material.stencilRef = 1;
-        	material.stencilFunc = THREE.NotEqualStencilFunc;
-
-			const mesh = new THREE.Mesh( geometry, material );
-			mesh.renderOrder = 10;
-			this.meshUuids.push( mesh.uuid );
-			this.scene.add( mesh );
-		}
-	
-		//
-		// add camera
-		//
-		if (!this.camera) {
-			let camera;
-
-			if (!this.twoD) {
-				camera = new THREE.PerspectiveCamera( 75, width/height,0.001 , 1000. );
-				camera.position.x = xMid + rMax;
-				camera.position.y = yMid;
-				camera.position.z = zMid;
-			} else {
-				let yDiff = yRange[1] - yRange[0];
-				let zDiff = zRange[1] - zRange[0];
-				let maxDiff = Math.max(yDiff, zDiff);
-				if (this.layout.twoDSameScale) {
-					camera = new THREE.OrthographicCamera( -maxDiff, maxDiff, maxDiff, -maxDiff, 0.0001, 100000.);
-				} else {
-					camera = new THREE.OrthographicCamera( -yDiff/2, yDiff/2, zDiff/2, -zDiff/2, 0.0001, 100000.);
-				}
-				camera.position.x = xMid + 5*rMax;
-				camera.position.y = yMid;
-				camera.position.z = zMid;
-			}
-			
-			camera.up.set(0,0,1);
-			this.camera = camera;
-		}
-	
-		const camera = this.camera;
-		this.light.position.copy( camera.position );
-		camera.aspect = width / height;
-		camera.updateProjectionMatrix();
-
-		//
-		// add controls
-		//
-		if (!this.controls) {
-			const controls = new OrbitControls( camera, plotArea.node() );
-			controls.target.set( xMid, yMid, zMid );
-			controls.enabled = true;
-			controls.update();
-			if (this.twoD) {
-				controls.enableRotate = false;
-			}
-
-			controls.addEventListener( 'change', (event) => {
-				if ( cameraSync ) {
-					sharedCamera.position = this.camera.position;
-					sharedCamera.rotation = this.camera.rotation;
-					sharedCamera.zoom = this.camera.zoom;
-				}
-				this.light.position.copy( this.camera.position );
-				this.updateCutLines(); // Update cut lines to span new visible range after OrbitControls zoom/pan
-				this.addAxes();
-				this.webGLUpdate();
-			} ); 
-			controls.enableZoom = true; 
-			this.controls = controls;
-		}
-	
-		this.addCutLines(); // add cut lines to scene
-
-		if (!this.renderObserverId) {
-			this.renderObserverId = requestWebGLRender.subscribeWithData({observer:this.renderScene.bind(this), data:{boxId:this.boxId}});
-			this.subscriptions.push({observable:requestWebGLRender, id:this.renderObserverId});
-		}
-		
-		// needs updating to handle dimension change
-		function timeStepSliderChange() {
-			iStep = this.value;
-			//if ( layout.xCut) {
-			//	boundFindZpCut(cutData.zpClip, 0.);
-			//}
-			//const plot = dbsliceData.session.plotRows[plotRowIndex].plots[plotIndex];
-			//plot.watchedTime.iStep = iStep;
-			//if ( timeSync ) {
-			//	const plots = dbsliceData.session.plotRows[plotRowIndex].plots;
-			//	plots.forEach( (plot, indx) =>  {
-			//		if ( indx !== plotIndex && plot.watchedTime !== undefined) {
-			//			plot.watchedTime.iStep = iStep;
-			//		}
-			//	});
-			//}
-		}
-
-		// needs updating to handle dimension change
-		function updateSurfaces(iStep) {
-			const meshUuids = this.meshUuids;
-			const surfFlags = this.layout.surfFlags;
-			const scene = this.scene;
-			for (let iSurf = 0; iSurf < nSurfs; iSurf++) {
-				const surf = this.getSurface(iStep, iSurf);
-				const geometry = new THREE.BufferGeometry();
-				geometry.setAttribute( 'position', new THREE.BufferAttribute( surf.vertices, 3 ) );
-				geometry.setAttribute( 'uv', new THREE.BufferAttribute( surf.uvs, 2 ) );
-				geometry.setIndex(new THREE.BufferAttribute(surf.indices, 1));
-				geometry.computeVertexNormals();
-
-				const oldMesh = scene.getObjectByProperty('uuid',meshUuids[iSurf]);
-				oldMesh.geometry.dispose();
-				oldMesh.material.dispose();
-    			scene.remove(oldMesh);
-
-				let material;
-				if ( surfFlags !== undefined ) {
-					if ( surfFlags[iSurf] == -1 ) {
-						material = this.materialGrey;
-					} else {
-						material = this.materialCol;
-					} 
-				} else {
-					material = this.materialCol;
-				}
-				material.stencilWrite = true;
-        		material.stencilRef = 1;
-        		material.stencilFunc = THREE.NotEqualStencilFunc;
-				const newMesh = new THREE.Mesh( geometry, material );
-				newMesh.renderOrder = 10;
-				meshUuids[iSurf] = newMesh.uuid;
-				scene.add( newMesh );
-			} 
-			this.scene = scene;
-			this.renderScene();
-		}
-
-		
-		if(this.newData) {
-			this.webGLUpdate(); // ensures a webGL render after waiting for new data
-			this.addAxes();
-			this.addColorBar();
-		}
-
-		this.newData = false;
-		this.lastWidth = this.width;
-		this.lastHeight = this.height;
-
-	}
-
-	renderScene() {
-		if (!this.scene) return;
-		const renderer = this.renderer;
-		const light = this.light;
-		const container = d3.select(`#${this.id}`);
-		const sharedCamera = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCamera;
-		const sharedCameraPosition = sharedCamera.position;
-		const sharedCameraRotation = sharedCamera.rotation;
-		const sharedCameraZoom = sharedCamera.zoom;
-		const sharedCutValue = this.sharedStateByAncestorId[this.ancestorIds[this.ancestorIds.length-1]].sharedCutValue;
-	
-		const plotArea = container.select(".plot-area");
-		renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight, false);
-		let plotRect = plotArea.node().getBoundingClientRect();
-		let rect={left:plotRect.left, right:plotRect.right, top:plotRect.top, bottom:plotRect.bottom};
-
-		// set scissor limits
-		const ancestorIds = this.ancestorIds.filter(d => (d !== "context" && d.includes("box")) );
-		for (let ancestorId of ancestorIds) {
-			const plotGroup = d3.select(`#${ancestorId}-component-plot-area`);
-			let plotGroupRect = plotGroup.node().getBoundingClientRect();
-			if (rect.right < plotGroupRect.left) return;
-			if (rect.left > plotGroupRect.right) return;
-			if (rect.bottom < plotGroupRect.top) return;
-			if (rect.top > plotGroupRect.bottom) return;
-			if (rect.left < plotGroupRect.left && rect.right > plotGroupRect.left) {
-				rect.left = plotGroupRect.left + 2; 
-			}
-			if (rect.right > plotGroupRect.right && rect.left < plotGroupRect.right) { 
-				rect.right = plotGroupRect.right -2 ; 
-			}
-			if (rect.top < plotGroupRect.top && rect.bottom > plotGroupRect.top) { 
-				rect.top = plotGroupRect.top + 2; 
-			}
-			if (rect.bottom > plotGroupRect.bottom && rect.top < plotRect.bottom) { 
-				rect.bottom = plotGroupRect.bottom - 2;
-			}
-		}
-
-		if (this.layout.cameraSync && sharedCameraPosition) {
-			this.camera.position.copy(sharedCameraPosition);
-			this.camera.rotation.copy(sharedCameraRotation);
-			this.camera.zoom = sharedCameraZoom;
-			this.camera.updateProjectionMatrix();
-			this.camera.updateMatrixWorld();
-			light.position.copy( this.camera.position );
-		}
-
-		if (this.layout.cutValueSync && sharedCutValue.cutValue) {
-			this.cut.value = sharedCutValue.cutValue;
-			this.setCutLinePosition();
-		}
-
-		// set stencil rectangles
-        const overlappingDivsClipSpace = this.getOverlappingBoxesInClipSpace(plotRect);
-        this.stencilRects.forEach( uuid => {
-            const oldRect = this.scene.getObjectByProperty('uuid', uuid);
-            oldRect.geometry.dispose();
-            oldRect.material.dispose();
-            this.scene.remove(oldRect);
-        });
-        this.stencilRects = [];
-
-        overlappingDivsClipSpace.forEach(d => {
-			const margin={left:0.00,right:0.02,top:0.00,bottom:0.02};
-            const rectangleBufferGeometryForMesh = new THREE.BufferGeometry();
-			const vertTopLeftClip = new THREE.Vector3(d.left-margin.left, d.top+margin.top, 0.5);
-			const vertTopRightClip = new THREE.Vector3(d.right+margin.right, d.top+margin.top, 0.5);
-			const vertBottomLeftClip = new THREE.Vector3(d.left-margin.left, d.bottom-margin.bottom, 0.5);
-			const vertBottomRightClip = new THREE.Vector3(d.right+margin.right, d.bottom-margin.bottom, 0.5);
-			const vertTopLeftWorld = vertTopLeftClip.unproject(this.camera);
-			const vertTopRightWorld = vertTopRightClip.unproject(this.camera);
-			const vertBottomLeftWorld = vertBottomLeftClip.unproject(this.camera);
-			const vertBottomRightWorld = vertBottomRightClip.unproject(this.camera);
-
-			const vertices = new Float32Array([
-				vertTopLeftWorld.x, vertTopLeftWorld.y, vertTopLeftWorld.z,
-				vertTopRightWorld.x, vertTopRightWorld.y, vertTopRightWorld.z,
-				vertBottomRightWorld.x, vertBottomRightWorld.y, vertBottomRightWorld.z,
-				vertBottomLeftWorld.x, vertBottomLeftWorld.y, vertBottomLeftWorld.z
-			]);
-            const indices = new Uint32Array([0, 2, 1, 0, 3, 2]);
-            rectangleBufferGeometryForMesh.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-            rectangleBufferGeometryForMesh.setIndex(new THREE.BufferAttribute(indices, 1));
-
-            const rectangleMaterial = new THREE.MeshBasicMaterial({color: "red", wireframe: false});
-			if (this.layout.showStencilRects) {
-				rectangleMaterial.colorWrite = true;
-			} else {
-				rectangleMaterial.colorWrite = false;
-			}
-            rectangleMaterial.depthWrite = false;
-			rectangleMaterial.depthTest = false;
-            rectangleMaterial.stencilWrite = true;
-            rectangleMaterial.stencilRef = 1;
-            rectangleMaterial.stencilFunc = THREE.AlwaysStencilFunc;
-            rectangleMaterial.stencilZPass = THREE.ReplaceStencilOp;
-            const rectangle = new THREE.Mesh(rectangleBufferGeometryForMesh, rectangleMaterial);
-            rectangle.renderOrder = 0;
-
-            this.stencilRects.push(rectangle.uuid)
-            this.scene.add(rectangle);  
-        });
-
-		const scissorLeft = Math.floor(rect.left);
-		const scissorBottom = Math.floor(renderer.domElement.clientHeight - rect.bottom);
-		const scissorWidth = Math.floor(rect.right - rect.left);
-		const scissorHeight = Math.floor(rect.bottom - rect.top);
-
-		const viewLeft = Math.floor(plotRect.left);
-		const viewBottom = Math.floor(renderer.domElement.clientHeight - plotRect.bottom);
-		const viewWidth = Math.floor(plotRect.right - plotRect.left);
-		const viewHeight = Math.floor(plotRect.bottom - plotRect.top);
-
-		//renderer.setClearColor( 0xe0e0e0 );
-		renderer.setScissorTest( true );
-	
-		renderer.setViewport( viewLeft, viewBottom, viewWidth, viewHeight );
-		renderer.setScissor( scissorLeft, scissorBottom, scissorWidth, scissorHeight);
-		renderer.clear(true,true,false);
-			
-		renderer.render(this.scene, this.camera);
-		renderer.setScissorTest( false );
-	}
-
-	setCutValue(dimensionName) {
-		const cut = this.cuts.find( d => d.dimensionName == dimensionName );
-		if ( cut.type == "x") {
-			cut.value = cut.point.y;
-		} else if ( cut.type == "y") {
-			cut.value = cut.point.z;
-		} else if ( cut.type == "r") {
-			cut.value = Math.sqrt(cut.point.y**2 + cut.point.z**2);
-		} else if ( cut.type == "theta") {
-			cut.value = Math.atan2(cut.point.z, cut.point.y);
-		}
-		const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
-		requestSetDimension.state = { name:dimensionName, dimensionState:{value:cut.value, brushing:cut.brushing }};
-	}
-
-	setCutLinePosition(dimensionName) {
-		const cut = this.cuts.find( d => d.dimensionName == dimensionName );
-		cut.line.geometry.setPositions( this.getCutLinePositionsFromCutValue(dimensionName) );
-	}
-
-	updateCutLines() {
-		// Update all cut lines to span the new visible range after zoom/pan
-		this.cuts.forEach(cut => {
-			this.setCutLinePosition(cut.dimensionName);
-		});
-	}
-
-	getCutLinePositionsFromCutValue(dimensionName) {
-		const cut = this.cuts.find( d => d.dimensionName == dimensionName );
-		const mid = this.mid;
-
-		// Get current visible range from camera bounds (updated during zoom/pan)
-		let visibleBounds;
-		if (this.raycaster && this.camera && this.pointer) {
-			const planeNormal = new THREE.Vector3(1, 0, 0); // X-plane for triMesh3D
-			const plane = new THREE.Plane(planeNormal, 0);
-
-			// Bottom-left corner of viewport
-			this.pointer.x = -1;
-			this.pointer.y = -1;
-			this.raycaster.setFromCamera(this.pointer, this.camera);
-			const intersectBottomLeft = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
-
-			// Top-right corner of viewport
-			this.pointer.x = 1;
-			this.pointer.y = 1;
-			this.raycaster.setFromCamera(this.pointer, this.camera);
-			const intersectTopRight = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
-
-			if (intersectBottomLeft && intersectTopRight) {
-				visibleBounds = {
-					yMin: intersectBottomLeft.y,
-					yMax: intersectTopRight.y,
-					zMin: intersectBottomLeft.z,
-					zMax: intersectTopRight.z
-				};
-			}
-		}
-
-		// Fallback to original bounds if raycasting fails
-		if (!visibleBounds) {
-			const rMax = this.rMax;
-			visibleBounds = {
-				yMin: mid.y - rMax,
-				yMax: mid.y + rMax,
-				zMin: mid.z - rMax,
-				zMax: mid.z + rMax
-			};
-		}
-
-		if ( cut.type == "x" ) {
-			// Horizontal line in y-z plane spanning current visible bounds
-			return [mid.x+2*this.rMax, cut.value, visibleBounds.zMin, mid.x+2*this.rMax, cut.value, visibleBounds.zMax];
-		} else if ( cut.type == "y") {
-			// Horizontal line in x-z plane spanning current visible bounds
-			return [mid.x+2*this.rMax, visibleBounds.yMin, cut.value, mid.x+2*this.rMax, visibleBounds.yMax, cut.value];
-		} else if ( cut.type == "r" ) {
-			// Cylindrical cut - scale radius to visible bounds
-			const npts = 360;
-			const theta = Array.from({length:npts}, (d,i) => 2*Math.PI*i/(npts-1));
-			const positions = theta.map(t => ([mid.x+2*this.rMax, cut.value*Math.sin(t), cut.value*Math.cos(t)]));
-			return positions.flat();
-		} else if ( cut.type == "theta" ) {
-			// Angular cut - extend to edge of visible bounds
-			const visibleRadius = Math.max(
-				Math.sqrt(visibleBounds.yMax**2 + visibleBounds.zMax**2),
-				Math.sqrt(visibleBounds.yMin**2 + visibleBounds.zMin**2)
-			);
-			return [mid.x+2*this.rMax, 0, 0, mid.x+2*this.rMax, visibleRadius*Math.cos(cut.value), visibleRadius*Math.sin(cut.value)];
-		}
-
-	}
-
-
-	remove() {
-		this.removeSubscriptions();
-		const meshUuids = this.meshUuids;
-		meshUuids.forEach( meshUuid => {
-			const oldMesh = this.scene.getObjectByProperty('uuid',meshUuid);
-			oldMesh.geometry.dispose();
-			oldMesh.material.dispose();
-			this.scene.remove(oldMesh);
-		});
-	}
-
-	highlightItems(){
-
-		const container = d3.select(`#${this.id}`);
-		const box = d3.select(`#${this.boxId}`);
-        const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-        const highlightItemIds = filter.highlightItemIds.state.itemIds;
-		const boundWebGLUpdate = this.webGLUpdate.bind(this);
-        
-        const thisItemId = this.itemId;
-	
-		if (highlightItemIds === undefined || highlightItemIds.length == 0) {
-			container.style("outline-width","0px");
- 		} else {
-			container.style("outline-width","0px")
-			highlightItemIds.forEach( (itemId) => {
-				if ( itemId == thisItemId ) {
-                    container
-                        .style("outline-style","solid")
-                        .style("outline-color","red")
-                        .style("outline-width","4px")
-                        .style("outline-offset","0px");
-                    box.raise();
-					this.webGLUpdate();
-				}
-            });
+        const valuesList = [];
+        for (let iValue = 0; iValue < nValues; iValue++) {
+          const valueNameBytes = new Int8Array(buffer, ii, 96);
+          ii += 96;
+          const valueName = String.fromCharCode(...valueNameBytes).trim().split("\u0000")[0];
+          const valueRange = new Float32Array(buffer, ii, 2);
+          ii += 8;
+          const valuesOffset = ii;
+          ii += nVerts * 4;
+          valuesList.push({ name: valueName, range: valueRange, offset: valuesOffset });
         }
-	}
+        surfaces.push({
+          name: surfName,
+          nVerts,
+          nTris,
+          nValues,
+          rMax,
+          xRange,
+          yRange,
+          zRange,
+          verticesOffset,
+          indicesOffset,
+          values: valuesList,
+        });
+      }
+      offsets.push(surfaces);
+    }
+    this.offsets = offsets;
+  }
 
-	getOffsets() {
+  getSurface(iStep, iSurf) {
+    const buffer = this.data;
+    const thisSurface = this.offsets?.[iStep]?.[iSurf];
+    if (!thisSurface) return null;
+    const { nVerts, nTris, verticesOffset, indicesOffset, values } = thisSurface;
+    const vScale = this.vScale;
+    const vertices = new Float32Array(buffer, verticesOffset, nVerts * 3);
+    const indices = new Uint32Array(buffer, indicesOffset, nTris * 3);
+    const valuesArr = new Float32Array(buffer, values[0].offset, nVerts);
+    const uvs = new Float32Array(
+      Array.from(valuesArr).map((d) => [(d - vScale[0]) / (vScale[1] - vScale[0]), 0.5]).flat()
+    );
+    return { vertices, indices, values: valuesArr, uvs, nVerts, nTris };
+  }
 
-		const buffer = this.data;
+  addAxes() {
+    if (!this.layout.showXAxis && !this.layout.showYAxis) return;
+    if (!this.camera?.isOrthographicCamera && !this.camera?.isPerspectiveCamera) return;
 
-		// parse arrayBuffer to make lookup offsets object
-		let ii = 0 // byte index
-		const nSteps = new Int32Array(buffer,ii,1)[0];
-		this.nSteps = nSteps;
-		ii += 4;
-		let nSurfs = new Int32Array(buffer,ii,1)[0];
-		this.nSurfs = nSurfs;
-		ii += 4;
-		const offsets = [];
-		for (let iStep = 0; iStep < nSteps; iStep++) {
-			let surfaces = [];
-			for (let iSurf = 0; iSurf < nSurfs; iSurf++) {
-				let surfNameBytes = new Int8Array(buffer,ii,96);
-				ii += 96;
-				let surfName = String.fromCharCode(...surfNameBytes).trim().split('\u0000')[0];
-				let ints = new Int32Array(buffer,ii,3);
-				ii += 12;
-				let nVerts = ints[0];
-				let nTris = ints[1];
-				let nValues = ints[2];
-				let floats = new Float32Array(buffer,ii,7);
-				ii += 28;
-				let rMax = floats[0];
-				let xRange = floats.slice(1,3);
-				let yRange = floats.slice(3,5);
-				let zRange = floats.slice(5,7);
-				let verticesOffset;
-				let indicesOffset;
-				if ( nVerts > 0 && nTris == 0 && iStep > 0 ) { // this is a fixed vertices check
-					verticesOffset = offsets[0][iSurf].verticesOffset;
-					indicesOffset = offsets[0][iSurf].indicesOffset;
-					nTris = offsets[0][iSurf].nTris;
-				} else {
-					verticesOffset = ii;
-					ii += nVerts*3*4;
-					indicesOffset = ii;
-					ii += nTris*3*4;
-				}
-				let valuesList = [];
-				for (let iValue = 0; iValue < nValues; iValue++) {
-					let valueNameBytes = new Int8Array(buffer,ii,96);
-					ii += 96;
-					let valueName = String.fromCharCode(...valueNameBytes).trim().split('\u0000')[0];
-					let valueRange = new Float32Array(buffer,ii,2);
-					ii +=8;
-					let valuesOffset = ii;
-					ii += nVerts*4;
-					valuesList.push( { name : valueName, range : valueRange, offset : valuesOffset });
-				}
-				surfaces.push( {name : surfName, nVerts, nTris, nValues, rMax, xRange, yRange, zRange, 
-					verticesOffset, indicesOffset, values : valuesList });
-			}
-			offsets.push(surfaces);
-		}
-		this.offsets = offsets;
-	}
+    // Raycast to find visible ranges in camera plane (following original logic)
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const planeNormal = new THREE.Vector3(1, 0, 0);
+    const plane = new THREE.Plane(planeNormal);
+    pointer.x = -1;
+    pointer.y = -1;
+    raycaster.setFromCamera(pointer, this.camera);
+    const intersectBottomLeft = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+    pointer.x = 1;
+    pointer.y = 1;
+    raycaster.setFromCamera(pointer, this.camera);
+    const intersectTopRight = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+    const xRangeVisible = [intersectBottomLeft.y, intersectTopRight.y];
+    const yRangeVisible = [intersectBottomLeft.z, intersectTopRight.z];
+    this.xRangeVisible = xRangeVisible;
+    this.yRangeVisible = yRangeVisible;
 
-	tipOn() {
-		if (!this.layout.highlightItems) { return; };
-		const container = d3.select(`#${this.id}`);
-		const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-		const highlightItemIds = filter.highlightItemIds;
-		if ( this.layout.highlightItems ) {
-			container
-				.style("outline-style","solid")
-				.style("outline-color","red")
-				.style("outline-width","4px")
-				.style("outline-offset","0px")
-				.raise();
-			highlightItemIds.state = {itemIds:[this.itemId]};
-		}
-	}
+    const xScale = d3.scaleLinear().domain(xRangeVisible).range([0, this.plotAreaWidth]);
+    const yScale = d3.scaleLinear().domain(yRangeVisible).range([this.plotAreaHeight, 0]);
+    const overlay = d3.select(`#${this.id}`).select(".svg-overlay");
+    const standOff = 2;
 
-	tipOff() {
-		if (!this.layout.highlightItems) { return; };
-		const container = d3.select(`#${this.id}`);
-		const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == this.filterId );
-		const highlightItemIds = filter.highlightItemIds;
-		if ( this.layout.highlightItems ) {
-			container.style("outline-width","0px")
-			highlightItemIds.state = {itemIds:[]};
-		}
-	}
+    if (this.layout.showXAxis) {
+      const xAxis = d3.axisBottom(xScale);
+      if (this.layout.xTickNumber) xAxis.ticks(this.layout.xTickNumber);
+      let gX = overlay.select(".x-axis");
+      if (gX.empty()) {
+        gX = overlay
+          .append("g")
+          .attr("class", "x-axis")
+          .attr("transform", `translate(${this.marginTotal.left},${this.plotAreaHeight + standOff})`)
+          .style("pointer-events", "bounding-box")
+          .call(xAxis);
+        gX.selectAll(".tick").style("pointer-events", "none");
+        gX.selectAll(".tick text").style("cursor", "default").style("user-select", "none");
+        gX.style("cursor", "grab");
+        gX.append("text")
+          .attr("class", "x-axis-text")
+          .attr("fill", "#000")
+          .attr("x", this.plotAreaWidth)
+          .attr("y", this.marginTotal.bottom - 5)
+          .attr("text-anchor", "end")
+          .style("pointer-events", "none")
+          .style("user-select", "none")
+          .text(this.layout.xAxisLabel);
+      } else {
+        gX
+          .attr("transform", `translate(${this.marginTotal.left},${this.plotAreaHeight + standOff})`)
+          .call(xAxis);
+        gX.select(".x-axis-text").attr("x", this.plotAreaWidth);
+      }
+    }
 
-	getSurface(iStep, iSurf) {
-		const offsets = this.offsets;
-		const buffer = this.data;
-		const thisSurface = offsets[iStep][iSurf];
-		const nVerts = thisSurface.nVerts;
-		const nTris = thisSurface.nTris;
-		const vScale = this.vScale;
-		const vertices = new Float32Array(buffer, thisSurface.verticesOffset, nVerts * 3);
-		const indices = new Uint32Array(buffer, thisSurface.indicesOffset, nTris * 3);
-		const values = new Float32Array(buffer, thisSurface.values[0].offset, nVerts);
-		const uvs = new Float32Array(Array.from(values).map( d => [ (d-vScale[0])/(vScale[1]-vScale[0]),0.5]).flat());
-		return {vertices, indices, values, uvs, nVerts, nTris};
-	}
+    if (this.layout.showYAxis) {
+      const yAxis = d3.axisLeft(yScale);
+      if (this.layout.yTickNumber) yAxis.ticks(this.layout.yTickNumber);
+      let gY = overlay.select(".y-axis");
+      if (gY.empty()) {
+        gY = overlay
+          .append("g")
+          .attr("class", "y-axis")
+          .attr("transform", `translate(${this.marginTotal.left - standOff},0)`)
+          .style("pointer-events", "bounding-box")
+          .call(yAxis);
+        gY.selectAll(".tick").style("pointer-events", "none");
+        gY.selectAll(".tick text").style("cursor", "default").style("user-select", "none");
+        gY.style("cursor", "grab");
+        gY
+          .append("text")
+          .attr("fill", "#000")
+          .attr("transform", "rotate(-90)")
+          .attr("x", 0)
+          .attr("y", -this.marginTotal.left + 15)
+          .attr("text-anchor", "end")
+          .style("pointer-events", "none")
+          .style("user-select", "none")
+          .text(this.layout.yAxisLabel);
+      } else {
+        gY.attr("transform", `translate(${this.marginTotal.left - standOff},0)`).call(yAxis);
+      }
+    }
+  }
 
-	makeQuadTrees() {
-		this.cuts.forEach( cut => {
-			cut.quadtrees = [];
-			this.setZp(cut);
-			for (let iSurf = 0; iSurf < this.nSurfs; iSurf++) {
-				const surf = this.getSurface(0, iSurf);
-				const indices = surf.indices;
-				const zp = cut.zps[iSurf];
-				cut.quadtrees.push(makeQuadTree(indices, zp));
-			}
-			this.getCutLine(cut.dimensionName);
-		});
-	}
+  addColorBar() {
+    if (!this.layout.showColorBar || !this.colorScale) return;
+    const overlay = d3.select(`#${this.id}`).select(".svg-overlay");
+    const scaleHeight = this.plotAreaHeight / 2;
+    const colorScale = this.colorScale;
+    const vScale = this.vScale;
 
-	setZp(cut) {
-		cut.zps = [];
-		cut.sdists = [];
-		for (let iSurf = 0; iSurf < this.nSurfs; iSurf++) {
-			const surf = this.getSurface(0, iSurf);
-			const vertices = surf.vertices;
-			const zp = new Float32Array(surf.nVerts);
-			const sdist = new Float32Array(surf.nVerts);
-			for (let iVert = 0; iVert < surf.nVerts; iVert++) {
-				const vert = [vertices[iVert*3], vertices[iVert*3+1], vertices[iVert*3+2]];
-				if (cut.type == "x") {
-					zp[iVert] = vert[1];
-					sdist[iVert] = vert[2];
-				} else if (cut.type == "y") {
-					zp[iVert] = vert[2];
-					sdist[iVert] = vert[1];
-				} else if (cut.type == "r") {
-					zp[iVert] = Math.sqrt(vert[1]**2 + vert[2]**2);
-					let theta = Math.atan2(vert[1],vert[2]);
-					sdist[iVert] = theta;
-				} else if (cut.type == "theta") {
-					zp[iVert] = Math.atan2(vert[2],vert[1]);
-					sdist[iVert] = Math.sqrt(vert[1]**2 + vert[2]**2);
-				}
-			}
-			cut.zps.push(zp);
-			cut.sdists.push(sdist);
-		}
-	}
+    let defs = overlay.select("defs");
+    if (defs.empty()) defs = overlay.append("defs");
+    const gradientId = `${this.id}-colorbar-gradient`;
+    let gradient = defs.select(`#${gradientId}`);
+    if (gradient.empty()) {
+      gradient = defs.append("linearGradient").attr("id", gradientId).attr("x1", "0%").attr("y1", "100%").attr("x2", "0%").attr("y2", "0%");
+    }
+    gradient.selectAll("stop").remove();
+    const nStops = 10;
+    for (let i = 0; i <= nStops; i++) {
+      const t = i / nStops;
+      gradient.append("stop").attr("offset", `${t * 100}%`).attr("stop-color", colorScale(t));
+    }
 
-	getCutLine(dimensionName) {
-		const cut = this.cuts.find( d => d.dimensionName == dimensionName );
-		let lineSegmentsAll = [];
-		for (let iSurf = 0; iSurf < this.nSurfs; iSurf++) {
-			const surf = this.getSurface(0, iSurf);
-			const line = getLine( {...surf, zp:cut.zps[iSurf], sdist:cut.sdists[iSurf]}, cut.quadtrees[iSurf], cut.value );
-			lineSegmentsAll = lineSegmentsAll.concat(line);
-		}
-		this.sharedStateByAncestorId["context"].requestSaveToDerivedData.state = { name:cut.dataStoreName, itemId:this.itemId, data:lineSegmentsAll};
-	}
+    let g = overlay.select(".color-bar");
+    if (g.empty()) {
+      g = overlay.append("g").attr("class", "color-bar");
+    }
 
-	initCuts() {
-		const requestCreateDimension = this.sharedStateByAncestorId["context"].requestCreateDimension;
-		this.layout.cuts.forEach( cut => {
-			if (this.cuts.map( d => d.dimensionName ).includes(cut.dimensionName)) {
-				return;
-			}
-			const cutToAdd = this.makeCutObject(cut);
-			this.setZp(cutToAdd);
-			const avgZp = d3.mean(cutToAdd.zps.map( zp => d3.mean(zp)));
-			const initValue = cut.value || avgZp;
-			requestCreateDimension.state = {name:cut.dimensionName, value:initValue};
-			const dimension = this.sharedStateByAncestorId["context"].dimensions.find( d => d.name == cut.dimensionName );
-			const dimValue = dimension.state.value;
-			cutToAdd.value = dimValue;
-			const dimensionName = cut.dimensionName;
-			cutToAdd.dimensionObserverId = dimension.subscribe( (data) => {
-				const cut = this.cuts.find( d => d.dimensionName == dimensionName );
-				cut.value = data.value;
-				this.setCutLinePosition(dimensionName);
-				if (!data.brushing) {
-					this.getCutLine(dimensionName);
-				} else if (cut.cutWhileBrushing) {
-					this.getCutLine(dimensionName);
-				}
-				this.webGLUpdate();
-			});
-			this.subscriptions.push({observable:dimension, id:cutToAdd.dimensionObserverId});
-			this.cuts.push(cutToAdd);
-		});
+    const x = this.plotAreaWidth + this.marginTotal.left + 10;
+    const y = this.plotAreaHeight / 4;
+    const width = 20;
+    g.selectAll("rect.color-bar-rect")
+      .data([null])
+      .join("rect")
+      .attr("class", "color-bar-rect")
+      .attr("x", x)
+      .attr("y", y)
+      .attr("width", width)
+      .attr("height", scaleHeight)
+      .style("fill", `url(#${gradientId})`)
+      .style("stroke", "black")
+      .style("stroke-width", 1);
 
-	}
+    const vAxisScale = d3.scaleLinear().domain(vScale).range([scaleHeight + y, y]);
+    const vAxis = d3.axisRight(vAxisScale).ticks(5);
+    g.selectAll("g.color-bar-axis")
+      .data([null])
+      .join("g")
+      .attr("class", "color-bar-axis")
+      .attr("transform", `translate(${x + width},0)`)
+      .call(vAxis);
+  }
 
-	addCutLines() {
-		if ( !this.cuts.length ) return;
-		this.cuts.forEach( cut => {
-			if ( cut.lineAdded ) return;
-			const lineMaterial = new LineMaterial( { color: 0xd0d5db, linewidth: 3 } ); // 0x39fc03
-			lineMaterial.stencilWrite = true;
-			lineMaterial.resolution.set( this.plotAreaWidth, this.plotAreaHeight );
-			lineMaterial.depthTest = false;
-			lineMaterial.stencilRef = 1;
-        	lineMaterial.stencilFunc = THREE.NotEqualStencilFunc;
-			const lineGeometry = new LineGeometry();
-			lineGeometry.setPositions(this.getCutLinePositionsFromCutValue(cut.dimensionName));
-			lineGeometry.computeBoundingSphere();
-			const line = new Line2( lineGeometry, lineMaterial );
-			line.renderOrder = 10;
-			line.computeLineDistances();
-			/*
-			if ( cut.type == "r" ) { // change raycast method for r cut
-				line.raycast = function (raycaster, intersects) {
-					if (!this.geometry.boundingBox) {
-						this.geometry.computeBoundingBox();
-					}
-					const boundingBox = this.geometry.boundingBox.clone();
-					boundingBox.applyMatrix4(this.matrixWorld); // Transform to world space
-					if (raycaster.ray.intersectsBox(boundingBox)) {
-						intersects.push({
-							distance: raycaster.ray.origin.distanceTo(boundingBox.getCenter(new THREE.Vector3())),
-							point: boundingBox.getCenter(new THREE.Vector3()),
-							object: this,
-						});
-					}
-				};
-			}*/
-			cut.line = line;
-			cut.lineAdded = true;
-			this.getCutLine(cut.dimensionName);
-			this.scene.add( line );
+  clearMeshes() {
+    this.meshUuids.forEach((uuid) => {
+      const old = this.scene.getObjectByProperty("uuid", uuid);
+      if (!old) return;
+      old.geometry?.dispose?.();
+      if (Array.isArray(old.material)) old.material.forEach((m) => m?.dispose?.());
+      else old.material?.dispose?.();
+      this.scene.remove(old);
+    });
+    this.meshUuids = [];
+  }
 
-			
-		});
+  publishSharedCameraState() {
+    if (!this.plotGroupState) return;
+    this.plotGroupState.sharedCamera = {
+      position: this.camera.position.clone(),
+      rotation: this.camera.rotation.clone(),
+      zoom: this.camera.zoom
+    };
+  }
 
+  applySharedCameraState() {
+    const shared = this.plotGroupState?.sharedCamera;
+    if (!shared || !this.camera) return;
+    if (shared.position) this.camera.position.copy(shared.position);
+    if (shared.rotation) this.camera.rotation.copy(shared.rotation);
+    if (shared.zoom) this.camera.zoom = shared.zoom;
+    this.camera.updateProjectionMatrix();
+  }
 
+  handleDimensionChange(dimName, data) {
+    if (!this.fetchData) return;
+    this.fetchDataNow = true;
+    this.requestUpdate();
+  }
 
-		// add cut line interactions
-		const updatePointerPosition = (event) => {
-			const plotArea = d3.select(`#${this.id}`).select(".plot-area");
-			const rect = plotArea.node().getBoundingClientRect();
-			const width = rect.width;
-			const height = rect.height;
-			this.pointer.x = ( event.clientX - rect.left ) / width * 2 - 1;
-			this.pointer.y = - ( event.clientY - rect.top ) / height * 2 + 1;
-		}
+  highlightItems() {
+    if (!this.filter) return;
+    const highlightItemIds = this.filter.highlightItemIds?.state?.itemIds;
+    const container = d3.select(`#${this.id}`);
+    const isHighlighted = highlightItemIds?.includes?.(this.itemId);
+    if (!isHighlighted) {
+      container.style("outline-width", "0px");
+      return;
+    }
+    container
+      .style("outline-style", "solid")
+      .style("outline-color", "red")
+      .style("outline-width", "4px")
+      .style("outline-offset", "0px")
+      .raise();
+  }
 
-		const checkOnCutLine = (event) => {
-			updatePointerPosition(event);
-			this.raycaster.setFromCamera( this.pointer, this.camera );
+  onCutDimensionChange(name, data) {
+    const cut = this.cuts.find((c) => c.dimensionName === name);
+    if (!cut) return;
+    cut.value = data.value;
+    this.updateCutLines(name);
+    if (this.layout.cutWhileBrushing || !data.brushing) {
+      this.scheduleCutEvaluation(name);
+    }
+    this.boardServices.scheduler?.markDirty?.();
+  }
 
-			// Get world position for proximity-based detection (wider hit area)
-			const planeNormal = new THREE.Vector3(1, 0, 0);
-			const plane = new THREE.Plane(planeNormal);
-			const worldPos = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+  initCuts() {
+    this.cuts = [];
+    const cuts = this.layout.cuts || [];
+    cuts.forEach((cutCfg) => {
+      const cut = { ...cutCfg, zps: [], sdists: [], quadtrees: [], value: cutCfg.value ?? 0 };
+      this.cuts.push(cut);
+    });
+  }
 
-			if (!worldPos) return;
+  setZp(cut) {
+    cut.zps = [];
+    cut.sdists = [];
+    for (let iSurf = 0; iSurf < this.nSurfs; iSurf++) {
+      const surf = this.getSurface(0, iSurf);
+      if (!surf) continue;
+      const vertices = surf.vertices;
+      const zp = new Float32Array(surf.nVerts);
+      const sdist = new Float32Array(surf.nVerts);
+      for (let iVert = 0; iVert < surf.nVerts; iVert++) {
+        const vert = [vertices[iVert * 3], vertices[iVert * 3 + 1], vertices[iVert * 3 + 2]];
+        if (cut.type == "x") {
+          zp[iVert] = vert[1];
+          sdist[iVert] = vert[2];
+        } else if (cut.type == "y") {
+          zp[iVert] = vert[2];
+          sdist[iVert] = vert[1];
+        } else if (cut.type == "r") {
+          zp[iVert] = Math.sqrt(vert[1] ** 2 + vert[2] ** 2);
+          const theta = Math.atan2(vert[1], vert[2]);
+          sdist[iVert] = theta;
+        } else if (cut.type == "theta") {
+          zp[iVert] = Math.atan2(vert[2], vert[1]);
+          sdist[iVert] = Math.sqrt(vert[1] ** 2 + vert[2] ** 2);
+        }
+      }
+      cut.zps.push(zp);
+      cut.sdists.push(sdist);
+    }
+  }
 
-			this.cuts.forEach( cut => {
-				// Use proximity-based detection for wider hit area (like LineSeriesGL)
-				let distance, threshold;
-				const yRange = Math.abs(this.camera.top - this.camera.bottom);
-				const zRange = Math.abs(this.camera.right - this.camera.left);
+  makeQuadTrees(cut) {
+    cut.quadtrees = [];
+    for (let iSurf = 0; iSurf < this.nSurfs; iSurf++) {
+      const surf = this.getSurface(0, iSurf);
+      if (!surf) continue;
+      const indices = surf.indices;
+      const zp = cut.zps[iSurf];
+      cut.quadtrees.push(makeQuadTree(indices, zp));
+    }
+  }
 
-				if (cut.type == "x") {
-					// For x-cut lines (horizontal in y-z plane), use perpendicular (y-direction) threshold
-					distance = Math.abs(worldPos.y - cut.value);
-					threshold = yRange * 0.05; // 5% of y range for easier hitting
-				} else if (cut.type == "y") {
-					// For y-cut lines (horizontal in x-z plane), use perpendicular (z-direction) threshold
-					distance = Math.abs(worldPos.z - cut.value);
-					threshold = zRange * 0.05; // 5% of z range for easier hitting
-				} else if (cut.type == "r" || cut.type == "theta") {
-					// For cylindrical cuts, use a combination threshold
-					const radialDist = Math.sqrt(worldPos.y**2 + worldPos.z**2);
-					if (cut.type == "r") {
-						distance = Math.abs(radialDist - cut.value);
-						threshold = Math.max(yRange, zRange) * 0.05;
-					} else { // theta
-						const angle = Math.atan2(worldPos.z, worldPos.y);
-						distance = Math.abs(angle - cut.value);
-						threshold = 0.1; // Fixed angular threshold in radians
-					}
-				}
+  getCutLine(cut) {
+    let lineSegmentsAll = [];
+    for (let iSurf = 0; iSurf < this.nSurfs; iSurf++) {
+      const surf = this.getSurface(0, iSurf);
+      if (!surf) continue;
+      const line = getLine(
+        { ...surf, zp: cut.zps[iSurf], sdist: cut.sdists[iSurf] },
+        cut.quadtrees[iSurf],
+        cut.value
+      );
+      lineSegmentsAll = lineSegmentsAll.concat(line);
+    }
+    return lineSegmentsAll;
+  }
 
-				if (distance <= threshold) {
-					cut.lineDragging = true;
-					cut.line.material.color.set(0x42d4f5);
-					this.cutLineDragging = true;
-					this.controls.enabled = false;
-					this.webGLUpdate();
-				}
-			});
-		}
+  scheduleCutEvaluation(dimensionName) {
+    const cut = this.cuts.find((c) => c.dimensionName === dimensionName);
+    if (!cut || !this.boardServices.scheduler) return;
+    const key = `cut-eval:${this.boxId}:${dimensionName}`;
+    this.boardServices.scheduler.scheduleJob(key, () => {
+      const lineSegments = this.getCutLine(cut);
+      const save = this.contextEvents?.derivedData?.save;
+      if (save && cut.dataStoreName) {
+        save.state = { name: cut.dataStoreName, itemId: this.itemId, data: lineSegments };
+      }
+      this.boardServices.scheduler.markDirty();
+    });
+  }
 
-		const cutLineDragged = (event) => {
-			if (this.cutLineDragging) {
-				const cut = this.cuts.find( cut => cut.lineDragging );
-				updatePointerPosition(event.sourceEvent);
-				this.raycaster.setFromCamera( this.pointer, this.camera );
-				const planeNormal = new THREE.Vector3(1, 0, 0);
-				const plane = new THREE.Plane(planeNormal);
-				const planeIntersect = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
-				if (planeIntersect) {
-					cut.point = planeIntersect;
-					cut.brushing = true;
-					this.setCutValue(cut.dimensionName);
-					this.getCutLine(cut.dimensionName);
-				}
-			}
-		}
+  updateCutLines(dimensionName) {
+    const cut = this.cuts.find((c) => c.dimensionName === dimensionName);
+    if (!cut) return;
+    const lineSegments = this.getCutLine(cut);
+    if (!lineSegments || !lineSegments.length) {
+      this.removeCutLineMesh(dimensionName);
+      return;
+    }
+    const positions = lineSegments.flat();
+    const geom = new LineGeometry();
+    geom.setPositions(positions);
 
-		const cutLineDragEnd = () => {
-			if (this.cutLineDragging) {
-				const cut = this.cuts.find( cut => cut.lineDragging );
-				cut.line.material.color.set(0xd0d5db);
-				cut.lineDragging = false;
-				this.cutLineDragging = false;
-				cut.brushing = false;
-				this.setCutValue(cut.dimensionName);
-			}				
-			this.controls.enabled = true;
-		}
+    const mat = new LineMaterial({
+      color: 0xd0d5db,
+      linewidth: 3,
+      worldUnits: false,
+      dashed: false,
+    });
+    mat.stencilWrite = true;
+    mat.stencilRef = 1;
+    mat.stencilFunc = THREE.NotEqualStencilFunc;
+    mat.depthTest = false;
+    mat.resolution.set(this.plotAreaWidth, this.plotAreaHeight);
 
-		const plotArea = d3.select(`#${this.id}`).select(".plot-area");
-		const cutLineDrag = d3.drag()
-			.on("drag", cutLineDragged)
-			.on("end", cutLineDragEnd);
-		plotArea.call(cutLineDrag);
-		plotArea.node().addEventListener("pointerdown", checkOnCutLine, true);
-		this.cutInteractionAdded = true;
-		
+    const line = new Line2(geom, mat);
+    line.computeLineDistances();
+    line.renderOrder = 2;
 
-	}
+    this.removeCutLineMesh(dimensionName);
+    this.cutLineMeshes.set(dimensionName, line);
+    this.scene.add(line);
+  }
 
-	handleDimensionChange() {
-		this.fetchDataNow = true;
-		this.update();
-	}
-		
-	addAxes() {
-		if (!this.twoD) return;
-		if (!this.layout.showXAxis && !this.layout.showYAxis) return;
-		// get current visible range using raycasting intersecting background
-		const raycaster = new THREE.Raycaster();
-		const pointer = new THREE.Vector2();
-		const planeNormal = new THREE.Vector3(1, 0, 0);
-		const plane = new THREE.Plane(planeNormal);
-		pointer.x = -1;
-		pointer.y = -1;
-		raycaster.setFromCamera( pointer, this.camera );
-		const intersectBottomLeft = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
-		pointer.x = 1;
-		pointer.y = 1;
-		raycaster.setFromCamera( pointer, this.camera );
-		const intersectTopRight = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
-		const xRangeVisible = [intersectBottomLeft.y, intersectTopRight.y];
-		const yRangeVisible = [intersectBottomLeft.z, intersectTopRight.z];
-		this.xRangeVisible = xRangeVisible;
-		this.yRangeVisible = yRangeVisible;
-
-		const xScale = d3.scaleLinear().domain(xRangeVisible).range([0, this.plotAreaWidth]);
-		const yScale = d3.scaleLinear().domain(yRangeVisible).range([this.plotAreaHeight, 0]);
-
-		const overlay = d3.select(`#${this.id}`).select(".svg-overlay");
-		const standOff = 2;
-		if (this.layout.showXAxis) {
-			const xAxis = d3.axisBottom(xScale);
-			if (this.layout.xTickNumber) {
-				xAxis.ticks(this.layout.xTickNumber);
-			}
-			let gX = overlay.select(".x-axis");
-			if (gX.empty()) {
-				gX = overlay.append("g")
-					.attr("class","x-axis")
-					.attr("transform",`translate(${this.marginTotal.left},${this.plotAreaHeight+standOff})`)
-					.style("pointer-events","bounding-box")
-					.call(xAxis);
-
-				// Make tick elements non-interactive (like LineSeriesGL)
-				gX.selectAll(".tick")
-					.style("pointer-events", "none");
-
-				// Specifically target tick text to override default text cursor
-				gX.selectAll(".tick text")
-					.style("cursor", "default")
-					.style("user-select", "none");
-
-				// Set hand cursor for the axis group
-				gX.style("cursor", "grab");
-
-				gX.call(d3.zoom().on("zoom", (event) => {
-					const transform = event.transform;
-					// Use original data range as reference for zoom (like LineSeriesGL)
-					let yDiff = this.yRange[1] - this.yRange[0];
-
-					// Handle zoom (scale) - update camera bounds
-					const scaledRange = yDiff / transform.k;
-					this.camera.left = -scaledRange/2;
-					this.camera.right = scaledRange/2;
-
-					// Handle pan (translation) - scale by current zoom level
-					const currentCameraRange = this.camera.right - this.camera.left;
-					const panScale = currentCameraRange / this.plotAreaWidth;
-					const panOffset = -transform.x * panScale;
-					this.camera.position.y = this.mid.y + panOffset;
-
-					// Update OrbitControls target
-					this.controls.target.y = this.camera.position.y;
-
-					this.camera.updateProjectionMatrix();
-					this.updateCutLines(); // Update cut lines to span new visible range
-					this.webGLUpdate();
-					this.addAxes();
-				}));
-				gX.append("text")
-					.attr("class","x-axis-text")
-					.attr("fill", "#000")
-					.attr("x", this.plotAreaWidth)
-					.attr("y", this.marginTotal.bottom-5)
-					.attr("text-anchor", "end")
-					.style("pointer-events", "none")
-					.style("user-select", "none")
-					.text(this.layout.xAxisLabel);
-			} else {
-				gX.attr("transform",`translate(${this.marginTotal.left},${this.plotAreaHeight+standOff})`)
-				.call(xAxis);
-				gX.select(".x-axis-text").attr("x", this.plotAreaWidth);
-			}
-		}
-
-		if (this.layout.showYAxis) {
-			const yAxis = d3.axisLeft(yScale);
-			if (this.layout.yTickNumber) {
-				yAxis.ticks(this.layout.yTickNumber);
-			}
-			let gY = overlay.select(".y-axis");
-			if (gY.empty()) {
-				gY = overlay.append("g")
-					.attr("class","y-axis")
-					.attr("transform",`translate(${this.marginTotal.left-standOff},0)`)
-					.style("pointer-events","bounding-box")
-					.call(yAxis);
-
-				// Make tick elements non-interactive (like LineSeriesGL)
-				gY.selectAll(".tick")
-					.style("pointer-events", "none");
-
-				// Specifically target tick text to override default text cursor
-				gY.selectAll(".tick text")
-					.style("cursor", "default")
-					.style("user-select", "none");
-
-				// Set hand cursor for the axis group
-				gY.style("cursor", "grab");
-
-				gY.call(d3.zoom().on("zoom", (event) => {
-					const transform = event.transform;
-					// Use original data range as reference for zoom (like LineSeriesGL)
-					let zDiff = this.zRange[1] - this.zRange[0];
-
-					// Handle zoom (scale) - update camera bounds
-					const scaledRange = zDiff / transform.k;
-					this.camera.top = scaledRange/2;
-					this.camera.bottom = -scaledRange/2;
-
-					// Handle pan (translation) - scale by current zoom level
-					const currentCameraRange = this.camera.top - this.camera.bottom;
-					const panScale = currentCameraRange / this.plotAreaHeight;
-					const panOffset = transform.y * panScale; // Positive Y is up in world space
-					this.camera.position.z = this.mid.z + panOffset;
-
-					// Update OrbitControls target
-					this.controls.target.z = this.camera.position.z;
-
-					this.camera.updateProjectionMatrix();
-					this.updateCutLines(); // Update cut lines to span new visible range
-					this.webGLUpdate();
-					this.addAxes();
-				}));
-				gY.append("text")
-                    .attr("fill", "#000")
-                    .attr("transform", "rotate(-90)")
-                    .attr("x", 0)
-                    .attr("y", -this.marginTotal.left + 15)
-                    .attr("text-anchor", "end")
-					.style("pointer-events", "none")
-					.style("user-select", "none")
-                    .text(this.layout.yAxisLabel);
-			} else {
-				gY.attr("transform",`translate(${this.marginTotal.left-standOff},0)`)
-					.call(yAxis);
-			}
-		}
-	}
-
-	addColorBar() {
-		if (!this.layout.showColorBar || !this.colorScale) return;
-		const overlay = d3.select(`#${this.id}`).select(".svg-overlay");
-
-		const scaleHeight = this.plotAreaHeight/2;
-		const colorScale = this.colorScale;
-		colorScale.domain( [0, scaleHeight]);
-
-		let scaleArea = overlay.select(".scale-area");
-		if (scaleArea.empty()) {
-			scaleArea = overlay.append("g")
-				.attr("class","scale-area")
-		}
-		scaleArea
-			.attr("transform",`translate(${this.plotAreaWidth+this.layout.margin.left+this.marginAdd.left+5},${this.layout.margin.top+10})`);
-		
-		scaleArea.selectAll(".scale-bar").remove();
-		
-		const scaleBars = scaleArea.selectAll(".scale-bar")
-			.data(d3.range(scaleHeight))
-			.enter().append("rect")
-				.attr("class", "scale-bar")
-				.attr("x", 0 )
-				.attr("y", function(d, i) { return scaleHeight - i; })
-				.attr("height", 1)
-				.attr("width", 15)
-				.style("stroke", "none")
-				.style("fill", function(d, i ) { return colorScale(d); })
-		
-		const cScale = d3.scaleLinear()
-			.domain( this.vScale )
-			.range( [scaleHeight, 0]);
-		
-		const cAxis = d3.axisRight( cScale ).ticks(4);
-		
-		const gC = scaleArea.select(".c-axis");
-
-		if (gC.empty()) {
-			scaleArea.append("g")
-				.attr("class","c-axis")
-				.attr("transform",`translate(15,1)`)
-				.call(cAxis);
-		} else {
-			gC.attr("transform",`translate(15,1)`)
-				.call(cAxis);
-		}
-
-	}
-
-
+  removeCutLineMesh(name) {
+    const existing = this.cutLineMeshes.get(name);
+    if (!existing) return;
+    existing.geometry?.dispose?.();
+    if (Array.isArray(existing.material)) existing.material.forEach((m) => m?.dispose?.());
+    else existing.material?.dispose?.();
+    this.scene.remove(existing);
+    this.cutLineMeshes.delete(name);
+  }
 }
 
 export { TriMesh3D };

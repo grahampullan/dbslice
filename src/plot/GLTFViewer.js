@@ -4,7 +4,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { WebGLPlotBase } from "./WebGLPlotBase.js";
 
 // GLTF viewer migrated to the v3.1 WebGL base.
-export class GLTFViewer extends WebGLPlotBase {
+class GLTFViewer extends WebGLPlotBase {
   constructor(options = {}) {
     options.layout ??= {};
     options.layout.margin ??= { top: 5, right: 20, bottom: 30, left: 40 };
@@ -174,3 +174,5 @@ export class GLTFViewer extends WebGLPlotBase {
     });
   }
 }
+
+export { GLTFViewer };
