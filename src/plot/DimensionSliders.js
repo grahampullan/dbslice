@@ -1,7 +1,7 @@
 import * as d3 from 'd3v7';
-import { Plot } from './Plot.js';
+import { PlotV3_1 } from './PlotV3_1.js';
 
-class DimensionSliders extends Plot {
+class DimensionSliders extends PlotV3_1 {
 
     constructor(options) {
 		if (!options) { options={} }
@@ -12,35 +12,26 @@ class DimensionSliders extends Plot {
         this.sliders = [];
     }
 
-    make() {
-        const container = d3.select(`#${this.id}`);
-        this.updateHeader();
+    createPlotArea() {
         this.addPlotAreaDiv();
-        this.setLasts();
-        this.update();
-    }
-
-    update() {
-        const container = d3.select(`#${this.id}`);
-        const plotArea = container.select(".plot-area");
-        //const layout = this.layout;
-        //const margin = layout.margin;
-        
+        const plotArea = this.plotAreaSel;
         const slidersContainer = plotArea.select(".sliders-container");
         if (slidersContainer.empty()) {
             plotArea.append("div")
                 .attr("class","sliders-container")
                 .style("width","100%")
-                //.style("display","grid")
-                //.style("grid-template-columns","repeat(auto-fill, minmax(200px, 1fr) )")
-                //.style("gap","5px")
                 .style("pointer-events","auto");
         }
+    }
 
+    initBindings() {
+        this.initSliders();
+    }
+
+    async doUpdate() {
         this.updatePlotAreaSize();
         this.initSliders();
         this.addSliders();
-
     }
 
     remove() {
@@ -48,8 +39,9 @@ class DimensionSliders extends Plot {
     }
 
     initSliders() {
-        if (!this.data.sliders?.length) return;
-        const requestCreateDimension = this.sharedStateByAncestorId["context"].requestCreateDimension;
+        if (!this.data?.sliders?.length) return;
+        const requestCreateDimension = this.contextEvents?.dimensions?.create;
+        const dimensions = this.contextState?.dimensions;
         this.data.sliders.forEach( slider => {
             if (this.sliders.map( d => d.dimensionName ).includes(slider.dimensionName)) {
                 return;
@@ -58,25 +50,30 @@ class DimensionSliders extends Plot {
                 name : slider.name || "slider",
                 dimensionName : slider.dimensionName || "dim1",
                 dimensionObserverId : undefined,
-                min: slider.min || 0,
-                max: slider.max || 1,
-                step: slider.step || 0.01,
+                min: slider.min ?? 0,
+                max: slider.max ?? 1,
+                step: slider.step ?? 0.01,
                 sliderAdded : false,
                 brushing : false,
                 value : undefined
             };
-            const initValue = slider.value || 0;
+            const initValue = slider.value ?? 0;
             const dimensionName = slider.dimensionName;
-            requestCreateDimension.state = {name:dimensionName, value:initValue};
-            const dimension = this.sharedStateByAncestorId["context"].dimensions.find( d => d.name == dimensionName );
-            const dimValue = dimension.state.value;
+            if (requestCreateDimension) {
+                requestCreateDimension.state = {name:dimensionName, value:initValue};
+            }
+            const dimension = dimensions?.find( d => d.name == dimensionName );
+            const dimValue = dimension?.state?.value ?? initValue;
             sliderToAdd.value = dimValue;
-            sliderToAdd.dimensionObserverId = dimension.subscribe( (data) => {
-                const slider = this.sliders.find( d => d.dimensionName == dimensionName );
-                slider.value = data.value;
-                this.setSliderPosition(dimensionName);
-            });
-            this.subscriptions.push({observable:dimension, id:sliderToAdd.dimensionObserverId});
+            if (dimension) {
+                const obsId = dimension.subscribe( (data) => {
+                    const s = this.sliders.find( d => d.dimensionName == dimensionName );
+                    if (!s) return;
+                    s.value = data.value;
+                    this.setSliderPosition(dimensionName);
+                });
+                this.subscriptions.push({observable:dimension, id:obsId});
+            }
             this.sliders.push(sliderToAdd);
 
         });
@@ -89,7 +86,7 @@ class DimensionSliders extends Plot {
         const sliderDragStart = (event,dimensionName) => {
             event.stopPropagation();
             const slider = this.sliders.find( d => d.dimensionName == dimensionName );
-            slider.brushing = true;
+            if (slider) slider.brushing = true;
         }
 
         const sliderDragged = (event,dimensionName) => {
@@ -98,18 +95,22 @@ class DimensionSliders extends Plot {
             valueElement.text(event.target.value);
             const slider = this.sliders.find( d => d.dimensionName == dimensionName );
             const value = +event.target.value;
-            const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
-            requestSetDimension.state = { name:dimensionName, dimensionState:{value:value, brushing:slider.brushing }};
+            const requestSetDimension = this.contextEvents?.dimensions?.set;
+            if (requestSetDimension) {
+                requestSetDimension.state = { name:dimensionName, dimensionState:{value:value, brushing:slider?.brushing ?? false }};
+            }
         }
 
         const sliderDragEnd = (event,dimensionName) => {
             const slider = this.sliders.find( d => d.dimensionName == dimensionName );
-            slider.brushing = false;
-            const requestSetDimension = this.sharedStateByAncestorId["context"].requestSetDimension;
-            requestSetDimension.state = { name:dimensionName, dimensionState:{value:slider.value, brushing:slider.brushing }};
+            if (slider) slider.brushing = false;
+            const requestSetDimension = this.contextEvents?.dimensions?.set;
+            if (requestSetDimension && slider) {
+                requestSetDimension.state = { name:dimensionName, dimensionState:{value:slider.value, brushing:false }};
+            }
         }
 
-        const plotArea = d3.select(`#${this.id}`).select(".plot-area");
+        const plotArea = this.plotAreaSel;
         const slidersContainer = plotArea.select(".sliders-container");
         this.sliders.forEach( slider => {
             if ( slider.sliderAdded ) return;
@@ -150,7 +151,11 @@ class DimensionSliders extends Plot {
     setSliderPosition(dimensionName) {
         const slider = this.sliders.find( d => d.dimensionName == dimensionName );
         const sliderElement = d3.select(`#${this.id}`).select(`#${dimensionName}-slider`);
-        sliderElement.node().value = slider.value;
+        if (!sliderElement.empty() && slider) {
+            sliderElement.node().value = slider.value;
+            const parent = sliderElement.node().parentNode;
+            d3.select(parent).select(".dim-slider-value").text(slider.value);
+        }
     }
 }
 
