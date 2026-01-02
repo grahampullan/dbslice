@@ -1,1 +1,404 @@
-{"header": {"dataProperties": ["Average f", "Std dev f"], "metaDataProperties": ["Simulation type", "Model type"]}, "data": [{"Std dev f": 0.259051928800363, "label": "Box 0", "taskId": 0, "Simulation type": "Yellow", "Average f": 0.5253023846381297, "Model type": "Basic"}, {"Std dev f": 0.21501057520246267, "label": "Box 1", "taskId": 1, "Simulation type": "Red", "Average f": 1.108929386532478, "Model type": "Basic"}, {"Std dev f": 0.3077389936223077, "label": "Box 2", "taskId": 2, "Simulation type": "Blue", "Average f": 0.6780297016608766, "Model type": "Best"}, {"Std dev f": 0.11250851071134223, "label": "Box 3", "taskId": 3, "Simulation type": "Green", "Average f": 0.21324109161611818, "Model type": "Improved"}, {"Std dev f": 0.14256908848516323, "label": "Box 4", "taskId": 4, "Simulation type": "Orange", "Average f": 0.7189615909530179, "Model type": "Best"}, {"Std dev f": 0.07287468399253001, "label": "Box 5", "taskId": 5, "Simulation type": "Blue", "Average f": 0.6250418215030215, "Model type": "Improved"}, {"Std dev f": 0.2527054244856582, "label": "Box 6", "taskId": 6, "Simulation type": "Yellow", "Average f": 0.4133770655371025, "Model type": "Improved"}, {"Std dev f": 0.3252503056766206, "label": "Box 7", "taskId": 7, "Simulation type": "Green", "Average f": 0.6090096625784623, "Model type": "Basic"}, {"Std dev f": 0.22764329389355673, "label": "Box 8", "taskId": 8, "Simulation type": "Red", "Average f": 0.4776111003145326, "Model type": "Improved"}, {"Std dev f": 0.3547691455892986, "label": "Box 9", "taskId": 9, "Simulation type": "Red", "Average f": 0.7448487268019662, "Model type": "Improved"}, {"Std dev f": 0.314881065376843, "label": "Box 10", "taskId": 10, "Simulation type": "Green", "Average f": 0.6440803388178292, "Model type": "Std"}, {"Std dev f": 0.04395029183027552, "label": "Box 11", "taskId": 11, "Simulation type": "Orange", "Average f": 0.24881496742852835, "Model type": "Basic"}, {"Std dev f": 0.1715706820367371, "label": "Box 12", "taskId": 12, "Simulation type": "Purple", "Average f": 0.2764554753105179, "Model type": "Best"}, {"Std dev f": 0.03535246782136938, "label": "Box 13", "taskId": 13, "Simulation type": "Yellow", "Average f": 0.5514267365755824, "Model type": "Basic"}, {"Std dev f": 0.06636977579161825, "label": "Box 14", "taskId": 14, "Simulation type": "Orange", "Average f": 0.7794404711576618, "Model type": "Best"}, {"Std dev f": 0.3658330365605361, "label": "Box 15", "taskId": 15, "Simulation type": "Red", "Average f": 0.7511950547576608, "Model type": "Basic"}, {"Std dev f": 0.3214520321323665, "label": "Box 16", "taskId": 16, "Simulation type": "Yellow", "Average f": 0.5556622145781446, "Model type": "Std"}, {"Std dev f": 0.027842892072640266, "label": "Box 17", "taskId": 17, "Simulation type": "Purple", "Average f": 0.9331105340818744, "Model type": "Improved"}, {"Std dev f": 0.23500187846672688, "label": "Box 18", "taskId": 18, "Simulation type": "Green", "Average f": 0.882540324912935, "Model type": "Basic"}, {"Std dev f": 0.19945312049927139, "label": "Box 19", "taskId": 19, "Simulation type": "Green", "Average f": 0.4030524351246907, "Model type": "Improved"}, {"Std dev f": 0.20993627330088077, "label": "Box 20", "taskId": 20, "Simulation type": "Red", "Average f": 0.7205018925469652, "Model type": "Basic"}, {"Std dev f": 0.1823965264308913, "label": "Box 21", "taskId": 21, "Simulation type": "Red", "Average f": 0.7068255814210022, "Model type": "Std"}, {"Std dev f": 0.09517463441924683, "label": "Box 22", "taskId": 22, "Simulation type": "Green", "Average f": 0.5131047233629766, "Model type": "Best"}, {"Std dev f": 0.20569922748120198, "label": "Box 23", "taskId": 23, "Simulation type": "Yellow", "Average f": 0.8844669945753016, "Model type": "Std"}, {"Std dev f": 0.2328794670771143, "label": "Box 24", "taskId": 24, "Simulation type": "Green", "Average f": 0.7741645231814813, "Model type": "Basic"}, {"Std dev f": 0.0773715385461988, "label": "Box 25", "taskId": 25, "Simulation type": "Blue", "Average f": 0.45517700289645513, "Model type": "Basic"}, {"Std dev f": 0.0992706600205262, "label": "Box 26", "taskId": 26, "Simulation type": "Red", "Average f": 0.6253129121854022, "Model type": "Best"}, {"Std dev f": 0.042504319753702745, "label": "Box 27", "taskId": 27, "Simulation type": "Yellow", "Average f": 0.11803815307097014, "Model type": "Best"}, {"Std dev f": 0.365971969781471, "label": "Box 28", "taskId": 28, "Simulation type": "Purple", "Average f": 0.6268477803867247, "Model type": "Basic"}, {"Std dev f": 0.0915387907705153, "label": "Box 29", "taskId": 29, "Simulation type": "Green", "Average f": 0.7686087673748977, "Model type": "Improved"}, {"Std dev f": 0.1297105026950063, "label": "Box 30", "taskId": 30, "Simulation type": "Yellow", "Average f": 0.5562890229346708, "Model type": "Basic"}, {"Std dev f": 0.17649206024827951, "label": "Box 31", "taskId": 31, "Simulation type": "Green", "Average f": 0.34171924703246315, "Model type": "Std"}, {"Std dev f": 0.14496185422899546, "label": "Box 32", "taskId": 32, "Simulation type": "Red", "Average f": 0.6764530962722162, "Model type": "Std"}, {"Std dev f": 0.3454975435343363, "label": "Box 33", "taskId": 33, "Simulation type": "Orange", "Average f": 0.6213895572082722, "Model type": "Best"}, {"Std dev f": 0.27403548730956634, "label": "Box 34", "taskId": 34, "Simulation type": "Orange", "Average f": 0.7490341392374177, "Model type": "Best"}, {"Std dev f": 0.10528382093287035, "label": "Box 35", "taskId": 35, "Simulation type": "Green", "Average f": 0.807382812760805, "Model type": "Improved"}, {"Std dev f": 0.05884296963056868, "label": "Box 36", "taskId": 36, "Simulation type": "Blue", "Average f": 0.15163235060546015, "Model type": "Std"}, {"Std dev f": 0.21303577547771563, "label": "Box 37", "taskId": 37, "Simulation type": "Orange", "Average f": 0.6713591180821217, "Model type": "Improved"}, {"Std dev f": 0.1706561722434055, "label": "Box 38", "taskId": 38, "Simulation type": "Red", "Average f": 0.5633736379325462, "Model type": "Basic"}, {"Std dev f": 0.43676748650867087, "label": "Box 39", "taskId": 39, "Simulation type": "Green", "Average f": 0.8015858423850913, "Model type": "Basic"}, {"Std dev f": 0.36370441882272836, "label": "Box 40", "taskId": 40, "Simulation type": "Purple", "Average f": 0.7894103662566675, "Model type": "Basic"}, {"Std dev f": 0.2048332283287496, "label": "Box 41", "taskId": 41, "Simulation type": "Red", "Average f": 0.9327131916557658, "Model type": "Basic"}, {"Std dev f": 0.2721961366642236, "label": "Box 42", "taskId": 42, "Simulation type": "Purple", "Average f": 0.8093746059029109, "Model type": "Std"}, {"Std dev f": 0.04516182945568438, "label": "Box 43", "taskId": 43, "Simulation type": "Yellow", "Average f": 0.7244355241928117, "Model type": "Basic"}, {"Std dev f": 0.21109348998954772, "label": "Box 44", "taskId": 44, "Simulation type": "Yellow", "Average f": 1.039671231724639, "Model type": "Basic"}, {"Std dev f": 0.23575707723837375, "label": "Box 45", "taskId": 45, "Simulation type": "Orange", "Average f": 0.4546136203456993, "Model type": "Std"}, {"Std dev f": 0.23086193483402861, "label": "Box 46", "taskId": 46, "Simulation type": "Green", "Average f": 0.6618003256202059, "Model type": "Basic"}, {"Std dev f": 0.23816460862481914, "label": "Box 47", "taskId": 47, "Simulation type": "Yellow", "Average f": 0.4256732463880072, "Model type": "Best"}, {"Std dev f": 0.2370708317688281, "label": "Box 48", "taskId": 48, "Simulation type": "Green", "Average f": 0.5791595579498566, "Model type": "Std"}, {"Std dev f": 0.12331578396590179, "label": "Box 49", "taskId": 49, "Simulation type": "Blue", "Average f": 0.6127498662867263, "Model type": "Best"}, {"Std dev f": 0.14284240895387648, "label": "Box 50", "taskId": 50, "Simulation type": "Purple", "Average f": 0.7093314974851449, "Model type": "Basic"}, {"Std dev f": 0.3461412715141433, "label": "Box 51", "taskId": 51, "Simulation type": "Orange", "Average f": 0.7059267549588126, "Model type": "Basic"}, {"Std dev f": 0.1344685559818133, "label": "Box 52", "taskId": 52, "Simulation type": "Purple", "Average f": 0.5127808750816543, "Model type": "Best"}, {"Std dev f": 0.14365789391076386, "label": "Box 53", "taskId": 53, "Simulation type": "Green", "Average f": 0.3069280125386457, "Model type": "Std"}, {"Std dev f": 0.07047715401641118, "label": "Box 54", "taskId": 54, "Simulation type": "Orange", "Average f": 0.6391164397384098, "Model type": "Best"}, {"Std dev f": 0.21096525800536967, "label": "Box 55", "taskId": 55, "Simulation type": "Orange", "Average f": 0.6503813908634384, "Model type": "Improved"}, {"Std dev f": 0.3657290747589578, "label": "Box 56", "taskId": 56, "Simulation type": "Green", "Average f": 0.7256044741138183, "Model type": "Std"}, {"Std dev f": 0.3355739148059994, "label": "Box 57", "taskId": 57, "Simulation type": "Purple", "Average f": 0.6308111230961049, "Model type": "Best"}, {"Std dev f": 0.22248339928010719, "label": "Box 58", "taskId": 58, "Simulation type": "Purple", "Average f": 0.8762184444494704, "Model type": "Improved"}, {"Std dev f": 0.2642351702073629, "label": "Box 59", "taskId": 59, "Simulation type": "Green", "Average f": 0.9801335462112253, "Model type": "Basic"}, {"Std dev f": 0.11428156253635444, "label": "Box 60", "taskId": 60, "Simulation type": "Blue", "Average f": 0.18035733589455197, "Model type": "Std"}, {"Std dev f": 0.31406780870005857, "label": "Box 61", "taskId": 61, "Simulation type": "Blue", "Average f": 0.6907044986852708, "Model type": "Improved"}, {"Std dev f": 0.28847805712618624, "label": "Box 62", "taskId": 62, "Simulation type": "Orange", "Average f": 0.5983530755214723, "Model type": "Improved"}, {"Std dev f": 0.23391965968149242, "label": "Box 63", "taskId": 63, "Simulation type": "Purple", "Average f": 0.3799372530629859, "Model type": "Basic"}, {"Std dev f": 0.4215430179419181, "label": "Box 64", "taskId": 64, "Simulation type": "Orange", "Average f": 0.652209573462944, "Model type": "Std"}, {"Std dev f": 0.3270022103758089, "label": "Box 65", "taskId": 65, "Simulation type": "Red", "Average f": 0.9087831753423626, "Model type": "Best"}, {"Std dev f": 0.09301375449077061, "label": "Box 66", "taskId": 66, "Simulation type": "Orange", "Average f": 0.6586165785677032, "Model type": "Best"}, {"Std dev f": 0.23560149340914535, "label": "Box 67", "taskId": 67, "Simulation type": "Blue", "Average f": 0.7046528641453093, "Model type": "Best"}, {"Std dev f": 0.16902721214482877, "label": "Box 68", "taskId": 68, "Simulation type": "Blue", "Average f": 0.9168103595140897, "Model type": "Best"}, {"Std dev f": 0.2740939384524046, "label": "Box 69", "taskId": 69, "Simulation type": "Blue", "Average f": 0.5801147839395034, "Model type": "Basic"}, {"Std dev f": 0.17525906859793572, "label": "Box 70", "taskId": 70, "Simulation type": "Orange", "Average f": 0.8013036936481719, "Model type": "Improved"}, {"Std dev f": 0.08001717236649822, "label": "Box 71", "taskId": 71, "Simulation type": "Blue", "Average f": 0.7782309196663608, "Model type": "Best"}, {"Std dev f": 0.054068028151163725, "label": "Box 72", "taskId": 72, "Simulation type": "Red", "Average f": 0.4637263053032608, "Model type": "Std"}, {"Std dev f": 0.2370477324592964, "label": "Box 73", "taskId": 73, "Simulation type": "Blue", "Average f": 1.0873407381474154, "Model type": "Std"}, {"Std dev f": 0.1893878453442968, "label": "Box 74", "taskId": 74, "Simulation type": "Purple", "Average f": 0.5225456624392909, "Model type": "Std"}, {"Std dev f": 0.22702927732383166, "label": "Box 75", "taskId": 75, "Simulation type": "Orange", "Average f": 0.921643545353237, "Model type": "Best"}, {"Std dev f": 0.22368802211006233, "label": "Box 76", "taskId": 76, "Simulation type": "Red", "Average f": 0.40369279808978703, "Model type": "Std"}, {"Std dev f": 0.23083106835373662, "label": "Box 77", "taskId": 77, "Simulation type": "Blue", "Average f": 0.7576550683598251, "Model type": "Std"}, {"Std dev f": 0.06131710439676579, "label": "Box 78", "taskId": 78, "Simulation type": "Yellow", "Average f": 0.9727783322334735, "Model type": "Basic"}, {"Std dev f": 0.3880471397078113, "label": "Box 79", "taskId": 79, "Simulation type": "Orange", "Average f": 0.8499051403286294, "Model type": "Basic"}, {"Std dev f": 0.21960141297604402, "label": "Box 80", "taskId": 80, "Simulation type": "Orange", "Average f": 0.8975363494624952, "Model type": "Std"}, {"Std dev f": 0.29517835828759303, "label": "Box 81", "taskId": 81, "Simulation type": "Blue", "Average f": 0.47826573939334505, "Model type": "Best"}, {"Std dev f": 0.17051134123713244, "label": "Box 82", "taskId": 82, "Simulation type": "Green", "Average f": 1.0547650422580452, "Model type": "Best"}, {"Std dev f": 0.20217766594717165, "label": "Box 83", "taskId": 83, "Simulation type": "Green", "Average f": 0.5585155073164197, "Model type": "Improved"}, {"Std dev f": 0.2964470296972375, "label": "Box 84", "taskId": 84, "Simulation type": "Green", "Average f": 0.8657248554703598, "Model type": "Basic"}, {"Std dev f": 0.27052353292129533, "label": "Box 85", "taskId": 85, "Simulation type": "Orange", "Average f": 1.0483508076639472, "Model type": "Best"}, {"Std dev f": 0.16418121918214776, "label": "Box 86", "taskId": 86, "Simulation type": "Yellow", "Average f": 0.43700739484872364, "Model type": "Improved"}, {"Std dev f": 0.2837681566116247, "label": "Box 87", "taskId": 87, "Simulation type": "Orange", "Average f": 0.7823085140649606, "Model type": "Improved"}, {"Std dev f": 0.2110070789072599, "label": "Box 88", "taskId": 88, "Simulation type": "Yellow", "Average f": 0.48077170251397283, "Model type": "Best"}, {"Std dev f": 0.07881872297023149, "label": "Box 89", "taskId": 89, "Simulation type": "Orange", "Average f": 0.6645963743462607, "Model type": "Std"}, {"Std dev f": 0.42855444532950016, "label": "Box 90", "taskId": 90, "Simulation type": "Orange", "Average f": 0.788604222092787, "Model type": "Basic"}, {"Std dev f": 0.194586533175811, "label": "Box 91", "taskId": 91, "Simulation type": "Yellow", "Average f": 0.6148198812029553, "Model type": "Basic"}, {"Std dev f": 0.36223284636722436, "label": "Box 92", "taskId": 92, "Simulation type": "Yellow", "Average f": 0.8762400283554489, "Model type": "Best"}, {"Std dev f": 0.3189461344842498, "label": "Box 93", "taskId": 93, "Simulation type": "Blue", "Average f": 0.6391277860905146, "Model type": "Basic"}, {"Std dev f": 0.21762175958986293, "label": "Box 94", "taskId": 94, "Simulation type": "Orange", "Average f": 1.0009305405895776, "Model type": "Improved"}, {"Std dev f": 0.06529472491493196, "label": "Box 95", "taskId": 95, "Simulation type": "Yellow", "Average f": 0.1263927188399044, "Model type": "Basic"}, {"Std dev f": 0.2700042150512672, "label": "Box 96", "taskId": 96, "Simulation type": "Orange", "Average f": 0.8364413517999999, "Model type": "Basic"}, {"Std dev f": 0.052566986521548946, "label": "Box 97", "taskId": 97, "Simulation type": "Yellow", "Average f": 0.6224470130819112, "Model type": "Std"}, {"Std dev f": 0.23637843988945018, "label": "Box 98", "taskId": 98, "Simulation type": "Purple", "Average f": 0.6427228361400013, "Model type": "Best"}, {"Std dev f": 0.028652197480201824, "label": "Box 99", "taskId": 99, "Simulation type": "Purple", "Average f": 0.517084290128978, "Model type": "Improved"}]}
+{
+  "data": [
+    {
+      "itemId": "item_00",
+      "Simulation type": "Purple",
+      "Model type": "Basic",
+      "Average f": 0.7455190546800663,
+      "Std dev f": 0.17556060039240176,
+      "label": "Box 0"
+    },
+    {
+      "itemId": "item_01",
+      "Simulation type": "Red",
+      "Model type": "Improved",
+      "Average f": 0.6509940169292553,
+      "Std dev f": 0.13277379956977362,
+      "label": "Box 1"
+    },
+    {
+      "itemId": "item_02",
+      "Simulation type": "Green",
+      "Model type": "Best",
+      "Average f": 0.9973286892692211,
+      "Std dev f": 0.24688744605429508,
+      "label": "Box 2"
+    },
+    {
+      "itemId": "item_03",
+      "Simulation type": "Orange",
+      "Model type": "Best",
+      "Average f": 0.5875184289228689,
+      "Std dev f": 0.3076347065773904,
+      "label": "Box 3"
+    },
+    {
+      "itemId": "item_04",
+      "Simulation type": "Purple",
+      "Model type": "Best",
+      "Average f": 0.38453136907755125,
+      "Std dev f": 0.10876185004099681,
+      "label": "Box 4"
+    },
+    {
+      "itemId": "item_05",
+      "Simulation type": "Blue",
+      "Model type": "Std",
+      "Average f": 0.5617172892916251,
+      "Std dev f": 0.24769245808733384,
+      "label": "Box 5"
+    },
+    {
+      "itemId": "item_06",
+      "Simulation type": "Purple",
+      "Model type": "Best",
+      "Average f": 0.7078224690921969,
+      "Std dev f": 0.17662916759906735,
+      "label": "Box 6"
+    },
+    {
+      "itemId": "item_07",
+      "Simulation type": "Green",
+      "Model type": "Best",
+      "Average f": 0.7295760045195311,
+      "Std dev f": 0.29976234050008554,
+      "label": "Box 7"
+    },
+    {
+      "itemId": "item_08",
+      "Simulation type": "Orange",
+      "Model type": "Std",
+      "Average f": 0.7762072978382922,
+      "Std dev f": 0.21108479743095576,
+      "label": "Box 8"
+    },
+    {
+      "itemId": "item_09",
+      "Simulation type": "Orange",
+      "Model type": "Best",
+      "Average f": 0.5753974861571162,
+      "Std dev f": 0.2529151302949023,
+      "label": "Box 9"
+    },
+    {
+      "itemId": "item_10",
+      "Simulation type": "Green",
+      "Model type": "Improved",
+      "Average f": 0.5980524069757801,
+      "Std dev f": 0.28303461240853695,
+      "label": "Box 10"
+    },
+    {
+      "itemId": "item_11",
+      "Simulation type": "Yellow",
+      "Model type": "Improved",
+      "Average f": 0.5519158681655465,
+      "Std dev f": 0.2777318717436861,
+      "label": "Box 11"
+    },
+    {
+      "itemId": "item_12",
+      "Simulation type": "Blue",
+      "Model type": "Best",
+      "Average f": 0.8041459213002132,
+      "Std dev f": 0.18450197096171578,
+      "label": "Box 12"
+    },
+    {
+      "itemId": "item_13",
+      "Simulation type": "Orange",
+      "Model type": "Improved",
+      "Average f": 0.6135157355236324,
+      "Std dev f": 0.33054051147364566,
+      "label": "Box 13"
+    },
+    {
+      "itemId": "item_14",
+      "Simulation type": "Green",
+      "Model type": "Std",
+      "Average f": 0.35714061642455563,
+      "Std dev f": 0.2166696775078604,
+      "label": "Box 14"
+    },
+    {
+      "itemId": "item_15",
+      "Simulation type": "Purple",
+      "Model type": "Std",
+      "Average f": 0.33674072993273824,
+      "Std dev f": 0.1540680258519237,
+      "label": "Box 15"
+    },
+    {
+      "itemId": "item_16",
+      "Simulation type": "Orange",
+      "Model type": "Basic",
+      "Average f": 0.6624079068737772,
+      "Std dev f": 0.39852992247816743,
+      "label": "Box 16"
+    },
+    {
+      "itemId": "item_17",
+      "Simulation type": "Yellow",
+      "Model type": "Improved",
+      "Average f": 0.6243798971134794,
+      "Std dev f": 0.3358203893595958,
+      "label": "Box 17"
+    },
+    {
+      "itemId": "item_18",
+      "Simulation type": "Red",
+      "Model type": "Std",
+      "Average f": 1.0500264081010486,
+      "Std dev f": 0.22939715939920544,
+      "label": "Box 18"
+    },
+    {
+      "itemId": "item_19",
+      "Simulation type": "Purple",
+      "Model type": "Basic",
+      "Average f": 0.6731074633961164,
+      "Std dev f": 0.36320584264228206,
+      "label": "Box 19"
+    },
+    {
+      "itemId": "item_20",
+      "Simulation type": "Blue",
+      "Model type": "Basic",
+      "Average f": 1.1765712117103975,
+      "Std dev f": 0.1876171006101315,
+      "label": "Box 20"
+    },
+    {
+      "itemId": "item_21",
+      "Simulation type": "Green",
+      "Model type": "Improved",
+      "Average f": 0.771483869519004,
+      "Std dev f": 0.18714846610045907,
+      "label": "Box 21"
+    },
+    {
+      "itemId": "item_22",
+      "Simulation type": "Purple",
+      "Model type": "Improved",
+      "Average f": 0.9814992801798451,
+      "Std dev f": 0.32469010114033975,
+      "label": "Box 22"
+    },
+    {
+      "itemId": "item_23",
+      "Simulation type": "Purple",
+      "Model type": "Improved",
+      "Average f": 0.8694182675080993,
+      "Std dev f": 0.1813762148692886,
+      "label": "Box 23"
+    },
+    {
+      "itemId": "item_24",
+      "Simulation type": "Red",
+      "Model type": "Improved",
+      "Average f": 0.5450879971660948,
+      "Std dev f": 0.27621297047754717,
+      "label": "Box 24"
+    },
+    {
+      "itemId": "item_25",
+      "Simulation type": "Red",
+      "Model type": "Std",
+      "Average f": 0.5059675454302169,
+      "Std dev f": 0.29112540079661475,
+      "label": "Box 25"
+    },
+    {
+      "itemId": "item_26",
+      "Simulation type": "Orange",
+      "Model type": "Std",
+      "Average f": 0.2183473349429185,
+      "Std dev f": 0.057147817927603775,
+      "label": "Box 26"
+    },
+    {
+      "itemId": "item_27",
+      "Simulation type": "Red",
+      "Model type": "Best",
+      "Average f": 0.61519423877902,
+      "Std dev f": 0.34551211899228584,
+      "label": "Box 27"
+    },
+    {
+      "itemId": "item_28",
+      "Simulation type": "Red",
+      "Model type": "Best",
+      "Average f": 0.5901663899653694,
+      "Std dev f": 0.19405228807315233,
+      "label": "Box 28"
+    },
+    {
+      "itemId": "item_29",
+      "Simulation type": "Red",
+      "Model type": "Basic",
+      "Average f": 0.3463011376239175,
+      "Std dev f": 0.14222216867733972,
+      "label": "Box 29"
+    },
+    {
+      "itemId": "item_30",
+      "Simulation type": "Blue",
+      "Model type": "Basic",
+      "Average f": 0.46087203125226267,
+      "Std dev f": 0.16135459699372476,
+      "label": "Box 30"
+    },
+    {
+      "itemId": "item_31",
+      "Simulation type": "Orange",
+      "Model type": "Best",
+      "Average f": 0.711915795389622,
+      "Std dev f": 0.18411733783078166,
+      "label": "Box 31"
+    },
+    {
+      "itemId": "item_32",
+      "Simulation type": "Blue",
+      "Model type": "Best",
+      "Average f": 0.29732720669463153,
+      "Std dev f": 0.16382683306656678,
+      "label": "Box 32"
+    },
+    {
+      "itemId": "item_33",
+      "Simulation type": "Yellow",
+      "Model type": "Improved",
+      "Average f": 0.712310972015883,
+      "Std dev f": 0.09229440132052223,
+      "label": "Box 33"
+    },
+    {
+      "itemId": "item_34",
+      "Simulation type": "Purple",
+      "Model type": "Std",
+      "Average f": 0.44911170767036795,
+      "Std dev f": 0.26787279679265275,
+      "label": "Box 34"
+    },
+    {
+      "itemId": "item_35",
+      "Simulation type": "Orange",
+      "Model type": "Improved",
+      "Average f": 0.6036663381551185,
+      "Std dev f": 0.2098649420150296,
+      "label": "Box 35"
+    },
+    {
+      "itemId": "item_36",
+      "Simulation type": "Orange",
+      "Model type": "Std",
+      "Average f": 0.7252845807073937,
+      "Std dev f": 0.15293500081633088,
+      "label": "Box 36"
+    },
+    {
+      "itemId": "item_37",
+      "Simulation type": "Blue",
+      "Model type": "Std",
+      "Average f": 0.5346958537838057,
+      "Std dev f": 0.2722862304537945,
+      "label": "Box 37"
+    },
+    {
+      "itemId": "item_38",
+      "Simulation type": "Yellow",
+      "Model type": "Std",
+      "Average f": 0.938804685221318,
+      "Std dev f": 0.2258389305207904,
+      "label": "Box 38"
+    },
+    {
+      "itemId": "item_39",
+      "Simulation type": "Purple",
+      "Model type": "Basic",
+      "Average f": 0.9239528712260406,
+      "Std dev f": 0.15054110870932585,
+      "label": "Box 39"
+    },
+    {
+      "itemId": "item_40",
+      "Simulation type": "Blue",
+      "Model type": "Std",
+      "Average f": 0.5850786681839865,
+      "Std dev f": 0.23252782551697768,
+      "label": "Box 40"
+    },
+    {
+      "itemId": "item_41",
+      "Simulation type": "Purple",
+      "Model type": "Improved",
+      "Average f": 0.6530915641974935,
+      "Std dev f": 0.13374110920196672,
+      "label": "Box 41"
+    },
+    {
+      "itemId": "item_42",
+      "Simulation type": "Green",
+      "Model type": "Std",
+      "Average f": 0.5343294070145983,
+      "Std dev f": 0.25704967005523577,
+      "label": "Box 42"
+    },
+    {
+      "itemId": "item_43",
+      "Simulation type": "Green",
+      "Model type": "Improved",
+      "Average f": 0.6330478186156789,
+      "Std dev f": 0.3535271452126775,
+      "label": "Box 43"
+    },
+    {
+      "itemId": "item_44",
+      "Simulation type": "Orange",
+      "Model type": "Improved",
+      "Average f": 0.6993310832983178,
+      "Std dev f": 0.2592835300115326,
+      "label": "Box 44"
+    },
+    {
+      "itemId": "item_45",
+      "Simulation type": "Yellow",
+      "Model type": "Basic",
+      "Average f": 0.6200835130071387,
+      "Std dev f": 0.26973451952268573,
+      "label": "Box 45"
+    },
+    {
+      "itemId": "item_46",
+      "Simulation type": "Green",
+      "Model type": "Best",
+      "Average f": 0.42595311987735496,
+      "Std dev f": 0.1557281214270489,
+      "label": "Box 46"
+    },
+    {
+      "itemId": "item_47",
+      "Simulation type": "Orange",
+      "Model type": "Std",
+      "Average f": 0.326851519526406,
+      "Std dev f": 0.24197276534834042,
+      "label": "Box 47"
+    },
+    {
+      "itemId": "item_48",
+      "Simulation type": "Purple",
+      "Model type": "Improved",
+      "Average f": 0.7681941941977356,
+      "Std dev f": 0.2794414992497421,
+      "label": "Box 48"
+    },
+    {
+      "itemId": "item_49",
+      "Simulation type": "Purple",
+      "Model type": "Std",
+      "Average f": 0.45831777642113236,
+      "Std dev f": 0.29706493069397016,
+      "label": "Box 49"
+    }
+  ]
+}
