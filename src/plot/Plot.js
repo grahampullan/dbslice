@@ -1,581 +1,548 @@
-import { Component } from 'board-box';
-import { fetchPlotData } from '../core/fetchPlotData';
-import { filterPlots } from './filterPlots.js';
-import * as d3 from 'd3v7';
-import { icon } from '@fortawesome/fontawesome-svg-core'
-import { faXmark, faFilter, faPlus  } from '@fortawesome/free-solid-svg-icons'
-
-//
-// Plot is a class that extends Component. It is a base class for all plot types.
-// It should provide the following methods:
-// - plot titles
-// - axis scales
-// - colorbar
-
+import { Component } from "board-box";
+import * as d3 from "d3v7";
+import { icon } from "@fortawesome/fontawesome-svg-core";
+import { faXmark, faFilter, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { fetchPlotData } from "../core/fetchPlotData";
+import { filterPlots } from "./filterPlots.js";
 class Plot extends Component {
-    constructor(options) {
-        if (!options) { options={} }
-        super(options);
-        this.itemId = options.itemId || null;
-        this.layout = options.layout || {};
-        this.layout.icons = this.layout.icons || [];
-        this.layout.margin = this.layout.margin || {top: 0, right: 0, bottom: 0, left: 0};
-        this.marginAdd = {top: 0, right: 0, bottom: 0, left: 0};
-        this.data = options.data || {};
-        this.fetchData = options.fetchData || null;
-        this.headerOffset = 0;
-        this.newData = true;
-        this.fetchDataNow = true;
-        this.dataToJson = false;
-        this.componentType = null;
-        this.icons = [];
-        this.subscriptions = [];
-        this.setCommonIcons();
+  constructor(options = {}) {
+    super(options);
+    this.itemId = options.itemId ?? null;
+    this.layout = options.layout ?? {};
+    this.layout.icons ??= [];
+    this.layout.margin ??= { top: 0, right: 0, bottom: 0, left: 0 };
+
+    this.marginAdd = { top: 0, right: 0, bottom: 0, left: 0 };
+
+    this.data = options.data ?? {};
+    this.fetchData = options.fetchData ?? null;
+
+    this.headerOffset = 0;
+    this.newData = true;
+    this.fetchDataNow = true;
+    this.fetchingData = false;
+    this.lastData = null;
+
+    this.componentType = null;
+    this.icons = [];
+    this.subscriptions = [];
+    this._pendingFrame = false;
+    this.setCommonIcons();
+  }
+
+  // ---- Structured shared state convenience ----
+  get contextRaw() {
+    return this.sharedStateByAncestorId?.context;
+  }
+  get contextState() {
+    return this.contextRaw?.state ?? this.contextRaw;
+  }
+  get contextEvents() {
+    return this.contextRaw?.events ?? {};
+  }
+  get contextServices() {
+    return this.contextRaw?.services ?? this.contextRaw ?? {};
+  }
+
+  get boardStateRaw() {
+    return this.sharedStateByAncestorId?.[this.boardId];
+  }
+  get boardState() {
+    return this.boardStateRaw?.state ?? this.boardStateRaw;
+  }
+  get boardEvents() {
+    return this.boardStateRaw?.events ?? {};
+  }
+  get boardServices() {
+    return this.boardStateRaw?.services ?? this.boardStateRaw ?? {};
+  }
+
+  get plotGroupStateRaw() {
+    const ids = (this.ancestorIds ?? []).filter((id) => id !== "context");
+    const nearest = ids.length ? ids[ids.length - 1] : null;
+    return nearest ? this.sharedStateByAncestorId?.[nearest] : null;
+  }
+  get plotGroupState() {
+    return this.plotGroupStateRaw?.state ?? this.plotGroupStateRaw;
+  }
+  get plotGroupEvents() {
+    return this.plotGroupStateRaw?.events ?? {};
+  }
+  get plotGroupServices() {
+    return this.plotGroupStateRaw?.services ?? this.plotGroupStateRaw ?? {};
+  }
+
+  // ---- Geometry helpers ----
+  get plotAreaWidth() {
+    return (
+      this.width -
+      this.layout.margin.left -
+      this.layout.margin.right -
+      this.marginAdd.left -
+      this.marginAdd.right
+    );
+  }
+
+  get plotAreaHeight() {
+    return (
+      this.height -
+      this.layout.margin.top -
+      this.layout.margin.bottom -
+      this.headerOffset -
+      this.marginAdd.top -
+      this.marginAdd.bottom
+    );
+  }
+
+  get plotAreaLeft() {
+    return this.layout.margin.left + this.marginAdd.left;
+  }
+
+  get plotAreaTop() {
+    return this.layout.margin.top + this.headerOffset + this.marginAdd.top;
+  }
+
+  get marginTotal() {
+    return {
+      top: this.layout.margin.top + this.marginAdd.top,
+      right: this.layout.margin.right + this.marginAdd.right,
+      bottom: this.layout.margin.bottom + this.marginAdd.bottom,
+      left: this.layout.margin.left + this.marginAdd.left,
+    };
+  }
+
+  get plotAreaId() {
+    return `${this.id}-plot-area`;
+  }
+
+  setLasts() {
+    this.lastWidth = this.width;
+    this.lastHeight = this.height;
+    this.lastLeft = this.left;
+    this.lastTop = this.top;
+  }
+
+  // ---- Lifecycle ----
+  make() {
+    this.updateHeader();
+    this.createPlotArea();
+    this.setLasts();
+    this.initBindings();
+    this.update();
+  }
+
+  async update() {
+    if (this.fetchingData) return;
+
+    if (this.fetchData && this.fetchDataNow) {
+      await this.getData();
     }
 
-    get checkResize() {
-        const ifResize = Math.round(this.width) !== Math.round(this.lastWidth) || Math.round(this.height) !== Math.round(this.lastHeight);
-        return ifResize;
+    if (this.fetchData && !this.data) return;
+
+    this.updateHeader();
+    this.updatePlotAreaSize();
+    await this.doUpdate();
+    this.setLasts();
+  }
+
+  requestUpdate() {
+    if (this._pendingFrame) return;
+    this._pendingFrame = true;
+    requestAnimationFrame(async () => {
+      this._pendingFrame = false;
+      await this.update();
+    });
+  }
+
+  // hooks to override in subclasses
+  createPlotArea() {}
+  initBindings() {}
+  async doUpdate() {}
+  // ---- Header + icons ----
+  addTitle() {
+    const container = d3.select(`#${this.id}`);
+    if (!this.layout.title) {
+      container.select(".plot-title").remove();
+      this.headerOffset = 0;
+      return;
+    }
+    const title = container.select(".plot-title");
+    if (title.empty()) {
+      const newTitle = container
+        .append("div")
+        .attr("class", "plot-title")
+        .attr("id", `${this.id}-plot-title`)
+        .style("position", "absolute")
+        .style("top", "0")
+        .style("left", "0")
+        .style("width", "100%")
+        .text(this.layout.title);
+      this.headerOffset = (newTitle.node()?.clientHeight ?? 0) + 3;
+    } else {
+      title.text(this.layout.title);
+      this.headerOffset = (title.node()?.clientHeight ?? 0) + 3;
+    }
+  }
+
+  addIcons() {
+    const container = d3.select(`#${this.id}`);
+    const iconList = this.icons;
+    if (!iconList || !iconList.length) {
+      container.select(".plot-icons").remove();
+      return;
+    }
+    const title = container.select(".plot-title");
+    let iconContainer = container.select(".plot-title").select(".plot-icons");
+    if (iconContainer.empty()) {
+      iconContainer = title.empty() ? container.append("div") : title.append("div");
+      iconContainer
+        .attr("class", "plot-icons")
+        .attr("id", `${this.id}-plot-icons`)
+        .style("position", "absolute")
+        .style("top", "0")
+        .style("right", "0");
     }
 
-    get checkMove() {
-        const ifMove = Math.round(this.left) !== Math.round(this.lastLeft) || Math.round(this.top) !== Math.round(this.lastTop);
-        return ifMove;
-    }
+    const icons = iconContainer.selectAll(".plot-icon").data(iconList);
 
+    icons
+      .enter()
+      .append("div")
+      .attr("class", "plot-icon")
+      .html((d) => icon(d.icon).html)
+      .on("click", (e, d) => d.action());
+    icons.exit().remove();
+  }
 
-    setLasts() {
-        this.lastWidth = this.width;
-        this.lastHeight = this.height;
-        this.lastLeft = this.left;
-        this.lastTop = this.top;
-    }
+  setCommonIcons() {
+    const icons = this.icons;
+    this.layout.icons.forEach((iconAlias) => {
+      if (iconAlias === "remove") {
+        icons.push({ icon: faXmark, action: () => { this.removePlot(); } });
+      }
+      if (iconAlias === "filter") {
+        icons.push({ icon: faFilter, action: () => { this.selectItemIds(); } });
+      }
+      if (iconAlias === "add") {
+        icons.push({ icon: faPlus, action: () => { this.addPlot(); } });
+      }
+    });
+  }
 
-    get plotAreaWidth() {
-        return this.width - this.layout.margin.left - this.layout.margin.right
-            - this.marginAdd.left - this.marginAdd.right;
-    }
+  updateHeader() {
+    this.addTitle();
+    this.addIcons();
+  }
 
-    get plotAreaHeight() {
-        return this.height - this.layout.margin.top - this.layout.margin.bottom - this.headerOffset
-            - this.marginAdd.top - this.marginAdd.bottom;
-    }
+  // ---- Item selection modal ----
+  selectItemIds() {
+    const boardId = this.boardId;
+    if (!boardId) return;
+    const modal = d3.select(`#${boardId}-modal`);
+    const modalContent = d3.select(`#${boardId}-modal-content`);
+    const dataset = this.contextState?.datasets?.[0];
+    const allItemIds = dataset?.data?.map((d) => d.itemId) || [];
+    const showFilters = this.contextState?.showFilters;
+    modalContent.selectAll("*").remove();
 
-    get plotAreaLeft() {
-        return this.layout.margin.left + this.marginAdd.left;
-    }
+    modalContent.append("h4").html("Select items");
+    modalContent.append("hr");
 
-    get plotAreaTop() {
-        return this.layout.margin.top + this.headerOffset + this.marginAdd.top;
-    }
-
-    get marginTotal() {
-        return {
-            top: this.layout.margin.top + this.marginAdd.top,
-            right: this.layout.margin.right + this.marginAdd.right,
-            bottom: this.layout.margin.bottom + this.marginAdd.bottom,
-            left: this.layout.margin.left + this.marginAdd.left
-        };
-    }
-
-    get plotAreaId() {
-        return `${this.id}-plot-area`;
-    }
-
-    addPlotAreaDiv() {
-        const container = d3.select(`#${this.id}`);
-        container.style("pointer-events", "all");
-        container.append("div")
-            .attr("id", `${this.plotAreaId}`)
-            .attr("class", "plot-area")
-            .style("position", "absolute")
-            .style("top", `${this.plotAreaTop}px`)
-            .style("left", `${this.plotAreaLeft}px`)
-            .style("width", `${this.plotAreaWidth}px`)
-            .style("height", `${this.plotAreaHeight}px`)
-            .attr("width", this.plotAreaWidth)
-            .attr("height", this.plotAreaHeight)
-            .style("pointer-events", "auto");
-        return;
-    }
-
-    addPlotAreaSvg() {
-        const container = d3.select(`#${this.id}`);
-        container.style("pointer-events", "all");
-        container.append("svg")
-            .attr("id", `${this.plotAreaId}`)
-            .attr("class", "plot-area")
-            .style("position", "absolute")
-            .style("top", `${this.plotAreaTop}px`)
-            .style("left", `${this.plotAreaLeft}px`)
-            .style("width", `${this.plotAreaWidth}px`)
-            .style("height", `${this.plotAreaHeight}px`)
-            .style("overflow", "visible")
-            .attr("width", this.plotAreaWidth)
-            .attr("height", this.plotAreaHeight)
-            .style("pointer-events", "auto");
-        return;
-    }
-
-    updatePlotAreaSize() {
-        const container = d3.select(`#${this.id}`);
-        const plotArea = container.select(".plot-area");
-        plotArea
-            .style("top", `${this.plotAreaTop}px`)
-            .style("left", `${this.plotAreaLeft}px`)
-            .style("width", `${this.plotAreaWidth}px`)
-            .style("height", `${this.plotAreaHeight}px`)
-            .attr("width", this.plotAreaWidth)
-            .attr("height", this.plotAreaHeight);
-        return;
-    }
-
-    
-    addTitle() {
-        const container = d3.select(`#${this.id}`);
-        if ( !this.layout.title ) {
-            container.select(".plot-title").remove();
-            return;
-        }
-        const title = container.select(".plot-title");
-        if ( title.empty() ) {
-            const newTitle = container.append("div")
-                .attr("class", "plot-title")
-                .attr("id", `${this.id}-plot-title`)
-                .style("position", "absolute")
-                .style("top", "0")
-                .style("left", "0")
-                .style("width", "100%")
-                .text(this.layout.title);
-            this.headerOffset = newTitle.node().clientHeight + 3;
-        } else {
-            title.text(this.layout.title);
-            this.headerOffset = title.node().clientHeight + 3;
-        }
-    }
-
-    addIcons() {
-        const container = d3.select(`#${this.id}`);
-        const iconList = this.icons;
-        if (!iconList || iconList.length === 0) {
-            container.select(".plot-icons").remove();
-            return; 
-        }
-        const title = container.select(".plot-title");
-        let iconContainer = container.select(".plot-title").select(".plot-icons");
-        if ( iconContainer.empty() ) {
-            if ( title.empty() ) {
-                iconContainer = container.append("div");
-            } else {
-                iconContainer = title.append("div");
-            }
-            iconContainer
-                .attr("class", "plot-icons")
-                .attr("id", `${this.id}-plot-icons`)
-                .style("position", "absolute")
-                .style("top", "0")
-                .style("right", "0");
-        }
-
-        const icons = iconContainer.selectAll(".plot-icon").data(iconList);
-
-        icons.enter()
-            .append("div")
-            .attr("class", "plot-icon")
-            .html(d => icon(d.icon).html)
-            .on("click", (e,d) => {console.log("click");d.action()}) 
-        icons.exit().remove();
-    }
-    
-    setCommonIcons() {
-        const icons = this.icons;
-
-        this.layout.icons.forEach( iconAlias => {
-            if ( iconAlias === "remove" ) {
-                icons.push({icon: faXmark, action: () => {this.removePlot()}});
-            }
-            if ( iconAlias === "filter" ) {
-                icons.push({icon: faFilter, action: () => {this.selectItemIds()}});
-            }
-            if ( iconAlias === "add" ) {
-                icons.push({icon: faPlus, action: () => {this.addPlot()}});
-            }
+    if (showFilters) {
+      modalContent.append("h4").html("Filters:");
+      const filtersContainer = modalContent.append("div").attr("class", "button-container");
+      const filterIds = (this.contextState?.filters || []).map((f) => f.id);
+      const buttonGrid = filtersContainer.append("div");
+      buttonGrid
+        .selectAll(".button")
+        .data(filterIds)
+        .enter()
+        .append("button")
+        .attr("class", "button")
+        .text((d) => d)
+        .on("click", (event, d) => {
+          this.handleFilterSelected(d);
+          modal.style("display", "none");
+          modalContent.selectAll("*").remove();
         });
-    
+      modalContent.append("hr");
     }
 
-    updateHeader() {
-        this.addTitle();
-        this.addIcons();
-        return;
-    }
+    modalContent.append("h4").html("Items:");
+    const currentItemIds = this.itemIds || [];
+    const checkboxContainer = modalContent.append("div").attr("class", "checkbox-container");
+    allItemIds.forEach((id) => {
+      const checkboxDiv = checkboxContainer.append("div").attr("class", "checkbox");
+      const checkboxInput = checkboxDiv.append("input").attr("type", "checkbox").attr("id", `checkbox-${id}`).attr("value", id);
+      if (currentItemIds.includes(id)) checkboxInput.attr("checked", true);
+      checkboxDiv.append("label").attr("for", `checkbox-${id}`).text(` ${id}`);
+    });
 
-    async getData() {
-        if (!this.fetchData || !this.fetchDataNow){
-            return;
-        }
-        const requestSetTrafficLightColor = this.sharedStateByAncestorId[this.boardId].requestSetTrafficLightColor;
-        const derivedData = this.sharedStateByAncestorId["context"].derivedData;
-        const dimensions = this.sharedStateByAncestorId["context"].dimensions;
-        this.fetchingData = true;
-        requestSetTrafficLightColor.state = "fetching";
-        this.data = await fetchPlotData(this.fetchData, derivedData, dimensions);
-        if (this.data && this.data.__noUpdate) {
-            this.data = this.lastData || this.data;
-            this.newData = false;
-            this.fetchingData = false;
-            this.fetchDataNow = false;
-            requestSetTrafficLightColor.state = "fetched";
-            return;
-        }
-        this.fetchingData = false;
-        this.fetchDataNow = false;
-        requestSetTrafficLightColor.state = "fetched";
-        this.newData = true;
-        this.lastData = this.data;
-    }
+    const buttonContainer = modalContent.append("div").attr("class", "button-container");
+    buttonContainer
+      .append("button")
+      .attr("class", "button")
+      .html("Apply")
+      .on("click", () => this.handleCheckboxesApply());
 
-    removeSubscriptions() {
-        this.subscriptions.forEach( sub => {
-			sub.observable.unsubscribeById(sub.id);
-		});
-    }
+    modal.node().scrollTop = 0;
+    modalContent.node().scrollTop = 0;
+    modal.style("display", "block");
+  }
 
-    selectItemIds() {
-        this.clearWebGLRenderer();
-        const boundHandleCheckboxesApply = this.handleCheckboxesApply.bind(this);
-        const boundHandleFilterSelected = this.handleFilterSelected.bind(this);
-        const boardId = this.ancestorIds[this.ancestorIds.length-1];
-        const showFilters = this.sharedStateByAncestorId["context"].showFilters;
-        const modal = d3.select(`#${boardId}-modal`);
-        const modalContent = d3.select(`#${boardId}-modal-content`);
-       
-        modalContent.selectAll("*").remove();
-        const dataset = this.sharedStateByAncestorId["context"].datasets[0];
-        const allItemIds = dataset.data.map( d => d.itemId);
+  handleCheckboxesApply() {
+    const boardId = this.boardId;
+    if (!boardId) return;
+    const modal = d3.select(`#${boardId}-modal`);
+    const modalContent = d3.select(`#${boardId}-modal-content`);
+    const checkedBoxes = modalContent.selectAll("input:checked");
+    const itemIds = checkedBoxes.nodes().map((cb) => cb.value);
+    modal.style("display", "none");
+    modalContent.selectAll("*").remove();
+    this.itemIds = itemIds;
+    const fetchByItems = this.boxEvents?.data?.fetchByItemIds || this.boardEvents?.data?.fetchByItemIds || this.sharedState?.requestFetchDataByItemIds;
+    fetchByItems && (fetchByItems.state = { itemIds });
+  }
 
+  handleFilterSelected(filterSelected) {
+    const fetchByFilter = this.boxEvents?.data?.fetchByFilter || this.boardEvents?.data?.fetchByFilter || this.sharedState?.requestFetchDataByFilter;
+    fetchByFilter && (fetchByFilter.state = { filterId: filterSelected });
+  }
 
-        modalContent.append("h4").html("Select items");
-        modalContent.append("hr");
-        if (showFilters) {
-            modalContent.append("h4").html("Filters:");
-            const filtersContainer = modalContent.append("div")
-                .attr("class", "button-container");
-        
-            const filterIds = this.sharedStateByAncestorId["context"].filters.map( f => f.id );
-      
-            const buttonGrid = filtersContainer.append("div")
-            buttonGrid.selectAll(".button")
-                .data(filterIds)
-                .enter()
-                .append("button")
-                .attr("class", "button")
-                .text(function(d) { return d; })
-                .on("click", (event, d) => {
-                    const filterSelected = d;
-                    modal.style("display", "none");
-                    modalContent.selectAll("*").remove();
-                    boundHandleFilterSelected(filterSelected);
-            });
-            modalContent.append("hr");
-        }
-        
-        modalContent.append("h4").html("Items:");
-        let currentItemIds = this.itemIds;
-        if (!currentItemIds) {currentItemIds = [];}
-        const checkboxContainer = modalContent.append("div")
-            .attr("class", "checkbox-container");
-        const checkboxes = checkboxContainer.selectAll(".checkbox")
-            .data(allItemIds);
-        checkboxes.enter().each( d => {
-            const checkboxDiv = checkboxContainer.append("div").attr("class", "checkbox");
-            const checkboxInput = checkboxDiv.append("input")
-                .attr("type", "checkbox")
-                .attr("id", `checkbox-${d}`)
-                .attr("value", d);
-            if (currentItemIds.indexOf(d) !== -1) {
-                checkboxInput.attr("checked", true);
-            }
-            checkboxDiv.append("label")
-                .attr("for", `checkbox-${d}`)
-                .text(` ${d}`);
-            });
-        
-        const buttonContainer = modalContent.append("div")
-            .attr("class", "button-container");
-        buttonContainer.append("button")
-            .attr("class", "button")
-            .html("Apply")
-            .on("click", boundHandleCheckboxesApply);
-        modal.node().scrollTop = 0;
-        modalContent.node().scrollTop = 0;
-        
-        modal.style("display", "block");
-        
-    }
+  // ---- Add new filter plot flow ----
+  addPlot() {
+    const boardId = this.boardId;
+    if (!boardId) return;
+    const modal = d3.select(`#${boardId}-modal`);
+    const modalContent = d3.select(`#${boardId}-modal-content`);
+    const buttonHandler = (plotType) => this.addNewFilterPlot(plotType);
 
-    handleCheckboxesApply() {
-        const boardId = this.ancestorIds[this.ancestorIds.length-1];
-        const modal = d3.select(`#${boardId}-modal`);
-        const modalContent = d3.select(`#${boardId}-modal-content`);
-        const checkedBoxes = modalContent.selectAll("input:checked");
-        const itemIds = checkedBoxes.nodes().map( cb => cb.value);
+    modalContent.selectAll("*").remove();
+    modalContent
+      .append("a")
+      .attr("class", "cancel")
+      .style("text-decoration", "none")
+      .style("position", "absolute")
+      .style("top", "0")
+      .style("right", "10px")
+      .style("cursor", "pointer")
+      .html("cancel")
+      .on("click", () => {
         modal.style("display", "none");
         modalContent.selectAll("*").remove();
-        //console.log(itemIds);
-        this.itemIds = itemIds;
-        this.sharedState.requestFetchDataByItemIds.state = {itemIds: itemIds};
-        // this.sharedState.requestFetchDataByFilter.state = {filterId: filterId};
+      });
+    modalContent.append("h4").html("Select plot type");
+    modalContent.append("hr");
+    const plotTypes = filterPlots.map((p) => p.name);
+    const buttonGrid = modalContent.append("div").attr("class", "button-container");
+    buttonGrid
+      .selectAll(".button")
+      .data(plotTypes)
+      .enter()
+      .append("button")
+      .attr("class", "button")
+      .text((d) => d)
+      .on("click", (event, d) => {
+        event.stopPropagation();
+        buttonHandler(d);
+      });
+    modal.style("display", "block");
+  }
 
-    }
+  addNewFilterPlot(plotType) {
+    const requestAddFilterPlot =
+      this.boxEvents?.plots?.addFilterPlot || this.boardEvents?.plots?.addFilterPlot || this.sharedState?.requestAddFilterPlot;
+    if (!requestAddFilterPlot) return;
 
-    handleFilterSelected(filterSelected) {
-        //console.log("filterSelected");
-        //console.log(filterSelected);
-        this.sharedState.requestFetchDataByFilter.state = {filterId: filterSelected};
-    }
+    const filterId = "filter-0"; // legacy default
+    const filters = this.contextState?.filters || [];
+    const filter = filters.find((f) => f.id === filterId);
+    const continuousProperties = filter?.continuousProperties || [];
+    const categoricalProperties = filter?.categoricalProperties || [];
+    const propertyOptions = {
+      continuous: [...continuousProperties].sort(),
+      categorical: [...categoricalProperties].sort(),
+    };
 
-    addPlot() {
-        //console.log("add plot");
-        //console.log(this);
-        //console.log(filterPlots);
-        this.clearWebGLRenderer();
-        const boundAddNewFilterPlot = this.addNewFilterPlot.bind(this);
-        const boardId = this.ancestorIds[this.ancestorIds.length-1];
-        this.sharedStateByAncestorId[boardId].preventZoom = true;
-        const modal = d3.select(`#${boardId}-modal`);
-        const modalContent = d3.select(`#${boardId}-modal-content`);
-        modalContent.selectAll("*").remove();
-        modalContent.append("a")
-            .attr("class", "cancel")
-            .style("text-decoration", "none")
-            .style("position", "absolute")
-            .style("top", "0")
-            .style("right", "10px")
-            .style("cursor", "pointer")
-            .html("cancel")
-            .on("click", () => {
-                modal.style("display", "none");
-                modalContent.selectAll("*").remove();
+    const boardId = this.boardId;
+    const modal = boardId ? d3.select(`#${boardId}-modal`) : null;
+    const modalContent = boardId ? d3.select(`#${boardId}-modal-content`) : null;
+    modalContent?.on("click", (event) => event.stopPropagation());
+
+    const dataNeeded = filterPlots.find((p) => p.name === plotType)?.dataNeeded || [];
+    const dataNeededProps = dataNeeded.filter((d) => !d.array);
+    const dataNeededArrays = dataNeeded.filter((d) => d.array);
+
+    modalContent?.append("hr");
+    modalContent?.select(".dropdown-container").remove();
+    const dropdownContainer = modalContent?.append("div").attr("class", "dropdown-container");
+    const dropdowns = dropdownContainer
+      ?.selectAll(".dropdown")
+      .data(dataNeededProps)
+      .enter()
+      .append("div");
+
+    dropdowns
+      ?.append("label")
+      .text((d) => d.name);
+    dropdowns
+      ?.append("select")
+      .on("click", (event) => {
+        event.stopPropagation();
+      })
+      .on("change input drag", (event) => {
+        event.stopPropagation();
+      })
+      .selectAll("option")
+      .data((d) => propertyOptions[d.type] || [])
+      .enter()
+      .append("option")
+      .text((d) => d);
+
+    dataNeededArrays.forEach((d) => {
+      const checkboxContainer = dropdowns?.append("div");
+      checkboxContainer?.append("p").html(d.name);
+      const propOptions = propertyOptions[d.type] || [];
+      propOptions.forEach((p) => {
+        const checkboxDiv = checkboxContainer?.append("div").attr("class", "checkbox");
+        const checkboxInput = checkboxDiv?.append("input").attr("type", "checkbox").attr("id", `checkbox-${d.name}-${p}`).attr("value", p);
+        checkboxDiv?.append("label").attr("for", `checkbox-${d.name}-${p}`).text(` ${p}`);
+      });
+    });
+
+    dropdownContainer
+      ?.append("button")
+      .attr("class", "button")
+      .text("Make plot")
+      .on("click", () => {
+        const dropdownValues = {};
+        dropdowns?.each(function (d, i) {
+          const dropdown = d3.select(this).select("select");
+          const selectedValue = dropdown.property("value");
+          dropdownValues[dataNeededProps[i].name] = selectedValue;
         });
-        modalContent.append("h4").html("Select plot type");
-        modalContent.append("hr");
-        const plotTypes = filterPlots.map( p => p.name );
-        const buttonGrid = modalContent.append("div")
-            .attr("class", "button-container");
-        buttonGrid.selectAll(".button")
-            .data(plotTypes)
-            .enter()
-            .append("button")
-            .attr("class", "button")
-            .text(function(d) { return d; })
-            .on("click", (event, d) => {
-                const plotType = d;
-                //modal.style("display", "none");
-                //modalContent.selectAll("*").remove();
-                event.stopPropagation();
-                boundAddNewFilterPlot(plotType);
-        });
-        modal.style("display", "block");
-      
-
-        //this.sharedState.requestAddNewFilterPlot.state = {type, data};
-    }
-
-    addNewFilterPlot(plotType) {
-        //console.log("addNewFilterPlot");
-        //console.log(plotType);
-        const requestAddFilterPlot = this.sharedState.requestAddFilterPlot;
-        const dataNeeded = filterPlots.find( p => p.name === plotType ).dataNeeded;
-        //console.log(dataNeeded);
-        const filterId = "filter-0"; // hard coded for now
-        const continuousProperties = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId ).continuousProperties;
-        const categoricalProperties = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId ).categoricalProperties;
-        const propertyOptions = {};
-        propertyOptions.continuous = [...continuousProperties].sort();
-        propertyOptions.categorical = [...categoricalProperties].sort();
-        //console.log(propertyOptions);
-
-        const boardId = this.ancestorIds[this.ancestorIds.length-1];
-        const boardSharedState = this.sharedStateByAncestorId[boardId];
-        const modal = d3.select(`#${boardId}-modal`);
-        const modalContent = d3.select(`#${boardId}-modal-content`);
-        modalContent.on("click", (event) => {
-            event.stopPropagation();
-        });
-        
-        modalContent.append("hr");
-        modalContent.select(".dropdown-container").remove();
-        const dataNeededProps = dataNeeded.filter(d => !d.array);
-        const dataNeededArrays = dataNeeded.filter(d => d.array);
-        const dropdownContainer = modalContent.append("div")
-            .attr("class", "dropdown-container");
-        const dropdowns = dropdownContainer.selectAll(".dropdown").data(dataNeededProps)
-            .enter().append("div");
-        dropdowns.append("label")
-            .text(function(d) { return d.name; });
-        dropdowns.append("select")
-            .on("click", (event) => {
-                //console.log("click");
-                //console.log(event);
-            })
-            .on("change input drag", (event) => {
-                //console.log(event);
-                event.stopPropagation();})
-            .selectAll("option")
-            .data( d => propertyOptions[d.type] )
-            .enter()
-                .append("option")
-                .text(function(d) { return d; });
-
-        dataNeededArrays.forEach( d => {
-            const checkboxContainer = dropdowns.append("div");
-            checkboxContainer.append("p").html(d.name);
-            const propOptions = propertyOptions[d.type];
-            const checkboxes = checkboxContainer.selectAll(".checkbox")
-                .data(propOptions);
-            checkboxes.enter().each( p => {
-                const checkboxDiv = checkboxContainer.append("div").attr("class", "checkbox");
-                const checkboxInput = checkboxDiv.append("input")
-                    .attr("type", "checkbox")
-                    .attr("id", `checkbox-${d.name}-${p}`)
-                    .attr("value", p);
-                checkboxDiv.append("label")
-                    .attr("for", `checkbox-${d.name}-${p}`)
-                    .text(` ${p}`);
-                });
-        });
-            
-        dropdownContainer.append("button")
-            .attr("class", "button")
-            .text("Make plot")
-            .on("click", function() {
-                const dropdownValues = {};
-                dropdowns.each(function(d, i) {
-                    const dropdown = d3.select(this).select("select");
-                    let selectedValue = dropdown.property("value");
-                    dropdownValues[dataNeeded[i].name] = selectedValue;
-                });
-                dataNeededArrays.forEach( d => {
-                    const propOptions = propertyOptions[d.type];
-                    const selectedValues = [];
-                    propOptions.forEach( p => {
-                        const checkbox = d3.select(`#checkbox-${d.name}-${p}`);
-                        if (checkbox.property("checked")) {
-                            selectedValues.push(p);
-                        }
-                    });
-                    dropdownValues[d.name] = selectedValues;
-                });
-                
-                requestAddFilterPlot.state={plotType, filterId, dataProperties:dropdownValues};
-                modal.style("display","none");
-                modalContent.selectAll("*").remove();
-                boardSharedState.preventZoom = false;
-            
-            });       
-    }
-
-    removePlot() {
-
-        const parentId = this.ancestorIds[this.ancestorIds.length-1];
-        this.sharedStateByAncestorId[parentId].requestUpdateBoxes.state = {boxesToAdd:[],boxesToRemove:[this.boxId]};
-  
-    }
-            
-    getOverlappingBoxesInClipSpace( currentRect ) {
-        const currentBoxId = this.boxId;
-        const parts = currentBoxId.split("-");
-        const allBoxNodes = d3.select(`#${this.boardId}`).selectAll(".board-box").nodes();
-        const allBoxIds = allBoxNodes.map( box => box.id );
-
-        const ancestors = new Set();
-        for (let i = parts.length; i > 1; i -= 2) {
-          ancestors.add(parts.slice(0, i).join('-'));
-        }
-        
-        const possibleOverlappingBoxesSet = new Set();
-        for (let i = parts.length; i>1; i-=2) {
-            const parentPrefix = parts.slice(0,i-2).join("-");
-            const siblings = allBoxIds.filter(id => 
-                id.startsWith(parentPrefix) && 
-                id.split('-').length === i &&
-                !ancestors.has(id) 
-            );
-            siblings.forEach(sibling => possibleOverlappingBoxesSet.add(sibling));
-        }
-        const possibleOverlappingBoxes = Array.from(possibleOverlappingBoxesSet);
-        possibleOverlappingBoxes.push(currentBoxId);
-        
-        const possibleOverlappingBoxNodes = allBoxNodes.filter( node => possibleOverlappingBoxes.includes(node.id) );
-        const currentBoxNodeIndex = possibleOverlappingBoxNodes.findIndex( node => node.id == currentBoxId );
-        const nearerBoxNodes = possibleOverlappingBoxNodes.filter( (node, index) => currentBoxNodeIndex < index);
-        const nearerBoxRects = nearerBoxNodes.map( node => node.getBoundingClientRect() );
-        const nearerBoxesClipSpace = nearerBoxRects.map(d => {
-            let left = (d.left - currentRect.left) / currentRect.width * 2 - 1;
-            let right = (d.right - currentRect.left) / currentRect.width * 2 - 1;
-            let top = (currentRect.top + currentRect.height - d.top) / currentRect.height * 2 - 1;
-            let bottom = (currentRect.top + currentRect.height - d.bottom) / currentRect.height * 2 - 1;
-            let overlap = false;
-            if (left < 1 && right > -1 && bottom < 1 && top > -1) {
-                overlap = true;
+        dataNeededArrays.forEach((d) => {
+          const propOptions = propertyOptions[d.type] || [];
+          const selectedValues = [];
+          propOptions.forEach((p) => {
+            const checkbox = d3.select(`#checkbox-${d.name}-${p}`);
+            if (checkbox.property("checked")) {
+              selectedValues.push(p);
             }
-            return {left, right, top, bottom, overlap};
+          });
+          dropdownValues[d.name] = selectedValues;
         });
-        return nearerBoxesClipSpace.filter( box => box.overlap );
-    }
 
-    webGLUpdate() {
-        //console.log(this.id, "webGLUpdate");
-        const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
-        if (requestWebGLRender.state == false) {
-            requestWebGLRender.state = true;
+        requestAddFilterPlot.state = { plotType, filterId, dataProperties: dropdownValues };
+        modal?.style("display", "none");
+        modalContent?.selectAll("*").remove();
+        if (this.boardStateRaw) {
+          this.boardStateRaw.preventZoom = false;
         }
-    }
+      });
+  }
 
-    clearWebGLRenderer() {
-        const renderer = this.sharedStateByAncestorId["context"].renderer;
-        renderer.setClearColor(0x000000, 0); 
-        renderer.clear();
+  removePlot() {
+    const parentId = this.boardId;
+    const updateBoxes =
+      this.boardEvents?.boxes?.update || this.sharedStateByAncestorId?.[parentId]?.requestUpdateBoxes || this.sharedState?.requestUpdateBoxes;
+    if (updateBoxes) {
+      updateBoxes.state = { boxesToAdd: [], boxesToRemove: [this.boxId] };
     }
+  }
 
-    makeCutObject(cutLayout) {
-        const cut = {
-            name : cutLayout.name || "cut",
-            dimensionName : cutLayout.dimensionName || "dim1",
-            type : cutLayout.type || "x",
-            dataStoreName : cutLayout.dataStoreName || "cutData",
-            cutWhileBrushing : cutLayout.cutWhileBrushing || false,
-            dimensionObserverId : undefined,
-            lineAdded : false,
-            lineDragging : false,
-            point : undefined,
-            value : undefined,
-            line : undefined,
-            quadtrees : [],
-            zps : [],
-            sdists : []
-        };
-        return cut;
-    }
+  // ---- Data fetching ----
+  async getData() {
+    if (!this.fetchData || !this.fetchDataNow) return;
+    const trafficLight = this.boardEvents?.ui?.setTrafficLight;
 
-    toJson() {
-        let dataForJson;
-        if (this.dataToJson) {
-            dataForJson = this.data;
-        } else {
-            dataForJson = null;
-        }
-        const json = {
-            layout : this.layout,
-            data : dataForJson,
-            fetchData : this.fetchData || null,
-            type : this.componentType,
-            ctrl : this.ctrl || null,
-        };
-        return json;
-    }
-    
+    this.fetchingData = true;
+    if (trafficLight) trafficLight.state = "fetching";
+
+    const derivedData = this.contextState?.derivedData;
+    const dimensions = this.contextState?.dimensions;
+    this.data = await fetchPlotData(this.fetchData, derivedData, dimensions);
+
+    this.fetchingData = false;
+    this.fetchDataNow = false;
+    this.newData = true;
+    this.lastData = this.data;
+    if (trafficLight) trafficLight.state = "fetched";
+  }
+
+  // ---- DOM helpers ----
+  addPlotAreaDiv() {
+    const container = d3.select(`#${this.id}`);
+    container.style("pointer-events", "all");
+    container
+      .append("div")
+      .attr("id", `${this.plotAreaId}`)
+      .attr("class", "plot-area")
+      .style("position", "absolute")
+      .style("top", `${this.plotAreaTop}px`)
+      .style("left", `${this.plotAreaLeft}px`)
+      .style("width", `${this.plotAreaWidth}px`)
+      .style("height", `${this.plotAreaHeight}px`)
+      .attr("width", this.plotAreaWidth)
+      .attr("height", this.plotAreaHeight)
+      .style("pointer-events", "auto");
+  }
+
+  addPlotAreaSvg() {
+    const container = d3.select(`#${this.id}`);
+    container.style("pointer-events", "all");
+    container
+      .append("svg")
+      .attr("id", `${this.plotAreaId}`)
+      .attr("class", "plot-area")
+      .style("position", "absolute")
+      .style("top", `${this.plotAreaTop}px`)
+      .style("left", `${this.plotAreaLeft}px`)
+      .style("width", `${this.plotAreaWidth}px`)
+      .style("height", `${this.plotAreaHeight}px`)
+      .style("overflow", "visible")
+      .attr("width", this.plotAreaWidth)
+      .attr("height", this.plotAreaHeight)
+      .style("pointer-events", "auto");
+  }
+
+  updatePlotAreaSize() {
+    const container = d3.select(`#${this.id}`);
+    const plotArea = container.select(".plot-area");
+    if (plotArea.empty()) return;
+    plotArea
+      .style("top", `${this.plotAreaTop}px`)
+      .style("left", `${this.plotAreaLeft}px`)
+      .style("width", `${this.plotAreaWidth}px`)
+      .style("height", `${this.plotAreaHeight}px`)
+      .attr("width", this.plotAreaWidth)
+      .attr("height", this.plotAreaHeight);
+  }
+
+  get plotAreaSel() {
+    return d3.select(`#${this.plotAreaId}`);
+  }
+
+  // ---- Subscription helpers ----
+  subscribe(observable, handler) {
+    if (!observable || !handler) return null;
+    const bound = handler.bind(this);
+    const id = observable.subscribe(bound);
+    this.subscriptions.push({ observable, id });
+    return id;
+  }
+
+  removeSubscriptions() {
+    this.subscriptions.forEach((sub) => {
+      sub.observable.unsubscribeById(sub.id);
+    });
+    this.subscriptions = [];
+  }
+
+  remove() {
+    this.removeSubscriptions();
+  }
 }
 
 export { Plot };

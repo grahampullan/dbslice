@@ -1,11 +1,11 @@
-import { PlotV3_1 } from './PlotV3_1.js';
+import { Plot } from './Plot.js';
 import { Box } from '../core/Box.js';
 //import { TriMesh3D } from './TriMesh3D.js';
 import { Observable } from 'board-box';
 import { getComponentFromType } from './getComponentFromType.js';
 import * as d3 from 'd3v7'
 
-class PlotGroup extends PlotV3_1 {
+class PlotGroup extends Plot {
 
     constructor(options) {
 		if (!options) { options={} }

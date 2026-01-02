@@ -1,9 +1,9 @@
 import * as d3 from "d3v7";
 import * as THREE from "three";
-import { PlotV3_1 } from "./PlotV3_1";
+import { Plot } from "./Plot";
 
 // Shared WebGL shell for v3.1 plots. Not wired into existing plots yet.
-export class WebGLPlotBase extends PlotV3_1 {
+export class WebGLPlotBase extends Plot {
   constructor(options = {}) {
     super(options);
     this.scene = null;

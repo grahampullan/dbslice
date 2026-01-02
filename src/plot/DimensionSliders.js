@@ -1,7 +1,7 @@
 import * as d3 from 'd3v7';
-import { PlotV3_1 } from './PlotV3_1.js';
+import { Plot } from './Plot.js';
 
-class DimensionSliders extends PlotV3_1 {
+class DimensionSliders extends Plot {
 
     constructor(options) {
 		if (!options) { options={} }
