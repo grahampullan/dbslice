@@ -42,7 +42,7 @@ class GLTFViewer extends WebGLPlotBase {
 
   ensureControls() {
     if (this.controls) return;
-    const dom = this.contextServices.renderer?.domElement;
+    const dom = this.plotAreaSel?.node?.();
     if (!dom) return;
 
     this.controls = new OrbitControls(this.camera, dom);

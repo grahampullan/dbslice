@@ -74,15 +74,20 @@ class ExtractTilesViewer extends WebGLPlotBase {
 
   ensureControls() {
     if (this.controls) return;
-    const dom = this.contextServices.renderer?.domElement;
+    const dom = this.plotAreaSel?.node?.();
     if (!dom) return;
+    this._controlsDom = dom;
+    this._domHandlers = this._domHandlers || {};
+    this._domHandlers.pointerDown = (e) => { e.preventDefault(); e.stopPropagation(); };
+    this._domHandlers.pointerMove = (e) => e.stopPropagation();
+    this._domHandlers.wheel = (e) => { e.preventDefault(); e.stopPropagation(); };
     dom.style.touchAction = "none";
     dom.style.msTouchAction = "none";
-    dom.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+    dom.addEventListener("pointerdown", this._domHandlers.pointerDown, { passive: false });
     ["pointermove", "pointerup", "pointercancel", "contextmenu"].forEach(type => {
-      dom.addEventListener(type, (e) => e.stopPropagation(), { passive: true });
+      dom.addEventListener(type, this._domHandlers.pointerMove, { passive: true });
     });
-    dom.addEventListener("wheel", (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+    dom.addEventListener("wheel", this._domHandlers.wheel, { passive: false });
 
     this.controls = new OrbitControls(this.camera, dom);
     this.controls.enableDamping = false;
@@ -350,6 +355,15 @@ class ExtractTilesViewer extends WebGLPlotBase {
     this.removeSubscriptions();
     this.controls?.dispose?.();
     this.tileManager?.dispose?.();
+    if (this._controlsDom && this._domHandlers) {
+      this._controlsDom.removeEventListener("pointerdown", this._domHandlers.pointerDown, { passive: false });
+      ["pointermove", "pointerup", "pointercancel", "contextmenu"].forEach(type => {
+        this._controlsDom.removeEventListener(type, this._domHandlers.pointerMove, { passive: true });
+      });
+      this._controlsDom.removeEventListener("wheel", this._domHandlers.wheel, { passive: false });
+    }
+    this._controlsDom = null;
+    this._domHandlers = null;
     this.scene = null;
     this.camera = null;
     this.tileManager = null;

@@ -99,7 +99,7 @@ class TriMesh3D extends WebGLPlotBase {
 
   ensureControls() {
     if (this.controls) return;
-    const dom = this.contextServices.renderer?.domElement;
+    const dom = this.plotAreaSel?.node?.();
     if (!dom) return;
     this.controls = new OrbitControls(this.camera, dom);
     this.controls.enableDamping = true;
@@ -154,6 +154,10 @@ class TriMesh3D extends WebGLPlotBase {
   }
 
   prepareColorScale() {
+    if (this.textureLUT) {
+      this.textureLUT.dispose();
+      this.textureLUT = null;
+    }
     const layout = this.layout;
     const vScale = layout.vScale ?? [0, 1];
     this.vScale = vScale;
@@ -298,10 +302,21 @@ class TriMesh3D extends WebGLPlotBase {
     const vertices = new Float32Array(buffer, verticesOffset, nVerts * 3);
     const indices = new Uint32Array(buffer, indicesOffset, nTris * 3);
     const valuesArr = new Float32Array(buffer, values[0].offset, nVerts);
-    const uvs = new Float32Array(
-      Array.from(valuesArr).map((d) => [(d - vScale[0]) / (vScale[1] - vScale[0]), 0.5]).flat()
-    );
+    const uvs = new Float32Array(nVerts * 2);
+    const denom = vScale[1] - vScale[0] || 1;
+    for (let i = 0; i < nVerts; i++) {
+      const t = (valuesArr[i] - vScale[0]) / denom;
+      const idx = i * 2;
+      uvs[idx] = t;
+      uvs[idx + 1] = 0.5;
+    }
     return { vertices, indices, values: valuesArr, uvs, nVerts, nTris };
+  }
+
+  remove() {
+    super.remove?.();
+    this.textureLUT?.dispose?.();
+    this.textureLUT = null;
   }
 
   addAxes() {

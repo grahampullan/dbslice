@@ -1,6 +1,13 @@
 import * as d3 from 'd3v7';
 import { Plot } from './Plot.js';
 
+const escapeId = (value) => {
+    if (typeof CSS !== "undefined" && CSS.escape) {
+        return CSS.escape(value);
+    }
+    return String(value).replace(/[^a-zA-Z0-9_-]/g, "_");
+};
+
 class DimensionSliders extends Plot {
 
     constructor(options) {
@@ -62,12 +69,12 @@ class DimensionSliders extends Plot {
             if (requestCreateDimension) {
                 requestCreateDimension.state = {name:dimensionName, value:initValue};
             }
-            const dimension = dimensions?.find( d => d.name == dimensionName );
+            const dimension = dimensions?.find( d => d.name === dimensionName );
             const dimValue = dimension?.state?.value ?? initValue;
             sliderToAdd.value = dimValue;
             if (dimension) {
                 const obsId = dimension.subscribe( (data) => {
-                    const s = this.sliders.find( d => d.dimensionName == dimensionName );
+                    const s = this.sliders.find( d => d.dimensionName === dimensionName );
                     if (!s) return;
                     s.value = data.value;
                     this.setSliderPosition(dimensionName);
@@ -85,7 +92,7 @@ class DimensionSliders extends Plot {
 
         const sliderDragStart = (event,dimensionName) => {
             event.stopPropagation();
-            const slider = this.sliders.find( d => d.dimensionName == dimensionName );
+            const slider = this.sliders.find( d => d.dimensionName === dimensionName );
             if (slider) slider.brushing = true;
         }
 
@@ -93,7 +100,7 @@ class DimensionSliders extends Plot {
             const parent = d3.select(event.target.parentNode);
             const valueElement = parent.select(".dim-slider-value");
             valueElement.text(event.target.value);
-            const slider = this.sliders.find( d => d.dimensionName == dimensionName );
+            const slider = this.sliders.find( d => d.dimensionName === dimensionName );
             const value = +event.target.value;
             const requestSetDimension = this.contextEvents?.dimensions?.set;
             if (requestSetDimension) {
@@ -102,7 +109,7 @@ class DimensionSliders extends Plot {
         }
 
         const sliderDragEnd = (event,dimensionName) => {
-            const slider = this.sliders.find( d => d.dimensionName == dimensionName );
+            const slider = this.sliders.find( d => d.dimensionName === dimensionName );
             if (slider) slider.brushing = false;
             const requestSetDimension = this.contextEvents?.dimensions?.set;
             if (requestSetDimension && slider) {
@@ -115,6 +122,8 @@ class DimensionSliders extends Plot {
         this.sliders.forEach( slider => {
             if ( slider.sliderAdded ) return;
             const dimensionName = slider.dimensionName;
+            const sliderId = `${dimensionName}-slider`;
+            const safeSliderId = escapeId(sliderId);
             const sliderContainer = slidersContainer.append("div")
                 .attr("class", "dim-slider-container")
                 .style("width","100%")
@@ -128,7 +137,7 @@ class DimensionSliders extends Plot {
             sliderContainer.append("input")
                 .attr("class", "dim-slider")
                 .attr("type","range")
-                .attr("id", `${dimensionName}-slider`)
+                .attr("id", safeSliderId)
                 .attr("min", slider.min)
                 .attr("max", slider.max)
                 .attr("value", slider.value)
@@ -145,12 +154,14 @@ class DimensionSliders extends Plot {
                 .style("min-width","50px") ;
 
             slider.sliderAdded = true;
+            slider.sliderId = safeSliderId;
         } );
     }
 
     setSliderPosition(dimensionName) {
-        const slider = this.sliders.find( d => d.dimensionName == dimensionName );
-        const sliderElement = d3.select(`#${this.id}`).select(`#${dimensionName}-slider`);
+        const slider = this.sliders.find( d => d.dimensionName === dimensionName );
+        const sliderId = slider?.sliderId || escapeId(`${dimensionName}-slider`);
+        const sliderElement = d3.select(`#${this.id}`).select(`#${sliderId}`);
         if (!sliderElement.empty() && slider) {
             sliderElement.node().value = slider.value;
             const parent = sliderElement.node().parentNode;

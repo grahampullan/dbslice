@@ -20,6 +20,7 @@ class Filter {
         if (this.type == "crossfilter") {
             this.cf = crossfilter( options.data );
             const cf = this.cf;
+            this.allDim = cf.dimension( d => d.itemId );
             this.categoricalDims = this.categoricalProperties.map( p => cf.dimension( d => d[ p ] ) );
             this.continuousDims = this.continuousProperties.map( p => cf.dimension( d => d[ p ] ) );
             this.categoricalDims.forEach( dim => dim.filterAll() );
@@ -36,14 +37,14 @@ class Filter {
             const continuousDims = this.continuousDims;
             continuousFilterSelectedRanges[ dimId ] = range;
             continuousFilterSelectedRanges.forEach( ( selectedRange, i ) => {
-                const dim = continuousDims[ i ];
+                const dim = continuousDims?.[ i ];
                 if (!dim) return;
                 dim.filterAll();
-                if ( selectedRange.length !== 0 ) {
+                if ( Array.isArray(selectedRange) && selectedRange.length !== 0 ) {
                   dim.filter( d => d >= selectedRange[ 0 ] && d <= selectedRange[ 1 ] ? true : false );
                 }
             } );
-            const currentMetaData = this.categoricalDims?.[0]?.top ? this.categoricalDims[0].top(Infinity) : options.data || [];
+            const currentMetaData = this.allDim?.top ? this.allDim.top(Infinity) : options.data || [];
             this.itemIdsInFilter.state = {itemIds: currentMetaData.map( d => d.itemId), brushing };
             this.labelsInFilter = currentMetaData.map( d => d.label );
         }
@@ -66,7 +67,7 @@ class Filter {
             }
 
             categoricalFilterSelected.forEach( ( filters, i ) => {
-                const dim = categoricalDims[i];
+                const dim = categoricalDims?.[i];
                 if (!dim) return;
                 if ( filters.length === 0 ) {
                   dim.filterAll();
@@ -74,7 +75,7 @@ class Filter {
                   dim.filter( ( d ) => filters.indexOf( d ) > -1 );
                 }
               } );
-            const currentMetaData = this.categoricalDims?.[0]?.top ? this.categoricalDims[0].top(Infinity) : options.data || [];
+            const currentMetaData = this.allDim?.top ? this.allDim.top(Infinity) : options.data || [];
             this.itemIdsInFilter.state = {itemIds: currentMetaData.map( d => d.itemId), brushing };
             this.labelsInFilter = currentMetaData.map( d => d.label );
         }
