@@ -74,7 +74,9 @@ class Box extends bbBox {
     fetchDataByFilter(data) {
         //console.log("fetchDataByFilter");
         const filterId = data.filterId;
-        const filter = this.sharedStateByAncestorId["context"].filters.find( f => f.id == filterId );
+        const contextState = this.sharedStateByAncestorId?.context?.state;
+        const filter = contextState?.filters?.find( f => f.id === filterId );
+        if (!filter) return;
         const itemIds = filter.itemIdsInFilter.state.itemIds;
         this.boxes.forEach( box => {
             const plot = box.component;
@@ -131,7 +133,7 @@ class Box extends bbBox {
 
     customOnUpdateEnd() {
         const requestWebGLRender = this.sharedStateByAncestorId[this.boardId].requestWebGLRender;
-        requestWebGLRender.state = true;
+        if (requestWebGLRender) requestWebGLRender.state = true;
     }
     
 

@@ -130,10 +130,11 @@ export class WebGLPlotBase extends Plot {
     }
 
     const canvasRect = this.renderer.domElement.getBoundingClientRect();
-    const x = rect.left - canvasRect.left;
-    const y = canvasRect.bottom - rect.bottom;
-    const w = rect.right - rect.left;
-    const h = rect.bottom - rect.top;
+    const pixelRatio = this.renderer.getPixelRatio ? this.renderer.getPixelRatio() : window.devicePixelRatio || 1;
+    const x = (rect.left - canvasRect.left) * pixelRatio;
+    const y = (canvasRect.bottom - rect.bottom) * pixelRatio;
+    const w = (rect.right - rect.left) * pixelRatio;
+    const h = (rect.bottom - rect.top) * pixelRatio;
 
     if (this.layout?.useStencil !== false) {
       this.refreshStencilRects(plotRect);

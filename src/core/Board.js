@@ -166,7 +166,9 @@ class Board extends bbBoard {
 
     makePlotGroupDetailed() {
         this.detailedContainer = true;
-        const dataset = this.sharedStateByAncestorId["context"].datasets[0];
+        const contextState = this.sharedStateByAncestorId?.context?.state;
+        const dataset = contextState?.datasets?.[0];
+        if (!dataset) return;
         const boxesToAdd = dataset.availablePlots.map( plotJson => createBoxFromJson(plotJson) );              
         const plotGroupBox = new Box({x:200,y:100, width:800, height:500, margin:0, autoLayout:true, component: new PlotGroup({layout:{title:"Detail plots", icons:["filter"]}})});
         this.sharedState.requestUpdateBoxes.state = {boxesToAdd:[plotGroupBox]};
@@ -177,12 +179,15 @@ class Board extends bbBoard {
 
     makePlotGroupFilter() {
         this.filterContainer = true;
-        this.sharedStateByAncestorId["context"].showFilters = true;
-        const datasets = this.sharedStateByAncestorId["context"].datasets;
-        const datasetId = datasets[0].id; // set to first dataset for now
-        //this.sharedStateByAncestorId["context"].requestCreateFilter.state = {datasetId};
-        const filters = this.sharedStateByAncestorId["context"].filters;
-        const filterId = filters[filters.length-1].id;
+        const contextShared = this.sharedStateByAncestorId?.context;
+        const contextState = contextShared?.state;
+        if (contextState) contextState.showFilters = true;
+        const datasets = contextState?.datasets || [];
+        const datasetId = datasets[0]?.id; // set to first dataset for now
+        if (!datasetId) return;
+        const filters = contextState?.filters || [];
+        const filterId = filters.length ? filters[filters.length-1].id : null;
+        if (!filterId) return;
         const plotGroupBox = new Box({x:200,y:100, width:500, height:500, margin:0, autoLayout:true, component: new PlotGroup({layout:{title:"Filter plots", filterPlots:true, datasetId, filterId, icons:["add"]}})});
         this.sharedState.requestUpdateBoxes.state = {boxesToAdd:[plotGroupBox]};
     }
@@ -202,7 +207,8 @@ class Board extends bbBoard {
     }
 
     clearWebGLRenderer() {
-        const renderer = this.sharedStateByAncestorId["context"].renderer;
+        const renderer = this.sharedStateByAncestorId?.context?.services?.renderer;
+        if (!renderer) return;
         renderer.setClearColor(0x000000, 0); 
         renderer.clear();
     }

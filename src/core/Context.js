@@ -18,7 +18,7 @@ class Context extends bbContext {
             .style("width", "100%")
             .style("height", "100%")
             .style("z-index", "1")
-            .style("pointer-events", "none");
+            .style("pointer-events", "auto");
         const renderer = new THREE.WebGLRenderer({canvas: canvas.node(), alpha:true, logarithmicDepthBuffer: true, stencil: true, antialias: true});
         renderer.setPixelRatio( window.devicePixelRatio );
         renderer.setSize(renderer.domElement.clientWidth, renderer.domElement.clientHeight);
@@ -80,24 +80,27 @@ class Context extends bbContext {
     }
 
     createNewFilter(data) {
-        datasetId = data.datasetId;
-        const newFilter = this.datasets.find( dataset => dataset.id == datasetId ).createFilter();
+        const datasetId = data.datasetId;
+        const datasets = this.sharedState.state.datasets;
+        const targetDataset = datasets.find(dataset => dataset.id === datasetId);
+        if (!targetDataset) return;
+        const newFilter = targetDataset.createFilter();
         this.addFilter(newFilter);
     }
 
     createDerivedDataStore(data) {
         const derivedData = {name:data.name, data:[], newData: new Observable({flag: true, state:false})};
-        this.sharedState.derivedData.push(derivedData);
+        this.sharedState.state.derivedData.push(derivedData);
     }
 
     saveToDerivedData(data) {
-        let derivedData = this.sharedState.derivedData.find( d => d.name == data.name );
+        let derivedData = this.sharedState.state.derivedData.find( d => d.name === data.name );
         if (!derivedData) {
             this.createDerivedDataStore({name:data.name});
-            derivedData = this.sharedState.derivedData.find( d => d.name == data.name );
+            derivedData = this.sharedState.state.derivedData.find( d => d.name === data.name );
         }
         const itemId = data.itemId;
-        const targetStore = derivedData.data.find( d => d.itemId == itemId );
+        const targetStore = derivedData.data.find( d => d.itemId === itemId );
         if (targetStore) {
             targetStore.data = data.data;
             targetStore.newData = true;
@@ -108,10 +111,10 @@ class Context extends bbContext {
     }
 
     createDimension(data) {
-        let dimension = this.sharedState.dimensions.find( d => d.name == data.name );
+        let dimension = this.sharedState.state.dimensions.find( d => d.name === data.name );
         if (!dimension) {
             dimension = new Observable({name:data.name, state:{value:data.value, brushing:false}, flag:false});
-            this.sharedState.dimensions.push(dimension);
+            this.sharedState.state.dimensions.push(dimension);
         } else {
             if (data.value !== null && data.value !== undefined) {
                 dimension.state = {value: data.value, brushing: false};
@@ -120,7 +123,7 @@ class Context extends bbContext {
     }
 
     setDimension(data) {
-        let dimension = this.sharedState.dimensions.find( d => d.name == data.name );
+        let dimension = this.sharedState.state.dimensions.find( d => d.name === data.name );
         if (dimension) {
             dimension.state = data.dimensionState;
         }
@@ -164,8 +167,6 @@ class Context extends bbContext {
                 addBoxesToBox(box, boxJson.boxes);
             }
         });
-            
-        console.log(board);
         return board;
 
     }

@@ -6,21 +6,24 @@ class Dataset {
 		if (!options) { options={} }
 		this.name = options.name || "dataset";
 		this.url = options.url;
-		this.csv = options.csv || false;
-		this.data = options.data || null;
-		this.metaDataFilter = options.metaDataFilter || false;
-		this.metaDataFilterKey = options.metaDataFilterKey || null;
-		this.metaDataFilterValue = options.metaDataFilterValue || null;
-		this.categoricalProperties = options.categoricalProperties || [];
-		this.continuousProperties = options.continuousProperties || [];
-		this.generateItemIds = options.generateItemIds || false;
-		this.setLabelstoItemIds = options.setLabelstoItemIds || false;
-		this.autoDetectProperties = options.autoDetectProperties || true;
-		this.generateLabelsFromMetaData = options.generateLabelsFromMetaData || false;
-		this.discardRowsWithUndefinedValues = options.discardRowsWithUndefinedValues || false;
-		this.itemIdRoot = options.itemIdRoot || "item";
-		this.itemIdFormat = options.itemIdFormat || "04";
-		this.availablePlots = options.availablePlots || [];
+		this.csv = options.csv ?? false;
+		this.data = options.data ?? null;
+		this.metaDataFilter = options.metaDataFilter ?? false;
+		this.metaDataFilterKey = options.metaDataFilterKey ?? null;
+		this.metaDataFilterValue = options.metaDataFilterValue ?? null;
+		this.categoricalProperties = options.categoricalProperties ?? [];
+		this.continuousProperties = options.continuousProperties ?? [];
+		this.generateItemIds = options.generateItemIds ?? false;
+		this.setLabelstoItemIds = options.setLabelstoItemIds ?? false;
+		this.autoDetectProperties = options.autoDetectProperties ?? true;
+		this.labelFields = Array.isArray(options.generateLabelsFromMetaData)
+			? options.generateLabelsFromMetaData
+			: Array.isArray(options.labelFields) ? options.labelFields : null;
+		this.generateLabelsFromMetaData = !!options.generateLabelsFromMetaData || !!this.labelFields;
+		this.discardRowsWithUndefinedValues = options.discardRowsWithUndefinedValues ?? false;
+		this.itemIdRoot = options.itemIdRoot ?? "item";
+		this.itemIdFormat = options.itemIdFormat ?? "04";
+		this.availablePlots = options.availablePlots ?? [];
 		this.header = null;
 	}
 
@@ -38,7 +41,7 @@ class Dataset {
 			if (this.setLabelstoItemIds) {
 				this.setLabelstoIds();
 			}
-			if (this.generateLabelsFromMetaData) {
+			if (this.generateLabelsFromMetaData && this.labelFields) {
 				this.generateLabelsFromData();
 			}
 			this.getUniqueValuesAndExtents();
@@ -49,6 +52,9 @@ class Dataset {
 		const discardRowsWithUndefinedValues = this.discardRowsWithUndefinedValues;
 		if (!this.csv) {
 			let response = await fetch(this.url);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch dataset: ${response.status} ${response.statusText}`);
+			}
 			let loadedMetaData = await response.json();
 			this.header = loadedMetaData.header || null;
 			if (this.header) {
@@ -102,13 +108,15 @@ class Dataset {
 	}
 
 	generateLabelsFromData() {
+		const fields = this.labelFields || [];
+		if (!fields.length) return;
 		this.data.forEach( (d, index) => {
 			let label="";
-			this.generateLabelsFromMetaData.forEach( k => {
-				label += d[k] + "; "
+			fields.forEach( k => {
+				label += `${d[k]}; `
 			});
 			label = label.slice(0,-2);
-			this.data[index] = {...d, label:label};
+			this.data[index] = {...d, label};
 		});
 	}
 
@@ -135,9 +143,7 @@ class Dataset {
 		options.categoricalUniqueValues = this.categoricalUniqueValues;
 		options.continuousExtents = this.continuousExtents;
 		options.allItemIds = this.data.map( d => d.itemId );
-		console.log(options);
 		const filter = new Filter(options);
-		console.log(filter);
 
 		return filter;
 	}
@@ -145,7 +151,5 @@ class Dataset {
 }
 
 export { Dataset };
-
-
 
 

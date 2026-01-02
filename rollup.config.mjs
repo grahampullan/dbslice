@@ -7,7 +7,7 @@ import nodePolyfills from 'rollup-plugin-polyfill-node';
 import postcss from 'rollup-plugin-postcss';
 
 export default {
-	input: 'src/Dbslice.js',
+	input: 'src/index.js',
 	output: [
 		/*{
 			file: 'build/dbslice.min.js',
@@ -33,5 +33,4 @@ export default {
 	]
 
 };
-
 

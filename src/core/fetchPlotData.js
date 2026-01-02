@@ -107,6 +107,9 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
     		let url = fetchData.urlTemplate.replace( "${itemId}", fetchData.itemIds[ index ] );
 
 			let itemPromise = fetch(url).then( function( response ) {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+                }
 
 				if ( fetchData.csv === undefined && fetchData.text === undefined && fetchData.buffer === undefined ) {
 
@@ -279,6 +282,9 @@ function fetchPlotData( fetchData, derivedData, dimensions ) {
         }
         getUrlFromDimensions.lastUrl = url;
         let itemPromise = fetch(url).then(function( response ) {
+            if (!response.ok) {
+                throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+            }
 
             if ( fetchData.csv === undefined && fetchData.text === undefined && fetchData.buffer === undefined ) {
     
