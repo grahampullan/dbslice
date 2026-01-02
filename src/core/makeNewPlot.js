@@ -1,5 +1,4 @@
 import * as d3 from 'd3';
-import { getPlotFunc } from '../plot/getPlotFunc.js';
 import { fetchPlotData } from './fetchPlotData.js';
 
 
@@ -77,9 +76,10 @@ function makeNewPlot( plotData, index ) {
     	.attr( "plot-row-index", plotRowIndex)
     	.attr( "plot-index", index);
 
-	let plotFunc = plotData.plotFunc;
-	if ( plotData.plotType !== undefined ) {
-		plotFunc = getPlotFunc(plotData.plotType); 
+	const plotFunc = plotData.plotFunc;
+	if (!plotFunc) {
+		console.warn("makeNewPlot: plotFunc missing", plotData.plotType ?? "");
+		return;
 	}
 	
 	if ( plotData.fetchData !== undefined ) {

@@ -1,4 +1,3 @@
-import { getPlotFunc } from '../plot/getPlotFunc.js';
 import { dbsliceData } from './dbsliceData.js';
 import * as d3 from 'd3';
 import { icon } from '@fortawesome/fontawesome-svg-core'
@@ -96,9 +95,10 @@ const makePlotObject = function(plot) {
     }
 
     let plotFunc = plot.plotFunc;
-	if ( plot.plotType !== undefined ) {
-		plotFunc = getPlotFunc(plot.plotType); 
-	}
+    if (!plotFunc) {
+        console.warn("makePlotObject: plotFunc missing", plot.plotType ?? "");
+        plotFunc = { make: () => {}, update: () => {} };
+    }
 
     const toAdd = Object.assign({
          makePlotWrapper, 

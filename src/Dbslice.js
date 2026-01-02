@@ -31,7 +31,7 @@ export { getFilteredTaskLabels } from './core/getFilteredTaskLabels.js';
 export { triMesh2dRender } from './plot/triMesh2dRender.js';
 export { triMesh2dRenderXBar } from './plot/triMesh2dRenderXBar.js';
 export { d3CutLine } from './plot/d3CutLine.js';
-export { getPlotFunc } from './plot/getPlotFunc.js';
+// getPlotFunc removed with legacy plot functions
 export { getDataFilterFunc } from './filters/getDataFilterFunc.js';
 export { dbsliceData } from './core/dbsliceData.js';
 export { Plot } from './plot/Plot.js';
@@ -49,6 +49,5 @@ export { MetaDataHistogram } from './plot/MetaDataHistogram.js';
 export { MetaDataBarChart } from './plot/MetaDataBarChart.js';
 export { MetaDataRankCorrBarChart } from './plot/MetaDataRankCorrBarChart.js';
 //export { createBoardFromJson } from './core/dbsliceControl.js';
-
 
 
