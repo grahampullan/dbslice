@@ -1,5 +1,4 @@
 import { getDataFilterFunc } from '../filters/getDataFilterFunc.js';
-//import { dbsliceData } from './dbsliceData.js';
 import * as d3 from 'd3';
 
 function fetchPlotData( fetchData, derivedData, dimensions ) {
