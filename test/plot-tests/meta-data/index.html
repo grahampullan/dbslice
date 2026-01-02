@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MetaData Plot Tests</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #board-root { position: relative; width: 1200px; height: 900px; margin: 16px auto; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <div id="board-root"></div>
+  <script type="module">
+    import { Context, Dataset } from "../../src/index.js";
+
+    const metaUrl = "../data/metaData.json";
+    const boardConfigUrl = "./board.json";
+
+    async function main() {
+      const meta = await fetch(metaUrl).then((r) => r.json());
+      const boardJson = await fetch(boardConfigUrl).then((r) => r.json());
+
+      const ctx = new Context();
+      const root = document.getElementById("board-root");
+
+      // Build dataset/filter
+      const dataset = new Dataset({ data: meta.data, autoDetectProperties: true });
+      dataset.applyOptions();
+      ctx.addDataset(dataset);
+      const filter = dataset.createFilter();
+      ctx.addFilter(filter); // id becomes "filter-0"
+
+      // Create board from JSON and attach to DOM
+      const board = ctx.addBoardFromJson(boardJson);
+      board.id = "board-root";
+      board.make();
+    }
+
+    main().catch((err) => console.error(err));
+  </script>
+</body>
+</html>

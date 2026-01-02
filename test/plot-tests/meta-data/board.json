@@ -1,0 +1,49 @@
+{
+  "position": { "x": 0, "y": 0, "width": 1200, "height": 900, "margin": 0 },
+  "boxes": [
+    {
+      "position": { "x": 0, "y": 0, "width": 400, "height": 300, "margin": 0, "autoLayout": false },
+      "options": {},
+      "component": {
+        "type": "MetaDataHistogram",
+        "layout": { "title": "Average f", "highlightItems": true },
+        "data": { "filterId": "filter-0", "property": "Average f" },
+        "fetchData": null
+      },
+      "boxes": []
+    },
+    {
+      "position": { "x": 420, "y": 0, "width": 400, "height": 300, "margin": 0, "autoLayout": false },
+      "options": {},
+      "component": {
+        "type": "MetaDataBarChart",
+        "layout": { "title": "Model type", "highlightItems": true },
+        "data": { "filterId": "filter-0", "property": "Model type" },
+        "fetchData": null
+      },
+      "boxes": []
+    },
+    {
+      "position": { "x": 0, "y": 320, "width": 600, "height": 400, "margin": 0, "autoLayout": false },
+      "options": {},
+      "component": {
+        "type": "MetaDataScatter",
+        "layout": { "title": "Average vs Std", "highlightItems": true },
+        "data": { "filterId": "filter-0", "xProperty": "Average f", "yProperty": "Std dev f", "cProperty": "Simulation type" },
+        "fetchData": null
+      },
+      "boxes": []
+    },
+    {
+      "position": { "x": 620, "y": 320, "width": 400, "height": 300, "margin": 0, "autoLayout": false },
+      "options": {},
+      "component": {
+        "type": "MetaDataRankCorrBarChart",
+        "layout": { "title": "Rank Corr (Average f)" },
+        "data": { "filterId": "filter-0", "outputProperty": "Average f", "inputProperties": ["Std dev f"] },
+        "fetchData": null
+      },
+      "boxes": []
+    }
+  ]
+}

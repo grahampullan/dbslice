@@ -1,6 +1,5 @@
 import * as d3 from 'd3v7';
 import { Filter } from './Filter.js';
-import { opt } from 'nd4js';
 
 class Dataset {
 	constructor( options ) {
@@ -22,6 +21,7 @@ class Dataset {
 		this.itemIdRoot = options.itemIdRoot || "item";
 		this.itemIdFormat = options.itemIdFormat || "04";
 		this.availablePlots = options.availablePlots || [];
+		this.header = null;
 	}
 
 	applyOptions() {
@@ -29,7 +29,7 @@ class Dataset {
 			if (this.metaDataFilter) {
 				this.filterRaw();
 			}
-			if (this.autoDetectProperties) {
+			if (this.autoDetectProperties && this.categoricalProperties.length === 0 && this.continuousProperties.length === 0) {
 				this.autoDetect();
 			}
 			if (this.generateItemIds) {
@@ -50,7 +50,14 @@ class Dataset {
 		if (!this.csv) {
 			let response = await fetch(this.url);
 			let loadedMetaData = await response.json();
-			this.data = loadedMetaData;
+			this.header = loadedMetaData.header || null;
+			if (this.header) {
+				const cats = this.header.categoricalProperties || this.header.metaDataProperties;
+				const conts = this.header.continuousProperties || this.header.dataProperties;
+				if (cats?.length) this.categoricalProperties = [...cats];
+				if (conts?.length) this.continuousProperties = [...conts];
+			}
+			this.data = loadedMetaData.data || loadedMetaData;
 		} else {
 			let loadedMetaData = await d3.csv( this.url, csvRowFunction );
 			this.data = loadedMetaData;
@@ -138,7 +145,6 @@ class Dataset {
 }
 
 export { Dataset };
-
 
 
 
