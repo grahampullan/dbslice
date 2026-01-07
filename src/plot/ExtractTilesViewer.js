@@ -23,6 +23,8 @@ class ExtractTilesViewer extends Plot {
         this.cameraLight = null;
         this.cameraDimConfig = this.layout.setCameraFromDimensions || null;
         this.cameraDimSubs = [];
+        this.firstCenter = true;
+        this.initialTarget = null;
     }
 
     make() {
@@ -112,7 +114,9 @@ class ExtractTilesViewer extends Plot {
             const version = ++this.manifestVersion;
             const manifestUrl = this.fetchData?.url || this.fetchData?.getUrlFromDimensions?.lastUrl || null;
             await this.tileManager.loadManifest(manifest, version, manifestUrl);
-            this.recenterCamera(manifest);
+            if (this.firstCenter) {
+                this.recenterCamera(manifest);
+            }
             this.tileManager.tick();
             this.webGLUpdate();
             this.newData = false;
@@ -403,7 +407,8 @@ class ExtractTilesViewer extends Plot {
             }
         };
         const pos = this.camera.position.clone();
-        const tgt = this.controls ? this.controls.target.clone() : null;
+        const tgt = this.controls ? this.controls.target.clone()
+            : (this.initialTarget ? this.initialTarget.clone() : null);
         applyBlock(cfg.position, pos);
         applyBlock(cfg.target, tgt || pos);
         if (!cfg.target && cfg.position?.thetaX && tgt) {
@@ -430,17 +435,29 @@ class ExtractTilesViewer extends Plot {
             if (Number.isFinite(uz)) this.camera.up.z = uz;
         }
         if (!cfg.up && tgt) {
-            const view = tgt.clone().sub(pos);
-            if (cfg.position?.thetaX) {
-                const upVec = new THREE.Vector3(1, 0, 0).cross(view).normalize();
-                if (upVec.lengthSq() > 1e-12) {
-                    this.camera.up.copy(upVec);
+            const thetaXVal = cfg.position?.thetaX ? getVal(cfg.position.thetaX) : undefined;
+            const thetaZVal = cfg.position?.thetaZ ? getVal(cfg.position.thetaZ) : undefined;
+            const viewDir = tgt.clone().sub(pos).normalize();
+            if (Number.isFinite(thetaXVal)) {
+                const axis = new THREE.Vector3(1, 0, 0);
+                const up = axis.clone().cross(viewDir);
+                if (up.lengthSq() > 1e-9) {
+                    up.normalize();
+                    this.camera.up.copy(up);
+                } else {
+                    this.camera.up.set(0, 1, 0);
                 }
-            } else if (cfg.position?.thetaZ) {
-                const upVec = new THREE.Vector3(0, 0, 1).cross(view).normalize();
-                if (upVec.lengthSq() > 1e-12) {
-                    this.camera.up.copy(upVec);
+            } else if (Number.isFinite(thetaZVal)) {
+                const axis = new THREE.Vector3(0, 0, 1);
+                const up = axis.clone().cross(viewDir);
+                if (up.lengthSq() > 1e-9) {
+                    up.normalize();
+                    this.camera.up.copy(up);
+                } else {
+                    this.camera.up.set(0, 1, 0);
                 }
+            } else {
+                this.camera.up.set(0, 1, 0);
             }
         }
         this.camera.position.copy(pos);
@@ -471,7 +488,6 @@ class ExtractTilesViewer extends Plot {
     recenterCamera(manifest) {
         if (!this.camera || !manifest || !Array.isArray(manifest.tiles) || !manifest.tiles.length) return;
         if (this.cameraSync && this.sharedCameraState?.position) return;
-        if (this.cameraDimConfig) return;
         const roots = manifest.tiles.filter(t => t.parent == null && t.aabbWorld);
         const candidates = roots.length ? roots : manifest.tiles;
         const bbox = new THREE.Box3();
@@ -488,12 +504,19 @@ class ExtractTilesViewer extends Plot {
         const radius = Math.max(size.length() * 0.5, 0.5);
         const distance = Math.max(radius * 2.5, 1.0);
         const direction = new THREE.Vector3(0, 0, 1);
+        if (!this.initialTarget) {
+            this.initialTarget = center.clone();
+        }
+        if (!this.firstCenter) {
+            return;
+        }
         this.camera.position.copy(center.clone().add(direction.multiplyScalar(distance)));
         this.camera.lookAt(center);
         if (this.controls) {
             this.controls.target.copy(center);
             this.controls.update();
         }
+        this.firstCenter = false;
     }
 
     remove() {
