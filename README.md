@@ -10,6 +10,12 @@
 
 **dbslice** is built on the [d3.js](https://d3js.org) , [crossfilter.js](https://github.com/crossfilter/crossfilter) and [three.js](https://threejs.org) libraries.
 
+## dbsliceAI
+
+[dbsliceAI](https://ai.dbslice.org/) extends dbslice with a curated set of Model Context Protocol tools for querying, analysing, plotting and rendering engineering simulation databases through compatible AI assistants.
+
+The open-source [dbsliceAI connector](https://github.com/dbslice/dbslice-ai-connector) can make a selected local dataset available to an authorised hosted dbsliceAI service.
+
 ## Demonstrations
 
 There are several live [demonstrations](https://www.dbslice.org/demos) at the dbslice web site.
@@ -630,4 +636,3 @@ Optional `layout` parameters:
 |---|---|
 | highlightTasks | set `true` to highlight the plot of the current selected `task` |
 | cameraSync | set `true` to synchronise the view of all the surface plots in the current `plotRow` container |
-
